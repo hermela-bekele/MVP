@@ -11,7 +11,9 @@ interface DialogProps {
   title: string;
   description?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+  /** Portal-style large bold title */
+  largeTitle?: boolean;
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -21,6 +23,7 @@ export const Dialog: React.FC<DialogProps> = ({
   description,
   children,
   size = 'md',
+  largeTitle = false,
 }) => {
   const [mounted, setMounted] = useState(false);
 
@@ -35,7 +38,8 @@ export const Dialog: React.FC<DialogProps> = ({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-2xl',
-    full: 'max-w-4xl w-full max-h-[90vh]',
+    '2xl': 'max-w-4xl',
+    full: 'max-w-5xl w-full max-h-[90vh]',
   };
 
   if (!mounted) return null;
@@ -68,7 +72,14 @@ export const Dialog: React.FC<DialogProps> = ({
             >
               <div className="flex items-start justify-between p-5 border-b border-border/40 shrink-0">
                 <div className="flex flex-col space-y-1 pr-4">
-                  <h2 id="dialog-title" className="text-base font-semibold tracking-tight">
+                  <h2
+                    id="dialog-title"
+                    className={
+                      largeTitle
+                        ? 'text-xl font-bold tracking-tight text-ais-on-surface'
+                        : 'text-base font-semibold tracking-tight'
+                    }
+                  >
                     {title}
                   </h2>
                   {description && (

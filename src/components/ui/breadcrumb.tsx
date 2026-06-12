@@ -16,19 +16,33 @@ export interface BreadcrumbProps {
   maxItems?: number;
   separator?: React.ReactNode;
   className?: string;
+  variant?: 'default' | 'ais';
 }
 
 /* ───────────── Chevron ───────────── */
 
-const ChevronRight: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <svg className={`h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/50 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const ChevronRight: React.FC<{ className?: string; variant?: 'default' | 'ais' }> = ({
+  className = '',
+  variant = 'default',
+}) => (
+  <svg
+    className={`h-3.5 w-3.5 flex-shrink-0 ${
+      variant === 'ais' ? 'text-ais-outline' : 'text-muted-foreground/50'
+    } ${className}`}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
   </svg>
 );
 
 /* ───────────── Collapsed‑Items Dropdown ───────────── */
 
-const CollapsedItems: React.FC<{ items: BreadcrumbItem[] }> = ({ items }) => {
+const CollapsedItems: React.FC<{
+  items: BreadcrumbItem[];
+  variant?: 'default' | 'ais';
+}> = ({ items, variant = 'default' }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -46,13 +60,23 @@ const CollapsedItems: React.FC<{ items: BreadcrumbItem[] }> = ({ items }) => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center rounded px-1.5 py-0.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+        className={`flex items-center rounded px-1.5 py-0.5 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 cursor-pointer ${
+          variant === 'ais'
+            ? 'text-ais-on-surface-variant hover:bg-white/70 hover:text-ais-primary focus-visible:ring-ais-primary/30'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring'
+        }`}
         aria-label="Show hidden breadcrumbs"
       >
         ···
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border border-border bg-popover text-popover-foreground shadow-lg animate-fade-in py-1">
+        <div
+          className={`absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-lg border shadow-lg animate-fade-in py-1 ${
+            variant === 'ais'
+              ? 'border-ais-card-border bg-white text-ais-on-surface'
+              : 'border-border bg-popover text-popover-foreground'
+          }`}
+        >
           {items.map((item, i) => (
             <BreadcrumbLink key={i} item={item} extraClass="block w-full px-3 py-1.5 text-sm text-left hover:bg-muted" onClick={() => setOpen(false)} />
           ))}
@@ -69,12 +93,22 @@ const BreadcrumbLink: React.FC<{
   isCurrent?: boolean;
   extraClass?: string;
   onClick?: () => void;
-}> = ({ item, isCurrent = false, extraClass = '', onClick }) => {
-  const baseClass = `inline-flex items-center gap-1.5 rounded transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${extraClass}`;
+  variant?: 'default' | 'ais';
+}> = ({ item, isCurrent = false, extraClass = '', onClick, variant = 'default' }) => {
+  const baseClass = `inline-flex items-center gap-1.5 rounded transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 ${
+    variant === 'ais' ? 'focus-visible:ring-ais-primary/30' : 'focus-visible:ring-ring'
+  } ${extraClass}`;
 
   if (isCurrent) {
     return (
-      <span aria-current="page" className={`${baseClass} text-sm font-semibold text-foreground select-none`}>
+      <span
+        aria-current="page"
+        className={`${baseClass} text-sm select-none ${
+          variant === 'ais'
+            ? 'font-bold text-ais-primary'
+            : 'font-semibold text-foreground'
+        }`}
+      >
         {item.icon && <span className="flex-shrink-0 opacity-70">{item.icon}</span>}
         {item.label}
       </span>
@@ -94,7 +128,11 @@ const BreadcrumbLink: React.FC<{
       <a
         href={item.href}
         onClick={handleClick}
-        className={`${baseClass} text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 px-1.5 py-0.5`}
+        className={`${baseClass} text-sm px-1.5 py-0.5 ${
+          variant === 'ais'
+            ? 'text-ais-on-surface-variant hover:text-ais-primary hover:bg-white/70'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+        }`}
       >
         {item.icon && <span className="flex-shrink-0 opacity-70">{item.icon}</span>}
         {item.label}
@@ -106,7 +144,11 @@ const BreadcrumbLink: React.FC<{
     <button
       type="button"
       onClick={handleClick}
-      className={`${baseClass} text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 px-1.5 py-0.5 cursor-pointer`}
+      className={`${baseClass} text-sm px-1.5 py-0.5 cursor-pointer ${
+        variant === 'ais'
+          ? 'text-ais-on-surface-variant hover:text-ais-primary hover:bg-white/70'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+      }`}
     >
       {item.icon && <span className="flex-shrink-0 opacity-70">{item.icon}</span>}
       {item.label}
@@ -121,8 +163,9 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   maxItems = 4,
   separator,
   className = '',
+  variant = 'default',
 }) => {
-  const sep = separator ?? <ChevronRight />;
+  const sep = separator ?? <ChevronRight variant={variant} />;
 
   const shouldCollapse = items.length > maxItems;
   let visibleItems: (BreadcrumbItem | 'collapsed')[];
@@ -146,9 +189,9 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
           return (
             <li key={i} className="flex items-center gap-1">
               {entry === 'collapsed' ? (
-                <CollapsedItems items={collapsedItems} />
+                <CollapsedItems items={collapsedItems} variant={variant} />
               ) : (
-                <BreadcrumbLink item={entry} isCurrent={isLast} />
+                <BreadcrumbLink item={entry} isCurrent={isLast} variant={variant} />
               )}
               {!isLast && <span className="flex items-center" aria-hidden="true">{sep}</span>}
             </li>

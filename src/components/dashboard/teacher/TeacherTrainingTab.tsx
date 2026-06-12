@@ -1,12 +1,21 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { GraduationCap } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { Card, CardContent } from '@/components/ui/card';
-import { MetricProgressRow } from '@/components/ui/metric-progress-row';
-import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { getDemoTeacher, TRAINING_TYPE_FILTERS } from '@/lib/teacherPortal';
+import { AisPage, AisStatusBadge, approvalBadgeVariant } from '@/components/dashboard/teacher/TeacherPortalUi';
+import {
+  aisBodyMd,
+  aisBodySm,
+  aisCard,
+  aisDataMd,
+  aisHeadlineSm,
+  aisLabelCaps,
+  aisListRow,
+} from '@/components/dashboard/teacher/aisStyles';
+import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 
 export const TeacherTrainingTab: React.FC = () => {
   const { trainings, trainingMaterials, teachers } = useApp();
@@ -19,21 +28,23 @@ export const TeacherTrainingTab: React.FC = () => {
   }, [trainingMaterials, typeFilter]);
 
   return (
-    <div className="space-y-6 text-left">
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-4">
-          <MetricProgressRow
-            label="Your MOE training progress"
-            value={teacher.trainingProgress}
-            valueDisplay={`${teacher.trainingProgress}% complete`}
-            barClassName="bg-primary"
-          />
-          <p className="text-xxs text-muted-foreground mt-2">Certification: {teacher.certification}</p>
-        </CardContent>
-      </Card>
+    <AisPage>
+      <div className={`${aisCard} border-ais-primary/20 bg-ais-primary/5 p-4`}>
+        <MetricProgressRow
+          label="Your MOE training progress"
+          value={teacher.trainingProgress}
+          valueDisplay={`${teacher.trainingProgress}% complete`}
+          barClassName="bg-ais-primary"
+        />
+        <p className={`${aisBodySm} mt-2 flex items-center gap-1.5`}>
+          <GraduationCap className="h-3.5 w-3.5 text-ais-primary" aria-hidden />
+          Certification: {teacher.certification}
+        </p>
+      </div>
 
       <div className="max-w-xs">
         <Select
+          variant="ais"
           label="Filter by training type"
           options={TRAINING_TYPE_FILTERS.map((t) => ({ value: t, label: t }))}
           value={typeFilter}
@@ -41,44 +52,40 @@ export const TeacherTrainingTab: React.FC = () => {
         />
       </div>
 
-      <div className="space-y-3">
-        <p className="text-xs font-bold text-foreground uppercase tracking-wide">Training materials</p>
+      <section className="space-y-3">
+        <p className={aisLabelCaps}>Training materials</p>
         {filteredMaterials.map((m) => (
-          <div key={m.id} className="p-4 rounded-xl border border-border/40 bg-muted/30 flex justify-between gap-4">
+          <div key={m.id} className={`${aisListRow} flex justify-between gap-4`}>
             <div>
-              <p className="text-xs font-bold text-foreground">{m.title}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className={`${aisDataMd} font-bold`}>{m.title}</p>
+              <p className={`${aisBodySm} mt-1`}>
                 {m.trainingType ?? m.category} · Uploaded {m.uploadedAt}
               </p>
             </div>
-            <Badge variant="neutral" size="sm">
-              {m.category}
-            </Badge>
+            <AisStatusBadge variant="neutral">{m.category}</AisStatusBadge>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="space-y-3">
-        <p className="text-xs font-bold text-foreground uppercase tracking-wide">MOE course catalog</p>
+      <section className="space-y-3">
+        <p className={aisLabelCaps}>MOE course catalog</p>
         {trainings.map((tr) => (
-          <div key={tr.id} className="p-4 rounded-xl border border-border/40 bg-card flex justify-between">
+          <div key={tr.id} className={`${aisCard} flex justify-between gap-4 p-4`}>
             <div className="space-y-1">
-              <p className="text-xs font-bold text-foreground">{tr.title}</p>
-              <p className="text-xxs text-muted-foreground">
+              <p className={`${aisDataMd} font-bold`}>{tr.title}</p>
+              <p className={aisBodySm}>
                 {tr.instructor} · {tr.duration} · Starts {tr.startDate}
               </p>
             </div>
             <div className="text-right">
-              <Badge variant={tr.status === 'Active' ? 'success' : 'warning'} size="sm">
-                {tr.status}
-              </Badge>
-              <p className="text-xxs font-mono mt-2">
+              <AisStatusBadge variant={approvalBadgeVariant(tr.status)}>{tr.status}</AisStatusBadge>
+              <p className={`${aisBodySm} mt-2 font-mono tabular-nums`}>
                 {tr.completedCount}/{tr.totalCount} teachers
               </p>
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </section>
+    </AisPage>
   );
 };

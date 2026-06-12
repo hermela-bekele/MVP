@@ -126,6 +126,8 @@ interface AppContextType {
   ) => void;
   addNotification: (title: string, description: string, type: AppNotification['type']) => void;
   markNotificationAsRead: (id: string) => void;
+  markNotificationAsUnread: (id: string) => void;
+  dismissNotification: (id: string) => void;
   clearNotifications: () => void;
 }
 
@@ -743,6 +745,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const markNotificationAsUnread = (id: string) => {
+    setNotifications(
+      notifications.map((not) => (not.id === id ? { ...not, read: false } : not))
+    );
+  };
+
+  const dismissNotification = (id: string) => {
+    setNotifications(notifications.filter((not) => not.id !== id));
+  };
+
   const clearNotifications = () => {
     setNotifications([]);
   };
@@ -809,6 +821,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addStudentFeedback,
         addNotification,
         markNotificationAsRead,
+        markNotificationAsUnread,
+        dismissNotification,
         clearNotifications,
       }}
     >
