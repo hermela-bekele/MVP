@@ -1,26 +1,25 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { Select } from '@/components/ui/select';
-import { getDemoTeacher, TRAINING_TYPE_FILTERS } from '@/lib/teacherPortal';
+import { getDemoTeacher } from '@/lib/teacherPortal';
 import { AisPage, AisStatusBadge, approvalBadgeVariant } from '@/components/dashboard/teacher/TeacherPortalUi';
 import {
-  aisBodyMd,
   aisBodySm,
   aisCard,
   aisDataMd,
-  aisHeadlineSm,
+  aisDisplayMd,
   aisLabelCaps,
-  aisListRow,
 } from '@/components/dashboard/teacher/aisStyles';
-import { MetricProgressRow } from '@/components/ui/metric-progress-row';
+import { CircularProgress } from '@/components/ui/progress';
 
-export const TeacherTrainingTab: React.FC = () => {
+const autoCardGrid =
+  'grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))]';
+
+export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = ({ typeFilter }) => {
   const { trainings, trainingMaterials, teachers } = useApp();
   const teacher = getDemoTeacher(teachers);
-  const [typeFilter, setTypeFilter] = useState<string>('All');
 
   const filteredMaterials = useMemo(() => {
     if (typeFilter === 'All') return trainingMaterials;
@@ -29,62 +28,91 @@ export const TeacherTrainingTab: React.FC = () => {
 
   return (
     <AisPage>
-      <div className={`${aisCard} border-ais-primary/20 bg-ais-primary/5 p-4`}>
-        <MetricProgressRow
-          label="Your MOE training progress"
-          value={teacher.trainingProgress}
-          valueDisplay={`${teacher.trainingProgress}% complete`}
-          barClassName="bg-ais-primary"
-        />
-        <p className={`${aisBodySm} mt-2 flex items-center gap-1.5`}>
-          <GraduationCap className="h-3.5 w-3.5 text-ais-primary" aria-hidden />
-          Certification: {teacher.certification}
-        </p>
-      </div>
+      <div className={`${aisCard} flex w-full items-center justify-between gap-6 p-4`}>
+        <div className="min-w-0 space-y-1.5">
+          <h2 className={aisDisplayMd}>MOE training progress</h2>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-ais-on-surface">
+            <GraduationCap className="h-4 w-4 shrink-0 text-ais-primary" aria-hidden />
+            <span className="truncate">{teacher.certification}</span>
+          </p>
+        </div>
 
-      <div className="max-w-xs">
-        <Select
-          variant="ais"
-          label="Filter by training type"
-          options={TRAINING_TYPE_FILTERS.map((t) => ({ value: t, label: t }))}
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
+        <CircularProgress
+          value={teacher.trainingProgress}
+          size={72}
+          strokeWidth={7}
+          strokeClassName="stroke-ais-primary"
+          trackClassName="stroke-ais-primary/15"
+          valueClassName="text-sm font-bold tabular-nums text-ais-primary"
+          label="Your MOE training progress"
         />
       </div>
 
       <section className="space-y-3">
         <p className={aisLabelCaps}>Training materials</p>
-        {filteredMaterials.map((m) => (
-          <div key={m.id} className={`${aisListRow} flex justify-between gap-4`}>
-            <div>
-              <p className={`${aisDataMd} font-bold`}>{m.title}</p>
-              <p className={`${aisBodySm} mt-1`}>
-                {m.trainingType ?? m.category} · Uploaded {m.uploadedAt}
-              </p>
+        <div className={autoCardGrid}>
+          {filteredMaterials.map((m) => (
+            <div key={m.id} className={`${aisCard} flex flex-col gap-3 p-4`}>
+              <div className="min-w-0 flex-1">
+                <p className={`${aisDataMd} line-clamp-2 font-bold leading-snug`}>{m.title}</p>
+                <p className={`${aisBodySm} mt-1.5`}>{m.trainingType ?? m.category}</p>
+                <p className={`${aisBodySm} mt-0.5 text-ais-on-surface-variant/80`}>
+                  Uploaded {m.uploadedAt}
+                </p>
+              </div>
+              <AisStatusBadge variant="neutral" className="self-start">
+                {m.category}
+              </AisStatusBadge>
             </div>
-            <AisStatusBadge variant="neutral">{m.category}</AisStatusBadge>
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
 
       <section className="space-y-3">
         <p className={aisLabelCaps}>MOE course catalog</p>
-        {trainings.map((tr) => (
-          <div key={tr.id} className={`${aisCard} flex justify-between gap-4 p-4`}>
-            <div className="space-y-1">
-              <p className={`${aisDataMd} font-bold`}>{tr.title}</p>
-              <p className={aisBodySm}>
-                {tr.instructor} · {tr.duration} · Starts {tr.startDate}
-              </p>
-            </div>
-            <div className="text-right">
-              <AisStatusBadge variant={approvalBadgeVariant(tr.status)}>{tr.status}</AisStatusBadge>
-              <p className={`${aisBodySm} mt-2 font-mono tabular-nums`}>
-                {tr.completedCount}/{tr.totalCount} teachers
-              </p>
-            </div>
-          </div>
-        ))}
+        <div className={autoCardGrid}>
+          {trainings.map((tr) => {
+            const enrollmentPct =
+              tr.totalCount > 0 ? Math.round((tr.completedCount / tr.totalCount) * 100) : 0;
+
+            return (
+              <div key={tr.id} className={`${aisCard} flex flex-col gap-3 p-4`}>
+                <AisStatusBadge variant={approvalBadgeVariant(tr.status)} className="self-start">
+                  {tr.status}
+                </AisStatusBadge>
+                <div className="min-w-0 flex-1">
+                  <p className={`${aisDataMd} line-clamp-2 font-bold leading-snug`}>{tr.title}</p>
+                  <p className={`${aisBodySm} mt-1.5 truncate`}>{tr.instructor}</p>
+                  <p className={`${aisBodySm} mt-0.5 text-ais-on-surface-variant/80`}>
+                    {tr.duration} · Starts {tr.startDate}
+                  </p>
+                </div>
+                <div className="mt-auto space-y-1.5 border-t border-ais-card-border pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={aisBodySm}>Enrollment</span>
+                    <span className="text-xs font-bold tabular-nums text-ais-primary">{enrollmentPct}%</span>
+                  </div>
+                  <div
+                    className="h-1.5 overflow-hidden rounded-full bg-ais-primary/10"
+                    role="progressbar"
+                    aria-valuenow={tr.completedCount}
+                    aria-valuemin={0}
+                    aria-valuemax={tr.totalCount}
+                    aria-label={`${tr.completedCount} of ${tr.totalCount} teachers enrolled`}
+                  >
+                    <div
+                      className="h-full rounded-full bg-ais-primary transition-all duration-500"
+                      style={{ width: `${enrollmentPct}%` }}
+                    />
+                  </div>
+                  <p className={`${aisBodySm} text-ais-on-surface-variant/80`}>
+                    {tr.completedCount.toLocaleString()} of {tr.totalCount.toLocaleString()} teachers
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
     </AisPage>
   );

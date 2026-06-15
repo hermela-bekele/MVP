@@ -76,6 +76,9 @@ interface CircularProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   color?: ProgressColor;
   showValue?: boolean;
   label?: string;
+  strokeClassName?: string;
+  trackClassName?: string;
+  valueClassName?: string;
   className?: string;
 }
 
@@ -95,6 +98,9 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   color = 'primary',
   showValue = true,
   label,
+  strokeClassName,
+  trackClassName,
+  valueClassName,
   className = '',
   ...props
 }) => {
@@ -126,7 +132,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           cy={size / 2}
           r={radius}
           fill="none"
-          className="stroke-muted"
+          className={trackClassName ?? 'stroke-muted'}
           strokeWidth={strokeWidth}
         />
         {/* Fill */}
@@ -135,7 +141,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           cy={size / 2}
           r={radius}
           fill="none"
-          className={circularStrokeColors[color]}
+          className={strokeClassName ?? circularStrokeColors[color]}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -146,7 +152,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
 
       {showValue && (
         <span
-          className="absolute text-foreground font-semibold select-none"
+          className={`absolute font-semibold select-none ${valueClassName ?? 'text-foreground'}`}
           style={{ fontSize: size * 0.24 }}
         >
           {percent}%

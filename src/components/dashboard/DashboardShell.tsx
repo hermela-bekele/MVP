@@ -16,6 +16,7 @@ export interface DashboardShellProps {
   eyebrow?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
+  subtitleActions?: React.ReactNode;
   children: React.ReactNode;
   /** Animate content when tab changes */
   animateTabs?: boolean;
@@ -33,6 +34,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
   eyebrow,
   breadcrumbs,
   actions,
+  subtitleActions,
   children,
   animateTabs = true,
   showPageHeader = true,
@@ -55,6 +57,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
           subtitle={subtitle}
           eyebrow={eyebrow}
           actions={actions}
+          subtitleActions={subtitleActions}
           variant={headerVariant}
         />
       )}

@@ -21,6 +21,7 @@ import { TeacherCheckinsTab } from "@/components/dashboard/teacher/TeacherChecki
 import { TeacherClassesTab } from "@/components/dashboard/teacher/TeacherClassesTab";
 import { TeacherAttendanceTab } from "@/components/dashboard/teacher/TeacherAttendanceTab";
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
+import { TrainingTypeFilter } from "@/components/dashboard/teacher/TrainingTypeFilter";
 import { TeacherFeedbackTab } from "@/components/dashboard/teacher/TeacherFeedbackTab";
 import { TeacherSettingsTab } from "@/components/dashboard/teacher/TeacherSettingsTab";
 
@@ -78,6 +79,7 @@ export default function TeacherPortalPage() {
   const { teachers } = useApp();
   const teacher = getDemoTeacher(teachers);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [trainingTypeFilter, setTrainingTypeFilter] = useState("All");
 
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
@@ -159,6 +161,11 @@ export default function TeacherPortalPage() {
       subtitle={meta.subtitle}
       eyebrow="Bole Secondary · Teacher Portal"
       actions={shellActions}
+      subtitleActions={
+        activeTab === "training" ? (
+          <TrainingTypeFilter value={trainingTypeFilter} onChange={setTrainingTypeFilter} />
+        ) : undefined
+      }
       headerVariant="portal"
     >
       {activeTab === "dashboard" && <TeacherDashboard />}
@@ -169,7 +176,9 @@ export default function TeacherPortalPage() {
       {activeTab === "checkins" && <TeacherCheckinsTab />}
       {activeTab === "manage-classes" && <TeacherClassesTab />}
       {activeTab === "attendance" && <TeacherAttendanceTab />}
-      {activeTab === "training" && <TeacherTrainingTab />}
+      {activeTab === "training" && (
+        <TeacherTrainingTab typeFilter={trainingTypeFilter} />
+      )}
       {activeTab === "feedback" && <TeacherFeedbackTab />}
       {activeTab === "settings" && <TeacherSettingsTab />}
     </DashboardShell>

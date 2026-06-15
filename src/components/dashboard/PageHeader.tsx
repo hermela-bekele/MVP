@@ -7,6 +7,7 @@ export interface PageHeaderProps {
   subtitle?: string;
   eyebrow?: string;
   actions?: React.ReactNode;
+  subtitleActions?: React.ReactNode;
   /** Educator portal — large hero header without bottom rule */
   variant?: 'default' | 'portal';
 }
@@ -16,6 +17,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   subtitle,
   eyebrow,
   actions,
+  subtitleActions,
   variant = 'default',
 }) => {
   if (variant === 'portal') {
@@ -35,9 +37,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           )}
         </div>
         {subtitle && (
-          <p className="max-w-2xl text-base leading-6 text-ais-on-surface-variant">
-            {subtitle}
-          </p>
+          <div className="flex w-full items-center justify-between gap-4">
+            <p className="max-w-2xl text-base leading-6 text-ais-on-surface-variant">{subtitle}</p>
+            {subtitleActions && (
+              <div className="flex shrink-0 items-center">{subtitleActions}</div>
+            )}
+          </div>
         )}
       </div>
     );
