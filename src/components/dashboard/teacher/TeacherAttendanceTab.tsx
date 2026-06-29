@@ -2,10 +2,27 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { TablePanel } from '@/components/dashboard/TablePanel';
-import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import { filterTeacherStudents, GRADE_OPTIONS, SECTION_OPTIONS, TEACHER_CLASS_ASSIGNMENTS } from '@/lib/teacherPortal';
+import {
+  filterTeacherStudents,
+  GRADE_OPTIONS,
+  SECTION_OPTIONS,
+  TEACHER_CLASS_ASSIGNMENTS,
+} from '@/lib/teacherPortal';
+import {
+  AisBtnPrimary,
+  AisPage,
+  AisPanel,
+  AisTable,
+  AisTd,
+  AisTh,
+  AisTr,
+  aisInput,
+  aisSegmentBtn,
+  aisSegmentBtnActive,
+  aisSegmentBtnInactive,
+} from '@/components/dashboard/teacher/TeacherPortalUi';
+import { aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherAttendanceTab: React.FC = () => {
   const { students, saveAttendance } = useApp();
@@ -28,70 +45,63 @@ export const TeacherAttendanceTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 text-left">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
-        <Select label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
-        <Select label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={section} onChange={(e) => setSection(e.target.value)} />
-        <Select
-          label="Teaching session"
-          options={TEACHER_CLASS_ASSIGNMENTS.map((a) => ({ value: a.period, label: `${a.period} (${a.grade} ${a.section})` }))}
-          value={sessionLabel}
-          onChange={(e) => setSessionLabel(e.target.value)}
-        />
+    <AisPage>
+      <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
+        <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
+        <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={section} onChange={(e) => setSection(e.target.value)} />
+        <Select variant="ais" label="Teaching session" options={TEACHER_CLASS_ASSIGNMENTS.map((a) => ({ value: a.period, label: `${a.period} (${a.grade} ${a.section})` }))} value={sessionLabel} onChange={(e) => setSessionLabel(e.target.value)} />
       </div>
 
-      <TablePanel title="Session roll call" description="Record attendance during your active teaching period">
-        <table className="eskooly-table">
+      <AisPanel title="Session roll call" description="Record attendance during your active teaching period" flush>
+        <AisTable>
           <thead>
-            <tr>
-              <th>Student</th>
-              <th>ID</th>
-              <th>Status</th>
-              <th>Remarks</th>
+            <tr className="bg-ais-surface-container-low">
+              <AisTh>Student</AisTh>
+              <AisTh>ID</AisTh>
+              <AisTh>Status</AisTh>
+              <AisTh>Remarks</AisTh>
             </tr>
           </thead>
           <tbody>
             {roster.map((std) => (
-              <tr key={std.id} className="hover:bg-muted/20">
-                <td className="p-3 font-semibold text-foreground">{std.name}</td>
-                <td className="p-3 font-mono text-xxs">{std.studentId}</td>
-                <td className="p-3">
+              <AisTr key={std.id}>
+                <AisTd className="font-semibold">{std.name}</AisTd>
+                <AisTd className={`font-mono ${aisBodySm}`}>{std.studentId}</AisTd>
+                <AisTd>
                   <div className="flex gap-1">
                     {(['Present', 'Absent', 'Late'] as const).map((st) => (
                       <button
                         key={st}
                         type="button"
                         onClick={() => setAttendanceStatuses({ ...attendanceStatuses, [std.id]: st })}
-                        className={`px-2 py-1 rounded text-[10px] font-bold border cursor-pointer ${
+                        className={`${aisSegmentBtn} ${
                           (attendanceStatuses[std.id] || 'Present') === st
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-card border-border text-muted-foreground'
+                            ? aisSegmentBtnActive
+                            : aisSegmentBtnInactive
                         }`}
                       >
                         {st}
                       </button>
                     ))}
                   </div>
-                </td>
-                <td className="p-3">
+                </AisTd>
+                <AisTd>
                   <input
-                    className="w-full h-9 px-2 border border-border rounded-md text-xs"
+                    className={`${aisInput} !h-9 text-xs`}
                     placeholder="Optional note"
                     value={attendanceRemarks[std.id] || ''}
                     onChange={(e) => setAttendanceRemarks({ ...attendanceRemarks, [std.id]: e.target.value })}
                   />
-                </td>
-              </tr>
+                </AisTd>
+              </AisTr>
             ))}
           </tbody>
-        </table>
-      </TablePanel>
+        </AisTable>
+      </AisPanel>
 
       <div className="flex justify-end">
-        <Button variant="organic" className="text-xs h-10 border-none" onClick={handleSave}>
-          Save session attendance
-        </Button>
+        <AisBtnPrimary onClick={handleSave}>Save session attendance</AisBtnPrimary>
       </div>
-    </div>
+    </AisPage>
   );
 };

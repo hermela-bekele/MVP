@@ -7,6 +7,9 @@ export interface PageHeaderProps {
   subtitle?: string;
   eyebrow?: string;
   actions?: React.ReactNode;
+  subtitleActions?: React.ReactNode;
+  /** Educator portal — large hero header without bottom rule */
+  variant?: 'default' | 'portal';
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -14,21 +17,53 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   subtitle,
   eyebrow,
   actions,
-}) => (
-  <div className="mb-6 flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
-    <div className="min-w-0 space-y-1">
-      {eyebrow && (
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          {eyebrow}
-        </p>
-      )}
-      <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-        {title}
-      </h1>
-      {subtitle && (
-        <p className="text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
-      )}
+  subtitleActions,
+  variant = 'default',
+}) => {
+  if (variant === 'portal') {
+    return (
+      <div className="mb-6 flex w-full flex-col gap-4">
+        {eyebrow && (
+          <p className="text-[11px] font-bold uppercase tracking-widest text-ais-primary">
+            {eyebrow}
+          </p>
+        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-[32px] font-bold leading-10 tracking-tight text-ais-on-surface">
+            {title}
+          </h1>
+          {actions && (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+          )}
+        </div>
+        {subtitle && (
+          <div className="flex w-full items-center justify-between gap-4">
+            <p className="max-w-2xl text-base leading-6 text-ais-on-surface-variant">{subtitle}</p>
+            {subtitleActions && (
+              <div className="flex shrink-0 items-center">{subtitleActions}</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0 space-y-1">
+        {eyebrow && (
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground max-w-2xl">{subtitle}</p>
+        )}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
-    {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-  </div>
-);
+  );
+};

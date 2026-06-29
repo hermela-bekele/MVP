@@ -2,12 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { TablePanel } from '@/components/dashboard/TablePanel';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { ContentCard } from '@/components/dashboard/ContentCard';
 import {
   CURRENT_TERM,
   DEMO_TEACHER_ID,
@@ -21,13 +17,23 @@ import {
   weightedTermAverage,
 } from '@/lib/teacherPortal';
 import type { StudentGradeEntry, StudentGradeEntryType } from '@/lib/mockData';
-
-const inputClass =
-  'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+import {
+  AisBtnPrimary,
+  AisBtnSecondary,
+  AisEmptyRow,
+  AisPanel,
+  AisStatusBadge,
+  AisTable,
+  AisTd,
+  AisTh,
+  AisTr,
+  aisFormLabel,
+  aisInput,
+} from '@/components/dashboard/teacher/TeacherPortalUi';
+import { aisBodyMd, aisBodySm, aisCard, aisDataMd, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherGradebook: React.FC = () => {
-  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry } =
-    useApp();
+  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry } = useApp();
 
   const [classGrade, setClassGrade] = useState('Grade 9');
   const [classSection, setClassSection] = useState('A');
@@ -44,10 +50,7 @@ export const TeacherGradebook: React.FC = () => {
   const [remarks, setRemarks] = useState('');
   const [linkedAssessment, setLinkedAssessment] = useState('');
 
-  const roster = useMemo(
-    () => filterTeacherStudents(students, classGrade, classSection),
-    [students, classGrade, classSection]
-  );
+  const roster = useMemo(() => filterTeacherStudents(students, classGrade, classSection), [students, classGrade, classSection]);
 
   const myEntries = useMemo(() => {
     let list = filterTeacherGradeEntries(studentGradeEntries).filter(
@@ -114,203 +117,135 @@ export const TeacherGradebook: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
-        <Select
-          label="Class grade"
-          options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({
-            value: g,
-            label: g,
-          }))}
-          value={classGrade}
-          onChange={(e) => setClassGrade(e.target.value)}
-        />
-        <Select
-          label="Section"
-          options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))}
-          value={classSection}
-          onChange={(e) => setClassSection(e.target.value)}
-        />
-        <Select
-          label="Filter by type"
-          options={['All', ...GRADE_ENTRY_TYPES].map((t) => ({ value: t, label: t }))}
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-        />
+      <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
+        <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={classGrade} onChange={(e) => setClassGrade(e.target.value)} />
+        <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={classSection} onChange={(e) => setClassSection(e.target.value)} />
+        <Select variant="ais" label="Filter by type" options={['All', ...GRADE_ENTRY_TYPES].map((t) => ({ value: t, label: t }))} value={filterType} onChange={(e) => setFilterType(e.target.value)} />
       </div>
 
       <div className="flex flex-wrap gap-2">
         {GRADE_ENTRY_TYPES.map((t) => (
-          <Button
-            key={t}
-            type="button"
-            size="sm"
-            variant="outline"
-            className="text-[10px] h-8"
-            onClick={() => roster[0] && openAdd(roster[0].id, t)}
-            disabled={roster.length === 0}
-          >
+          <AisBtnSecondary key={t} type="button" className="!px-2.5 !py-1 text-[10px]" onClick={() => roster[0] && openAdd(roster[0].id, t)} disabled={roster.length === 0}>
             + {t}
-          </Button>
+          </AisBtnSecondary>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {roster.map((std) => {
-          const entries = gradesForStudent(
-            filterTeacherGradeEntries(studentGradeEntries),
-            std.id
-          );
+          const entries = gradesForStudent(filterTeacherGradeEntries(studentGradeEntries), std.id);
           const termAvg = weightedTermAverage(entries);
           return (
-            <ContentCard key={std.id} title={std.name} description={`${std.studentId} · GPA ${std.gpa.toFixed(2)}`}>
+            <div key={std.id} className={`${aisCard} p-4`}>
+              <div className="mb-3 border-b border-ais-card-border pb-2">
+                <p className={aisDataMd}>{std.name}</p>
+                <p className={aisBodySm}>{std.studentId} · GPA {std.gpa.toFixed(2)}</p>
+              </div>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xxs text-muted-foreground">Term average</span>
-                  <Badge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'} size="sm">
+                <div className="flex items-center justify-between">
+                  <span className={aisBodySm}>Term average</span>
+                  <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
                     {termAvg != null ? `${termAvg}%` : '—'}
-                  </Badge>
+                  </AisStatusBadge>
                 </div>
                 {entries.length === 0 ? (
-                  <p className="text-xxs text-muted-foreground">No scores recorded yet.</p>
+                  <p className={aisBodySm}>No scores recorded yet.</p>
                 ) : (
                   entries.slice(0, 4).map((e) => (
-                    <div key={e.id} className="flex justify-between text-xxs border-b border-border/30 pb-1">
+                    <div key={e.id} className="flex justify-between border-b border-ais-row-border pb-1 text-xs">
                       <span>
-                        <span className="font-semibold text-foreground">{e.entryType}</span> · {e.title}
+                        <span className="font-semibold text-ais-on-surface">{e.entryType}</span> · {e.title}
                       </span>
-                      <span className="font-mono">
+                      <span className="font-mono tabular-nums">
                         {e.score}/{e.maxScore} ({entryPercent(e)}%)
                       </span>
                     </div>
                   ))
                 )}
-                {entries.length > 4 && (
-                  <p className="text-[10px] text-muted-foreground">+{entries.length - 4} more entries</p>
-                )}
-                <Button size="sm" variant="outline" className="w-full text-xxs h-8 mt-2" onClick={() => openAdd(std.id)}>
+                {entries.length > 4 && <p className={aisBodySm}>+{entries.length - 4} more entries</p>}
+                <AisBtnSecondary className="mt-2 w-full !justify-center text-xs" onClick={() => openAdd(std.id)}>
                   Add / edit grades
-                </Button>
+                </AisBtnSecondary>
               </div>
-            </ContentCard>
+            </div>
           );
         })}
       </div>
 
-      <TablePanel title="All grade entries" description="Quiz, test, project, midterm, final, and practical results">
-        <table className="eskooly-table">
+      <AisPanel title="All grade entries" description="Quiz, test, project, midterm, final, and practical results" flush>
+        <AisTable>
           <thead>
-            <tr>
-              <th>Student</th>
-              <th>Type</th>
-              <th>Title</th>
-              <th>Score</th>
-              <th>%</th>
-              <th>Weight</th>
-              <th>Term</th>
-              <th>Actions</th>
+            <tr className="bg-ais-surface-container-low">
+              <AisTh>Student</AisTh>
+              <AisTh>Type</AisTh>
+              <AisTh>Title</AisTh>
+              <AisTh>Score</AisTh>
+              <AisTh>%</AisTh>
+              <AisTh>Weight</AisTh>
+              <AisTh>Term</AisTh>
+              <AisTh>Actions</AisTh>
             </tr>
           </thead>
           <tbody>
             {myEntries.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-muted-foreground">
-                  No grade entries for this class. Use the quick-add buttons above.
-                </td>
-              </tr>
+              <AisEmptyRow colSpan={8} message="No grade entries for this class. Use the quick-add buttons above." />
             ) : (
               myEntries.map((e) => {
                 const std = students.find((s) => s.id === e.studentId);
                 return (
-                  <tr key={e.id} className="hover:bg-muted/20">
-                    <td className="p-3 font-semibold text-foreground">{std?.name ?? e.studentId}</td>
-                    <td className="p-3">
-                      <Badge variant="neutral" size="sm">
-                        {e.entryType}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-xxs">{e.title}</td>
-                    <td className="p-3 font-mono">
-                      {e.score}/{e.maxScore}
-                    </td>
-                    <td className="p-3 font-bold">{entryPercent(e)}%</td>
-                    <td className="p-3">{e.weight}%</td>
-                    <td className="p-3 text-muted-foreground text-xxs">{e.term}</td>
-                    <td className="p-3">
+                  <AisTr key={e.id}>
+                    <AisTd className="font-semibold">{std?.name ?? e.studentId}</AisTd>
+                    <AisTd>
+                      <AisStatusBadge variant="neutral">{e.entryType}</AisStatusBadge>
+                    </AisTd>
+                    <AisTd className="text-xs">{e.title}</AisTd>
+                    <AisTd className="font-mono tabular-nums">{e.score}/{e.maxScore}</AisTd>
+                    <AisTd className="font-bold tabular-nums">{entryPercent(e)}%</AisTd>
+                    <AisTd className="tabular-nums">{e.weight}%</AisTd>
+                    <AisTd className={aisBodySm}>{e.term}</AisTd>
+                    <AisTd>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={() => openEdit(e)}>
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="text-[10px] h-7"
-                          onClick={() => deleteStudentGradeEntry(e.id)}
-                        >
+                        <AisBtnSecondary className="!px-2 !py-1 text-[10px]" onClick={() => openEdit(e)}>Edit</AisBtnSecondary>
+                        <button type="button" className="rounded-lg border border-ais-error/30 px-2 py-1 text-[10px] font-bold text-ais-error hover:bg-ais-error/10" onClick={() => deleteStudentGradeEntry(e.id)}>
                           Del
-                        </Button>
+                        </button>
                       </div>
-                    </td>
-                  </tr>
+                    </AisTd>
+                  </AisTr>
                 );
               })
             )}
           </tbody>
-        </table>
-      </TablePanel>
+        </AisTable>
+      </AisPanel>
 
-      <Dialog
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        title={editingId ? 'Edit grade entry' : 'Record grade'}
-        size="lg"
-      >
+      <Dialog isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title={editingId ? 'Edit grade entry' : 'Record grade'} size="lg">
         <form onSubmit={handleSave} className="space-y-4 pt-2">
-          <p className="text-xxs text-muted-foreground">
-            Student: {students.find((s) => s.id === selectedStudentId)?.name}
-          </p>
+          <p className={aisBodySm}>Student: {students.find((s) => s.id === selectedStudentId)?.name}</p>
           <div className="grid grid-cols-2 gap-3">
-            <Select
-              label="Assessment type"
-              options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))}
-              value={entryType}
-              onChange={(e) => setEntryType(e.target.value as StudentGradeEntryType)}
-            />
-            <Select
-              label="Link to assessment (optional)"
-              options={[
-                { value: '', label: 'None' },
-                ...myAssessments.map((a) => ({ value: a.id, label: `${a.type}: ${a.title}` })),
-              ]}
-              value={linkedAssessment}
-              onChange={(e) => setLinkedAssessment(e.target.value)}
-            />
+            <Select variant="ais" label="Assessment type" options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))} value={entryType} onChange={(e) => setEntryType(e.target.value as StudentGradeEntryType)} />
+            <Select variant="ais" label="Link to assessment (optional)" options={[{ value: '', label: 'None' }, ...myAssessments.map((a) => ({ value: a.id, label: `${a.type}: ${a.title}` }))]} value={linkedAssessment} onChange={(e) => setLinkedAssessment(e.target.value)} />
           </div>
-          <input className={inputClass} required placeholder="Title (e.g. Unit 3 Quiz)" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className={aisInput} required placeholder="Title (e.g. Unit 3 Quiz)" value={title} onChange={(e) => setTitle(e.target.value)} />
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Score</label>
-              <input type="number" className={inputClass} value={score} onChange={(e) => setScore(e.target.value)} />
+              <label className={aisFormLabel}>Score</label>
+              <input type="number" className={aisInput} value={score} onChange={(e) => setScore(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Max</label>
-              <input type="number" className={inputClass} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
+              <label className={aisFormLabel}>Max</label>
+              <input type="number" className={aisInput} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Weight %</label>
-              <input type="number" className={inputClass} value={weight} onChange={(e) => setWeight(e.target.value)} />
+              <label className={aisFormLabel}>Weight %</label>
+              <input type="number" className={aisInput} value={weight} onChange={(e) => setWeight(e.target.value)} />
             </div>
           </div>
-          <input className={inputClass} placeholder="Remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-          <p className="text-[10px] text-muted-foreground">
-            Saving recalculates cumulative GPA from weighted term scores and syncs to student & parent portals.
-          </p>
-          <DialogFooter className="pt-4 border-t border-border/40">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsFormOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="organic" size="sm" className="border-none">
-              Save grade
-            </Button>
+          <input className={aisInput} placeholder="Remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          <p className={aisBodySm}>Saving recalculates cumulative GPA from weighted term scores and syncs to student & parent portals.</p>
+          <DialogFooter className="border-t border-ais-card-border pt-4">
+            <AisBtnSecondary type="button" onClick={() => setIsFormOpen(false)}>Cancel</AisBtnSecondary>
+            <AisBtnPrimary type="submit">Save grade</AisBtnPrimary>
           </DialogFooter>
         </form>
       </Dialog>

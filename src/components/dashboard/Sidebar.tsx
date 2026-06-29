@@ -4,6 +4,25 @@ import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { useRouter } from 'next/navigation';
+import {
+  aisSidebarBadge,
+  aisSidebarBrand,
+  aisSidebarBrandSubtitle,
+  aisSidebarBrandTitle,
+  aisSidebarCollapseBtn,
+  aisSidebarFooter,
+  aisSidebarLogo,
+  aisSidebarLogoutBtn,
+  aisSidebarMobileShell,
+  aisSidebarNavIconActive,
+  aisSidebarNavIconInactive,
+  aisSidebarNavItem,
+  aisSidebarNavItemActive,
+  aisSidebarNavItemInactive,
+  aisSidebarSectionDivider,
+  aisSidebarSectionHeader,
+  aisSidebarShell,
+} from '@/components/dashboard/teacher/aisStyles';
 
 interface SidebarProps {
   activeTab: string;
@@ -148,23 +167,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     <>
       {/* Brand header + collapse (single row) */}
       <div
-        className={`h-16 border-b border-white/10 flex items-center shrink-0 gap-2 ${
+        className={`${aisSidebarBrand} ${
           isCollapsed ? 'px-2 justify-center' : 'px-3'
         }`}
       >
-        <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center text-[hsl(var(--sidebar-bg))] font-bold text-sm shrink-0 shadow-sm">
+        <div className={aisSidebarLogo}>
           PR
         </div>
         {!isCollapsed && (
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="font-bold text-sm text-white truncate leading-tight">Prime Teaching</span>
-            <span className="text-[10px] text-white/60 font-medium truncate">{getRoleLabel()}</span>
+            <span className={aisSidebarBrandTitle}>Prime Teaching</span>
+            <span className={aisSidebarBrandSubtitle}>{getRoleLabel()}</span>
           </div>
         )}
         <button
           type="button"
           onClick={toggleCollapsed}
-          className={`hidden lg:flex p-1.5 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-all duration-200 cursor-pointer shrink-0 ${
+          className={`${aisSidebarCollapseBtn} ${
             isCollapsed ? '' : 'ml-auto'
           }`}
           title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
@@ -187,13 +206,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           if (link.type === 'header') {
             if (isCollapsed) {
               return (
-                <div key={`hdr-${idx}`} className="my-2 border-b border-border/20" />
+                <div key={`hdr-${idx}`} className={aisSidebarSectionDivider} />
               );
             }
             return (
               <div
                 key={`hdr-${idx}`}
-                className="text-[10px] font-semibold text-white/40 uppercase tracking-wider px-3 pt-4 pb-1 select-none"
+                className={aisSidebarSectionHeader}
               >
                 {link.label}
               </div>
@@ -207,24 +226,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
                 onClick={() => handleNavClick(link.id!)}
                 onMouseEnter={() => setHoveredItem(link.id!)}
                 onMouseLeave={() => setHoveredItem(null)}
-                className={`w-full flex items-center rounded-md text-[13px] font-medium transition-all duration-200 cursor-pointer group
+                className={`${aisSidebarNavItem}
                   ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
-                  ${isActive
-                    ? 'bg-[hsl(var(--sidebar-active))] text-[hsl(var(--sidebar-active-fg))] font-semibold shadow-sm'
-                    : 'text-white/75 hover:text-white hover:bg-white/10'
-                  }`}
+                  ${isActive ? aisSidebarNavItemActive : aisSidebarNavItemInactive}`}
                 title={isCollapsed ? link.label : undefined}
                 aria-label={link.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <span className={`transition-transform duration-200 shrink-0 ${isActive ? 'scale-105' : 'opacity-70 group-hover:opacity-100'}`}>
+                <span
+                  className={`transition-transform duration-200 ${
+                    isActive ? aisSidebarNavIconActive : aisSidebarNavIconInactive
+                  }`}
+                >
                   {link.icon}
                 </span>
                 {!isCollapsed && (
                   <span className="truncate">{link.label}</span>
                 )}
                 {!isCollapsed && link.badge && (
-                  <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground text-[10px] font-bold px-1.5">
+                  <span className={aisSidebarBadge}>
                     {link.badge}
                   </span>
                 )}
@@ -249,10 +269,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
       </nav>
 
       {/* User Session Footer */}
-      <div className="shrink-0 p-3 border-t border-white/10">
+      <div className={aisSidebarFooter}>
         <button
           onClick={handleLogout}
-          className={`w-full flex items-center rounded-md text-[13px] font-medium text-red-300 hover:bg-red-500/20 hover:text-white transition-all duration-200 cursor-pointer
+          className={`${aisSidebarLogoutBtn}
             ${isCollapsed ? 'justify-center px-2 py-2' : 'gap-2 px-3 py-2'}`}
           title={isCollapsed ? 'Sign Out Session' : undefined}
           aria-label="Sign Out Session"
@@ -270,7 +290,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden lg:flex flex-col h-screen sticky top-0 shrink-0 bg-[hsl(var(--sidebar-bg))] border-r border-[hsl(var(--sidebar-bg))] sidebar-transition overflow-hidden shadow-lg
+        className={`${aisSidebarShell} hidden lg:flex
           ${isCollapsed ? 'w-[var(--sidebar-collapsed-width)]' : 'w-[var(--sidebar-width)]'}`}
         role="navigation"
         aria-label="Main navigation"
@@ -289,7 +309,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
 
       {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[var(--sidebar-width)] bg-[hsl(var(--sidebar-bg))] flex flex-col lg:hidden transition-transform duration-300 ease-out shadow-2xl
+        className={`${aisSidebarMobileShell}
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
         role="navigation"
         aria-label="Mobile navigation"

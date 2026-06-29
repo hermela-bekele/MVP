@@ -3,9 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-/** Full-viewport dimmed + blurred backdrop for modals, drawers, and popovers */
-export const MODAL_OVERLAY_CLASS =
-  'fixed inset-0 bg-slate-950/50 backdrop-blur-md backdrop-saturate-150 [-webkit-backdrop-filter:blur(12px)]';
+/** Full-viewport dimmed backdrop for modals, drawers, and popovers */
+export const MODAL_OVERLAY_CLASS = 'fixed inset-0 bg-slate-950/50';
 
 export interface ModalOverlayProps {
   onClick?: () => void;

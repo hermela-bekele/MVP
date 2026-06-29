@@ -2,12 +2,19 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { TablePanel } from '@/components/dashboard/TablePanel';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-
-const inputClass =
-  'w-full h-24 px-3 py-2 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+import {
+  AisBtnPrimary,
+  AisBtnSecondary,
+  AisPage,
+  AisPanel,
+  AisStatusBadge,
+  AisTable,
+  AisTd,
+  AisTh,
+  AisTr,
+  aisTextarea,
+} from '@/components/dashboard/teacher/TeacherPortalUi';
+import { aisBodyMd, aisCard, aisDataMd } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherCheckinsTab: React.FC = () => {
   const { teacherCheckInPrompts, respondToTeacherCheckIn } = useApp();
@@ -23,67 +30,61 @@ export const TeacherCheckinsTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 text-left">
-      <TablePanel title="Wellness & feedback check-ins" description="Respond to surveys assigned to instructional staff">
-        <table className="eskooly-table">
+    <AisPage>
+      <AisPanel title="Wellness & feedback check-ins" description="Respond to surveys assigned to instructional staff" flush>
+        <AisTable>
           <thead>
-            <tr>
-              <th>Survey</th>
-              <th>Type</th>
-              <th>Due date</th>
-              <th>Your response</th>
-              <th>Action</th>
+            <tr className="bg-ais-surface-container-low">
+              <AisTh>Survey</AisTh>
+              <AisTh>Type</AisTh>
+              <AisTh>Due date</AisTh>
+              <AisTh>Your response</AisTh>
+              <AisTh>Action</AisTh>
             </tr>
           </thead>
           <tbody>
             {teacherCheckInPrompts.map((p) => (
-              <tr key={p.id} className="hover:bg-muted/20">
-                <td className="p-3 font-semibold text-foreground">{p.title}</td>
-                <td className="p-3">
-                  <Badge variant="primary" size="sm">
-                    {p.type}
-                  </Badge>
-                </td>
-                <td className="p-3 text-muted-foreground">{p.dueDate}</td>
-                <td className="p-3 text-xxs max-w-sm">
+              <AisTr key={p.id}>
+                <AisTd className="font-semibold">{p.title}</AisTd>
+                <AisTd>
+                  <AisStatusBadge variant="primary">{p.type}</AisStatusBadge>
+                </AisTd>
+                <AisTd className={aisBodyMd}>{p.dueDate}</AisTd>
+                <AisTd className="max-w-sm text-xs">
                   {p.teacherResponse ? (
-                    <span className="text-foreground">{p.teacherResponse}</span>
+                    <span className="text-ais-on-surface">{p.teacherResponse}</span>
                   ) : (
-                    <span className="text-muted-foreground italic">Not submitted</span>
+                    <span className="italic text-ais-on-surface-variant">Not submitted</span>
                   )}
-                </td>
-                <td className="p-3">
-                  <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={() => setActiveId(p.id)}>
+                </AisTd>
+                <AisTd>
+                  <AisBtnSecondary className="!px-2.5 !py-1" onClick={() => setActiveId(p.id)}>
                     {p.teacherResponse ? 'Update' : 'Respond'}
-                  </Button>
-                </td>
-              </tr>
+                  </AisBtnSecondary>
+                </AisTd>
+              </AisTr>
             ))}
           </tbody>
-        </table>
-      </TablePanel>
+        </AisTable>
+      </AisPanel>
 
       {activeId && (
-        <div className="p-4 rounded-xl border border-border/60 bg-card space-y-3">
-          <p className="text-xs font-semibold text-foreground">
+        <div className={`${aisCard} space-y-3 p-4`}>
+          <p className={aisDataMd}>
             Response: {teacherCheckInPrompts.find((p) => p.id === activeId)?.title}
           </p>
           <textarea
-            className={inputClass}
+            className={aisTextarea}
             value={responses[activeId] ?? teacherCheckInPrompts.find((p) => p.id === activeId)?.teacherResponse ?? ''}
             onChange={(e) => setResponses({ ...responses, [activeId]: e.target.value })}
             placeholder="Enter your reflective response..."
           />
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" onClick={() => setActiveId(null)}>
-              Cancel
-            </Button>
-            <Button variant="organic" size="sm" className="border-none" onClick={() => handleSubmit(activeId)}>
-              Submit response
-            </Button>
+          <div className="flex justify-end gap-2">
+            <AisBtnSecondary onClick={() => setActiveId(null)}>Cancel</AisBtnSecondary>
+            <AisBtnPrimary onClick={() => handleSubmit(activeId)}>Submit response</AisBtnPrimary>
           </div>
         </div>
       )}
-    </div>
+    </AisPage>
   );
 };
