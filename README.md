@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Prime Teaching System (Frontend)
 
-## Getting Started
+Ethiopian school management portal — Next.js frontend for the Prime Teaching System.
 
-First, run the development server:
+The API lives in a separate repository in the [`backend/`](backend/) folder (Express + PostgreSQL).
+
+## Prerequisites
+
+- Node.js 20+
+- [Prime API](backend/) running on port 3004 (see `backend/README.md`)
+
+## Setup
 
 ```bash
+npm install
+cp .env.local.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Set `NEXT_PUBLIC_API_URL=http://localhost:3004` in `.env.local` if the API is not on the default host.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Demo login
 
-## Learn More
+| Role | Email | Password |
+|------|-------|----------|
+| Teacher | martha.feyissa@prime.edu.et | teacher123 |
+| School Head | principal.semeneh@prime.edu.et | school123 |
+| MOE Admin | moe.admin@prime.gov.et | moe123 |
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Next.js development server |
+| `npm run build` | Production build |
+| `npm run start` | Run production build |
+| `npm run lint` | ESLint |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Splitting into separate repositories
 
-## Deploy on Vercel
+The `backend/` folder is a self-contained Node.js project with its own `package.json` and `.gitignore`. To use it as a standalone repository:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cd backend
+git init
+git add .
+git commit -m "Initial backend"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Then remove `backend/` from this frontend repository when you are ready to point at the remote API URL instead.

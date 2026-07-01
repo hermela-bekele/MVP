@@ -30,6 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
     switch (activeRole) {
       case 'moe': return 'MOE Admin';
       case 'school-head': return 'School Head';
+      case 'hr': return 'HR Officer';
+      case 'registrar': return 'Registrar';
       case 'curriculum-head': return 'Curriculum';
       case 'department-head': return 'Dept Head';
       case 'teacher': return 'Teacher';

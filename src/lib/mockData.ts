@@ -46,6 +46,33 @@ export interface Student {
   emergencyContact: string;
 }
 
+export type RegistrationApplicationStatus =
+  | 'Draft'
+  | 'Submitted'
+  | 'Under Review'
+  | 'Approved'
+  | 'Rejected'
+  | 'Enrolled';
+
+export interface RegistrationApplication {
+  id: string;
+  applicantName: string;
+  dateOfBirth?: string;
+  gradeApplied: string;
+  sectionRequested: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string;
+  emergencyContact: string;
+  medicalInfo?: string;
+  previousSchool?: string;
+  status: RegistrationApplicationStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewerNotes?: string;
+  enrolledStudentId?: string;
+}
+
 export interface LessonPlan {
   id: string;
   subject: string;
@@ -1225,6 +1252,68 @@ export const mockParentMessages: ParentMessage[] = [
     parentName: 'Kebede Abebe',
     message: 'Dear parent — Yonas attendance has dropped below 86%. Please confirm if a parent-teacher meeting works this week.',
     sentAt: '2026-05-20',
+  },
+];
+
+export const mockRegistrationApplications: RegistrationApplication[] = [
+  {
+    id: 'reg-app-1',
+    applicantName: 'Hanna Tadesse',
+    dateOfBirth: '2010-03-14',
+    gradeApplied: 'Grade 9',
+    sectionRequested: 'A',
+    parentName: 'Tadesse Lemma',
+    parentPhone: '+251-911-234567',
+    parentEmail: 'tadesse.lemma@gmail.com',
+    emergencyContact: 'Aunt: +251-912-345678',
+    previousSchool: 'Bole Primary School',
+    status: 'Submitted',
+    submittedAt: '2026-05-28',
+  },
+  {
+    id: 'reg-app-2',
+    applicantName: 'Daniel Mekonnen',
+    dateOfBirth: '2009-08-22',
+    gradeApplied: 'Grade 10',
+    sectionRequested: 'B',
+    parentName: 'Mekonnen Assefa',
+    parentPhone: '+251-922-456789',
+    parentEmail: 'mekonnen.a@yahoo.com',
+    emergencyContact: 'Uncle: +251-933-567890',
+    previousSchool: 'Kirkos Secondary School',
+    status: 'Under Review',
+    submittedAt: '2026-05-27',
+  },
+  {
+    id: 'reg-app-3',
+    applicantName: 'Sara Girma',
+    dateOfBirth: '2011-01-05',
+    gradeApplied: 'Grade 9',
+    sectionRequested: 'C',
+    parentName: 'Girma Haile',
+    parentPhone: '+251-944-678901',
+    parentEmail: 'girma.haile@outlook.com',
+    emergencyContact: 'Grandmother: +251-955-789012',
+    status: 'Approved',
+    submittedAt: '2026-05-25',
+    reviewedAt: '2026-05-26',
+    reviewerNotes: 'Documents verified. Ready for enrollment.',
+  },
+  {
+    id: 'reg-app-4',
+    applicantName: 'Bereket Solomon',
+    dateOfBirth: '2008-11-30',
+    gradeApplied: 'Grade 11',
+    sectionRequested: 'A',
+    parentName: 'Solomon Tesfaye',
+    parentPhone: '+251-966-890123',
+    parentEmail: '',
+    emergencyContact: 'Father: +251-966-890123',
+    previousSchool: 'Adama Secondary School',
+    status: 'Rejected',
+    submittedAt: '2026-05-20',
+    reviewedAt: '2026-05-21',
+    reviewerNotes: 'Incomplete transfer documents from previous school.',
   },
 ];
 

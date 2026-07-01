@@ -109,7 +109,7 @@ export default function TeacherPortalPage() {
       </Button>
     ) : (
       <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        {teacher.name} · {teacher.subjects[0]}
+        {teacher.name} · {teacher.subjects[0] ?? "—"}
       </span>
     );
 

@@ -8,11 +8,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
-import { subjectPerformance } from '@/lib/mockData';
+import { computeSubjectPerformance } from '@/lib/analytics';
 
 export default function CurriculumHeadPortalPage() {
-  const { addNotification } = useApp();
+  const { studentGradeEntries, addNotification } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  const subjectPerformance = React.useMemo(() => computeSubjectPerformance(studentGradeEntries), [studentGradeEntries]);
   
   // Local Mock Textbooks shared state
   const [textbooks, setTextbooks] = useState([

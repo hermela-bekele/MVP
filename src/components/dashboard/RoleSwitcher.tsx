@@ -17,6 +17,16 @@ const DEMO_ROLES = [
     desc: 'Timetable conflict resolver, lesson plan & exam banks approval desk, employee tracker, survey check-ins.',
   },
   {
+    id: 'registrar',
+    name: 'Registrar Officer',
+    desc: 'Student registration & onboarding, application review, grade management, transfers, and class placement.',
+  },
+  {
+    id: 'hr',
+    name: 'HR Officer',
+    desc: 'Full HRMS — employee directory, leave, attendance, payroll, recruitment, performance reviews, and onboarding.',
+  },
+  {
     id: 'curriculum-head',
     name: 'Curriculum Head',
     desc: 'Curriculum coverage dashboards, national syllabi customization, textbooks download tracking logs.',

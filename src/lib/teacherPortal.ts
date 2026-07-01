@@ -10,6 +10,21 @@ import type {
 export const DEMO_TEACHER_ID = 'tch-1';
 export const DEMO_SCHOOL_ID = 'sch-1';
 
+/** Used while teachers are still loading from the API */
+const PLACEHOLDER_TEACHER: Teacher = {
+  id: DEMO_TEACHER_ID,
+  name: 'Loading…',
+  email: '',
+  phone: '',
+  departmentId: 'dept-bio',
+  schoolId: DEMO_SCHOOL_ID,
+  status: 'Active',
+  subjects: ['—'],
+  grades: [],
+  certification: '',
+  trainingProgress: 0,
+};
+
 export const TEACHER_CLASS_ASSIGNMENTS = [
   { id: 'asg-1', grade: 'Grade 9', section: 'A', subject: 'Biology', room: 'Lab Room 4', period: '09:15 – 10:00', days: 'Mon / Wed / Fri' },
   { id: 'asg-2', grade: 'Grade 9', section: 'B', subject: 'Biology', room: 'Lab Room 4', period: '10:30 – 11:15', days: 'Tue / Thu' },
@@ -19,8 +34,12 @@ export const TEACHER_CLASS_ASSIGNMENTS = [
 export const GRADE_OPTIONS = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
 export const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
 
-export function getDemoTeacher(teachers: Teacher[]) {
-  return teachers.find((t) => t.id === DEMO_TEACHER_ID) ?? teachers[0];
+export function getDemoTeacher(teachers: Teacher[]): Teacher {
+  return (
+    teachers.find((t) => t.id === DEMO_TEACHER_ID) ??
+    teachers[0] ??
+    PLACEHOLDER_TEACHER
+  );
 }
 
 export function filterTeacherStudents(students: Student[], grade?: string, section?: string) {

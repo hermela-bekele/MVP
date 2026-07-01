@@ -38,6 +38,51 @@ function DashboardCommandPalette() {
       }
     ];
 
+    if (activeRole === 'registrar') {
+      const registrarTabs = [
+        { id: 'dashboard', label: 'Registration Dashboard' },
+        { id: 'applications', label: 'Applications Queue' },
+        { id: 'enroll-student', label: 'New Enrollment' },
+        { id: 'student-registry', label: 'Student Registry' },
+        { id: 'grade-management', label: 'Grade Management' },
+        { id: 'class-placement', label: 'Class Placement' },
+        { id: 'transfers', label: 'Transfers & Status' },
+        { id: 'reports', label: 'Enrollment Reports' },
+      ];
+
+      registrarTabs.forEach((tab) => {
+        list.push({
+          id: `goto-${tab.id}`,
+          label: `Go to ${tab.label}`,
+          group: 'Registrar Portal',
+          action: () => window.dispatchEvent(new CustomEvent('change-tab', { detail: tab.id })),
+        });
+      });
+    }
+
+    if (activeRole === 'hr') {
+      const hrTabs = [
+        { id: 'dashboard', label: 'HR Dashboard' },
+        { id: 'employees', label: 'Employee Directory' },
+        { id: 'onboarding', label: 'Onboarding' },
+        { id: 'leave', label: 'Leave Management' },
+        { id: 'attendance', label: 'Staff Attendance' },
+        { id: 'payroll', label: 'Payroll' },
+        { id: 'performance', label: 'Performance Reviews' },
+        { id: 'recruitment', label: 'Recruitment' },
+        { id: 'reports', label: 'HR Reports' },
+      ];
+
+      hrTabs.forEach((tab) => {
+        list.push({
+          id: `goto-${tab.id}`,
+          label: `Go to ${tab.label}`,
+          group: 'HR Portal',
+          action: () => window.dispatchEvent(new CustomEvent('change-tab', { detail: tab.id })),
+        });
+      });
+    }
+
     if (activeRole === 'school-head') {
       const schoolHeadTabs = [
         { id: 'dashboard', label: 'Overview Dashboard' },

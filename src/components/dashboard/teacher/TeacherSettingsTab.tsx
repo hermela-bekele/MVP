@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,12 @@ export const TeacherSettingsTab: React.FC = () => {
   const [name, setName] = useState(teacher.name);
   const [email, setEmail] = useState(teacher.email);
   const [phone, setPhone] = useState(teacher.phone);
+
+  useEffect(() => {
+    setName(teacher.name);
+    setEmail(teacher.email);
+    setPhone(teacher.phone);
+  }, [teacher.id, teacher.name, teacher.email, teacher.phone]);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
   const [language, setLanguage] = useState('English');

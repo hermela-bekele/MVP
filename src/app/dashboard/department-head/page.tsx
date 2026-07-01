@@ -19,7 +19,7 @@ import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { MetricProgressRow } from "@/components/ui/metric-progress-row";
 import { generateLessonPlanAI, AILessonPlanResult } from "@/lib/ai";
-import { subjectPerformance } from "@/lib/mockData";
+import { computeSubjectPerformance } from "@/lib/analytics";
 import {
   DEPT_SCHOOL_ID,
   filterStemBySubject,
@@ -41,6 +41,7 @@ export default function DepartmentHeadPortalPage() {
     departments,
     trainings,
     trainingMaterials,
+    studentGradeEntries,
     approveAssessment,
     rejectAssessment,
     createLessonPlan,
@@ -102,9 +103,14 @@ export default function DepartmentHeadPortalPage() {
     [students],
   );
 
+  const subjectPerformance = useMemo(
+    () => computeSubjectPerformance(studentGradeEntries),
+    [studentGradeEntries],
+  );
+
   const stemMetrics = useMemo(
     () => subjectPerformance.filter((s) => isStemSubject(s.subject)),
-    [],
+    [subjectPerformance],
   );
 
   const pendingAssessments = departmentAssessments.filter(

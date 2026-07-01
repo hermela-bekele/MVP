@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { api, ApiError } from '@/lib/api';
 
 type RoleGroup = 'admin' | 'staff' | 'student';
 
 const presets = [
   { label: 'MOE Admin', email: 'moe.admin@prime.gov.et', pass: 'moe123', role: 'moe', group: 'admin' as RoleGroup },
   { label: 'School Head', email: 'principal.semeneh@prime.edu.et', pass: 'school123', role: 'school-head', group: 'admin' as RoleGroup },
+  { label: 'Registrar Officer', email: 'registrar.office@prime.edu.et', pass: 'registrar123', role: 'registrar', group: 'admin' as RoleGroup },
+  { label: 'HR Officer', email: 'hr.officer@prime.edu.et', pass: 'hr123', role: 'hr', group: 'admin' as RoleGroup },
   { label: 'Curriculum Head', email: 'curriculum.lead@prime.edu.et', pass: 'curr123', role: 'curriculum-head', group: 'admin' as RoleGroup },
   { label: 'Dept Head', email: 'dept.head.math@prime.edu.et', pass: 'dept123', role: 'department-head', group: 'staff' as RoleGroup },
   { label: 'Teacher', email: 'martha.feyissa@prime.edu.et', pass: 'teacher123', role: 'teacher', group: 'staff' as RoleGroup },
@@ -36,7 +39,7 @@ export default function LoginPage() {
     setError('');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Please enter your email and password.');
@@ -46,17 +49,25 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    setTimeout(() => {
-      const match = presets.find((p) => p.email.toLowerCase() === email.toLowerCase());
-      if (match) {
-        setActiveRole(match.role);
-        router.push(`/dashboard/${match.role}`);
+    try {
+      const user = await api.login(email, password);
+      setActiveRole(user.role);
+      router.push(`/dashboard/${user.role}`);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError('Invalid email or password.');
       } else {
-        setActiveRole('teacher');
-        router.push('/dashboard/teacher');
+        const match = presets.find((p) => p.email.toLowerCase() === email.toLowerCase());
+        if (match && match.pass === password) {
+          setActiveRole(match.role);
+          router.push(`/dashboard/${match.role}`);
+        } else {
+          setError('Could not reach the server. Check that the API is running on port 3004.');
+        }
       }
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (

@@ -12,16 +12,22 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { regionalPerformance, subjectPerformance, nationalStats } from '@/lib/mockData';
-
+import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
 export default function MoePortalPage() {
   const { 
     schools, 
+    teachers,
+    students,
+    studentGradeEntries,
     addSchool, 
     toggleSchoolStatus,
     trainings,
     addNotification
   } = useApp();
+
+  const nationalStats = React.useMemo(() => computeNationalStats(schools, teachers, students), [schools, teachers, students]);
+  const regionalPerformance = React.useMemo(() => computeRegionalPerformance(schools, teachers, students), [schools, teachers, students]);
+  const subjectPerformance = React.useMemo(() => computeSubjectPerformance(studentGradeEntries), [studentGradeEntries]);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchSchool, setSearchSchool] = useState('');
