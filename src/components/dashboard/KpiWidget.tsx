@@ -50,24 +50,30 @@ export const KpiWidget: React.FC<KpiWidgetProps> = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-lg border p-4 transition-shadow hover:shadow-sm ${styles.card} ${className}`}
+      className={`group relative overflow-hidden rounded-lg border p-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] ${styles.card} ${className}`}
     >
+      {/* Gradient accent line */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-60" />
+      
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className={`text-base font-bold leading-snug sm:text-lg ${styles.label}`}>{label}</p>
-          <p className={`mt-1.5 text-sm font-semibold tabular-nums sm:text-base ${styles.value}`}>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className={`text-xs font-semibold leading-snug sm:text-sm ${styles.label}`}>{label}</p>
+          <p className={`text-2xl font-bold tabular-nums transition-colors ${styles.value}`}>
             {typeof value === 'number' ? value.toLocaleString() : value}
           </p>
-          {hint && <p className={`mt-1 text-xs ${styles.hint}`}>{hint}</p>}
+          {hint && <p className={`text-xs ${styles.hint}`}>{hint}</p>}
         </div>
         {icon && (
           <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm ${styles.icon}`}
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm transition-transform duration-300 group-hover:scale-110 ${styles.icon}`}
           >
             {icon}
           </div>
         )}
       </div>
+      
+      {/* Animated pulse indicator */}
+      <div className="absolute bottom-2 right-2 h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
     </div>
   );
 };

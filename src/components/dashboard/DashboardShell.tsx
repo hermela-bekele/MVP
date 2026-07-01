@@ -67,10 +67,13 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
   );
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--dashboard-bg))]">
+    <div className="flex h-screen w-full overflow-hidden bg-[hsl(var(--dashboard-bg))] relative">
+      {/* Gradient decorative background */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+      
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative z-10">
         <Navbar breadcrumbs={breadcrumbs} />
 
         <main

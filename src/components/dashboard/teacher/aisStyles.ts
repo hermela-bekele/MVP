@@ -214,7 +214,7 @@ export const aisScheduleListRow =
   'flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ais-row-border px-4 py-3 transition-colors last:border-b-0 hover:bg-ais-row-hover';
 
 export const aisBtnPrimary =
-  'inline-flex items-center gap-2 rounded-lg border border-ais-primary bg-ais-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#003ea8]';
+  'inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg';
 
 export const aisBtnSecondary =
   'inline-flex items-center gap-2 rounded-lg border border-ais-outline-variant bg-white px-4 py-2 text-sm font-medium text-ais-on-surface-variant transition-colors hover:bg-ais-surface-container-low';

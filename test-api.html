@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Prime AI API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #1d4ed8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1e40af;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #fee;
+            color: #c00;
+        }
+        .success {
+            background: #efe;
+            color: #060;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Prime AI API Tester</h1>
+    <p>Test if the Prime AI API at <code>https://prime-ai-bndr.onrender.com</code> is working:</p>
+    
+    <button onclick="testAPI('/api/chat')">Test /api/chat</button>
+    <button onclick="testAPI('/api/generate-teaching-notes')">Test /api/generate-teaching-notes</button>
+    <button onclick="testAPI('/api/generate-lesson-plan')">Test /api/generate-lesson-plan</button>
+    <button onclick="testAPI('/chat')">Test /chat</button>
+    <button onclick="testAPI('/generate')">Test /generate</button>
+    <button onclick="testAPI('/query')">Test /query</button>
+    <button onclick="testHealth()">Test Health/Root</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_URL = 'https://prime-ai-bndr.onrender.com';
+        
+        async function testAPI(endpoint) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = `Testing ${endpoint}...\n`;
+            resultDiv.className = '';
+            
+            try {
+                const payload = endpoint === '/api/chat' 
+                    ? { message: 'Test: Generate a simple math question for Grade 11', context: 'test' }
+                    : { prompt: 'Grade: Grade 11\nSubject: Mathematics\nTopic: Functions' };
+                
+                console.log('Sending request:', API_URL + endpoint, payload);
+                
+                const response = await fetch(API_URL + endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log('Response status:', response.status);
+                
+                const text = await response.text();
+                console.log('Response text:', text);
+                
+                if (!response.ok) {
+                    resultDiv.className = 'error';
+                    resultDiv.textContent = `❌ API Error (${response.status}):\n\n${text}`;
+                    return;
+                }
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultDiv.className = 'success';
+                    resultDiv.textContent = `✅ API Success!\n\nResponse:\n${JSON.stringify(json, null, 2)}`;
+                } catch (e) {
+                    resultDiv.className = 'success';
+                    resultDiv.textContent = `✅ API Response (not JSON):\n\n${text}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = `❌ Error:\n\n${error.message}\n\n${error.stack}`;
+                console.error(error);
+            }
+        }
+        
+        async function testHealth() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing API health...\n';
+            resultDiv.className = '';
+            
+            try {
+                const response = await fetch(API_URL + '/');
+                const text = await response.text();
+                
+                resultDiv.className = response.ok ? 'success' : 'error';
+                resultDiv.textContent = `Status: ${response.status}\n\nResponse:\n${text}`;
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.textContent = `❌ Error:\n\n${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

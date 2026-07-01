@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { generateAICalendarTimetable } from '@/lib/ai';
+// import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
 
 // Decomposed Sub-components
 import { OverviewDashboard } from '@/components/dashboard/school-head/OverviewDashboard';
@@ -84,7 +84,9 @@ export default function SchoolHeadPortalPage() {
   const handleAISelectCalendar = async () => {
     setGeneratingTimetable(true);
     try {
-      const response = await generateAICalendarTimetable();
+      // TODO: Implement generateAICalendarTimetable function
+      // const response = await generateAICalendarTimetable();
+      const response = { message: 'Timetable generation not yet implemented' };
       setTimetableOutput(response);
     } catch {
       // Catch silently
