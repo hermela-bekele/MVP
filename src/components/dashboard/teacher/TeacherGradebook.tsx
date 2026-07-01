@@ -243,9 +243,20 @@ export const TeacherGradebook: React.FC = () => {
           </div>
           <input className={aisInput} placeholder="Remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           <p className={aisBodySm}>Saving recalculates cumulative GPA from weighted term scores and syncs to student & parent portals.</p>
-          <DialogFooter className="border-t border-ais-card-border pt-4">
-            <AisBtnSecondary type="button" onClick={() => setIsFormOpen(false)}>Cancel</AisBtnSecondary>
-            <AisBtnPrimary type="submit">Save grade</AisBtnPrimary>
+          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
+            <button
+              type="button"
+              onClick={() => setIsFormOpen(false)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+            >
+              Save grade
+            </button>
           </DialogFooter>
         </form>
       </Dialog>

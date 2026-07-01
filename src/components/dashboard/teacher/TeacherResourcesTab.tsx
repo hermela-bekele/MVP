@@ -95,9 +95,20 @@ export const TeacherResourcesTab: React.FC = () => {
           <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={resGrade} onChange={(e) => setResGrade(e.target.value)} />
           <input className={aisInput} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
           <input className={aisInput} required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="File URL or link" />
-          <DialogFooter className="border-t border-ais-card-border pt-4">
-            <AisBtnSecondary type="button" onClick={() => setIsOpen(false)}>Cancel</AisBtnSecondary>
-            <AisBtnPrimary type="submit">Publish to students</AisBtnPrimary>
+          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+            >
+              Publish to students
+            </button>
           </DialogFooter>
         </form>
       </Dialog>

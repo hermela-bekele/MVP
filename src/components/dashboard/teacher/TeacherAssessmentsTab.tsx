@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FilePlus, Upload } from 'lucide-react';
+import { FilePlus, Upload, Sparkles } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterTeacherAssessments, GRADE_OPTIONS } from '@/lib/teacherPortal';
+import { generateAssessmentWithAI } from '@/lib/ai';
+import { MathRenderer } from '@/components/ui/MathRenderer';
 import type { Assessment } from '@/lib/mockData';
 import {
   AisBtnPrimary,
@@ -29,10 +31,14 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<Assessment['type']>('Quiz');
-  const [subject, setSubject] = useState('Biology');
-  const [grade, setGrade] = useState('Grade 9');
+  const [subject, setSubject] = useState('Mathematics');
+  const [grade, setGrade] = useState('Grade 11');
   const [difficulty, setDifficulty] = useState<Assessment['difficulty']>('Medium');
   const [uploadMode, setUploadMode] = useState<'create' | 'upload'>('create');
+  const [topic, setTopic] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     const open = () => {
@@ -43,9 +49,36 @@ export const TeacherAssessmentsTab: React.FC = () => {
     return () => window.removeEventListener('open-teacher-assessment', open);
   }, []);
 
+  // Auto-populate title based on type and topic
+  useEffect(() => {
+    if (topic && type) {
+      setTitle(`${type} on ${topic}`);
+    }
+  }, [topic, type]);
+
+  const handleGenerateWithAI = async () => {
+    if (!topic) {
+      alert('Please enter a topic first');
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const content = await generateAssessmentWithAI(type, topic, grade, subject, difficulty);
+      setGeneratedContent(content);
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Failed to generate assessment:', error);
+      alert('Failed to generate assessment. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
+    
     createAssessment({
       title,
       type,
@@ -55,12 +88,19 @@ export const TeacherAssessmentsTab: React.FC = () => {
       questions:
         uploadMode === 'upload'
           ? [{ id: 1, question: 'Uploaded assessment file — see attachment in school records.', type: 'File', answer: 'N/A' }]
+          : generatedContent
+          ? [{ id: 1, question: generatedContent, type: 'AI Generated', answer: 'See assessment content' }]
           : [
               { id: 1, question: 'Sample question 1', type: 'MCQ', options: ['A', 'B', 'C', 'D'], answer: 'A' },
               { id: 2, question: 'Sample question 2', type: 'Short Answer', answer: 'Open response' },
             ],
     });
+    
+    // Reset form
     setTitle('');
+    setTopic('');
+    setGeneratedContent('');
+    setShowPreview(false);
     setIsOpen(false);
   };
 
@@ -117,22 +157,137 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
       <Dialog
         isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={() => {
+          setIsOpen(false);
+          setGeneratedContent('');
+          setShowPreview(false);
+          setTopic('');
+        }}
         title={uploadMode === 'upload' ? 'Upload assessment' : 'Create assessment'}
-        size="lg"
+        size="xl"
+        largeTitle
       >
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          <input className={aisInput} required placeholder="Assessment title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Select variant="ais" label="Type" options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))} value={type} onChange={(e) => setType(e.target.value as Assessment['type'])} />
-            <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
-            <Select variant="ais" label="Subject" options={[{ value: 'Biology', label: 'Biology' }]} value={subject} onChange={(e) => setSubject(e.target.value)} />
-            <Select variant="ais" label="Difficulty" options={['Easy', 'Medium', 'Hard'].map((d) => ({ value: d, label: d }))} value={difficulty} onChange={(e) => setDifficulty(e.target.value as Assessment['difficulty'])} />
+        <form onSubmit={handleSubmit} className="space-y-5 pt-1">
+          {/* Topic Input */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-200 uppercase tracking-wide">Topic</label>
+            <input
+              className={aisInput}
+              required
+              placeholder="e.g., Quadratic Equations, Derivatives, Logarithms"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+            />
           </div>
+
+          {/* Title Input (auto-populated) */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-200 uppercase tracking-wide">Assessment Title</label>
+            <input
+              className={aisInput}
+              required
+              placeholder="Assessment title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          {/* Parameters Grid */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Select
+              variant="ais"
+              label="Type"
+              options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+              value={type}
+              onChange={(e) => setType(e.target.value as Assessment['type'])}
+            />
+            <Select
+              variant="ais"
+              label="Grade"
+              options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))}
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+            />
+            <Select
+              variant="ais"
+              label="Subject"
+              options={[
+                { value: 'Mathematics', label: 'Mathematics' },
+                { value: 'Biology', label: 'Biology' },
+                { value: 'Chemistry', label: 'Chemistry' },
+                { value: 'Physics', label: 'Physics' },
+              ]}
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+            <Select
+              variant="ais"
+              label="Difficulty"
+              options={['Easy', 'Medium', 'Hard'].map((d) => ({ value: d, label: d }))}
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value as Assessment['difficulty'])}
+            />
+          </div>
+
+          {/* AI Generation Button */}
+          {uploadMode === 'create' && !showPreview && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={handleGenerateWithAI}
+                disabled={isGenerating || !topic}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-8 py-3 text-base font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+              >
+                <Sparkles className="h-4 w-4 animate-pulse" />
+                {isGenerating ? 'Generating with AI...' : 'Generate with AI'}
+              </button>
+            </div>
+          )}
+
+          {/* Preview Generated Content */}
+          {showPreview && generatedContent && (
+            <div className="space-y-2 max-h-96 overflow-y-auto border border-ais-card-border dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
+                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  AI Generated Assessment Preview
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPreview(false);
+                    setGeneratedContent('');
+                  }}
+                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                >
+                  Clear & Regenerate
+                </button>
+              </div>
+              <MathRenderer content={generatedContent} />
+            </div>
+          )}
+
           {uploadMode === 'upload' && <input type="file" className="text-xs text-ais-on-surface-variant" onChange={() => {}} />}
-          <DialogFooter className="flex-wrap gap-2 border-t border-ais-card-border pt-4">
-            <AisBtnSecondary type="button" onClick={() => setIsOpen(false)}>Cancel</AisBtnSecondary>
-            <AisBtnPrimary type="submit">Submit for dept head approval</AisBtnPrimary>
+
+          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setGeneratedContent('');
+                setShowPreview(false);
+                setTopic('');
+              }}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+            >
+              Submit for dept head approval
+            </button>
           </DialogFooter>
         </form>
       </Dialog>

@@ -176,9 +176,20 @@ export const TeacherStudentsTab: React.FC = () => {
             To: {selectedStudent?.parentName} ({selectedStudent?.parentPhone})
           </p>
           <textarea className={aisTextarea} required value={parentMsg} onChange={(e) => setParentMsg(e.target.value)} placeholder="Write about grades, quizzes, projects, mid/final exams, or attendance..." />
-          <DialogFooter className="border-t border-ais-card-border pt-4">
-            <AisBtnSecondary type="button" onClick={() => setMessageStudentId(null)}>Cancel</AisBtnSecondary>
-            <AisBtnPrimary type="submit">Send to parent portal</AisBtnPrimary>
+          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
+            <button
+              type="button"
+              onClick={() => setMessageStudentId(null)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+            >
+              Send to parent portal
+            </button>
           </DialogFooter>
         </form>
       </Dialog>
