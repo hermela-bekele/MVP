@@ -1,0 +1,42 @@
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  - type: web
+    name: prime-ai-math-api
+    env: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false          # Set this in Render dashboard
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-large
+      - key: CHROMA_PERSIST_DIR
+        value: /opt/render/project/data/chroma_db
+      - key: CHROMA_COLLECTION_NAME
+        value: grade11_math
+      - key: APP_VERSION
+        value: "1.0.0"
+      - key: DEBUG
+        value: "false"
+    disk:
+      name: chroma-db
+      mountPath: /opt/render/project/data
+      sizeGB: 5
+
+  # ── Streamlit UI (optional — can also run locally) ────────────────────────
+  - type: web
+    name: prime-ai-math-streamlit
+    env: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app/app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: STREAMLIT_API_BASE_URL
+        value: https://prime-ai-math-api.onrender.com   # Update after first deploy
+      - key: OPENAI_API_KEY
+        sync: false

@@ -5,7 +5,7 @@
     /* Green & white — Prime / eSkooly school theme */
     --background: 0 0% 100%;
     --foreground: 158 32% 14%;
-    --dashboard-bg: 140 30% 97%;
+    --dashboard-bg: 240 100% 99%;
 
     --card: 0 0% 100%;
     --card-foreground: 158 32% 14%;
@@ -16,11 +16,12 @@
     --primary: 152 69% 31%;
     --primary-foreground: 0 0% 100%;
 
-    --sidebar-bg: 155 58% 22%;
-    --sidebar-fg: 0 0% 100%;
-    --sidebar-muted: 152 25% 72%;
+    /* AIS sidebar — light gray surface, blue accents */
+    --sidebar-bg: 228 100% 97%;
+    --sidebar-fg: 218 100% 39%;
+    --sidebar-muted: 230 9% 44%;
     --sidebar-active: 0 0% 100%;
-    --sidebar-active-fg: 152 69% 28%;
+    --sidebar-active-fg: 218 100% 39%;
 
     --secondary: 140 35% 94%;
     --secondary-foreground: 158 32% 14%;
@@ -47,7 +48,7 @@
     --radius: 0.5rem;
 
     /* Sidebar */
-    --sidebar-width: 272px;
+    --sidebar-width: 256px;
     --sidebar-collapsed-width: 72px;
   }
 
@@ -65,11 +66,11 @@
     --primary: 152 55% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --sidebar-bg: 155 50% 14%;
-    --sidebar-fg: 0 0% 100%;
-    --sidebar-muted: 152 20% 55%;
-    --sidebar-active: 152 45% 28%;
-    --sidebar-active-fg: 0 0% 100%;
+    --sidebar-bg: 220 18% 14%;
+    --sidebar-fg: 218 80% 72%;
+    --sidebar-muted: 220 10% 55%;
+    --sidebar-active: 220 16% 20%;
+    --sidebar-active-fg: 218 80% 72%;
     
     --secondary: 158 22% 16%;
     --secondary-foreground: 140 20% 96%;
@@ -121,6 +122,43 @@
   --color-success-foreground: hsl(var(--success-foreground));
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
+
+  /* Academic Intelligence System (teacher portal) */
+  --color-ais-background: #f9f9ff;
+  --color-ais-surface: #f9f9ff;
+  --color-ais-surface-lowest: #ffffff;
+  --color-ais-surface-container-low: #f0f3ff;
+  --color-ais-surface-container: #e7eeff;
+  --color-ais-on-surface: #111c2d;
+  --color-ais-on-surface-variant: #434655;
+  --color-ais-outline: #737686;
+  --color-ais-outline-variant: #c3c6d7;
+  --color-ais-card-border: #e2e8f0;
+  --color-ais-row-border: #f1f5f9;
+  --color-ais-row-hover: #eff6ff;
+  --color-ais-primary: #004ac6;
+  --color-ais-on-primary: #ffffff;
+  --color-ais-primary-container: #2563eb;
+  --color-ais-error: #ba1a1a;
+  --color-ais-error-container: #ffdad6;
+  --color-ais-success: #059669;
+  --color-ais-warning: #d97706;
+  --color-ais-surface-lowest: #ffffff;
+  --color-ais-error-container: #ffdad6;
+  --color-ais-on-primary: #ffffff;
+  --color-ais-row-hover: #eff6ff;
+
+  /* portal-* aliases (AIS) */
+  --color-portal-primary: #004ac6;
+  --color-portal-on-primary: #ffffff;
+  --color-portal-surface: #ffffff;
+  --color-portal-on-surface: #111c2d;
+  --color-portal-on-surface-variant: #434655;
+  --color-portal-outline: #e2e8f0;
+  --color-portal-primary-container: #f0f3ff;
+  --color-portal-secondary-container: #f0f3ff;
+  --color-portal-error-container: #ffdad6;
+  --color-portal-error: #ba1a1a;
   
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -399,9 +437,20 @@ body {
 }
 
 /* Firefox scrollbar */
-* {
+*:not(.scrollbar-none) {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* ====================================
@@ -536,7 +585,7 @@ body {
 }
 
 .eskooly-table thead tr {
-  background: hsl(var(--primary) / 0.08);
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--primary) / 0.06) 100%);
   border-bottom: 1px solid hsl(var(--primary) / 0.15);
 }
 
@@ -557,11 +606,251 @@ body {
 }
 
 .eskooly-table tbody tr:hover {
-  background: hsl(var(--muted) / 0.35);
+  background: linear-gradient(90deg, hsl(var(--muted) / 0.35) 0%, hsl(var(--muted) / 0.2) 100%);
+  transition: all 0.2s ease;
 }
 
 @media print {
   .no-print {
     display: none !important;
   }
+}
+
+/* ====================================
+   Academic Intelligence System
+   (scoped to .teacher-portal main content)
+   ==================================== */
+
+.teacher-portal {
+  background-color: #f9f9ff;
+  color: #111c2d;
+  font-feature-settings: "tnum";
+}
+
+/* Typography */
+.teacher-portal .ais-display-lg {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 40px;
+  letter-spacing: -0.02em;
+}
+
+.teacher-portal .ais-display-md {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.01em;
+}
+
+.teacher-portal .ais-headline-sm {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.teacher-portal .ais-body-lg {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.teacher-portal .ais-body-md {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.teacher-portal .ais-body-sm {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.teacher-portal .ais-data-lg {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.teacher-portal .ais-data-md {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.teacher-portal .ais-label-caps {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Level 1 cards */
+.teacher-portal .ais-card,
+.teacher-portal .portal-panel {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.teacher-portal .portal-schedule-card,
+.teacher-portal .ais-schedule-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+/* Buttons */
+.teacher-portal .ais-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #ffffff;
+  background-color: #004ac6;
+  border: 1px solid #004ac6;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s ease;
+}
+
+.teacher-portal .ais-btn-primary:hover {
+  background-color: #003ea8;
+}
+
+.teacher-portal .ais-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: #434655;
+  background-color: #ffffff;
+  border: 1px solid #c3c6d7;
+  border-radius: 0.25rem;
+  transition: background-color 0.15s ease;
+}
+
+.teacher-portal .ais-btn-secondary:hover {
+  background-color: #f0f3ff;
+}
+
+.teacher-portal .ais-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #004ac6;
+  background: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  transition: color 0.15s ease;
+}
+
+.teacher-portal .ais-btn-ghost:hover {
+  color: #003ea8;
+}
+
+.teacher-portal .ais-btn-ghost-muted {
+  color: #434655;
+}
+
+.teacher-portal .ais-btn-ghost-muted:hover {
+  color: #111c2d;
+}
+
+/* Status badges — 10% semantic fill */
+.teacher-portal .ais-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 0.5rem;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.teacher-portal .ais-badge--success {
+  background-color: rgba(5, 150, 105, 0.1);
+  color: #059669;
+}
+
+.teacher-portal .ais-badge--warning {
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+}
+
+.teacher-portal .ais-badge--error {
+  background-color: rgba(186, 26, 26, 0.1);
+  color: #ba1a1a;
+}
+
+/* Data tables */
+.teacher-portal .portal-table,
+.teacher-portal .ais-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.teacher-portal .portal-table thead tr,
+.teacher-portal .ais-table thead tr {
+  background-color: #f0f3ff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.teacher-portal .portal-table th,
+.teacher-portal .ais-table th {
+  padding: 8px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #434655;
+}
+
+.teacher-portal .portal-table td,
+.teacher-portal .ais-table td {
+  padding: 8px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #111c2d;
+}
+
+.teacher-portal .portal-table tbody tr,
+.teacher-portal .ais-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.teacher-portal .portal-table tbody tr:hover,
+.teacher-portal .ais-table tbody tr:hover {
+  background-color: #eff6ff;
+}
+
+.teacher-portal .portal-table tbody tr:last-child td,
+.teacher-portal .ais-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.teacher-portal .portal-fab,
+.teacher-portal .ais-fab {
+  box-shadow: 0 4px 12px rgba(0, 74, 198, 0.25);
+  border-radius: 0.25rem;
 }

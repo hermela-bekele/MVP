@@ -1,84 +1,442 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useApp } from '@/context/AppContext';
-import { Card, CardContent } from '@/components/ui/card';
-import { MetricProgressRow } from '@/components/ui/metric-progress-row';
-import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select';
-import { getDemoTeacher, TRAINING_TYPE_FILTERS } from '@/lib/teacherPortal';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, BookOpen, PlayCircle, CheckCircle, Lock, Download, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
+import { TRAINING_MODULES, type TrainingModule, type SessionContent, isAssessmentUnlocked, calculateModuleProgress } from '@/lib/trainingModules';
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { AssessmentQuiz } from '@/components/dashboard/teacher/AssessmentQuiz';
+import { AisPage } from '@/components/dashboard/teacher/TeacherPortalUi';
+import { generatePDFFromMarkdown } from '@/lib/pdfUtils';
 
-export const TeacherTrainingTab: React.FC = () => {
-  const { trainings, trainingMaterials, teachers } = useApp();
-  const teacher = getDemoTeacher(teachers);
-  const [typeFilter, setTypeFilter] = useState<string>('All');
+export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
+  const [selectedModule, setSelectedModule] = useState<TrainingModule | null>(null);
+  const [selectedSession, setSelectedSession] = useState<SessionContent | null>(null);
+  const [activeTab, setActiveTab] = useState<'modules' | 'videos'>('modules');
+  const [contentTab, setContentTab] = useState<'content' | 'assessment'>('content');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
-  const filteredMaterials = useMemo(() => {
-    if (typeFilter === 'All') return trainingMaterials;
-    return trainingMaterials.filter((m) => m.trainingType === typeFilter || m.category === typeFilter);
-  }, [trainingMaterials, typeFilter]);
+  // Initialize selected session when module changes
+  useEffect(() => {
+    if (selectedModule && selectedModule.sessions.length > 0) {
+      setSelectedSession(selectedModule.sessions[0]);
+      setContentTab('content');
+    }
+  }, [selectedModule]);
+
+  // Handler for marking session complete
+  const handleMarkComplete = (sessionId: string) => {
+    if (!selectedModule) return;
+    
+    // Find the session and toggle completion
+    const updatedSessions = selectedModule.sessions.map(s => 
+      s.id === sessionId ? { ...s, completed: !s.completed } : s
+    );
+    
+    // Update the module
+    const updatedModule = { ...selectedModule, sessions: updatedSessions };
+    setSelectedModule(updatedModule);
+    
+    // Update selected session if it's the one being marked
+    if (selectedSession?.id === sessionId) {
+      setSelectedSession({ ...selectedSession, completed: !selectedSession.completed });
+    }
+  };
+
+  // Handler for PDF download
+  const handleDownloadPDF = async (content: string, filename: string, title: string) => {
+    setIsGeneratingPDF(true);
+    try {
+      await generatePDFFromMarkdown(content, filename, title);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Module List View
+  if (!selectedModule) {
+    return (
+      <AisPage>
+        {/* Module Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {TRAINING_MODULES.map((module) => {
+            const progress = calculateModuleProgress(module);
+            const completedCount = module.sessions.filter(s => s.completed).length;
+            
+            return (
+              <button
+                key={module.id}
+                onClick={() => setSelectedModule(module)}
+                className="group relative overflow-hidden rounded-2xl border-2 border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] hover:border-primary dark:hover:border-primary"
+              >
+                {/* Category Badge */}
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-4"
+                  style={{
+                    backgroundColor: module.category.includes('SECONDARY') ? '#E0F2FE' : '#DCFCE7',
+                    color: module.category.includes('SECONDARY') ? '#0369A1' : '#166534',
+                  }}
+                >
+                  {module.category}
+                </div>
+
+                {/* Title */}
+                <h3 className="text-xl font-bold text-ais-on-surface dark:text-gray-100 mb-2 group-hover:text-primary dark:group-hover:text-primary-light transition-colors">
+                  {module.title}
+                </h3>
+
+                {/* Description */}
+                <p className="text-sm text-ais-on-surface-variant dark:text-gray-400 mb-4">
+                  {module.description}
+                </p>
+
+                {/* Sessions with completion status */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {module.sessions.map((session) => (
+                    <span
+                      key={session.id}
+                      className={`px-2 py-1 text-xs rounded-lg flex items-center gap-1 ${
+                        session.completed
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : 'bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface dark:text-gray-300'
+                      }`}
+                    >
+                      {session.number} {session.title}
+                      {session.completed && <CheckCircle className="w-3 h-3" />}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-ais-on-surface dark:text-gray-300">
+                      {completedCount}/{module.sessions.length} sessions · {progress}%
+                    </span>
+                    <span className="text-xs text-ais-on-surface-variant dark:text-gray-400 flex items-center gap-1">
+                      <PlayCircle className="w-3 h-3" />
+                      {module.videoCount} videos
+                    </span>
+                  </div>
+                  <div className="h-2 bg-ais-surface-container-low dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-primary dark:text-primary-light group-hover:underline">
+                    {progress === 0 ? 'Start' : progress === 100 ? 'Review' : 'Continue'}
+                  </span>
+                  {progress === 100 && (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </AisPage>
+    );
+  }
+
+  // Module Content View
+  const progress = calculateModuleProgress(selectedModule);
+  const completedCount = selectedModule.sessions.filter(s => s.completed).length;
+  const currentSessionIndex = selectedSession 
+    ? selectedModule.sessions.findIndex(s => s.id === selectedSession.id) 
+    : 0;
+  const hasPrevious = currentSessionIndex > 0;
+  const hasNext = currentSessionIndex < selectedModule.sessions.length - 1;
 
   return (
-    <div className="space-y-6 text-left">
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-4">
-          <MetricProgressRow
-            label="Your MOE training progress"
-            value={teacher.trainingProgress}
-            valueDisplay={`${teacher.trainingProgress}% complete`}
-            barClassName="bg-primary"
-          />
-          <p className="text-xxs text-muted-foreground mt-2">Certification: {teacher.certification}</p>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-ais-card-border dark:border-gray-700 mb-6 -mt-6 -mx-6 px-6 py-4">
+        <button
+          onClick={() => {
+            setSelectedModule(null);
+            setSelectedSession(null);
+          }}
+          className="flex items-center gap-2 text-ais-on-surface-variant dark:text-gray-400 hover:text-ais-on-surface dark:hover:text-gray-100 mb-4"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Back to Modules
+        </button>
 
-      <div className="max-w-xs">
-        <Select
-          label="Filter by training type"
-          options={TRAINING_TYPE_FILTERS.map((t) => ({ value: t, label: t }))}
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-xs font-bold text-foreground uppercase tracking-wide">Training materials</p>
-        {filteredMaterials.map((m) => (
-          <div key={m.id} className="p-4 rounded-xl border border-border/40 bg-muted/30 flex justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold text-foreground">{m.title}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {m.trainingType ?? m.category} · Uploaded {m.uploadedAt}
-              </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-2"
+              style={{
+                backgroundColor: selectedModule.category.includes('SECONDARY') ? '#E0F2FE' : '#DCFCE7',
+                color: selectedModule.category.includes('SECONDARY') ? '#0369A1' : '#166534',
+              }}
+            >
+              {selectedModule.category}
             </div>
-            <Badge variant="neutral" size="sm">
-              {m.category}
-            </Badge>
+            <h1 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+              {selectedModule.title}
+            </h1>
+            <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+              {selectedModule.description}
+            </p>
           </div>
-        ))}
-      </div>
 
-      <div className="space-y-3">
-        <p className="text-xs font-bold text-foreground uppercase tracking-wide">MOE course catalog</p>
-        {trainings.map((tr) => (
-          <div key={tr.id} className="p-4 rounded-xl border border-border/40 bg-card flex justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-foreground">{tr.title}</p>
-              <p className="text-xxs text-muted-foreground">
-                {tr.instructor} · {tr.duration} · Starts {tr.startDate}
-              </p>
+          {/* Progress Badge */}
+          <div className="text-right">
+            <div className="text-3xl font-bold text-primary dark:text-primary-light mb-1">
+              {progress}%
             </div>
-            <div className="text-right">
-              <Badge variant={tr.status === 'Active' ? 'success' : 'warning'} size="sm">
-                {tr.status}
-              </Badge>
-              <p className="text-xxs font-mono mt-2">
-                {tr.completedCount}/{tr.totalCount} teachers
-              </p>
+            <div className="text-xs text-ais-on-surface-variant dark:text-gray-400">
+              {completedCount}/{selectedModule.sessions.length} sessions
             </div>
           </div>
-        ))}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={() => setActiveTab('modules')}
+            className={`pb-2 px-1 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'modules'
+                ? 'border-primary text-primary dark:text-primary-light'
+                : 'border-transparent text-ais-on-surface-variant dark:text-gray-400 hover:text-ais-on-surface dark:hover:text-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              Module Content
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('videos')}
+            className={`pb-2 px-1 text-sm font-semibold border-b-2 transition-colors ${
+              activeTab === 'videos'
+                ? 'border-primary text-primary dark:text-primary-light'
+                : 'border-transparent text-ais-on-surface-variant dark:text-gray-400 hover:text-ais-on-surface dark:hover:text-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <PlayCircle className="w-4 h-4" />
+              Videos ({selectedModule.videoCount})
+            </div>
+          </button>
+        </div>
       </div>
+
+      {/* Content Area */}
+      {activeTab === 'modules' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar - Session Navigation */}
+          <div className="lg:col-span-1 space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-4">
+              <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-4">Sessions</h3>
+              <div className="space-y-2">
+                {selectedModule.sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => {
+                      setSelectedSession(session);
+                      setContentTab('content');
+                    }}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                      selectedSession?.id === session.id
+                        ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light'
+                        : 'text-ais-on-surface dark:text-gray-300 hover:bg-ais-surface-container-low dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className="text-xs font-bold min-w-[2rem]">{session.number}</span>
+                      <span className="font-medium text-sm">{session.title}</span>
+                    </div>
+                    {session.completed && (
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+                
+                {/* Separator */}
+                <div className="border-t border-ais-card-border dark:border-gray-700 my-2" />
+                
+                {/* Assessment Button */}
+                <button
+                  onClick={() => setContentTab('assessment')}
+                  disabled={!isAssessmentUnlocked(selectedModule)}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                    contentTab === 'assessment'
+                      ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light'
+                      : isAssessmentUnlocked(selectedModule)
+                      ? 'text-ais-on-surface dark:text-gray-300 hover:bg-ais-surface-container-low dark:hover:bg-gray-700'
+                      : 'text-ais-on-surface-variant dark:text-gray-600 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {isAssessmentUnlocked(selectedModule) ? (
+                      <CheckCircle className="w-5 h-5" />
+                    ) : (
+                      <Lock className="w-5 h-5" />
+                    )}
+                    <span className="font-medium">Assessment</span>
+                  </div>
+                </button>
+              </div>
+
+              {!isAssessmentUnlocked(selectedModule) && (
+                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                    Complete all {selectedModule.sessions.length} sessions to unlock the assessment
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-6">
+              {contentTab === 'content' && selectedSession ? (
+                <>
+                  {/* Session Header */}
+                  <div className="mb-6 pb-6 border-b border-ais-card-border dark:border-gray-700">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="px-3 py-1 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light text-sm font-bold rounded-full">
+                            Session {selectedSession.number}
+                          </span>
+                          {selectedSession.completed && (
+                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Completed
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+                          {selectedSession.title}
+                        </h2>
+                        <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+                          Duration: {selectedSession.duration}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => handleMarkComplete(selectedSession.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                          selectedSession.completed
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                            : 'bg-primary text-white hover:bg-primary/90'
+                        }`}
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        {selectedSession.completed ? 'Mark Incomplete' : 'Mark Complete'}
+                      </button>
+                      
+                      <button
+                        onClick={() => handleDownloadPDF(
+                          selectedSession.content,
+                          `Session-${selectedSession.number}-${selectedSession.title}.pdf`,
+                          `Session ${selectedSession.number}: ${selectedSession.title}`
+                        )}
+                        disabled={isGeneratingPDF}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                      >
+                        <Download className="w-4 h-4" />
+                        {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+                      </button>
+
+                      {/* Navigation Buttons */}
+                      <div className="flex gap-2 ml-auto">
+                        <button
+                          onClick={() => hasPrevious && setSelectedSession(selectedModule.sessions[currentSessionIndex - 1])}
+                          disabled={!hasPrevious}
+                          className="flex items-center gap-1 px-3 py-2 bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface dark:text-gray-300 rounded-lg hover:bg-ais-surface-container dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => hasNext && setSelectedSession(selectedModule.sessions[currentSessionIndex + 1])}
+                          disabled={!hasNext}
+                          className="flex items-center gap-1 px-3 py-2 bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface dark:text-gray-300 rounded-lg hover:bg-ais-surface-container dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Session Content */}
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <MarkdownRenderer content={selectedSession.content} />
+                  </div>
+                </>
+              ) : contentTab === 'assessment' ? (
+                <>
+                  {isAssessmentUnlocked(selectedModule) ? (
+                    <AssessmentQuiz
+                      questions={selectedModule.assessmentQuestions}
+                      passingScore={selectedModule.passingScore}
+                      moduleTitle={selectedModule.title}
+                      onComplete={(score, passed) => {
+                        console.log(`Assessment completed: ${score}% - ${passed ? 'Passed' : 'Failed'}`);
+                        // TODO: Save score to backend
+                      }}
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <Lock className="w-16 h-16 text-ais-on-surface-variant dark:text-gray-600 mx-auto mb-4" />
+                      <p className="text-ais-on-surface-variant dark:text-gray-400 text-lg font-medium mb-2">
+                        Assessment Locked
+                      </p>
+                      <p className="text-sm text-ais-on-surface-variant dark:text-gray-500">
+                        Complete all {selectedModule.sessions.length} sessions to unlock this assessment
+                      </p>
+                      <div className="mt-6">
+                        <div className="inline-flex items-center gap-2 text-sm">
+                          <span className="text-primary dark:text-primary-light font-semibold">
+                            {completedCount}/{selectedModule.sessions.length} completed
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {selectedModule.videos?.map((video) => (
+            <div
+              key={video.id}
+              className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
+            >
+              <div className="relative aspect-video bg-ais-surface-container-low dark:bg-gray-700">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <PlayCircle className="w-16 h-16 text-white opacity-80 hover:opacity-100 transition-opacity cursor-pointer" />
+                </div>
+              </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-2">
+                  {video.title}
+                </h3>
+                <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+                  Duration: {video.duration}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Save, Send, Sparkles, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { generateTeachingNotesAI, type AITeachingNotesResult } from '@/lib/ai';
+import { aiService, type AITeachingNotesResult, type AILessonPlanResult } from '@/lib/ai';
 import {
   DEMO_TEACHER_ID,
   GRADE_OPTIONS,
@@ -15,14 +13,33 @@ import {
   notesForLessonPlan,
 } from '@/lib/teacherPortal';
 import type { LessonPlan, TeachingNote } from '@/lib/mockData';
+import {
+  AisBtnPrimary,
+  AisBtnSecondary,
+  AisPage,
+  AisStatusBadge,
+  approvalBadgeVariant,
+  aisCallout,
+  aisFormLabel,
+  aisInput,
+  aisListRow,
+  aisTextarea,
+} from '@/components/dashboard/teacher/TeacherPortalUi';
+import {
+  aisBodyMd,
+  aisBodySm,
+  aisCard,
+  aisDataMd,
+  aisHeadlineSm,
+  aisLabelCaps,
+} from '@/components/dashboard/teacher/aisStyles';
+import { TeachingNotesRenderer } from '@/components/ui/TeachingNotesRenderer';
+import { LessonPlanRenderer } from '@/components/ui/LessonPlanRenderer';
 
-const inputClass =
-  'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
-
-function statusBadge(status: TeachingNote['status']) {
-  if (status === 'Approved') return 'success' as const;
-  if (status === 'Rejected') return 'danger' as const;
+function noteStatusVariant(status: TeachingNote['status']) {
+  if (status === 'Rejected') return 'error' as const;
   if (status === 'Draft') return 'neutral' as const;
+  if (status === 'Approved') return 'success' as const;
   return 'warning' as const;
 }
 
@@ -42,21 +59,22 @@ export const TeacherTeachingNotes: React.FC = () => {
   const unlinkedNotes = myNotes.filter((n) => !n.lessonPlanId);
 
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(teacherPlans[0]?.id ?? null);
-
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [planTitle, setPlanTitle] = useState('');
-  const [planGrade, setPlanGrade] = useState('Grade 9');
-  const [planSubject, setPlanSubject] = useState('Biology');
+  const [planGrade, setPlanGrade] = useState('Grade 11');
+  const [planSubject, setPlanSubject] = useState('Mathematics');
   const [planSessions, setPlanSessions] = useState(4);
   const [planObjectives, setPlanObjectives] = useState('');
   const [planHomework, setPlanHomework] = useState('');
-
+  const [planTopic, setPlanTopic] = useState('');
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [aiPlanResult, setAiPlanResult] = useState<AILessonPlanResult | null>(null);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [viewNote, setViewNote] = useState<TeachingNote | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [linkedPlanId, setLinkedPlanId] = useState('');
-  const [notesGrade, setNotesGrade] = useState('Grade 9');
-  const [notesSubject, setNotesSubject] = useState('Biology');
+  const [notesGrade, setNotesGrade] = useState('Grade 11');
+  const [notesSubject, setNotesSubject] = useState('Mathematics');
   const [notesTopic, setNotesTopic] = useState('');
   const [notesLanguage, setNotesLanguage] = useState('English');
   const [noteTitle, setNoteTitle] = useState('');
@@ -83,8 +101,8 @@ export const TeacherTeachingNotes: React.FC = () => {
     const plan = teacherPlans.find((p) => p.id === planId);
     setEditingNoteId(null);
     setLinkedPlanId(planId);
-    setNotesGrade(plan?.grade ?? 'Grade 9');
-    setNotesSubject(plan?.subject ?? 'Biology');
+    setNotesGrade(plan?.grade ?? 'Grade 11');
+    setNotesSubject(plan?.subject ?? 'Mathematics');
     setNotesTopic('');
     setNotesLanguage('English');
     setNoteTitle('');
@@ -116,9 +134,72 @@ export const TeacherTeachingNotes: React.FC = () => {
   const handleGenerateNotes = async () => {
     setGeneratingNotes(true);
     try {
-      const result = await generateTeachingNotesAI(notesGrade, notesSubject, notesTopic, notesLanguage);
+      // Build a prompt for the AI service
+      const prompt = `topic: ${notesTopic}\nsubtopic: \ngrade: ${notesGrade}\nsubject: ${notesSubject}\nlanguage: ${notesLanguage}`;
+      
+      // Call the deployed AI API
+      const response = await aiService.generateTeachingNotes(prompt);
+      
+      console.log('📦 Raw API response:', response);
+      
+      // The API returns markdown content, so we'll store it as a special format
+      // that the renderer can detect
+      let result: AITeachingNotesResult;
+      
+      if (typeof response.content === 'string') {
+        // Check if it's markdown (contains # or ## headers)
+        if (response.content.includes('#') || response.content.includes('##')) {
+          console.log('✅ Detected markdown content, using markdown renderer');
+          // Store as markdown for rendering
+          result = {
+            title: `Teaching Notes: ${notesGrade} ${notesSubject} - ${notesTopic}`,
+            language: notesLanguage,
+            introduction: '',
+            explanations: [{
+              subtitle: 'Content',
+              content: response.content, // Markdown content
+              examples: []
+            }],
+            visualAids: [],
+            exercises: []
+          };
+        } else {
+          // Try to parse as JSON
+          try {
+            result = JSON.parse(response.content);
+            console.log('✅ Parsed JSON response');
+          } catch {
+            console.log('⚠️ Creating structured format from text');
+            result = {
+              title: `Teaching Notes: ${notesGrade} ${notesSubject} - ${notesTopic}`,
+              language: notesLanguage,
+              introduction: response.content.substring(0, 300) + '...',
+              explanations: [{
+                subtitle: 'Content',
+                content: response.content,
+                examples: []
+              }],
+              visualAids: [],
+              exercises: []
+            };
+          }
+        }
+      } else if (typeof response.content === 'object') {
+        // Already an object
+        result = response.content as AITeachingNotesResult;
+        console.log('✅ Response is already structured');
+      } else {
+        // Fallback
+        throw new Error('Unexpected response format');
+      }
+      
+      console.log('✅ Final structured result:', result);
+      
       setAiNotesResult(result);
-      if (!noteTitle) setNoteTitle(result.title);
+      if (!noteTitle) setNoteTitle(result.title || `${notesTopic} Notes`);
+    } catch (error) {
+      console.error('❌ Failed to generate teaching notes:', error);
+      addNotification('Generation Failed', 'Could not generate teaching notes. Please try again.', 'alert');
     } finally {
       setGeneratingNotes(false);
     }
@@ -160,27 +241,117 @@ export const TeacherTeachingNotes: React.FC = () => {
     setAiNotesResult(null);
   };
 
+  const handleGeneratePlan = async () => {
+    if (!planTopic) {
+      alert('Please enter a topic first');
+      return;
+    }
+    setGeneratingPlan(true);
+    try {
+      // Build a prompt for the AI service
+      const prompt = `topic: ${planTopic}\nduration_minutes: ${planSessions * 45}\ngrade: ${planGrade}\nsubject: ${planSubject}\nsessions: ${planSessions}`;
+      
+      // Call the deployed AI API
+      const response = await aiService.generateLessonPlan(prompt);
+      
+      console.log('📦 Raw lesson plan response:', response);
+      
+      // Parse the result - handle multiple response formats
+      let result: AILessonPlanResult;
+      
+      if (typeof response.content === 'string') {
+        // Check if it's markdown
+        if (response.content.includes('#') || response.content.includes('##')) {
+          console.log('✅ Detected markdown lesson plan');
+          // For markdown, create a minimal structure
+          result = {
+            title: `Lesson Plan: ${planGrade} ${planSubject} - ${planTopic}`,
+            objectives: [],
+            activities: [{
+              session: 1,
+              activity: response.content, // Markdown content
+              duration: `${planSessions * 45} mins`
+            }],
+            assessments: [],
+            homework: ''
+          };
+        } else {
+          // Try to parse as JSON
+          try {
+            result = JSON.parse(response.content);
+            console.log('✅ Parsed JSON lesson plan');
+          } catch {
+            console.log('⚠️ Creating structured format');
+            result = {
+              title: `Lesson Plan: ${planGrade} ${planSubject} - ${planTopic}`,
+              objectives: [],
+              activities: [],
+              assessments: [],
+              homework: ''
+            };
+          }
+        }
+      } else if (typeof response.content === 'object') {
+        result = response.content as AILessonPlanResult;
+        console.log('✅ Response is already structured');
+      } else {
+        throw new Error('Unexpected response format');
+      }
+      
+      setAiPlanResult(result);
+      if (!planTitle) setPlanTitle(result.title || `${planTopic} Lesson Plan`);
+      
+      if (result.objectives && result.objectives.length > 0) {
+        setPlanObjectives(result.objectives.join('\n'));
+      }
+      if (result.homework) {
+        setPlanHomework(result.homework);
+      }
+    } catch (error) {
+      console.error('❌ Failed to generate lesson plan:', error);
+      addNotification('Generation Failed', 'Could not generate lesson plan. Please try again.', 'alert');
+    } finally {
+      setGeneratingPlan(false);
+    }
+  };
+
   const handleSubmitLessonPlan = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!planTitle || !planObjectives) return;
+    if (!planTitle || (!planObjectives && !aiPlanResult)) return;
+    
+    const objectives = aiPlanResult 
+      ? aiPlanResult.objectives 
+      : planObjectives.split('\n').filter(Boolean);
+    
+    const activities = aiPlanResult 
+      ? aiPlanResult.activities 
+      : Array.from({ length: planSessions }).map((_, i) => ({
+          session: i + 1,
+          activity: `Session ${i + 1} activity`,
+          duration: '45 mins',
+        }));
+    
+    const assessments = aiPlanResult 
+      ? aiPlanResult.assessments 
+      : ['Formative quiz', 'Participation log'];
+    
     createLessonPlan({
       title: planTitle,
       grade: planGrade,
       subject: planSubject,
       sessions: planSessions,
-      objectives: planObjectives.split('\n').filter(Boolean),
-      activities: Array.from({ length: planSessions }).map((_, i) => ({
-        session: i + 1,
-        activity: `Session ${i + 1} activity`,
-        duration: '45 mins',
-      })),
-      assessments: ['Formative quiz', 'Participation log'],
+      objectives,
+      activities,
+      assessments,
       homework: planHomework || 'Review workbook exercises.',
     });
+    
     setIsPlanOpen(false);
     setPlanTitle('');
+    setPlanTopic('');
     setPlanObjectives('');
     setPlanHomework('');
+    setAiPlanResult(null);
   };
 
   const parsedViewContent = useMemo(() => {
@@ -193,257 +364,301 @@ export const TeacherTeachingNotes: React.FC = () => {
   }, [viewNote]);
 
   const renderNoteRow = (note: TeachingNote) => (
-    <div
-      key={note.id}
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-card border border-border/50"
-    >
+    <div key={note.id} className={`${aisListRow} flex flex-col justify-between gap-2 sm:flex-row sm:items-center`}>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-foreground">{note.title}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
+        <p className={`${aisDataMd} font-semibold`}>{note.title}</p>
+        <p className={`${aisBodySm} mt-0.5`}>
           {note.topic} · {note.language} · Updated {note.updatedAt ?? note.createdAt}
         </p>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <Badge variant={statusBadge(note.status)} size="sm">
-          {note.status}
-        </Badge>
-        <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={() => setViewNote(note)}>
-          View
-        </Button>
-        <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={() => openEditNote(note)}>
-          Edit
-        </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        <AisStatusBadge variant={noteStatusVariant(note.status)}>{note.status}</AisStatusBadge>
+        <AisBtnSecondary className="!px-2.5 !py-1 text-[10px]" onClick={() => setViewNote(note)}>View</AisBtnSecondary>
+        <AisBtnSecondary className="!px-2.5 !py-1 text-[10px]" onClick={() => openEditNote(note)}>Edit</AisBtnSecondary>
         {note.status === 'Draft' && (
-          <Button
-            size="sm"
-            variant="organic"
-            className="text-[10px] h-7 border-none"
-            onClick={() => submitTeachingNoteForApproval(note.id)}
-          >
+          <AisBtnPrimary className="!px-2.5 !py-1 text-[10px]" onClick={() => submitTeachingNoteForApproval(note.id)}>
             Submit
-          </Button>
+          </AisBtnPrimary>
         )}
       </div>
     </div>
   );
 
   return (
-    <div className="space-y-6 text-left">
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button size="sm" variant="outline" className="text-xs h-9" onClick={() => setIsPlanOpen(true)}>
-          + Create lesson plan
-        </Button>
-        <Button size="sm" variant="organic" className="text-xs h-9 border-none" onClick={() => openCreateNote('')}>
-          + New teaching note
-        </Button>
-      </div>
-
+    <AisPage>
       <div className="space-y-4">
-        <p className="text-xs font-bold text-foreground uppercase tracking-wide">Teaching notes by lesson plan</p>
+        <p className={aisLabelCaps}>Teaching notes by lesson plan</p>
         {teacherPlans.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Create a lesson plan first, then attach teaching notes to it.</p>
+          <p className={aisBodyMd}>Create a lesson plan first, then attach teaching notes to it.</p>
         ) : (
           teacherPlans.map((plan) => {
             const planNotes = notesForLessonPlan(myNotes, plan.id);
             const isOpen = expandedPlanId === plan.id;
             return (
-              <Card key={plan.id} className="border-border/60 overflow-hidden">
-                <button
-                  type="button"
-                  className="w-full text-left p-4 hover:bg-muted/30 transition-colors"
-                  onClick={() => setExpandedPlanId(isOpen ? null : plan.id)}
-                >
-                  <div className="flex justify-between items-start gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-foreground">{plan.title}</p>
-                      <p className="text-xxs text-muted-foreground mt-1">
-                        {plan.grade} · {plan.subject} · {plan.sessions} sessions ·{' '}
-                        <Badge variant={plan.status === 'Approved' ? 'success' : 'warning'} size="sm" className="ml-1">
-                          {plan.status}
-                        </Badge>
-                      </p>
+              <div key={plan.id} className={`${aisCard} overflow-hidden`}>
+                <div className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-ais-row-hover">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => setExpandedPlanId(isOpen ? null : plan.id)}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={aisHeadlineSm}>{plan.title}</p>
+                      <span className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ais-primary">
+                        {planNotes.length} {planNotes.length === 1 ? 'note' : 'notes'}
+                      </span>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-lg font-bold text-primary">{planNotes.length}</span>
-                      <p className="text-[10px] text-muted-foreground">notes</p>
-                    </div>
+                    <p className={`${aisBodySm} mt-1 flex flex-wrap items-center gap-1`}>
+                      {plan.grade} · {plan.subject} · {plan.sessions} sessions ·
+                      <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>{plan.status}</AisStatusBadge>
+                    </p>
+                  </button>
+                  <div className="flex shrink-0 items-center">
+                    <AisBtnPrimary
+                      className="!text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateNote(plan.id);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden />
+                      Add note
+                    </AisBtnPrimary>
                   </div>
-                </button>
+                </div>
                 {isOpen && (
-                  <CardContent className="pt-0 pb-4 space-y-3 border-t border-border/40">
-                    <div className="flex justify-end">
-                      <Button size="sm" variant="organic" className="text-xxs h-8 border-none" onClick={() => openCreateNote(plan.id)}>
-                        + Add note for this plan
-                      </Button>
-                    </div>
+                  <div className="space-y-3 border-t border-ais-card-border px-4 pb-4 pt-3">
                     {planNotes.length === 0 ? (
-                      <p className="text-xxs text-muted-foreground p-3 bg-muted/30 rounded-lg">
+                      <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-3`}>
                         No teaching notes yet for this lesson plan.
                       </p>
                     ) : (
                       <div className="space-y-2">{planNotes.map(renderNoteRow)}</div>
                     )}
                     <PlanSummary plan={plan} />
-                  </CardContent>
+                  </div>
                 )}
-              </Card>
+              </div>
             );
           })
         )}
       </div>
 
       {unlinkedNotes.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Notes without lesson plan</CardTitle>
-            <CardDescription>Standalone teaching materials not linked to a syllabus plan.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">{unlinkedNotes.map(renderNoteRow)}</CardContent>
-        </Card>
+        <div className={`${aisCard} p-4`}>
+          <div className="mb-3 border-b border-ais-card-border pb-3">
+            <h3 className={aisHeadlineSm}>Notes without lesson plan</h3>
+            <p className={`${aisBodyMd} mt-0.5`}>Standalone teaching materials not linked to a syllabus plan.</p>
+          </div>
+          <div className="space-y-2">{unlinkedNotes.map(renderNoteRow)}</div>
+        </div>
       )}
 
-      <Dialog isOpen={noteModalOpen} onClose={() => setNoteModalOpen(false)} title={editingNoteId ? 'Edit teaching note' : 'Create teaching note'} size="xl">
-        <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
-          <Select
-            label="Link to lesson plan"
-            options={[
-              { value: '', label: 'No lesson plan (standalone)' },
-              ...teacherPlans.map((p) => ({ value: p.id, label: `${p.title} (${p.grade})` })),
-            ]}
-            value={linkedPlanId}
-            onChange={(e) => {
-              setLinkedPlanId(e.target.value);
-              const p = teacherPlans.find((x) => x.id === e.target.value);
-              if (p) {
-                setNotesGrade(p.grade);
-                setNotesSubject(p.subject);
-              }
-            }}
-          />
+      <Dialog
+        isOpen={noteModalOpen}
+        onClose={() => setNoteModalOpen(false)}
+        title={editingNoteId ? 'Edit teaching note' : 'Create teaching note'}
+        size="2xl"
+        largeTitle
+      >
+        <div className="space-y-5 overflow-y-auto pt-1">
+          <Select variant="ais" label="Link to lesson plan" options={[{ value: '', label: 'No lesson plan (standalone)' }, ...teacherPlans.map((p) => ({ value: p.id, label: `${p.title} (${p.grade})` }))]} value={linkedPlanId} onChange={(e) => {
+            setLinkedPlanId(e.target.value);
+            const p = teacherPlans.find((x) => x.id === e.target.value);
+            if (p) { setNotesGrade(p.grade); setNotesSubject(p.subject); }
+          }} />
           {activePlan && (
-            <p className="text-xxs text-primary bg-primary/5 p-2 rounded-md border border-primary/20">
-              Linked plan: {activePlan.title} — objectives include {activePlan.objectives[0]}
-            </p>
+            <p className={aisCallout}>Linked plan: {activePlan.title} — objectives include {activePlan.objectives[0]}</p>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1 sm:col-span-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Note title</label>
-              <input className={inputClass} value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="e.g. Session 2 handout" />
+              <label className={aisFormLabel}>Note title</label>
+              <input className={aisInput} value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="e.g. Session 2 handout" />
             </div>
-            <Select label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={notesGrade} onChange={(e) => setNotesGrade(e.target.value)} />
-            <Select label="Subject" options={[{ value: 'Biology', label: 'Biology' }, { value: 'General Science', label: 'General Science' }]} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
+            <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={notesGrade} onChange={(e) => setNotesGrade(e.target.value)} />
+            <Select variant="ais" label="Subject" options={[{ value: 'Mathematics', label: 'Mathematics' }, { value: 'Biology', label: 'Biology' }, { value: 'General Science', label: 'General Science' }]} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Topic</label>
-              <input className={inputClass} value={notesTopic} onChange={(e) => setNotesTopic(e.target.value)} placeholder="Lesson topic" />
+              <label className={aisFormLabel}>Topic</label>
+              <input className={aisInput} value={notesTopic} onChange={(e) => setNotesTopic(e.target.value)} placeholder="Lesson topic" />
             </div>
-            <Select label="Language" options={[{ value: 'English', label: 'English' }, { value: 'Amharic', label: 'Amharic' }, { value: 'Afaan Oromo', label: 'Afaan Oromo' }]} value={notesLanguage} onChange={(e) => setNotesLanguage(e.target.value)} />
+            <Select variant="ais" label="Language" options={[{ value: 'English', label: 'English' }, { value: 'Amharic', label: 'Amharic' }, { value: 'Afaan Oromo', label: 'Afaan Oromo' }]} value={notesLanguage} onChange={(e) => setNotesLanguage(e.target.value)} />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="organic" onClick={handleGenerateNotes} loading={generatingNotes} className="text-xs h-10 border-none">
-              Generate with AI
-            </Button>
-          </div>
+          <AisBtnPrimary type="button" onClick={handleGenerateNotes} disabled={generatingNotes || !notesTopic}>
+            <Sparkles className="h-3.5 w-3.5 animate-pulse" aria-hidden />
+            {generatingNotes ? 'Generating with AI...' : 'Generate with AI'}
+          </AisBtnPrimary>
           {aiNotesResult && (
-            <div className="border border-border/60 bg-muted/20 p-4 rounded-xl space-y-3 text-xxs border-l-4 border-l-primary max-h-48 overflow-y-auto">
-              <p className="font-bold text-foreground">{aiNotesResult.title}</p>
-              <p className="text-muted-foreground">{aiNotesResult.introduction}</p>
-              {aiNotesResult.explanations.slice(0, 2).map((exp, i) => (
-                <p key={i}>
-                  <span className="font-semibold text-foreground">{exp.subtitle}:</span> {exp.content.slice(0, 120)}…
-                </p>
-              ))}
+            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
+                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  AI Generated Teaching Notes Preview
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setAiNotesResult(null)}
+                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  Clear & Regenerate
+                </button>
+              </div>
+              <TeachingNotesRenderer content={aiNotesResult} />
             </div>
           )}
-          <DialogFooter className="pt-4 border-t border-border/40 flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setNoteModalOpen(false)}>
+          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
+            <button
+              type="button"
+              onClick={() => setNoteModalOpen(false)}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
               Cancel
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={handleSaveDraft}>
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Save className="h-3.5 w-3.5" aria-hidden />
               Save draft
-            </Button>
-            <Button type="button" variant="organic" size="sm" className="border-none" onClick={handleSubmitForApproval}>
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitForApproval}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+            >
+              <Send className="h-4 w-4" aria-hidden />
               Submit for dept approval
-            </Button>
+            </button>
           </DialogFooter>
         </div>
       </Dialog>
 
       <Dialog isOpen={!!viewNote} onClose={() => setViewNote(null)} title={viewNote?.title ?? 'Teaching note'} size="xl">
         {viewNote && (
-          <div className="space-y-4 pt-2 text-xxs max-h-[70vh] overflow-y-auto">
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto pt-2 text-xs">
             <div className="flex flex-wrap gap-2">
-              <Badge variant={statusBadge(viewNote.status)} size="sm">
-                {viewNote.status}
-              </Badge>
-              <span className="text-muted-foreground">
-                {viewNote.grade} · {viewNote.subject} · {viewNote.language}
-              </span>
+              <AisStatusBadge variant={noteStatusVariant(viewNote.status)}>{viewNote.status}</AisStatusBadge>
+              <span className={aisBodyMd}>{viewNote.grade} · {viewNote.subject} · {viewNote.language}</span>
             </div>
-            {viewNote.deptComments && (
-              <p className="p-2 bg-primary/5 border border-primary/20 rounded-md text-primary">{viewNote.deptComments}</p>
-            )}
+            {viewNote.deptComments && <p className={aisCallout}>{viewNote.deptComments}</p>}
             {parsedViewContent ? (
-              <>
-                <p>{parsedViewContent.introduction}</p>
-                {parsedViewContent.explanations.map((exp, i) => (
-                  <div key={i} className="p-3 bg-muted/30 rounded-lg">
-                    <p className="font-bold text-foreground">{exp.subtitle}</p>
-                    <p className="mt-1">{exp.content}</p>
-                  </div>
-                ))}
-              </>
+              <TeachingNotesRenderer content={parsedViewContent} />
             ) : (
-              <p className="text-muted-foreground">{viewNote.contentSummary}</p>
+              <p className={aisBodyMd}>{viewNote.contentSummary}</p>
             )}
             <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="outline" onClick={() => window.print()}>
-                Print
-              </Button>
-              <Button
-                size="sm"
-                variant="organic"
-                className="border-none"
-                onClick={() => {
-                  setViewNote(null);
-                  openEditNote(viewNote);
-                }}
-              >
-                Edit note
-              </Button>
+              <AisBtnSecondary onClick={() => window.print()}>Print</AisBtnSecondary>
+              <AisBtnPrimary onClick={() => { setViewNote(null); openEditNote(viewNote); }}>Edit note</AisBtnPrimary>
             </div>
           </div>
         )}
       </Dialog>
 
-      <Dialog isOpen={isPlanOpen} onClose={() => setIsPlanOpen(false)} title="Create lesson plan" size="lg">
+      <Dialog isOpen={isPlanOpen} onClose={() => {
+        setIsPlanOpen(false);
+        setAiPlanResult(null);
+        setPlanTopic('');
+      }} title="Create lesson plan" size="xl">
         <form onSubmit={handleSubmitLessonPlan} className="space-y-4 pt-2">
-          <input className={inputClass} required placeholder="Plan title" value={planTitle} onChange={(e) => setPlanTitle(e.target.value)} />
-          <div className="grid grid-cols-3 gap-3">
-            <Select options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={planGrade} onChange={(e) => setPlanGrade(e.target.value)} />
-            <Select options={[{ value: 'Biology', label: 'Biology' }]} value={planSubject} onChange={(e) => setPlanSubject(e.target.value)} />
-            <Select options={['3', '4', '5', '6'].map((n) => ({ value: n, label: `${n} sessions` }))} value={String(planSessions)} onChange={(e) => setPlanSessions(Number(e.target.value))} />
+          <div className="space-y-2">
+            <label className={aisFormLabel}>Topic</label>
+            <input 
+              className={aisInput} 
+              required 
+              placeholder="e.g., Cell Division, Linear Equations" 
+              value={planTopic} 
+              onChange={(e) => setPlanTopic(e.target.value)} 
+            />
           </div>
-          <textarea className={`${inputClass} h-24`} required placeholder="Objectives (one per line)" value={planObjectives} onChange={(e) => setPlanObjectives(e.target.value)} />
-          <textarea className={`${inputClass} h-16`} placeholder="Homework" value={planHomework} onChange={(e) => setPlanHomework(e.target.value)} />
-          <DialogFooter className="pt-4 border-t border-border/40">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsPlanOpen(false)}>
+          
+          <div className="space-y-2">
+            <label className={aisFormLabel}>Plan Title</label>
+            <input 
+              className={aisInput} 
+              required 
+              placeholder="Plan title" 
+              value={planTitle} 
+              onChange={(e) => setPlanTitle(e.target.value)} 
+            />
+          </div>
+          
+          <div className="grid grid-cols-3 gap-3">
+            <Select variant="ais" label="Grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10') || g.includes('11') || g.includes('12')).map((g) => ({ value: g, label: g }))} value={planGrade} onChange={(e) => setPlanGrade(e.target.value)} />
+            <Select variant="ais" label="Subject" options={[{ value: 'Mathematics', label: 'Mathematics' }, { value: 'Biology', label: 'Biology' }]} value={planSubject} onChange={(e) => setPlanSubject(e.target.value)} />
+            <Select variant="ais" label="Sessions" options={['3', '4', '5', '6'].map((n) => ({ value: n, label: `${n} sessions` }))} value={String(planSessions)} onChange={(e) => setPlanSessions(Number(e.target.value))} />
+          </div>
+          
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={handleGeneratePlan}
+              disabled={generatingPlan || !planTopic}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="h-4 w-4 animate-pulse" />
+              {generatingPlan ? 'Generating with AI...' : 'Generate with AI'}
+            </button>
+          </div>
+          
+          {aiPlanResult && (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
+                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  AI Generated Lesson Plan Preview
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setAiPlanResult(null)}
+                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  Clear & Regenerate
+                </button>
+              </div>
+              <LessonPlanRenderer content={aiPlanResult} />
+            </div>
+          )}
+          
+          {!aiPlanResult && (
+            <>
+              <textarea className={`${aisTextarea} h-24`} required={!aiPlanResult} placeholder="Objectives (one per line)" value={planObjectives} onChange={(e) => setPlanObjectives(e.target.value)} />
+              <textarea className={`${aisTextarea} h-16`} placeholder="Homework" value={planHomework} onChange={(e) => setPlanHomework(e.target.value)} />
+            </>
+          )}
+          
+          <DialogFooter className="border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsPlanOpen(false);
+                setAiPlanResult(null);
+                setPlanTopic('');
+              }}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
               Cancel
-            </Button>
-            <Button type="submit" variant="organic" size="sm" className="border-none">
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+            >
               Submit for dept approval
-            </Button>
+            </button>
           </DialogFooter>
         </form>
       </Dialog>
-    </div>
+    </AisPage>
   );
 };
 
 function PlanSummary({ plan }: { plan: LessonPlan }) {
   return (
-    <details className="text-xxs text-muted-foreground bg-muted/20 p-3 rounded-lg">
-      <summary className="font-semibold text-foreground cursor-pointer">Lesson plan details</summary>
-      <ul className="mt-2 list-disc pl-4 space-y-1">
+    <details className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-3`}>
+      <summary className="cursor-pointer font-semibold text-ais-on-surface">Lesson plan details</summary>
+      <ul className="mt-2 list-disc space-y-1 pl-4">
         {plan.objectives.map((o, i) => (
           <li key={i}>{o}</li>
         ))}
