@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
-import { DEMO_TEACHER_ID, filterTeacherStudents } from '@/lib/teacherPortal';
+import { filterTeacherStudents } from '@/lib/teacherPortal';
 import {
   AisBtnPrimary,
   AisFormCard,
@@ -19,11 +19,12 @@ import {
 import { aisBodyMd } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherFeedbackTab: React.FC = () => {
-  const { teacherFeedbacks, students, addStudentFeedback } = useApp();
+  const { teacherFeedbacks, students, addStudentFeedback, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
   const roster = useMemo(() => filterTeacherStudents(students), [students]);
 
-  const received = teacherFeedbacks.filter((f) => f.teacherId === DEMO_TEACHER_ID && f.direction === 'to_teacher');
-  const given = teacherFeedbacks.filter((f) => f.teacherId === DEMO_TEACHER_ID && f.direction === 'from_teacher');
+  const received = teacherFeedbacks.filter((f) => f.teacherId === teacherId && f.direction === 'to_teacher');
+  const given = teacherFeedbacks.filter((f) => f.teacherId === teacherId && f.direction === 'from_teacher');
 
   const [studentId, setStudentId] = useState(roster[0]?.id ?? '');
   const [subject, setSubject] = useState('');

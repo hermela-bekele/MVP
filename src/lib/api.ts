@@ -13,9 +13,12 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 8000;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}/api${path}`, {
     ...init,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
       ...init?.headers,
@@ -67,8 +70,15 @@ export interface BootstrapPayload {
 export interface LoginResult {
   id: string;
   email: string;
-  role: string;
+  role: import('@/lib/auth').PortalRole;
   displayName: string;
+}
+
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  displayName: string;
+  role: import('@/lib/auth').PortalRole;
 }
 
 export const api = {
@@ -78,6 +88,11 @@ export const api = {
     request<LoginResult>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+  register: (body: RegisterPayload) =>
+    request<LoginResult>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   createSchool: (body: Record<string, unknown>) =>
     request('/schools', { method: 'POST', body: JSON.stringify(body) }),

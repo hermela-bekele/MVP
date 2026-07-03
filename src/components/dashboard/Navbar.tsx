@@ -45,13 +45,32 @@ import {
   aisNavbarSearchKbd,
 } from '@/components/dashboard/teacher/aisStyles';
 import type { AppNotification } from '@/context/AppContext';
+import { roleLabel, isPortalRole } from '@/lib/auth';
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 interface NavbarProps {
   breadcrumbs?: BreadcrumbItem[];
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
-  const { activeRole, theme, toggleTheme, notifications, markNotificationAsRead, markNotificationAsUnread, dismissNotification, clearNotifications } = useApp();
+  const {
+    activeRole,
+    currentUser,
+    schools,
+    theme,
+    toggleTheme,
+    notifications,
+    markNotificationAsRead,
+    markNotificationAsUnread,
+    dismissNotification,
+    clearNotifications,
+  } = useApp();
   const { toggleMobile } = useSidebar();
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -259,19 +278,14 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
   };
 
   const getRoleLabel = () => {
-    switch (activeRole) {
-      case 'moe': return 'MOE Admin';
-      case 'school-head': return 'School Head';
-      case 'hr': return 'HR Officer';
-      case 'registrar': return 'Registrar';
-      case 'curriculum-head': return 'Curriculum';
-      case 'department-head': return 'Dept Head';
-      case 'teacher': return 'Teacher';
-      case 'student': return 'Student';
-      case 'parent': return 'Parent';
-      default: return 'User';
-    }
+    const role = currentUser?.role ?? activeRole;
+    return isPortalRole(role) ? roleLabel(role) : 'User';
   };
+
+  const profileName = currentUser?.displayName ?? 'Signed in user';
+  const profileRole = getRoleLabel();
+  const profileInitials = getInitials(profileName);
+  const primarySchool = schools[0];
 
   const defaultBreadcrumbs: BreadcrumbItem[] = [
     { label: 'Portal', href: '#' },
@@ -450,11 +464,11 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
             className={aisNavbarProfileBtn}
           >
             <div className={aisNavbarAvatar}>
-              AD
+              {profileInitials}
             </div>
             <div className="flex flex-col text-left hidden sm:flex">
-              <span className={aisNavbarProfileName}>Ato Demeke</span>
-              <span className={aisNavbarProfileRole}>Admin Desk</span>
+              <span className={aisNavbarProfileName}>{profileName}</span>
+              <span className={aisNavbarProfileRole}>{profileRole}</span>
             </div>
             <svg className="w-3.5 h-3.5 text-ais-on-surface-variant hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
@@ -470,8 +484,12 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
               />
               <div className={`${aisNavbarDropdown} right-0 mt-2 w-48 p-2`}>
                 <div className="px-3 py-2 border-b border-ais-card-border">
-                  <p className="text-xs font-bold text-ais-on-surface">Bole Secondary School</p>
-                  <p className="text-[10px] text-ais-on-surface-variant">Addis Ababa, ET</p>
+                  <p className="text-xs font-bold text-ais-on-surface truncate">
+                    {primarySchool?.name ?? profileName}
+                  </p>
+                  <p className="text-[10px] text-ais-on-surface-variant truncate">
+                    {primarySchool?.region ?? currentUser?.email ?? profileRole}
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowProfile(false)}

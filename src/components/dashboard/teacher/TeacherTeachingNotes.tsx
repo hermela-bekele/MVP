@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Save, Send, Sparkles, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Plus, Save, Send, Sparkles, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { aiService, type AITeachingNotesResult, type AILessonPlanResult } from '@/lib/ai';
 import {
-  DEMO_TEACHER_ID,
   GRADE_OPTIONS,
   filterTeacherLessonPlans,
   notesForLessonPlan,
@@ -43,7 +43,14 @@ function noteStatusVariant(status: TeachingNote['status']) {
   return 'warning' as const;
 }
 
-export const TeacherTeachingNotes: React.FC = () => {
+interface TeacherTeachingNotesProps {
+  lessonPlanId?: string;
+}
+
+export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
+  lessonPlanId,
+}) => {
+  const router = useRouter();
   const {
     lessonPlans,
     teachingNotes,
@@ -52,13 +59,14 @@ export const TeacherTeachingNotes: React.FC = () => {
     updateTeachingNote,
     submitTeachingNoteForApproval,
     addNotification,
+    resolveTeacherId,
   } = useApp();
 
-  const teacherPlans = filterTeacherLessonPlans(lessonPlans);
-  const myNotes = teachingNotes.filter((n) => n.teacherId === DEMO_TEACHER_ID);
+  const teacherId = resolveTeacherId();
+  const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
+  const myNotes = teachingNotes.filter((n) => n.teacherId === teacherId);
   const unlinkedNotes = myNotes.filter((n) => !n.lessonPlanId);
 
-  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(teacherPlans[0]?.id ?? null);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [planTitle, setPlanTitle] = useState('');
   const [planGrade, setPlanGrade] = useState('Grade 11');
@@ -82,6 +90,12 @@ export const TeacherTeachingNotes: React.FC = () => {
   const [aiNotesResult, setAiNotesResult] = useState<AITeachingNotesResult | null>(null);
 
   const activePlan = teacherPlans.find((p) => p.id === linkedPlanId);
+  const detailPlan = lessonPlanId
+    ? teacherPlans.find((p) => p.id === lessonPlanId)
+    : undefined;
+  const detailPlanNotes = detailPlan
+    ? notesForLessonPlan(myNotes, detailPlan.id)
+    : [];
 
   useEffect(() => {
     const openPlan = () => setIsPlanOpen(true);
@@ -108,7 +122,6 @@ export const TeacherTeachingNotes: React.FC = () => {
     setNoteTitle('');
     setAiNotesResult(null);
     setNoteModalOpen(true);
-    if (planId) setExpandedPlanId(planId);
   };
 
   const openEditNote = (note: TeachingNote) => {
@@ -384,67 +397,132 @@ export const TeacherTeachingNotes: React.FC = () => {
     </div>
   );
 
+  const goToLessonPlan = (planId: string) => {
+    router.push(`/dashboard/teacher/teaching-notes/${planId}`);
+  };
+
+  const goBackToList = () => {
+    router.push('/dashboard/teacher');
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('teacher-quick-action', { detail: { tab: 'teaching-notes' } }),
+      );
+    }, 100);
+  };
+
   return (
     <AisPage>
-      <div className="space-y-4">
-        <p className={aisLabelCaps}>Teaching notes by lesson plan</p>
-        {teacherPlans.length === 0 ? (
-          <p className={aisBodyMd}>Create a lesson plan first, then attach teaching notes to it.</p>
-        ) : (
-          teacherPlans.map((plan) => {
-            const planNotes = notesForLessonPlan(myNotes, plan.id);
-            const isOpen = expandedPlanId === plan.id;
-            return (
-              <div key={plan.id} className={`${aisCard} overflow-hidden`}>
-                <div className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-ais-row-hover">
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 text-left"
-                    onClick={() => setExpandedPlanId(isOpen ? null : plan.id)}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className={aisHeadlineSm}>{plan.title}</p>
-                      <span className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ais-primary">
-                        {planNotes.length} {planNotes.length === 1 ? 'note' : 'notes'}
-                      </span>
-                    </div>
-                    <p className={`${aisBodySm} mt-1 flex flex-wrap items-center gap-1`}>
-                      {plan.grade} · {plan.subject} · {plan.sessions} sessions ·
-                      <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>{plan.status}</AisStatusBadge>
-                    </p>
-                  </button>
-                  <div className="flex shrink-0 items-center">
-                    <AisBtnPrimary
-                      className="!text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCreateNote(plan.id);
-                      }}
-                    >
-                      <Plus className="h-3.5 w-3.5" aria-hidden />
-                      Add note
-                    </AisBtnPrimary>
+      {lessonPlanId ? (
+        detailPlan ? (
+          <div className="space-y-4">
+            <div className={`${aisCard} p-5`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className={aisHeadlineSm}>{detailPlan.title}</p>
+                    <span className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ais-primary">
+                      {detailPlanNotes.length}{' '}
+                      {detailPlanNotes.length === 1 ? 'note' : 'notes'}
+                    </span>
                   </div>
+                  <p className={`${aisBodySm} mt-1 flex flex-wrap items-center gap-1`}>
+                    {detailPlan.grade} · {detailPlan.subject} · {detailPlan.sessions} sessions ·
+                    <AisStatusBadge variant={approvalBadgeVariant(detailPlan.status)}>
+                      {detailPlan.status}
+                    </AisStatusBadge>
+                  </p>
                 </div>
-                {isOpen && (
-                  <div className="space-y-3 border-t border-ais-card-border px-4 pb-4 pt-3">
-                    {planNotes.length === 0 ? (
-                      <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-3`}>
-                        No teaching notes yet for this lesson plan.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">{planNotes.map(renderNoteRow)}</div>
-                    )}
-                    <PlanSummary plan={plan} />
-                  </div>
-                )}
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <AisBtnSecondary className="!text-xs" onClick={goBackToList}>
+                    <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                    Back
+                  </AisBtnSecondary>
+                  <AisBtnPrimary className="!text-xs" onClick={() => openCreateNote(detailPlan.id)}>
+                    <Plus className="h-3.5 w-3.5" aria-hidden />
+                    Add note
+                  </AisBtnPrimary>
+                </div>
               </div>
-            );
-          })
-        )}
-      </div>
+            </div>
 
-      {unlinkedNotes.length > 0 && (
+            <div className="space-y-3">
+              <p className={aisLabelCaps}>Teaching notes</p>
+              {detailPlanNotes.length === 0 ? (
+                <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-4`}>
+                  No teaching notes yet for this lesson plan.
+                </p>
+              ) : (
+                <div className="space-y-2">{detailPlanNotes.map(renderNoteRow)}</div>
+              )}
+            </div>
+
+            <PlanSummary plan={detailPlan} />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className={aisBodyMd}>Lesson plan not found.</p>
+            <AisBtnSecondary onClick={goBackToList}>
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Back to lesson plans
+            </AisBtnSecondary>
+          </div>
+        )
+      ) : (
+        <div className="space-y-4">
+          <p className={aisLabelCaps}>Teaching notes by lesson plan</p>
+          {teacherPlans.length === 0 ? (
+            <p className={aisBodyMd}>Create a lesson plan first, then attach teaching notes to it.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {teacherPlans.map((plan) => {
+                const planNotes = notesForLessonPlan(myNotes, plan.id);
+                return (
+                  <div
+                    key={plan.id}
+                    className={`${aisCard} flex min-h-[200px] flex-col overflow-hidden transition-shadow hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]`}
+                  >
+                    <button
+                      type="button"
+                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-ais-row-hover"
+                      onClick={() => goToLessonPlan(plan.id)}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={`${aisHeadlineSm} line-clamp-2`}>{plan.title}</p>
+                        <span className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ais-primary">
+                          {planNotes.length} {planNotes.length === 1 ? 'note' : 'notes'}
+                        </span>
+                      </div>
+                      <p className={`${aisBodySm} mt-2 flex flex-1 flex-wrap items-start gap-1`}>
+                        {plan.grade} · {plan.subject}
+                      </p>
+                      <p className={`${aisBodySm} mt-1`}>{plan.sessions} sessions</p>
+                      <div className="mt-3">
+                        <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>
+                          {plan.status}
+                        </AisStatusBadge>
+                      </div>
+                    </button>
+                    <div className="border-t border-ais-card-border p-3">
+                      <AisBtnPrimary
+                        className="!w-full !text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCreateNote(plan.id);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden />
+                        Add note
+                      </AisBtnPrimary>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!lessonPlanId && unlinkedNotes.length > 0 && (
         <div className={`${aisCard} p-4`}>
           <div className="mb-3 border-b border-ais-card-border pb-3">
             <h3 className={aisHeadlineSm}>Notes without lesson plan</h3>

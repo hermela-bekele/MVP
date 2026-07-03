@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { DEMO_TEACHER_ID, GRADE_OPTIONS } from '@/lib/teacherPortal';
+import { GRADE_OPTIONS } from '@/lib/teacherPortal';
 import type { TeacherResource } from '@/lib/mockData';
 import {
   AisBtnPrimary,
@@ -30,8 +30,9 @@ const RESOURCE_TYPES: TeacherResource['type'][] = [
 ];
 
 export const TeacherResourcesTab: React.FC = () => {
-  const { teacherResources, addTeacherResource } = useApp();
-  const myResources = teacherResources.filter((r) => r.teacherId === DEMO_TEACHER_ID);
+  const { teacherResources, addTeacherResource, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
+  const myResources = teacherResources.filter((r) => r.teacherId === teacherId);
 
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');

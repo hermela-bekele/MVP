@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchPrimeAI } from '@/lib/primeAiServer';
+
+export const maxDuration = 120;
 
 // In-memory cache shared across all users
 const cache = new Map<string, { data: any; timestamp: number }>();
@@ -36,15 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Cache miss - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI for real-life examples: ${topic}`);
-    const apiUrl = process.env.NEXT_PUBLIC_PRIME_AI_API_URL || 'https://prime-ai-bndr.onrender.com';
-    
-    const response = await fetch(`${apiUrl}/real-life-examples`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ topic, context_country }),
-    });
+    const response = await fetchPrimeAI('/real-life-examples', { topic, context_country });
 
     if (!response.ok) {
       const errorText = await response.text();

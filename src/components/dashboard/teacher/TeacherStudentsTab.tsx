@@ -6,7 +6,6 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { TeacherGradebook } from '@/components/dashboard/teacher/TeacherGradebook';
 import {
-  DEMO_TEACHER_ID,
   GRADE_OPTIONS,
   SECTION_OPTIONS,
   filterTeacherStudents,
@@ -33,7 +32,8 @@ import { aisBodyMd, aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 type SubTab = 'roster' | 'gradebook' | 'parents';
 
 export const TeacherStudentsTab: React.FC = () => {
-  const { students, sendParentMessage, parentMessages, studentGradeEntries } = useApp();
+  const { students, sendParentMessage, parentMessages, studentGradeEntries, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
 
   const [subTab, setSubTab] = useState<SubTab>('roster');
 
@@ -49,8 +49,8 @@ export const TeacherStudentsTab: React.FC = () => {
   const [parentMsg, setParentMsg] = useState('');
 
   const roster = useMemo(() => filterTeacherStudents(students, grade, section), [students, grade, section]);
-  const myMessages = parentMessages.filter((m) => m.teacherId === DEMO_TEACHER_ID);
-  const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries);
+  const myMessages = parentMessages.filter((m) => m.teacherId === teacherId);
+  const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries, teacherId);
   const selectedStudent = roster.find((s) => s.id === messageStudentId);
 
   const handleSendParent = (e: React.FormEvent) => {

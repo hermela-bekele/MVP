@@ -2,13 +2,13 @@
 
 import React from 'react';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
-import { RoleSwitcher } from '@/components/dashboard/RoleSwitcher';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { CommandPalette, CommandItem } from '@/components/ui/command-palette';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 
 function DashboardCommandPalette() {
-  const { activeRole, toggleTheme, setActiveRole } = useApp();
+  const { activeRole, toggleTheme, logout } = useApp();
   const { toggleCollapsed } = useSidebar();
   const router = useRouter();
 
@@ -32,7 +32,7 @@ function DashboardCommandPalette() {
         label: 'Sign Out Session',
         group: 'Account',
         action: () => {
-          setActiveRole('login');
+          logout();
           router.push('/login');
         }
       }
@@ -110,7 +110,7 @@ function DashboardCommandPalette() {
     }
 
     return list;
-  }, [activeRole, toggleCollapsed, toggleTheme, setActiveRole, router]);
+  }, [activeRole, toggleCollapsed, toggleTheme, logout, router]);
 
   return <CommandPalette items={commands} />;
 }
@@ -122,13 +122,14 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <div className="flex flex-1 min-h-screen bg-[hsl(var(--dashboard-bg))]">
-        <div className="flex flex-1 w-full relative">
-          {children}
-          <RoleSwitcher />
-          <DashboardCommandPalette />
+      <RoleGuard>
+        <div className="flex flex-1 min-h-screen bg-[hsl(var(--dashboard-bg))]">
+          <div className="flex flex-1 w-full relative">
+            {children}
+            <DashboardCommandPalette />
+          </div>
         </div>
-      </div>
+      </RoleGuard>
     </SidebarProvider>
   );
 }

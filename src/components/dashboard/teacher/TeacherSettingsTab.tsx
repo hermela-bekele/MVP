@@ -7,8 +7,8 @@ import { AisBtnPrimary, AisPage, aisInput } from '@/components/dashboard/teacher
 import { aisBodyMd, aisBodySm, aisCard, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherSettingsTab: React.FC = () => {
-  const { teachers, updateTeacher, addNotification } = useApp();
-  const teacher = getDemoTeacher(teachers);
+  const { teachers, updateTeacher, addNotification, currentUser } = useApp();
+  const teacher = getDemoTeacher(teachers, currentUser?.email, currentUser?.displayName);
 
   const [name, setName] = useState(teacher.name);
   const [email, setEmail] = useState(teacher.email);

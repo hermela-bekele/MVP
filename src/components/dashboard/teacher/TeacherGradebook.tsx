@@ -6,7 +6,6 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import {
   CURRENT_TERM,
-  DEMO_TEACHER_ID,
   GRADE_ENTRY_TYPES,
   GRADE_OPTIONS,
   SECTION_OPTIONS,
@@ -33,7 +32,8 @@ import {
 import { aisBodyMd, aisBodySm, aisCard, aisDataMd, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherGradebook: React.FC = () => {
-  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry } = useApp();
+  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
 
   const [classGrade, setClassGrade] = useState('Grade 9');
   const [classSection, setClassSection] = useState('A');
@@ -53,16 +53,16 @@ export const TeacherGradebook: React.FC = () => {
   const roster = useMemo(() => filterTeacherStudents(students, classGrade, classSection), [students, classGrade, classSection]);
 
   const myEntries = useMemo(() => {
-    let list = filterTeacherGradeEntries(studentGradeEntries).filter(
+    let list = filterTeacherGradeEntries(studentGradeEntries, teacherId).filter(
       (e) => e.gradeLevel === classGrade && e.section === classSection
     );
     if (filterType !== 'All') list = list.filter((e) => e.entryType === filterType);
     return list;
-  }, [studentGradeEntries, classGrade, classSection, filterType]);
+  }, [studentGradeEntries, classGrade, classSection, filterType, teacherId]);
 
   const myAssessments = useMemo(
-    () => assessments.filter((a) => a.teacherId === DEMO_TEACHER_ID && a.grade === classGrade),
-    [assessments, classGrade]
+    () => assessments.filter((a) => a.teacherId === teacherId && a.grade === classGrade),
+    [assessments, classGrade, teacherId]
   );
 
   const openAdd = (studentId: string, presetType?: StudentGradeEntryType) => {

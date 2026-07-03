@@ -67,6 +67,12 @@ import {
   generateEmployeeId,
 } from '@/lib/hrPortal';
 import { DEMO_TEACHER_ID, percentToGpa } from '@/lib/teacherPortal';
+import {
+  type AuthUser,
+  clearSession,
+  persistSession,
+  readStoredSession,
+} from '@/lib/auth';
 
 export interface AppNotification {
   id: string;
@@ -78,8 +84,13 @@ export interface AppNotification {
 }
 
 interface AppContextType {
+  currentUser: AuthUser | null;
+  authReady: boolean;
+  login: (user: AuthUser, remember?: boolean) => void;
+  logout: () => void;
   activeRole: string;
   setActiveRole: (role: string) => void;
+  resolveTeacherId: () => string;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   
@@ -204,6 +215,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [activeRole, setActiveRoleState] = useState<string>('login');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   
@@ -314,7 +327,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDataError(null);
     } catch {
       applyMockFallback();
-      setDataError('API unavailable — showing offline demo data. Start the server on port 3004.');
+      setDataError('API unavailable — live data could not be loaded. Start the server on port 3004.');
     } finally {
       setIsDataLoading(false);
     }
@@ -324,21 +337,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void refreshFromApi();
   }, [refreshFromApi]);
 
-  // Handle active role sync
+  // Handle active role sync (legacy — prefer login/logout)
   const setActiveRole = (role: string) => {
     setActiveRoleState(role);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('pts-active-role', role);
-    }
   };
 
+  const login = useCallback((user: AuthUser, remember = true) => {
+    setCurrentUser(user);
+    setActiveRoleState(user.role);
+    persistSession(user, remember);
+  }, []);
+
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    setActiveRoleState('login');
+    clearSession();
+  }, []);
+
+  const resolveTeacherId = useCallback(() => {
+    if (!currentUser?.email) return DEMO_TEACHER_ID;
+    const match = teachers.find(
+      (t) => t.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+    return match?.id ?? DEMO_TEACHER_ID;
+  }, [currentUser, teachers]);
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedRole = localStorage.getItem('pts-active-role');
-      const savedTheme = localStorage.getItem('pts-active-theme');
-      if (savedRole) setActiveRoleState(savedRole);
-      if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
+    const savedUser = readStoredSession();
+    if (savedUser) {
+      setCurrentUser(savedUser);
+      setActiveRoleState(savedUser.role);
     }
+    const savedTheme = localStorage.getItem('pts-active-theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
+    setAuthReady(true);
   }, []);
 
   const toggleTheme = () => {
@@ -404,14 +436,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createLessonPlan = (planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => {
-    void api.createLessonPlan({ ...planData, teacherId: DEMO_TEACHER_ID }).then((lp) => {
+    void api.createLessonPlan({ ...planData, teacherId: resolveTeacherId() }).then((lp) => {
       setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
       addNotification('Lesson Plan Submitted', `Lesson plan "${(lp as LessonPlan).title}" submitted.`, 'info');
     }).catch(() => void refreshFromApi());
   };
 
   const createAssessment = (asmData: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'>) => {
-    void api.createAssessment({ ...asmData, teacherId: DEMO_TEACHER_ID }).then((asm) => {
+    void api.createAssessment({ ...asmData, teacherId: resolveTeacherId() }).then((asm) => {
       setAssessments((prev) => [asm as Assessment, ...prev]);
       addNotification('Assessment Submitted', `Assessment "${(asm as Assessment).title}" submitted.`, 'info');
     }).catch(() => void refreshFromApi());
@@ -779,7 +811,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     noteData: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>
   ) => {
     const id = `tn-${Date.now()}`;
-    void api.createTeachingNote({ ...noteData, id, teacherId: DEMO_TEACHER_ID }).then((note) => {
+    void api.createTeachingNote({ ...noteData, id, teacherId: resolveTeacherId() }).then((note) => {
       setTeachingNotes((prev) => [note as TeachingNote, ...prev]);
     }).catch(() => void refreshFromApi());
     return id;
@@ -823,7 +855,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const upsertStudentGradeEntry = (
     entryData: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => {
-    void api.upsertGradeEntry({ ...entryData, teacherId: DEMO_TEACHER_ID }).then((entry) => {
+    void api.upsertGradeEntry({ ...entryData, teacherId: resolveTeacherId() }).then((entry) => {
       setStudentGradeEntries((prev) => {
         const exists = prev.some((e) => e.id === (entry as StudentGradeEntry).id);
         const next = exists
@@ -859,7 +891,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addTeacherResource = (
     resourceData: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt'>
   ) => {
-    void api.createTeacherResource({ ...resourceData, teacherId: DEMO_TEACHER_ID }).then((res) => {
+    void api.createTeacherResource({ ...resourceData, teacherId: resolveTeacherId() }).then((res) => {
       setTeacherResources((prev) => [res as TeacherResource, ...prev]);
       addNotification('Resource Published', `"${(res as TeacherResource).title}" is available.`, 'success');
     }).catch(() => void refreshFromApi());
@@ -873,7 +905,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const sendParentMessage = (msgData: Omit<ParentMessage, 'id' | 'teacherId' | 'sentAt'>) => {
-    void api.sendParentMessage({ ...msgData, teacherId: DEMO_TEACHER_ID }).then((msg) => {
+    void api.sendParentMessage({ ...msgData, teacherId: resolveTeacherId() }).then((msg) => {
       setParentMessages((prev) => [msg as ParentMessage, ...prev]);
       addNotification('Message Sent to Parent', `Message sent regarding ${(msg as ParentMessage).studentName}.`, 'success');
     }).catch(() => void refreshFromApi());
@@ -882,7 +914,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addStudentFeedback = (
     feedbackData: Omit<TeacherFeedback, 'id' | 'teacherId' | 'direction' | 'authorName' | 'date'>
   ) => {
-    void api.addTeacherFeedback({ ...feedbackData, teacherId: DEMO_TEACHER_ID }).then((fb) => {
+    void api.addTeacherFeedback({ ...feedbackData, teacherId: resolveTeacherId() }).then((fb) => {
       setTeacherFeedbacks((prev) => [fb as TeacherFeedback, ...prev]);
       addNotification('Student Feedback Recorded', `Feedback saved for ${feedbackData.studentName ?? 'student'}.`, 'success');
     }).catch(() => void refreshFromApi());
@@ -941,8 +973,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        currentUser,
+        authReady,
+        login,
+        logout,
         activeRole,
         setActiveRole,
+        resolveTeacherId,
         theme,
         toggleTheme,
         schools,

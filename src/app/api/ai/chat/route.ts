@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchPrimeAI } from '@/lib/primeAiServer';
+
+export const maxDuration = 120;
 
 // In-memory cache shared across all users (only cache single-turn questions)
 const cache = new Map<string, { data: any; timestamp: number }>();
@@ -41,15 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Cache miss or multi-turn - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI chat: ${query.substring(0, 50)}...`);
-    const apiUrl = process.env.NEXT_PUBLIC_PRIME_AI_API_URL || 'https://prime-ai-bndr.onrender.com';
-    
-    const response = await fetch(`${apiUrl}/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query, history }),
-    });
+    const response = await fetchPrimeAI('/chat', { query, history });
 
     if (!response.ok) {
       const errorText = await response.text();

@@ -7,11 +7,8 @@ import {
   BadgeCheck,
   BarChart3,
   CalendarDays,
-  FilePlus,
-  FileText,
   MapPin,
   Phone,
-  Plus,
   TrendingUp,
   UserCheck,
   Users,
@@ -19,12 +16,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import {
-  filterTeacherAssessments,
   filterTeacherStudents,
   avgAttendanceForStudents,
   avgGpaForStudents,
   TEACHER_CLASS_ASSIGNMENTS,
-  getDemoTeacher,
+  dispatchTeacherQuickAction,
 } from '@/lib/teacherPortal';
 import type { Student } from '@/lib/mockData';
 import {
@@ -39,7 +35,6 @@ import {
   aisBodySm,
   aisBtnGhost,
   aisBtnGhostMuted,
-  aisBtnPrimary,
   aisCard,
   aisDataLg,
   aisDataMd,
@@ -81,11 +76,6 @@ function avatarColor(id: string) {
 
 function isAtRisk(student: Student) {
   return student.attendanceRate < 90 || student.gpa < 2.5;
-}
-
-function statusForStudent(student: Student) {
-  if (isAtRisk(student)) return 'warning' as const;
-  return 'active' as const;
 }
 
 function periodLabel(period: string, index: number) {
@@ -144,7 +134,11 @@ function ScheduleSection({
         <SectionTitle icon={CalendarDays} className="mb-0">
           Today&apos;s Schedule
         </SectionTitle>
-        <button type="button" className={aisBtnGhost}>
+        <button
+          type="button"
+          className={aisBtnGhost}
+          onClick={() => dispatchTeacherQuickAction('timetable')}
+        >
           <CalendarDays className={iconMd} aria-hidden />
           View full calendar
         </button>
@@ -306,11 +300,9 @@ function KpiCard({
 }
 
 export const TeacherDashboard: React.FC = () => {
-  const { students, assessments, teachers } = useApp();
-  const teacher = getDemoTeacher(teachers);
+  const { students } = useApp();
 
   const roster = useMemo(() => filterTeacherStudents(students), [students]);
-  const asms = useMemo(() => filterTeacherAssessments(assessments), [assessments]);
 
   const atRisk = roster.filter(isAtRisk);
   const avgGpa = avgGpaForStudents(roster);
@@ -485,103 +477,7 @@ export const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           </section>
-
-          <section className="lg:col-span-3">
-            <div className={`${aisCard} w-full overflow-hidden`}>
-              <div className="flex flex-col gap-3 border-b border-ais-card-border p-4 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className={`${aisHeadlineSm} flex items-center gap-2`}>
-                  <FileText className={iconMd} aria-hidden />
-                  Student Reports Summary
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new Event('open-teacher-assessment'))}
-                  className={aisBtnPrimary}
-                >
-                  <FilePlus className={iconMd} aria-hidden />
-                  Create New Report
-                </button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="ais-table w-full border-collapse">
-                  <thead>
-                    <tr className="bg-ais-surface-container-low">
-                      <th className={`${aisLabelCaps} px-4 py-2 text-left`}>Student</th>
-                      <th className={`${aisLabelCaps} px-4 py-2 text-left`}>Grade / Section</th>
-                      <th className={`${aisLabelCaps} px-4 py-2 text-left`}>GPA</th>
-                      <th className={`${aisLabelCaps} px-4 py-2 text-left`}>Attendance</th>
-                      <th className={`${aisLabelCaps} px-4 py-2 text-left`}>Pending</th>
-                      <th className={`${aisLabelCaps} px-4 py-2 text-left`}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roster.map((s) => {
-                      const status = statusForStudent(s);
-                      const atRiskRow = isAtRisk(s);
-                      return (
-                        <tr
-                          key={s.id}
-                          className="border-b border-[#f1f5f9] transition-colors hover:bg-[#eff6ff]"
-                        >
-                          <td className="px-4 py-2 text-sm font-medium text-ais-on-surface">
-                            {s.name}
-                          </td>
-                          <td className={`px-4 py-2 ${aisBodyMd}`}>
-                            {s.grade} · {s.section}
-                          </td>
-                          <td
-                            className={`px-4 py-2 text-sm font-medium tabular-nums ${
-                              atRiskRow && s.gpa < 2.5
-                                ? 'text-ais-error'
-                                : 'text-ais-on-surface'
-                            }`}
-                          >
-                            {s.gpa.toFixed(2)}
-                          </td>
-                          <td
-                            className={`px-4 py-2 text-sm tabular-nums ${
-                              atRiskRow && s.attendanceRate < 90
-                                ? 'font-semibold text-ais-error'
-                                : 'text-ais-on-surface'
-                            }`}
-                          >
-                            {s.attendanceRate}%
-                          </td>
-                          <td className={`px-4 py-2 ${aisBodyMd}`}>
-                            {asms.filter((a) => a.grade === s.grade).length} dept review
-                          </td>
-                          <td className="px-4 py-2">
-                            {status === 'active' ? (
-                              <span className={aisBadgeSuccess}>
-                                <UserCheck className="h-3 w-3" aria-hidden />
-                                Active
-                              </span>
-                            ) : (
-                              <span className={aisBadgeWarning}>
-                                <AlertCircle className="h-3 w-3" aria-hidden />
-                                Warning
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
       </div>
-
-      <button
-        type="button"
-        title={`Quick actions · ${teacher.name}`}
-        onClick={() => window.dispatchEvent(new Event('open-teacher-grade-entry'))}
-        className={`${aisBtnPrimary} fixed bottom-8 right-8 z-40 h-12 w-12 justify-center rounded-full p-0 shadow-[0_4px_12px_rgba(0,74,198,0.25)]`}
-        aria-label="Record grade"
-      >
-        <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-      </button>
     </div>
   );
 };
