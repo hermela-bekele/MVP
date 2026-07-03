@@ -7,7 +7,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogFooter } from '@/components/ui/dialog';
 // import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
 
 // Decomposed Sub-components
@@ -15,21 +14,14 @@ import { OverviewDashboard } from '@/components/dashboard/school-head/OverviewDa
 import { PerformanceReports } from '@/components/dashboard/school-head/PerformanceReports';
 import { StudentManagement } from '@/components/dashboard/school-head/StudentManagement';
 import { EmployeeManagement } from '@/components/dashboard/school-head/EmployeeManagement';
-import { LessonPlanReview } from '@/components/dashboard/school-head/LessonPlanReview';
 import { WellnessCheckins } from '@/components/dashboard/school-head/WellnessCheckins';
 import { SettingsPanel } from '@/components/dashboard/school-head/SettingsPanel';
-import type { ExamQuestion } from '@/lib/mockData';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 
 export default function SchoolHeadPortalPage() {
   const {
-    exams,
-    approveExam,
-    rejectExam,
     departments,
-    addDepartment,
     classes,
-    addClass,
     trainingMaterials,
     addTrainingMaterial,
     attendance,
@@ -58,8 +50,6 @@ export default function SchoolHeadPortalPage() {
       case 'dashboard': return [...base, { label: 'Overview' }];
       case 'reports': return [...base, { label: 'Performance Reports' }];
       case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
-      case 'lesson-plans': return [...base, { label: 'Lesson Plan Review' }];
-      case 'exam-bank': return [...base, { label: 'Exam Bank Review' }];
       case 'manage-students': return [...base, { label: 'Student Directory' }];
       case 'manage-employees': return [...base, { label: 'Faculty Directory' }];
       case 'manage-classes': return [...base, { label: 'Classes Registry' }];
@@ -94,55 +84,6 @@ export default function SchoolHeadPortalPage() {
     setGeneratingTimetable(false);
   };
 
-  // Exam Blueprint Review Modal State
-  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
-  const [isExamReviewOpen, setIsExamReviewOpen] = useState(false);
-  const [examComments, setExamComments] = useState('');
-
-  const selectedExam = exams.find((ex) => ex.id === selectedExamId);
-
-  const handleExamApprove = () => {
-    if (!selectedExamId) return;
-    approveExam(selectedExamId, examComments || 'Exam blueprint meets national standards.');
-    setIsExamReviewOpen(false);
-  };
-
-  const handleExamReject = () => {
-    if (!selectedExamId) return;
-    rejectExam(selectedExamId, examComments || 'Please add more multiple-choice questions.');
-    setIsExamReviewOpen(false);
-  };
-
-  // Add Class Modal State
-  const [isAddClassOpen, setIsAddClassOpen] = useState(false);
-  const [classNameInput, setClassNameInput] = useState('');
-  const [classGradeInput, setClassGradeInput] = useState('Grade 9');
-  const [classSectionInput, setClassSectionInput] = useState('A');
-  const [classTeacherInput, setClassTeacherInput] = useState('');
-
-  const handleAddClassSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!classNameInput || !classTeacherInput) return;
-    addClass(classNameInput, classGradeInput, classSectionInput, classTeacherInput);
-    setClassNameInput('');
-    setClassTeacherInput('');
-    setIsAddClassOpen(false);
-  };
-
-  // Add Department Modal State
-  const [isAddDeptOpen, setIsAddDeptOpen] = useState(false);
-  const [deptNameInput, setDeptNameInput] = useState('');
-  const [deptHeadInput, setDeptHeadInput] = useState('');
-
-  const handleAddDeptSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deptNameInput || !deptHeadInput) return;
-    addDepartment(deptNameInput, deptHeadInput);
-    setDeptNameInput('');
-    setDeptHeadInput('');
-    setIsAddDeptOpen(false);
-  };
-
   // Professional Development Tab State
   const [devSubTab, setDevSubTab] = useState<'training' | 'progress'>('training');
   const [newMaterialTitle, setNewMaterialTitle] = useState('');
@@ -152,7 +93,11 @@ export default function SchoolHeadPortalPage() {
   const handleDevFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMaterialTitle || !newMaterialUrl) return;
-    addTrainingMaterial(newMaterialTitle, newMaterialUrl, newMaterialCategory);
+    addTrainingMaterial({
+      title: newMaterialTitle,
+      resourceUrl: newMaterialUrl,
+      category: newMaterialCategory,
+    });
     setNewMaterialTitle('');
     setNewMaterialUrl('');
   };
@@ -173,33 +118,25 @@ export default function SchoolHeadPortalPage() {
       title: 'Academic Calendar',
       subtitle: 'Manage administrative school terms, holidays, and schedule classes using AI.',
     },
-    'lesson-plans': {
-      title: 'Lesson Plan Review',
-      subtitle: 'Audit department subject plans, monitor pedagogical objectives, and issue secondary academic approvals.',
-    },
-    'exam-bank': {
-      title: 'Exam Bank Review',
-      subtitle: 'Approve exam blueprints, review test item difficulty curves, and maintain national exam banks.',
-    },
     'manage-students': {
       title: 'Student Directory',
-      subtitle: 'Manage active student credentials, parents contact details, and grade statistics.',
+      subtitle: 'View active student credentials, parent contact details, and grade statistics.',
     },
     'manage-employees': {
       title: 'Faculty Directory',
-      subtitle: 'Manage active subject instructors, review MOE training courseware progress, and onboard employees.',
+      subtitle: 'View subject instructors and MOE training courseware progress.',
     },
     'manage-classes': {
       title: 'Classes Registry',
-      subtitle: 'Monitor classroom divisions, homeroom advisors, and classroom capacities.',
+      subtitle: 'View classroom divisions, homeroom advisors, and classroom capacities.',
     },
     'manage-departments': {
       title: 'Department Registry',
-      subtitle: 'Manage administrative school department divisions and coordinate designated curriculum supervisors.',
+      subtitle: 'View school department divisions and designated curriculum supervisors.',
     },
     'manage-attendance': {
       title: 'Attendance Ledger',
-      subtitle: 'Inspect student classroom roll-call rates and monitor staff check-in history.',
+      subtitle: 'View student classroom roll-call rates and staff check-in history.',
     },
     'teachers-development': {
       title: 'Professional Development',
@@ -218,45 +155,7 @@ export default function SchoolHeadPortalPage() {
   const meta = tabMeta[activeTab] ?? { title: 'School Head Portal' };
 
   const shellActions =
-    activeTab === 'manage-students' ? (
-      <Button
-        variant="organic"
-        size="sm"
-        onClick={() => window.dispatchEvent(new Event('open-enroll-modal'))}
-        className="text-xs h-9 font-semibold border-none shrink-0"
-        leftIcon={<span className="text-sm">+</span>}
-      >
-        Enroll New Student
-      </Button>
-    ) : activeTab === 'manage-employees' ? (
-      <Button
-        variant="organic"
-        size="sm"
-        onClick={() => window.dispatchEvent(new Event('open-onboard-modal'))}
-        className="text-xs h-9 font-semibold border-none shrink-0"
-        leftIcon={<span className="text-sm">+</span>}
-      >
-        Onboard New Instructor
-      </Button>
-    ) : activeTab === 'manage-classes' ? (
-      <Button
-        variant="organic"
-        size="sm"
-        onClick={() => setIsAddClassOpen(true)}
-        className="text-xs h-9 font-semibold border-none shrink-0"
-      >
-        Add Class Section
-      </Button>
-    ) : activeTab === 'manage-departments' ? (
-      <Button
-        variant="organic"
-        size="sm"
-        onClick={() => setIsAddDeptOpen(true)}
-        className="text-xs h-9 font-semibold border-none shrink-0"
-      >
-        Add Department Division
-      </Button>
-    ) : activeTab === 'manage-checkins' ? (
+    activeTab === 'manage-checkins' ? (
       <Button
         variant="organic"
         size="sm"
@@ -361,150 +260,15 @@ export default function SchoolHeadPortalPage() {
             </div>
           )}
 
-          {/* 4. Lesson Plan Review */}
-          {activeTab === 'lesson-plans' && <LessonPlanReview />}
+          {/* Student Management */}
+          {activeTab === 'manage-students' && <StudentManagement readOnly />}
 
-          {/* 5. Exam Bank Review */}
-          {activeTab === 'exam-bank' && (
-            <div className="space-y-6 animate-fade-in text-left">
-              <TablePanel
-                title="Exam Blueprint Filings"
-                description="Audit active exam papers submitted by instructional staff"
-              >
-                    <table className="eskooly-table">
-                      <thead>
-                        <tr>
-                          <th className="p-3 text-left text-muted-foreground font-semibold">Exam Title</th>
-                          <th className="p-3 text-left text-muted-foreground font-semibold">Subject</th>
-                          <th className="p-3 text-left text-muted-foreground font-semibold">Target Grade</th>
-                          <th className="p-3 text-left text-muted-foreground font-semibold">Status</th>
-                          <th className="p-3 text-left text-muted-foreground font-semibold">Operation</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40 text-muted-foreground">
-                        {exams.map((ex) => (
-                          <tr key={ex.id} className="hover:bg-muted/10">
-                            <td className="p-3">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-foreground text-xs">{ex.title}</span>
-                                <span className="text-[9px] text-muted-foreground mt-0.5">Author: {ex.teacherName}</span>
-                              </div>
-                            </td>
-                            <td className="p-3">
-                              <Badge variant="primary" size="sm" className="font-medium bg-accent/10 border-accent/20 text-accent">
-                                {ex.subject}
-                              </Badge>
-                            </td>
-                            <td className="p-3 font-semibold text-foreground">{ex.grade}</td>
-                            <td className="p-3">
-                                <Badge
-                                variant={
-                                  ex.status === 'Approved' 
-                                    ? 'success' 
-                                    : ex.status === 'Rejected' 
-                                    ? 'danger' 
-                                    : 'warning'
-                                }
-                                size="sm"
-                                className="font-bold"
-                              >
-                                {ex.status}
-                              </Badge>
-                            </td>
-                            <td className="p-3">
-                              <Button
-                                size="sm"
-                                variant={ex.status === 'Pending Approval' ? 'primary' : 'outline'}
-                                onClick={() => {
-                                  setSelectedExamId(ex.id);
-                                  setExamComments('');
-                                  setIsExamReviewOpen(true);
-                                }}
-                                className="text-xxs h-7 font-bold border-none"
-                              >
-                                {ex.status === 'Pending Approval' ? 'Review Draft' : 'Inspect Rulings'}
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-              </TablePanel>
+          {/* Employee Management */}
+          {activeTab === 'manage-employees' && <EmployeeManagement readOnly />}
 
-              {/* Review Exam Blueprint Dialog Modal */}
-              <Dialog
-                isOpen={isExamReviewOpen}
-                onClose={() => setIsExamReviewOpen(false)}
-                title="Exam Blueprint Audit"
-              >
-                {selectedExam && (
-                  <div className="space-y-4 pt-2">
-                    <div className="p-3 bg-muted/40 border border-border/60 rounded-xl text-left space-y-0.5">
-                      <h4 className="text-xs font-bold text-foreground">{selectedExam.title}</h4>
-                      <p className="text-[10px] text-muted-foreground">Drafted by: {selectedExam.teacherName} ({selectedExam.subject})</p>
-                    </div>
-
-                    <div className="text-left space-y-1">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase">Questions blueprint preview</span>
-                      <div className="p-3 bg-muted/20 border border-border/40 rounded-xl space-y-2 text-xxs text-muted-foreground">
-                        {selectedExam.questions?.map((q: ExamQuestion, idx: number) => (
-                          <div key={idx} className="space-y-1 border-b border-border/30 pb-2 last:border-b-0 last:pb-0">
-                            <p className="font-semibold text-foreground">{idx + 1}. {q.text}</p>
-                            <div className="grid grid-cols-2 gap-1 pl-2 text-[10px]">
-                              {q.options && q.options.map((opt: string, oi: number) => (
-                                <span key={oi} className={opt === q.answer ? 'text-primary font-bold' : ''}>• {opt}</span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {selectedExam.status === 'Pending Approval' ? (
-                      <div className="space-y-3 text-left">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase">Administrative comments</label>
-                        <textarea
-                          placeholder="Provide directives for exam adjustments..."
-                          value={examComments}
-                          onChange={(e) => setExamComments(e.target.value)}
-                          className="w-full h-20 p-3 bg-muted/40 border border-border rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-
-                        <DialogFooter className="mt-4 border-t border-border/20 pt-3 flex gap-2 justify-end">
-                          <Button variant="outline" size="sm" onClick={() => setIsExamReviewOpen(false)} className="text-xs h-9">
-                            Close
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={handleExamReject} className="text-xs h-9 border-none font-bold">
-                            Reject Exam
-                          </Button>
-                          <Button variant="organic" size="sm" onClick={handleExamApprove} className="text-xs h-9 border-none font-bold">
-                            Approve Exam
-                          </Button>
-                        </DialogFooter>
-                      </div>
-                    ) : (
-                      <DialogFooter className="mt-4 border-t border-border/20 pt-3">
-                        <Button variant="outline" size="sm" onClick={() => setIsExamReviewOpen(false)} className="text-xs h-9">
-                          Close
-                        </Button>
-                      </DialogFooter>
-                    )}
-                  </div>
-                )}
-              </Dialog>
-            </div>
-          )}
-
-          {/* 6. Student Management */}
-          {activeTab === 'manage-students' && <StudentManagement />}
-
-          {/* 7. Employee Management */}
-          {activeTab === 'manage-employees' && <EmployeeManagement />}
-
-          {/* 8. Manage Classes */}
+          {/* View Classes */}
           {activeTab === 'manage-classes' && (
             <div className="space-y-6 animate-fade-in text-left">
-              {/* Roster Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classes.map((cls) => (
                   <Card key={cls.id} className="flex flex-col justify-between border-border/60 hover:border-primary/40 transition-colors duration-200">
@@ -519,80 +283,12 @@ export default function SchoolHeadPortalPage() {
                   </Card>
                 ))}
               </div>
-
-              {/* Add Class Dialog Modal */}
-              <Dialog
-                isOpen={isAddClassOpen}
-                onClose={() => setIsAddClassOpen(false)}
-                title="Add New Homeroom Class Section"
-              >
-                <form onSubmit={handleAddClassSubmit} className="space-y-4 pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase block">Section Name</label>
-                    <input 
-                      type="text"
-                      required
-                      value={classNameInput}
-                      onChange={(e) => setClassNameInput(e.target.value)}
-                      placeholder="e.g. Grade 9 Section D"
-                      className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Select
-                      label="Grade level"
-                      options={[
-                        { value: 'Grade 9', label: 'Grade 9' },
-                        { value: 'Grade 10', label: 'Grade 10' },
-                        { value: 'Grade 11', label: 'Grade 11' },
-                        { value: 'Grade 12', label: 'Grade 12' },
-                      ]}
-                      value={classGradeInput}
-                      onChange={(e) => setClassGradeInput(e.target.value)}
-                    />
-                    <Select
-                      label="Section partition"
-                      options={[
-                        { value: 'A', label: 'A' },
-                        { value: 'B', label: 'B' },
-                        { value: 'C', label: 'C' },
-                        { value: 'D', label: 'D' },
-                      ]}
-                      value={classSectionInput}
-                      onChange={(e) => setClassSectionInput(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase block font-bold">Assigned Homeroom Teacher</label>
-                    <input 
-                      type="text"
-                      required
-                      value={classTeacherInput}
-                      onChange={(e) => setClassTeacherInput(e.target.value)}
-                      placeholder="e.g. Martha Feyissa"
-                      className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
-                    />
-                  </div>
-
-                  <DialogFooter className="mt-6 border-t border-border/20 pt-4">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAddClassOpen(false)} className="text-xs h-9">
-                      Cancel
-                    </Button>
-                    <Button type="submit" variant="organic" size="sm" className="text-xs h-9 border-none font-semibold">
-                      Register Class Section
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Dialog>
             </div>
           )}
 
-          {/* 9. Manage Departments */}
+          {/* View Departments */}
           {activeTab === 'manage-departments' && (
             <div className="space-y-6 animate-fade-in text-left">
-              {/* Roster Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {departments.map((dept) => (
                   <Card key={dept.id} className="flex flex-col justify-between border-border/60 hover:border-primary/40 transition-colors duration-200">
@@ -607,52 +303,10 @@ export default function SchoolHeadPortalPage() {
                   </Card>
                 ))}
               </div>
-
-              {/* Add Department Dialog Modal */}
-              <Dialog
-                isOpen={isAddDeptOpen}
-                onClose={() => setIsAddDeptOpen(false)}
-                title="Register New Subject Department"
-              >
-                <form onSubmit={handleAddDeptSubmit} className="space-y-4 pt-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase block">Department Division Name</label>
-                    <input 
-                      type="text"
-                      required
-                      value={deptNameInput}
-                      onChange={(e) => setDeptNameInput(e.target.value)}
-                      placeholder="e.g. Department of Chemistry"
-                      className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase block font-bold">Assigned Subject Coordinator</label>
-                    <input 
-                      type="text"
-                      required
-                      value={deptHeadInput}
-                      onChange={(e) => setDeptHeadInput(e.target.value)}
-                      placeholder="e.g. Ato Abraham"
-                      className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
-                    />
-                  </div>
-
-                  <DialogFooter className="mt-6 border-t border-border/20 pt-4">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setIsAddDeptOpen(false)} className="text-xs h-9">
-                      Cancel
-                    </Button>
-                    <Button type="submit" variant="organic" size="sm" className="text-xs h-9 border-none font-semibold">
-                      Register Department
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Dialog>
             </div>
           )}
 
-          {/* 10. Manage Attendance */}
+          {/* View Attendance */}
           {activeTab === 'manage-attendance' && (
             <div className="space-y-6 animate-fade-in text-left">
               <div className="flex justify-end">

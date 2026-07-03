@@ -878,6 +878,10 @@ export interface TrainingMaterial {
   resourceUrl: string;
   category: string;
   trainingType?: 'Pedagogy' | 'MOE Mandatory' | 'STEM' | 'Assessment' | 'Subject Specialty';
+  departmentId?: string;
+  grade?: string;
+  subject?: string;
+  disseminated?: boolean;
   uploadedAt: string;
 }
 
@@ -893,8 +897,7 @@ export interface TeachingNote {
   contentSummary: string;
   /** JSON-serialized AI note payload for full view/print */
   contentBody?: string;
-  status: 'Draft' | 'Pending Dept Head' | 'Approved' | 'Rejected';
-  deptComments?: string;
+  status: 'Draft' | 'Saved';
   createdAt: string;
   updatedAt?: string;
 }
@@ -1022,11 +1025,11 @@ export const mockExams: ExamPaper[] = [
 ];
 
 export const mockTrainingMaterials: TrainingMaterial[] = [
-  { id: 'tm-1', title: 'MOE Modern Secondary Pedagogy Guide v2', resourceUrl: '#', category: 'Pedagogy', trainingType: 'MOE Mandatory', uploadedAt: '2026-05-10' },
-  { id: 'tm-2', title: 'Inclusion & Classroom Management Guide', resourceUrl: '#', category: 'Classroom Management', trainingType: 'Pedagogy', uploadedAt: '2026-05-12' },
-  { id: 'tm-3', title: 'STEM Lab Safety & Practical Assessment Rubric', resourceUrl: '#', category: 'STEM', trainingType: 'STEM', uploadedAt: '2026-05-14' },
-  { id: 'tm-4', title: 'Grade 9–12 Biology Syllabus Alignment Pack', resourceUrl: '#', category: 'Biology', trainingType: 'Subject Specialty', uploadedAt: '2026-05-15' },
-  { id: 'tm-5', title: 'Formative Assessment Design Workshop', resourceUrl: '#', category: 'Assessment', trainingType: 'Assessment', uploadedAt: '2026-05-16' },
+  { id: 'tm-1', title: 'MOE Modern Secondary Pedagogy Guide v2', resourceUrl: '#', category: 'Pedagogy', trainingType: 'MOE Mandatory', uploadedAt: '2026-05-10', disseminated: true },
+  { id: 'tm-2', title: 'Inclusion & Classroom Management Guide', resourceUrl: '#', category: 'Classroom Management', trainingType: 'Pedagogy', uploadedAt: '2026-05-12', disseminated: true },
+  { id: 'tm-3', title: 'STEM Lab Safety & Practical Assessment Rubric', resourceUrl: '#', category: 'STEM', trainingType: 'STEM', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Biology', uploadedAt: '2026-05-14', disseminated: true },
+  { id: 'tm-4', title: 'Grade 9–12 Biology Syllabus Alignment Pack', resourceUrl: '#', category: 'Biology', trainingType: 'Subject Specialty', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Biology', uploadedAt: '2026-05-15', disseminated: false },
+  { id: 'tm-6', title: 'Mathematics Grade 9–12 Problem-Solving Framework', resourceUrl: '#', category: 'Mathematics', trainingType: 'Subject Specialty', departmentId: 'dept-math', grade: 'Grade 9', subject: 'Mathematics', uploadedAt: '2026-05-17', disseminated: false },
 ];
 
 export const mockTeachingNotes: TeachingNote[] = [
@@ -1040,8 +1043,7 @@ export const mockTeachingNotes: TeachingNote[] = [
     topic: 'Cellular Respiration',
     language: 'English',
     contentSummary: 'AI-generated notes covering mitochondria, ATP synthesis, and aerobic pathways.',
-    status: 'Approved',
-    deptComments: 'Aligned with MOE syllabus — approved for classroom use.',
+    status: 'Saved',
     createdAt: '2026-05-12',
   },
   {
@@ -1054,8 +1056,7 @@ export const mockTeachingNotes: TeachingNote[] = [
     topic: 'Membrane transport',
     language: 'English',
     contentSummary: 'Student handout for passive and active transport with diagram prompts.',
-    status: 'Approved',
-    deptComments: 'Ready for classroom distribution.',
+    status: 'Saved',
     createdAt: '2026-05-16',
     updatedAt: '2026-05-16',
   },
@@ -1068,7 +1069,7 @@ export const mockTeachingNotes: TeachingNote[] = [
     subject: 'Biology',
     topic: 'Cell organelles',
     language: 'English',
-    contentSummary: 'Draft reference sheet — not yet submitted for approval.',
+    contentSummary: 'Draft reference sheet for cell organelles.',
     status: 'Draft',
     createdAt: '2026-05-22',
   },

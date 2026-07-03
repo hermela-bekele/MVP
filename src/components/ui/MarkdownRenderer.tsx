@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
+import { aisCard } from '@/components/dashboard/teacher/aisStyles';
 
 interface MarkdownRendererProps {
   content: string;
@@ -32,31 +33,31 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
     });
 
   return (
-    <div className={`markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none ${className}`}>
+    <div className={`markdown-content prose prose-sm md:prose-base max-w-none ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           h1: ({ node, ...props }) => (
-            <h1 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-4 mt-6 pb-2 border-b border-ais-card-border dark:border-gray-700" {...props} />
+            <h1 className="text-2xl font-bold text-ais-on-surface mb-4 mt-6 pb-2 border-b border-ais-card-border" {...props} />
           ),
           h2: ({ node, ...props }) => (
-            <h2 className="text-xl font-semibold text-ais-on-surface dark:text-gray-100 mb-3 mt-5 flex items-center gap-2" {...props} />
+            <h2 className="text-xl font-semibold text-ais-on-surface mb-3 mt-5 flex items-center gap-2" {...props} />
           ),
           h3: ({ node, ...props }) => (
-            <h3 className="text-lg font-semibold text-ais-primary dark:text-primary mb-2 mt-4" {...props} />
+            <h3 className="text-lg font-semibold text-ais-primary mb-2 mt-4" {...props} />
           ),
           h4: ({ node, ...props }) => (
-            <h4 className="text-base font-semibold text-ais-on-surface dark:text-gray-200 mb-2 mt-3" {...props} />
+            <h4 className="text-base font-semibold text-ais-on-surface mb-2 mt-3" {...props} />
           ),
           p: ({ node, ...props }) => (
-            <p className="text-sm text-ais-on-surface-variant dark:text-gray-300 leading-relaxed mb-3" {...props} />
+            <p className="text-sm text-ais-on-surface-variant leading-relaxed mb-3" {...props} />
           ),
           ul: ({ node, ...props }) => (
-            <ul className="list-disc list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant dark:text-gray-300" {...props} />
+            <ul className="list-disc list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
           ol: ({ node, ...props }) => (
-            <ol className="list-decimal list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant dark:text-gray-300" {...props} />
+            <ol className="list-decimal list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
           li: ({ node, children, ...props }) => (
             <li className="ml-2" {...props}>
@@ -64,21 +65,21 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             </li>
           ),
           strong: ({ node, ...props }) => (
-            <strong className="font-bold text-ais-on-surface dark:text-gray-100" {...props} />
+            <strong className="font-bold text-ais-on-surface" {...props} />
           ),
           em: ({ node, ...props }) => (
-            <em className="italic text-ais-on-surface dark:text-gray-200" {...props} />
+            <em className="italic text-ais-on-surface" {...props} />
           ),
           code: ({ node, inline, className, children, ...props }: any) => {
             if (inline) {
               return (
-                <code className="px-1.5 py-0.5 rounded bg-ais-surface-container-low dark:bg-gray-700 text-primary dark:text-primary-light text-xs font-mono" {...props}>
+                <code className="px-1.5 py-0.5 rounded bg-ais-surface-container-low text-ais-primary text-xs font-mono" {...props}>
                   {children}
                 </code>
               );
             }
             return (
-              <code className="block p-4 rounded-lg bg-ais-surface-container-low dark:bg-gray-800 text-ais-on-surface dark:text-gray-300 text-xs font-mono overflow-x-auto border border-ais-card-border dark:border-gray-700 my-3" {...props}>
+              <code className="block p-4 rounded-lg bg-ais-surface-container-low text-ais-on-surface text-xs font-mono overflow-x-auto border border-ais-card-border my-3" {...props}>
                 {children}
               </code>
             );
@@ -87,10 +88,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             <pre className="my-3" {...props} />
           ),
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 border-primary pl-4 py-2 my-4 bg-primary/5 dark:bg-primary/10 rounded-r-lg" {...props} />
+            <blockquote className="border-l-4 border-ais-primary pl-4 py-2 my-4 bg-ais-primary/5 rounded-r-lg" {...props} />
           ),
           a: ({ node, ...props }) => (
-            <a className="text-primary hover:text-primary/80 dark:text-primary-light dark:hover:text-primary underline" {...props} />
+            <a className="text-ais-primary hover:text-ais-primary/80 underline" {...props} />
           ),
           table: ({ node, ...props }) => (
             <div className="overflow-x-auto my-6">
@@ -98,22 +99,22 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             </div>
           ),
           thead: ({ node, ...props }) => (
-            <thead className="bg-primary/10 dark:bg-primary/20" {...props} />
+            <thead className="bg-ais-primary/10" {...props} />
           ),
           th: ({ node, ...props }) => (
-            <th className="px-6 py-4 text-left text-sm font-bold text-primary dark:text-primary-light border-b-2 border-primary/20 dark:border-primary/30" {...props} />
+            <th className="px-6 py-4 text-left text-sm font-bold text-ais-primary border-b-2 border-ais-primary/20" {...props} />
           ),
           tbody: ({ node, ...props }) => (
-            <tbody className="bg-white dark:bg-gray-800" {...props} />
+            <tbody className="bg-white" {...props} />
           ),
           tr: ({ node, ...props }) => (
-            <tr className="border-b border-ais-card-border dark:border-gray-700 hover:bg-ais-surface-container-low/50 dark:hover:bg-gray-700/30 transition-colors" {...props} />
+            <tr className="border-b border-ais-card-border hover:bg-ais-surface-container-low/50 transition-colors" {...props} />
           ),
           td: ({ node, ...props }) => (
-            <td className="px-6 py-4 text-sm text-ais-on-surface-variant dark:text-gray-300" {...props} />
+            <td className="px-6 py-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
           hr: ({ node, ...props }) => (
-            <hr className="my-6 border-t border-ais-card-border dark:border-gray-700" {...props} />
+            <hr className="my-6 border-t border-ais-card-border" {...props} />
           ),
         }}
       >
@@ -126,7 +127,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
 // Styled wrapper with cards for better visual hierarchy
 export const MarkdownCard: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
   return (
-    <div className={`rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow ${className}`}>
+    <div className={`${aisCard} p-6 hover:shadow-md transition-shadow ${className}`}>
       <MarkdownRenderer content={content} />
     </div>
   );

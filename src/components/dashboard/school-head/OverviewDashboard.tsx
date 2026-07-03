@@ -17,13 +17,11 @@ import { Badge } from "@/components/ui/badge";
 import { staggerContainer, staggerItem } from "@/lib/animations";
 
 export const OverviewDashboard: React.FC = () => {
-  const { students, teachers, lessonPlans, checkIns, notifications } = useApp();
+  const { students, teachers, checkIns, notifications, classes } = useApp();
 
   const totalStudents = students.length;
   const activeTeachers = teachers.filter((t) => t.status === "Active").length;
-  const pendingLessonPlans = lessonPlans.filter(
-    (lp) => lp.status === "Pending School Head",
-  ).length;
+  const totalClasses = classes.length;
 
   const avgSatisfaction = React.useMemo(() => {
     if (checkIns.length === 0) return 0;
@@ -95,27 +93,19 @@ export const OverviewDashboard: React.FC = () => {
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => handleQuickAction("lesson-plans")}
+              onClick={() => handleQuickAction("manage-students")}
               className="text-xs h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
-              leftIcon={
-                <span className="relative flex h-2 w-2 mr-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
-                </span>
-              }
             >
-              Review Plans ({pendingLessonPlans})
+              View Students
             </Button>
             <Button
+              variant="outline"
               size="sm"
-              onClick={() =>
-                handleQuickAction("manage-students", "open-enroll-modal")
-              }
+              onClick={() => handleQuickAction("reports")}
               className="text-xs h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
             >
-              Enroll Students
+              Performance Reports
             </Button>
           </div>
         </div>
@@ -140,10 +130,10 @@ export const OverviewDashboard: React.FC = () => {
           color="muted"
         />
         <StatCard
-          title="Plans Awaiting Review"
-          value={pendingLessonPlans}
-          subtitle="Requires Principal Action"
-          trend={{ direction: "down", value: "-12%" }}
+          title="Class Sections"
+          value={totalClasses}
+          subtitle="Registered Homeroom Divisions"
+          trend={{ direction: "neutral", value: "0.0%" }}
           color="emphasis"
         />
         <StatCard
@@ -264,30 +254,27 @@ export const OverviewDashboard: React.FC = () => {
             {[
               {
                 tab: "manage-students",
-                event: "open-enroll-modal",
                 icon: "🎓",
-                title: "Enroll a New Student",
-                desc: "Register student credentials",
+                title: "View Student Directory",
+                desc: "Browse enrolled student records",
                 hover: "hover:border-primary/30 group-hover:text-primary",
                 bg: "bg-primary/10 text-primary",
               },
               {
                 tab: "manage-employees",
-                event: "open-onboard-modal",
                 icon: "💼",
-                title: "Onboard Teaching Staff",
-                desc: "Add employee profile & details",
+                title: "View Faculty Directory",
+                desc: "Browse instructional staff profiles",
                 hover: "hover:border-accent/30 group-hover:text-accent",
                 bg: "bg-accent/10 text-accent",
               },
               {
-                tab: "lesson-plans",
-                icon: "📝",
-                title: "Review Lesson Plans",
-                desc: "Approve pending curriculum drafts",
-                hover:
-                  "hover:border-destructive/30 group-hover:text-destructive",
-                bg: "bg-destructive/10 text-destructive",
+                tab: "manage-attendance",
+                icon: "📋",
+                title: "View Attendance Ledger",
+                desc: "Inspect student and staff attendance",
+                hover: "hover:border-primary/30 group-hover:text-primary",
+                bg: "bg-primary/10 text-primary",
               },
               {
                 tab: "manage-checkins",

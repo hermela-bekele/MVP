@@ -16,7 +16,7 @@ import {
 } from '@/lib/auth';
 
 export default function RegisterPage() {
-  const { login, currentUser, authReady } = useApp();
+  const { currentUser, authReady } = useApp();
   const router = useRouter();
 
   const [displayName, setDisplayName] = useState('');
@@ -55,14 +55,15 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const user = await api.register({
+      await api.register({
         email: email.trim(),
         password,
         displayName: displayName.trim(),
         role,
       });
-      login(user, true);
-      router.push(dashboardPathForRole(user.role));
+      router.replace(
+        `/login?registered=1&email=${encodeURIComponent(email.trim())}`,
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -138,27 +139,33 @@ export default function RegisterPage() {
               )}
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="register-name" className="text-xs font-semibold text-foreground">
                   Full Name
                 </label>
                 <input
+                  id="register-name"
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your full name"
+                  autoComplete="name"
+                  required
                   className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="register-email" className="text-xs font-semibold text-foreground">
                   Email Address
                 </label>
                 <input
+                  id="register-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@prime.edu.et"
+                  autoComplete="email"
+                  required
                   className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -183,26 +190,32 @@ export default function RegisterPage() {
                   Password
                 </label>
                 <Input
+                  id="register-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   autoComplete="new-password"
+                  required
+                  minLength={6}
                   inputSize="lg"
                   className="rounded-lg text-sm"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">
+                <label htmlFor="register-confirm-password" className="text-xs font-semibold text-foreground">
                   Confirm Password
                 </label>
                 <Input
+                  id="register-confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter your password"
                   autoComplete="new-password"
+                  required
+                  minLength={6}
                   inputSize="lg"
                   className="rounded-lg text-sm"
                 />

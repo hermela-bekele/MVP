@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { api, ApiError } from '@/lib/api';
 import { dashboardPathForRole } from '@/lib/auth';
 
@@ -16,12 +17,25 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
   useEffect(() => {
     if (authReady && currentUser) {
       router.replace(dashboardPathForRole(currentUser.role));
     }
   }, [authReady, currentUser, router]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registered') !== '1') return;
+
+    setRegisteredSuccess(true);
+    const emailParam = params.get('email');
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam));
+    }
+    window.history.replaceState({}, '', '/login');
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +48,9 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const user = await api.login(email, password);
+      const user = await api.login(email.trim(), password);
       login(user, remember);
-      router.push(dashboardPathForRole(user.role));
+      router.replace(dashboardPathForRole(user.role));
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Invalid email or password.');
@@ -96,6 +110,12 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
+              {registeredSuccess && (
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-sm">
+                  Account created successfully. Sign in with your email and password.
+                </div>
+              )}
+
               {error && (
                 <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                   {error}
@@ -103,26 +123,35 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">Email Address</label>
+                <label htmlFor="login-email" className="text-xs font-semibold text-foreground">
+                  Email Address
+                </label>
                 <input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@prime.edu.et"
                   autoComplete="email"
+                  required
                   className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">Password</label>
-                <input
+                <label htmlFor="login-password" className="text-xs font-semibold text-foreground">
+                  Password
+                </label>
+                <Input
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   autoComplete="current-password"
-                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                  inputSize="lg"
+                  className="rounded-lg text-sm"
                 />
               </div>
 

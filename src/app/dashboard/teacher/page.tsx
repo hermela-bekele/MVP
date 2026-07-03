@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
-import { FilePlus, PenLine, Upload } from "lucide-react";
+import { PenLine, Upload } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,8 +91,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   "teaching-notes": {
     title: "Teaching Notes",
-    subtitle:
-      "View all notes per lesson plan, create new notes with AI, and submit for department head approval.",
+    subtitle: "View all notes per lesson plan and create new notes with AI.",
   },
   "manage-students": {
     title: "Manage Students",
@@ -203,28 +202,6 @@ export default function TeacherPortalPage() {
       >
         <PenLine className="h-3.5 w-3.5" aria-hidden />
         Record grade
-      </Button>
-    ) : activeTab === "resources" ? (
-      <Button
-        variant="organic"
-        size="sm"
-        className="text-xs h-9 gap-1.5 border-none"
-        onClick={() => window.dispatchEvent(new Event("open-teacher-resource"))}
-      >
-        <Upload className="h-3.5 w-3.5" aria-hidden />
-        Upload resource
-      </Button>
-    ) : activeTab === "assessments" ? (
-      <Button
-        variant="organic"
-        size="sm"
-        className="text-xs h-9 gap-1.5 border-none"
-        onClick={() =>
-          window.dispatchEvent(new Event("open-teacher-assessment"))
-        }
-      >
-        <FilePlus className="h-3.5 w-3.5" aria-hidden />
-        New assessment
       </Button>
     ) : null;
   return (

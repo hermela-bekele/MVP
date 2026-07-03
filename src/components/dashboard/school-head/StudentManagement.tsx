@@ -23,7 +23,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-export const StudentManagement: React.FC = () => {
+export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
   const { students, enrollStudent, updateStudent } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
@@ -75,12 +75,13 @@ export const StudentManagement: React.FC = () => {
 
   // Handle external modal open trigger (from OverviewDashboard quick actions)
   useEffect(() => {
+    if (readOnly) return;
     const handleOpenModal = () => {
       setIsModalOpen(true);
     };
     window.addEventListener('open-enroll-modal', handleOpenModal);
     return () => window.removeEventListener('open-enroll-modal', handleOpenModal);
-  }, []);
+  }, [readOnly]);
 
   const handleEnrollSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,15 +204,17 @@ export const StudentManagement: React.FC = () => {
           >
             View
           </Button>
-          <Button
-            type="button"
-            variant="organic"
-            size="sm"
-            onClick={() => openStudentEdit(row)}
-            className="text-[10px] h-7 px-2 border-none"
-          >
-            Edit
-          </Button>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="organic"
+              size="sm"
+              onClick={() => openStudentEdit(row)}
+              className="text-[10px] h-7 px-2 border-none"
+            >
+              Edit
+            </Button>
+          )}
         </div>
       ),
     },
@@ -233,6 +236,7 @@ export const StudentManagement: React.FC = () => {
       </TablePanel>
 
       {/* Enroll Student Dialog Modal */}
+      {!readOnly && (
       <Dialog
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -382,6 +386,7 @@ export const StudentManagement: React.FC = () => {
 
         </form>
       </Dialog>
+      )}
 
       {/* View / Edit full student record */}
       <Dialog
@@ -438,15 +443,17 @@ export const StudentManagement: React.FC = () => {
               <Button type="button" variant="outline" size="sm" onClick={closeStudentDetail} className="text-xs h-9">
                 Close
               </Button>
-              <Button
-                type="button"
-                variant="organic"
-                size="sm"
-                onClick={() => setDetailMode('edit')}
-                className="text-xs h-9 border-none font-semibold"
-              >
-                Edit record
-              </Button>
+              {!readOnly && (
+                <Button
+                  type="button"
+                  variant="organic"
+                  size="sm"
+                  onClick={() => setDetailMode('edit')}
+                  className="text-xs h-9 border-none font-semibold"
+                >
+                  Edit record
+                </Button>
+              )}
             </DialogFooter>
           </div>
         )}

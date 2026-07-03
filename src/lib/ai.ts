@@ -786,61 +786,61 @@ export const generateAssessmentWithAI = async (
   topic: string,
   grade: string,
   subject: string,
-  difficulty: string
+  difficulty: string,
+  numQuestions: number = 10,
+  questionFormat: string = 'Mixed'
 ): Promise<string> => {
   try {
-    // Determine the number of questions based on type
-    const numQuestions = type.toLowerCase().includes('quiz') ? 5 : 10;
-    
-    // Use the /quiz endpoint for quiz generation
-    const cacheKey = aiService['getCacheKey']('/quiz', { topic, difficulty, num_questions: numQuestions });
+    const payload = {
+      topic,
+      difficulty: difficulty.toLowerCase(),
+      num_questions: numQuestions,
+      question_type: questionFormat.toLowerCase().replace(/\s+/g, '_'),
+    };
+
+    const cacheKey = aiService['getCacheKey']('/quiz', payload);
     const cached = aiService['getFromCache'](cacheKey);
     if (cached) {
       return cached.content || JSON.stringify(cached);
     }
 
-    const result = await aiService['callPrimeAI']('/quiz', {
-      topic,
-      difficulty: difficulty.toLowerCase(),
-      num_questions: numQuestions,
-    });
+    const result = await aiService['callPrimeAI']('/quiz', payload);
 
     return result.content || JSON.stringify(result);
   } catch (error) {
     console.error('AI Service failed for assessment generation, using fallback:', error);
-    
-    // Fallback template generation
+
+    const formatLabel = questionFormat === 'Mixed'
+      ? 'a mix of multiple choice, true/false, fill-in-the-blank, matching, and writing questions'
+      : `${questionFormat.toLowerCase()} questions`;
+
     return `# ${type} on ${topic}
 
 **Grade:** ${grade}  
 **Subject:** ${subject}  
-**Difficulty:** ${difficulty}
+**Difficulty:** ${difficulty}  
+**Question format:** ${questionFormat}  
+**Number of questions:** ${numQuestions}
 
 ---
 
-## Section A: Multiple Choice (20 marks)
-
-1. Sample question related to ${topic}?
-   - A) Option A
-   - B) Option B
-   - C) Option C
-   - D) Option D
+Generate ${numQuestions} ${formatLabel} on **${topic}** for ${grade} ${subject}.
 
 ---
 
-## Section B: Short Answer (30 marks)
-
-2. Explain the key concepts of ${topic}.  
-   (10 marks)
-
-3. Provide examples demonstrating your understanding of ${topic}.  
-   (10 marks)
-
-4. Analyze how ${topic} applies to real-world scenarios.  
-   (10 marks)
+## Instructions
+- Answer all questions
+- Show all working where required
+- Time allowed: 45 minutes
 
 ---
 
-**Total: 50 marks**`;
+## Questions
+
+1. [Sample ${questionFormat === 'Mixed' ? 'multiple choice' : questionFormat.toLowerCase()} question related to ${topic}]
+
+---
+
+**Total: ${numQuestions} questions**`;
   }
 };

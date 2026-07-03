@@ -133,6 +133,7 @@ interface AppContextType {
   rejectAssessment: (id: string, comments: string) => void;
   createLessonPlan: (plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => void;
   createAssessment: (asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'>) => void;
+  updateAssessmentQuestions: (id: string, questions: Assessment['questions']) => void;
   saveAttendance: (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => void;
   enrollStudent: (student: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => void;
   submitRegistrationApplication: (
@@ -174,18 +175,24 @@ interface AppContextType {
   addClass: (name: string, grade: string, section: string, homeroomTeacher: string) => void;
   approveExam: (id: string, comments: string) => void;
   rejectExam: (id: string, comments: string) => void;
-  addTrainingMaterial: (title: string, resourceUrl: string, category: string) => void;
+  addTrainingMaterial: (data: {
+    title: string;
+    resourceUrl: string;
+    category: string;
+    trainingType?: TrainingMaterial['trainingType'];
+    departmentId?: string;
+    grade?: string;
+    subject?: string;
+  }) => void;
+  disseminateTrainingMaterial: (id: string) => void;
   addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
   updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string) => void;
   distributeLessonPlan: (id: string) => void;
   createTeachingNote: (
-    note: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>
+    note: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>,
+    status?: TeachingNote['status']
   ) => string;
   updateTeachingNote: (id: string, updates: Partial<TeachingNote>) => void;
-  submitTeachingNote: (
-    note: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>
-  ) => void;
-  submitTeachingNoteForApproval: (id: string) => void;
   upsertStudentGradeEntry: (
     entry: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => void;
@@ -218,7 +225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [activeRole, setActiveRoleState] = useState<string>('login');
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
@@ -368,28 +375,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentUser(savedUser);
       setActiveRoleState(savedUser.role);
     }
-    const savedTheme = localStorage.getItem('pts-active-theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme);
+    // Always force light mode — dark mode has been removed
+    setTheme('light');
+    if (typeof window !== 'undefined') {
+      window.document.documentElement.classList.remove('dark');
+      localStorage.removeItem('pts-active-theme');
+    }
     setAuthReady(true);
   }, []);
 
+  // toggleTheme is a no-op — dark mode removed
   const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('pts-active-theme', nextTheme);
-    }
+    // Dark mode disabled
   };
-
-  // Add document class support for themes
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [theme]);
 
   // Actions
   const addSchool = (schoolData: Omit<School, 'id' | 'code' | 'studentsCount' | 'teachersCount' | 'status' | 'gps'>) => {
@@ -447,6 +445,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAssessments((prev) => [asm as Assessment, ...prev]);
       addNotification('Assessment Submitted', `Assessment "${(asm as Assessment).title}" submitted.`, 'info');
     }).catch(() => void refreshFromApi());
+  };
+
+  const updateAssessmentQuestions = (id: string, questions: Assessment['questions']) => {
+    void api.updateAssessment(id, { questions }).then((asm) => {
+      setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
+      addNotification('Questions Saved', `Assessment questions updated.`, 'success');
+    }).catch(() => {
+      setAssessments((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? {
+                ...a,
+                questions,
+                status: a.status === 'Rejected' ? 'Pending Dept Head' : a.status,
+              }
+            : a
+        )
+      );
+      addNotification('Questions Saved', 'Assessment questions updated locally.', 'info');
+    });
   };
 
   const saveAttendance = (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => {
@@ -786,10 +804,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
-  const addTrainingMaterial = (title: string, resourceUrl: string, category: string) => {
-    void api.createTrainingMaterial(title, resourceUrl, category).then((mat) => {
+  const addTrainingMaterial = (data: {
+    title: string;
+    resourceUrl: string;
+    category: string;
+    trainingType?: TrainingMaterial['trainingType'];
+    departmentId?: string;
+    grade?: string;
+    subject?: string;
+  }) => {
+    void api.createTrainingMaterial(data).then((mat) => {
       setTrainingMaterials((prev) => [...prev, mat as TrainingMaterial]);
-      addNotification('Training Resource Added', `"${title}" published.`, 'success');
+      addNotification('Training Resource Added', `"${data.title}" saved.`, 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const disseminateTrainingMaterial = (id: string) => {
+    void api.disseminateTrainingMaterial(id).then((mat) => {
+      setTrainingMaterials((prev) =>
+        prev.map((m) => (m.id === id ? (mat as TrainingMaterial) : m))
+      );
+      addNotification(
+        'Resource Disseminated',
+        `"${(mat as TrainingMaterial).title}" is now visible to teachers.`,
+        'success'
+      );
     }).catch(() => void refreshFromApi());
   };
 
@@ -808,10 +847,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const createTeachingNote = (
-    noteData: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>
+    noteData: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>,
+    status: TeachingNote['status'] = 'Saved'
   ) => {
     const id = `tn-${Date.now()}`;
-    void api.createTeachingNote({ ...noteData, id, teacherId: resolveTeacherId() }).then((note) => {
+    void api.createTeachingNote({ ...noteData, id, teacherId: resolveTeacherId(), status }).then((note) => {
       setTeachingNotes((prev) => [note as TeachingNote, ...prev]);
     }).catch(() => void refreshFromApi());
     return id;
@@ -820,20 +860,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateTeachingNote = (id: string, updates: Partial<TeachingNote>) => {
     void api.updateTeachingNote(id, updates as Record<string, unknown>).then((note) => {
       setTeachingNotes((prev) => prev.map((n) => (n.id === id ? (note as TeachingNote) : n)));
-    }).catch(() => void refreshFromApi());
-  };
-
-  const submitTeachingNote = (
-    noteData: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>
-  ) => {
-    const id = createTeachingNote(noteData);
-    submitTeachingNoteForApproval(id);
-  };
-
-  const submitTeachingNoteForApproval = (id: string) => {
-    void api.submitTeachingNote(id).then((note) => {
-      setTeachingNotes((prev) => prev.map((n) => (n.id === id ? (note as TeachingNote) : n)));
-      addNotification('Teaching Notes Submitted', `"${(note as TeachingNote).title}" sent for approval.`, 'request');
     }).catch(() => void refreshFromApi());
   };
 
@@ -1018,6 +1044,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rejectAssessment,
         createLessonPlan,
         createAssessment,
+        updateAssessmentQuestions,
         saveAttendance,
         enrollStudent,
         submitRegistrationApplication,
@@ -1049,13 +1076,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         approveExam,
         rejectExam,
         addTrainingMaterial,
+        disseminateTrainingMaterial,
         addCheckInTemplate,
         updateLessonPlan,
         distributeLessonPlan,
         createTeachingNote,
         updateTeachingNote,
-        submitTeachingNote,
-        submitTeachingNoteForApproval,
         upsertStudentGradeEntry,
         deleteStudentGradeEntry,
         recalculateStudentGpaFromGrades,

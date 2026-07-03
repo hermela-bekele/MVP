@@ -53,10 +53,8 @@ function RendererLoading() {
 }
 
 function noteStatusVariant(status: TeachingNote['status']) {
-  if (status === 'Rejected') return 'error' as const;
   if (status === 'Draft') return 'neutral' as const;
-  if (status === 'Approved') return 'success' as const;
-  return 'warning' as const;
+  return 'success' as const;
 }
 
 interface TeacherTeachingNotesProps {
@@ -73,7 +71,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     createLessonPlan,
     createTeachingNote,
     updateTeachingNote,
-    submitTeachingNoteForApproval,
     addNotification,
     resolveTeacherId,
   } = useApp();
@@ -262,23 +259,23 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const handleSaveDraft = () => {
     const payload = buildNotePayload();
     if (editingNoteId) {
-      updateTeachingNote(editingNoteId, payload);
+      updateTeachingNote(editingNoteId, { ...payload, status: 'Draft' });
       addNotification('Draft saved', 'Teaching note updated.', 'success');
     } else {
-      createTeachingNote(payload);
+      createTeachingNote(payload, 'Draft');
       addNotification('Draft created', 'Teaching note saved as draft.', 'success');
     }
     setNoteModalOpen(false);
   };
 
-  const handleSubmitForApproval = () => {
+  const handleSaveNote = () => {
     const payload = buildNotePayload();
     if (editingNoteId) {
-      updateTeachingNote(editingNoteId, payload);
-      submitTeachingNoteForApproval(editingNoteId);
+      updateTeachingNote(editingNoteId, { ...payload, status: 'Saved' });
+      addNotification('Note saved', 'Teaching note updated.', 'success');
     } else {
-      const id = createTeachingNote(payload);
-      submitTeachingNoteForApproval(id);
+      createTeachingNote(payload, 'Saved');
+      addNotification('Note saved', 'Teaching note saved.', 'success');
     }
     setNoteModalOpen(false);
     setAiNotesResult(null);
@@ -437,15 +434,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 >
                   Edit
                 </button>
-                {note.status === 'Draft' && (
-                  <button
-                    type="button"
-                    className="flex w-full items-center px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-gray-50"
-                    onClick={() => { setOpenMenuId(null); submitTeachingNoteForApproval(note.id); }}
-                  >
-                    Submit
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -600,9 +588,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             {generatingNotes ? 'Generating with AI...' : 'Generate with AI'}
           </AisBtnPrimary>
           {aiNotesResult && (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
-                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
+                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated Teaching Notes Preview
                 </label>
@@ -620,30 +608,22 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </Suspense>
             </div>
           )}
-          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
-              type="button"
-              onClick={() => setNoteModalOpen(false)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+          <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
+            <AisBtnSecondary type="button" onClick={() => setNoteModalOpen(false)}>
               <X className="h-3.5 w-3.5" aria-hidden />
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+            </AisBtnSecondary>
+            <AisBtnSecondary type="button" onClick={handleSaveDraft}>
               <Save className="h-3.5 w-3.5" aria-hidden />
               Save draft
-            </button>
+            </AisBtnSecondary>
             <button
               type="button"
-              onClick={handleSubmitForApproval}
+              onClick={handleSaveNote}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
             >
-              <Send className="h-4 w-4" aria-hidden />
-              Submit for dept approval
+              <Save className="h-4 w-4" aria-hidden />
+              Save note
             </button>
           </DialogFooter>
         </div>
@@ -656,7 +636,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               <AisStatusBadge variant={noteStatusVariant(viewNote.status)}>{viewNote.status}</AisStatusBadge>
               <span className={aisBodyMd}>{viewNote.grade} · {viewNote.subject} · {viewNote.language}</span>
             </div>
-            {viewNote.deptComments && <p className={aisCallout}>{viewNote.deptComments}</p>}
             {parsedViewContent ? (
               <Suspense fallback={<RendererLoading />}>
                 <TeachingNotesRenderer content={parsedViewContent} />
@@ -719,9 +698,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </div>
           
           {aiPlanResult && (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
-                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
+                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated Lesson Plan Preview
                 </label>
@@ -747,18 +726,17 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </>
           )}
           
-          <DialogFooter className="border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
+          <DialogFooter className="pt-4 -mb-1">
+            <AisBtnSecondary
               type="button"
               onClick={() => {
                 setIsPlanOpen(false);
                 setAiPlanResult(null);
                 setPlanTopic('');
               }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
-            </button>
+            </AisBtnSecondary>
             <button
               type="submit"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"

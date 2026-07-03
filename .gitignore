@@ -49,3 +49,7 @@ public/videos/training/**/*.webm
 public/videos/training/**/*.mov
 # Keep folder structure
 !public/videos/training/**/.gitkeep
+
+# Uploaded resource files (stored on API server)
+backend/uploads/*
+!backend/uploads/.gitkeep

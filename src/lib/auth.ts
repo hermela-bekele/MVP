@@ -3,6 +3,10 @@ export interface AuthUser {
   email: string;
   role: PortalRole;
   displayName: string;
+  /** Subject overseen by a department-head (e.g. Mathematics) */
+  subject?: string;
+  /** Department linked to the subject head */
+  departmentId?: string;
 }
 
 export const PORTAL_ROLES = [

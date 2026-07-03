@@ -3,6 +3,10 @@ const API_BASE =
     ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')
     : 'http://localhost:3004';
 
+export function getApiBase() {
+  return API_BASE;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -36,6 +40,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
+
+export async function uploadFile(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/api/uploads`, {
+    method: 'POST',
+    body: formData,
+    signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(message, res.status);
+  }
+  const data = (await res.json()) as { url: string };
+  return data.url;
 }
 
 export interface BootstrapPayload {
@@ -72,6 +100,8 @@ export interface LoginResult {
   email: string;
   role: import('@/lib/auth').PortalRole;
   displayName: string;
+  subject?: string;
+  departmentId?: string;
 }
 
 export interface RegisterPayload {
@@ -127,6 +157,8 @@ export const api = {
     request(`/lesson-plans/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   createAssessment: (body: Record<string, unknown>) =>
     request('/assessments', { method: 'POST', body: JSON.stringify(body) }),
+  updateAssessment: (id: string, body: { questions: unknown[] }) =>
+    request(`/assessments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   approveAssessment: (id: string, comments: string) =>
     request(`/assessments/${id}/approve`, {
       method: 'PATCH',
@@ -159,19 +191,27 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ comments }),
     }),
-  createTrainingMaterial: (title: string, resourceUrl: string, category: string) =>
+  createTrainingMaterial: (body: {
+    title: string;
+    resourceUrl: string;
+    category: string;
+    trainingType?: string;
+    departmentId?: string;
+    grade?: string;
+    subject?: string;
+  }) =>
     request('/training-materials', {
       method: 'POST',
-      body: JSON.stringify({ title, resourceUrl, category }),
+      body: JSON.stringify(body),
     }),
+  disseminateTrainingMaterial: (id: string) =>
+    request(`/training-materials/${id}/disseminate`, { method: 'PATCH' }),
   createCheckIn: (body: Record<string, unknown>) =>
     request('/check-ins', { method: 'POST', body: JSON.stringify(body) }),
   createTeachingNote: (body: Record<string, unknown>) =>
     request('/teaching-notes', { method: 'POST', body: JSON.stringify(body) }),
   updateTeachingNote: (id: string, body: Record<string, unknown>) =>
     request(`/teaching-notes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  submitTeachingNote: (id: string) =>
-    request(`/teaching-notes/${id}/submit`, { method: 'POST' }),
   upsertGradeEntry: (body: Record<string, unknown>) =>
     request('/grade-entries', { method: 'POST', body: JSON.stringify(body) }),
   deleteGradeEntry: (id: string) =>

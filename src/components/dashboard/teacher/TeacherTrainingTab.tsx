@@ -22,21 +22,28 @@ import { TRAINING_MODULES } from "@/lib/trainingModules";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { AssessmentQuiz } from "@/components/dashboard/teacher/AssessmentQuiz";
 import { AisPage } from "@/components/dashboard/teacher/TeacherPortalUi";
+import {
+  aisBadgePrimary,
+  aisBadgeSuccess,
+  aisBodyMd,
+  aisBtnPrimary,
+  aisBtnSecondary,
+  aisCard,
+  aisHeadlineSm,
+  aisSubTabBtn,
+  aisSubTabBtnActive,
+  aisSubTabBtnInactive,
+  aisSubTabTrack,
+} from "@/components/dashboard/teacher/aisStyles";
 import { generatePDFFromMarkdown } from "@/lib/pdfUtils";
 import { VideoPlayer } from "@/components/ui/VideoPlayer";
 
 const CARDS_PER_PAGE = 6; // Show 6 cards: 3 per row × 2 rows
 
-const trainingText = "text-ais-on-surface dark:text-gray-100";
-const trainingMuted = "text-ais-on-surface-variant dark:text-gray-400";
-const trainingGreen = "text-emerald-600 dark:text-emerald-400";
-const trainingGreenBg = "bg-emerald-100 dark:bg-emerald-900/30";
-const trainingPanel =
-  "bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700";
 const trainingSessionActive =
-  "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300";
-const trainingBtnGreen =
-  "bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500";
+  "bg-ais-primary/10 text-ais-primary shadow-[0_1px_3px_rgba(15,23,42,0.05)]";
+const trainingSessionInactive =
+  "text-ais-on-surface hover:bg-ais-surface-container-low hover:text-ais-primary";
 const trainingMarkdownWrap = "overflow-x-auto";
 
 export const TeacherTrainingTab: React.FC<{
@@ -128,34 +135,34 @@ export const TeacherTrainingTab: React.FC<{
               <button
                 key={module.id}
                 onClick={() => setSelectedModule(module)}
-                className="group relative overflow-hidden rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-left transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-primary dark:hover:border-primary"
+                className={`${aisCard} group relative overflow-hidden p-5 text-left transition-all duration-300 hover:shadow-md hover:border-ais-primary/30`}
               >
                 {/* Category Badge */}
-                <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold mb-3 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
+                <div className={`${aisBadgePrimary} mb-3`}>
                   {module.category}
                 </div>
 
                 {/* Title */}
-                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary dark:group-hover:text-primary-light transition-colors line-clamp-2">
+                <h3 className={`${aisHeadlineSm} mb-2 group-hover:text-ais-primary transition-colors line-clamp-2`}>
                   {module.title}
                 </h3>
 
                 {/* Description */}
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                <p className={`${aisBodyMd} mb-4 line-clamp-2`}>
                   {module.description}
                 </p>
 
                 {/* Session and Video Count */}
                 <div className="flex items-center gap-4 mb-4">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    <BookOpen className="w-4 h-4 text-ais-primary" />
+                    <span className="font-semibold text-ais-on-surface">
                       {module.sessions.length} Sessions
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
-                    <PlayCircle className="w-4 h-4 text-primary" />
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                    <PlayCircle className="w-4 h-4 text-ais-primary" />
+                    <span className="font-semibold text-ais-on-surface">
                       {module.videoCount} Videos
                     </span>
                   </div>
@@ -164,13 +171,13 @@ export const TeacherTrainingTab: React.FC<{
                 {/* Progress Bar */}
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-semibold text-ais-on-surface">
                       Progress: {progress}%
                     </span>
                   </div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-2 bg-ais-surface-container-low rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all duration-500"
+                      className="h-full bg-ais-primary transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -178,7 +185,7 @@ export const TeacherTrainingTab: React.FC<{
 
                 {/* CTA */}
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-sm font-semibold text-primary dark:text-primary-light group-hover:underline">
+                  <span className="text-sm font-semibold text-ais-primary group-hover:underline">
                     {progress === 0
                       ? "Start"
                       : progress === 100
@@ -186,7 +193,7 @@ export const TeacherTrainingTab: React.FC<{
                         : "Continue"}
                   </span>
                   {progress === 100 && (
-                    <CheckCircle className="w-5 h-5 text-primary dark:text-primary-light" />
+                    <CheckCircle className="w-5 h-5 text-ais-success" />
                   )}
                 </div>
               </button>
@@ -200,7 +207,7 @@ export const TeacherTrainingTab: React.FC<{
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`${aisBtnSecondary} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <ChevronLeft className="w-4 h-4" />
               Previous
@@ -214,8 +221,8 @@ export const TeacherTrainingTab: React.FC<{
                     onClick={() => setCurrentPage(page)}
                     className={`w-10 h-10 rounded-lg font-semibold transition-colors ${
                       currentPage === page
-                        ? "bg-primary text-white"
-                        : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        ? "bg-ais-primary text-white"
+                        : `${aisBtnSecondary} px-0 py-0 justify-center`
                     }`}
                   >
                     {page}
@@ -229,7 +236,7 @@ export const TeacherTrainingTab: React.FC<{
                 setCurrentPage((prev) => Math.min(totalPages, prev + 1))
               }
               disabled={currentPage === totalPages}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`${aisBtnSecondary} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               Next
               <ChevronRight className="w-4 h-4" />
@@ -253,14 +260,14 @@ export const TeacherTrainingTab: React.FC<{
 
   return (
     <div className="min-h-screen">
-      {/* Header - Now with rounded corners and proper alignment */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 mb-6 p-6">
+      {/* Header */}
+      <div className={`${aisCard} mb-6 p-6`}>
         <button
           onClick={() => {
             setSelectedModule(null);
             setSelectedSession(null);
           }}
-          className={`flex items-center gap-2 ${trainingMuted} hover:text-ais-on-surface mb-4 transition-colors`}
+          className="flex items-center gap-2 text-ais-on-surface-variant hover:text-ais-on-surface mb-4 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Modules
@@ -268,36 +275,36 @@ export const TeacherTrainingTab: React.FC<{
 
         <div className="flex items-start justify-between mb-6">
           <div>
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
+            <div className={`${aisBadgePrimary} mb-2`}>
               {selectedModule.category}
             </div>
-            <h1 className={`text-2xl font-bold ${trainingText} mb-2`}>
+            <h1 className={`text-2xl font-bold text-ais-on-surface mb-2`}>
               {selectedModule.title}
             </h1>
-            <p className={`text-sm ${trainingMuted}`}>
+            <p className={aisBodyMd}>
               {selectedModule.description}
             </p>
           </div>
 
           {/* Progress Badge */}
           <div className="text-right">
-            <div className={`text-3xl font-bold ${trainingGreen} mb-1`}>
+            <div className="text-3xl font-bold text-ais-primary mb-1">
               {progress}%
             </div>
-            <div className={`text-xs ${trainingMuted}`}>
+            <div className={`text-xs ${aisBodyMd}`}>
               {completedCount}/{selectedModule.sessions.length} sessions
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 border-t border-ais-card-border dark:border-gray-700 pt-4">
+        <div className={aisSubTabTrack}>
           <button
             onClick={() => setActiveTab("modules")}
-            className={`pb-2 px-1 text-sm font-semibold border-b-2 transition-colors ${
+            className={`${aisSubTabBtn} ${
               activeTab === "modules"
-                ? "border-emerald-600 text-emerald-600"
-                : `border-transparent ${trainingMuted} hover:text-ais-on-surface`
+                ? aisSubTabBtnActive
+                : aisSubTabBtnInactive
             }`}
           >
             <div className="flex items-center gap-2">
@@ -307,10 +314,10 @@ export const TeacherTrainingTab: React.FC<{
           </button>
           <button
             onClick={() => setActiveTab("videos")}
-            className={`pb-2 px-1 text-sm font-semibold border-b-2 transition-colors ${
+            className={`${aisSubTabBtn} ${
               activeTab === "videos"
-                ? "border-emerald-600 text-emerald-600"
-                : `border-transparent ${trainingMuted} hover:text-ais-on-surface`
+                ? aisSubTabBtnActive
+                : aisSubTabBtnInactive
             }`}
           >
             <div className="flex items-center gap-2">
@@ -326,8 +333,8 @@ export const TeacherTrainingTab: React.FC<{
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar - Session Navigation */}
           <div className="lg:col-span-1 space-y-4">
-            <div className={`${trainingPanel} p-4`}>
-              <h3 className={`font-semibold ${trainingText} mb-4`}>Sessions</h3>
+            <div className={`${aisCard} p-4`}>
+              <h3 className="font-semibold text-ais-on-surface mb-4">Sessions</h3>
               <div className="space-y-2">
                 {selectedModule.sessions.map((session) => (
                   <button
@@ -339,7 +346,7 @@ export const TeacherTrainingTab: React.FC<{
                     className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                       selectedSession?.id === session.id
                         ? trainingSessionActive
-                        : `${trainingText} hover:bg-ais-surface-container-low`
+                        : trainingSessionInactive
                     }`}
                   >
                     <div className="flex items-center gap-3 flex-1">
@@ -351,7 +358,7 @@ export const TeacherTrainingTab: React.FC<{
                       </span>
                     </div>
                     {session.completed && (
-                      <CheckCircle className="w-4 h-4 text-primary dark:text-primary-light flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-ais-success flex-shrink-0" />
                     )}
                   </button>
                 ))}
@@ -367,7 +374,7 @@ export const TeacherTrainingTab: React.FC<{
                     contentTab === "assessment"
                       ? trainingSessionActive
                       : isAssessmentUnlocked(selectedModule)
-                        ? `${trainingText} hover:bg-ais-surface-container-low`
+                        ? trainingSessionInactive
                         : "text-ais-on-surface-variant cursor-not-allowed opacity-50"
                   }`}
                 >
@@ -395,7 +402,7 @@ export const TeacherTrainingTab: React.FC<{
 
           {/* Main Content */}
           <div className="lg:col-span-3">
-            <div className={`${trainingPanel} p-6`}>
+            <div className={`${aisCard} p-6`}>
               {contentTab === "content" && selectedSession ? (
                 <>
                   {/* Session Header */}
@@ -403,24 +410,20 @@ export const TeacherTrainingTab: React.FC<{
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <span
-                            className={`px-3 py-1 ${trainingGreenBg} ${trainingGreen} text-sm font-bold rounded-full`}
-                          >
+                          <span className={aisBadgePrimary}>
                             Session {selectedSession.number}
                           </span>
                           {selectedSession.completed && (
-                            <span className="px-3 py-1 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary-light text-xs font-semibold rounded-full flex items-center gap-1">
+                            <span className={`${aisBadgeSuccess} flex items-center gap-1`}>
                               <CheckCircle className="w-3 h-3" />
                               Completed
                             </span>
                           )}
                         </div>
-                        <h2
-                          className={`text-2xl font-bold ${trainingText} mb-2`}
-                        >
+                        <h2 className="text-2xl font-bold text-ais-on-surface mb-2">
                           {selectedSession.title}
                         </h2>
-                        <p className={`text-sm ${trainingMuted}`}>
+                        <p className={aisBodyMd}>
                           Duration: {selectedSession.duration}
                         </p>
                       </div>
@@ -430,11 +433,11 @@ export const TeacherTrainingTab: React.FC<{
                     <div className="flex flex-wrap gap-3">
                       <button
                         onClick={() => handleMarkComplete(selectedSession.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${
+                        className={
                           selectedSession.completed
-                            ? "bg-ais-surface-container-low text-ais-on-surface hover:bg-ais-surface-container"
-                            : trainingBtnGreen
-                        }`}
+                            ? aisBtnSecondary
+                            : aisBtnPrimary
+                        }
                       >
                         <CheckCircle className="w-4 h-4" />
                         {selectedSession.completed
@@ -451,7 +454,7 @@ export const TeacherTrainingTab: React.FC<{
                           )
                         }
                         disabled={isGeneratingPDF}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold ${trainingBtnGreen}`}
+                        className={`${aisBtnPrimary} disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         <Download className="w-4 h-4" />
                         {isGeneratingPDF ? "Generating..." : "Download PDF"}
@@ -467,7 +470,7 @@ export const TeacherTrainingTab: React.FC<{
                             )
                           }
                           disabled={!hasPrevious}
-                          className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className={`${aisBtnSecondary} disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                           <ChevronLeft className="w-4 h-4" />
                           Previous
@@ -480,7 +483,7 @@ export const TeacherTrainingTab: React.FC<{
                             )
                           }
                           disabled={!hasNext}
-                          className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className={`${aisBtnSecondary} disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                           Next
                           <ChevronRight className="w-4 h-4" />
@@ -511,20 +514,18 @@ export const TeacherTrainingTab: React.FC<{
                   ) : (
                     <div className="text-center py-12">
                       <Lock
-                        className={`w-16 h-16 ${trainingMuted} mx-auto mb-4`}
+                        className="w-16 h-16 text-ais-on-surface-variant mx-auto mb-4"
                       />
-                      <p
-                        className={`${trainingMuted} text-lg font-medium mb-2`}
-                      >
+                      <p className="text-ais-on-surface-variant text-lg font-medium mb-2">
                         Assessment Locked
                       </p>
-                      <p className="text-sm text-ais-on-surface-variant">
+                      <p className={`text-sm ${aisBodyMd}`}>
                         Complete all {selectedModule.sessions.length} sessions
                         to unlock this assessment
                       </p>
                       <div className="mt-6">
                         <div className="inline-flex items-center gap-2 text-sm">
-                          <span className={`${trainingGreen} font-semibold`}>
+                          <span className="text-ais-primary font-semibold">
                             {completedCount}/{selectedModule.sessions.length}{" "}
                             completed
                           </span>
@@ -543,7 +544,7 @@ export const TeacherTrainingTab: React.FC<{
             selectedModule.videos.map((video) => (
               <div
                 key={video.id}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
+                className={`${aisCard} overflow-hidden hover:shadow-md transition-shadow`}
               >
                 {/* Video Player with auto-duration detection */}
                 <VideoPlayer
@@ -554,10 +555,10 @@ export const TeacherTrainingTab: React.FC<{
 
                 {/* Video Info */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-2">
+                  <h3 className="font-semibold text-ais-on-surface mb-2">
                     {video.title}
                   </h3>
-                  <p className="text-xs text-ais-on-surface-variant dark:text-gray-400">
+                  <p className={`text-xs ${aisBodyMd}`}>
                     Video duration will be shown when loaded
                   </p>
                 </div>
@@ -565,8 +566,8 @@ export const TeacherTrainingTab: React.FC<{
             ))
           ) : (
             <div className="col-span-3 text-center py-12">
-              <PlayCircle className="w-16 h-16 text-ais-on-surface-variant dark:text-gray-600 mx-auto mb-4" />
-              <p className="text-ais-on-surface-variant dark:text-gray-400 text-lg font-medium">
+              <PlayCircle className="w-16 h-16 text-ais-on-surface-variant mx-auto mb-4" />
+              <p className={`${aisBodyMd} text-lg font-medium`}>
                 No videos available for this module yet
               </p>
             </div>

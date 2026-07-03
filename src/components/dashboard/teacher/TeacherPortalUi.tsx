@@ -118,9 +118,32 @@ export function AisTd({
   );
 }
 
-export function AisTr({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+export function AisTr({
+  children,
+  className = '',
+  onClick,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
   return (
-    <tr className={`border-b border-ais-row-border transition-colors hover:bg-ais-row-hover ${className}`}>
+    <tr
+      className={`border-b border-ais-row-border transition-colors hover:bg-ais-row-hover ${className}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       {children}
     </tr>
   );
