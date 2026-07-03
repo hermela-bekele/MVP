@@ -1,19 +1,35 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BookOpen, PlayCircle, CheckCircle, Lock, Download, FileText, ChevronRight, ChevronLeft } from 'lucide-react';
-import { TRAINING_MODULES, type TrainingModule, type SessionContent, isAssessmentUnlocked, calculateModuleProgress } from '@/lib/trainingModules';
+import { ArrowLeft, BookOpen, PlayCircle, CheckCircle, Lock, Download, ChevronRight, ChevronLeft } from 'lucide-react';
+import { CONTINUOUS_DEVELOPMENT_MODULES, type TrainingModule, type SessionContent, isAssessmentUnlocked, calculateModuleProgress } from '@/lib/continuousDevelopmentModules';
+import { TRAINING_MODULES } from '@/lib/trainingModules';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { AssessmentQuiz } from '@/components/dashboard/teacher/AssessmentQuiz';
 import { AisPage } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { generatePDFFromMarkdown } from '@/lib/pdfUtils';
+import { VideoPlayer } from '@/components/ui/VideoPlayer';
 
-export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
+const CARDS_PER_PAGE = 6; // Show 6 cards: 3 per row × 2 rows
+
+export const TeacherTrainingTab: React.FC<{ typeFilter: string; activeTabType?: string }> = ({ activeTabType = 'training-continuous' }) => {
   const [selectedModule, setSelectedModule] = useState<TrainingModule | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionContent | null>(null);
   const [activeTab, setActiveTab] = useState<'modules' | 'videos'>('modules');
   const [contentTab, setContentTab] = useState<'content' | 'assessment'>('content');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Select the appropriate modules based on active tab
+  const ALL_MODULES = activeTabType === 'training-subject-matter' 
+    ? TRAINING_MODULES 
+    : CONTINUOUS_DEVELOPMENT_MODULES;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(ALL_MODULES.length / CARDS_PER_PAGE);
+  const startIndex = (currentPage - 1) * CARDS_PER_PAGE;
+  const endIndex = startIndex + CARDS_PER_PAGE;
+  const currentModules = ALL_MODULES.slice(startIndex, endIndex);
 
   // Initialize selected session when module changes
   useEffect(() => {
@@ -60,86 +76,114 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
     return (
       <AisPage>
         {/* Module Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {TRAINING_MODULES.map((module) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {currentModules.map((module) => {
             const progress = calculateModuleProgress(module);
-            const completedCount = module.sessions.filter(s => s.completed).length;
             
             return (
               <button
                 key={module.id}
                 onClick={() => setSelectedModule(module)}
-                className="group relative overflow-hidden rounded-2xl border-2 border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-left transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] hover:border-primary dark:hover:border-primary"
+                className="group relative overflow-hidden rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-left transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-primary dark:hover:border-primary"
               >
                 {/* Category Badge */}
-                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-4"
-                  style={{
-                    backgroundColor: module.category.includes('SECONDARY') ? '#E0F2FE' : '#DCFCE7',
-                    color: module.category.includes('SECONDARY') ? '#0369A1' : '#166534',
-                  }}
-                >
+                <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold mb-3 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
                   {module.category}
                 </div>
 
                 {/* Title */}
-                <h3 className="text-xl font-bold text-ais-on-surface dark:text-gray-100 mb-2 group-hover:text-primary dark:group-hover:text-primary-light transition-colors">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary dark:group-hover:text-primary-light transition-colors line-clamp-2">
                   {module.title}
                 </h3>
 
                 {/* Description */}
-                <p className="text-sm text-ais-on-surface-variant dark:text-gray-400 mb-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
                   {module.description}
                 </p>
 
-                {/* Sessions with completion status */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {module.sessions.map((session) => (
-                    <span
-                      key={session.id}
-                      className={`px-2 py-1 text-xs rounded-lg flex items-center gap-1 ${
-                        session.completed
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : 'bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface dark:text-gray-300'
-                      }`}
-                    >
-                      {session.number} {session.title}
-                      {session.completed && <CheckCircle className="w-3 h-3" />}
+                {/* Session and Video Count */}
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {module.sessions.length} Sessions
                     </span>
-                  ))}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <PlayCircle className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      {module.videoCount} Videos
+                    </span>
+                  </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-ais-on-surface dark:text-gray-300">
-                      {completedCount}/{module.sessions.length} sessions · {progress}%
-                    </span>
-                    <span className="text-xs text-ais-on-surface-variant dark:text-gray-400 flex items-center gap-1">
-                      <PlayCircle className="w-3 h-3" />
-                      {module.videoCount} videos
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Progress: {progress}%
                     </span>
                   </div>
-                  <div className="h-2 bg-ais-surface-container-low dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+                      className="h-full bg-primary transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
                 </div>
 
                 {/* CTA */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-2">
                   <span className="text-sm font-semibold text-primary dark:text-primary-light group-hover:underline">
                     {progress === 0 ? 'Start' : progress === 100 ? 'Review' : 'Continue'}
                   </span>
                   {progress === 100 && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <CheckCircle className="w-5 h-5 text-primary dark:text-primary-light" />
                   )}
                 </div>
               </button>
             );
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            
+            <div className="flex items-center gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-10 h-10 rounded-lg font-semibold transition-colors ${
+                    currentPage === page
+                      ? 'bg-primary text-white'
+                      : 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </AisPage>
     );
   }
@@ -155,8 +199,8 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-ais-card-border dark:border-gray-700 mb-6 -mt-6 -mx-6 px-6 py-4">
+      {/* Header - Now with rounded corners and proper alignment */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 mb-6 p-6">
         <button
           onClick={() => {
             setSelectedModule(null);
@@ -168,14 +212,9 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
           Back to Modules
         </button>
 
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between mb-6">
           <div>
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-2"
-              style={{
-                backgroundColor: selectedModule.category.includes('SECONDARY') ? '#E0F2FE' : '#DCFCE7',
-                color: selectedModule.category.includes('SECONDARY') ? '#0369A1' : '#166534',
-              }}
-            >
+            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold mb-2 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light">
               {selectedModule.category}
             </div>
             <h1 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
@@ -198,7 +237,7 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 mt-6">
+        <div className="flex gap-4 border-t border-ais-card-border dark:border-gray-700 pt-4">
           <button
             onClick={() => setActiveTab('modules')}
             className={`pb-2 px-1 text-sm font-semibold border-b-2 transition-colors ${
@@ -254,7 +293,7 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
                       <span className="font-medium text-sm">{session.title}</span>
                     </div>
                     {session.completed && (
-                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-primary dark:text-primary-light flex-shrink-0" />
                     )}
                   </button>
                 ))}
@@ -309,7 +348,7 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
                             Session {selectedSession.number}
                           </span>
                           {selectedSession.completed && (
-                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full flex items-center gap-1">
+                            <span className="px-3 py-1 bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary-light text-xs font-semibold rounded-full flex items-center gap-1">
                               <CheckCircle className="w-3 h-3" />
                               Completed
                             </span>
@@ -356,7 +395,7 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
                         <button
                           onClick={() => hasPrevious && setSelectedSession(selectedModule.sessions[currentSessionIndex - 1])}
                           disabled={!hasPrevious}
-                          className="flex items-center gap-1 px-3 py-2 bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface dark:text-gray-300 rounded-lg hover:bg-ais-surface-container dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <ChevronLeft className="w-4 h-4" />
                           Previous
@@ -364,7 +403,7 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
                         <button
                           onClick={() => hasNext && setSelectedSession(selectedModule.sessions[currentSessionIndex + 1])}
                           disabled={!hasNext}
-                          className="flex items-center gap-1 px-3 py-2 bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface dark:text-gray-300 rounded-lg hover:bg-ais-surface-container dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Next
                           <ChevronRight className="w-4 h-4" />
@@ -415,26 +454,38 @@ export const TeacherTrainingTab: React.FC<{ typeFilter: string }> = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {selectedModule.videos?.map((video) => (
-            <div
-              key={video.id}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
-            >
-              <div className="relative aspect-video bg-ais-surface-container-low dark:bg-gray-700">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <PlayCircle className="w-16 h-16 text-white opacity-80 hover:opacity-100 transition-opacity cursor-pointer" />
+          {selectedModule.videos && selectedModule.videos.length > 0 ? (
+            selectedModule.videos.map((video) => (
+              <div
+                key={video.id}
+                className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                {/* Video Player with auto-duration detection */}
+                <VideoPlayer
+                  url={video.url}
+                  title={video.title}
+                  thumbnail={video.thumbnail}
+                />
+                
+                {/* Video Info */}
+                <div className="p-4">
+                  <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-2">
+                    {video.title}
+                  </h3>
+                  <p className="text-xs text-ais-on-surface-variant dark:text-gray-400">
+                    Video duration will be shown when loaded
+                  </p>
                 </div>
               </div>
-              <div className="p-4">
-                <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-2">
-                  {video.title}
-                </h3>
-                <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
-                  Duration: {video.duration}
-                </p>
-              </div>
+            ))
+          ) : (
+            <div className="col-span-3 text-center py-12">
+              <PlayCircle className="w-16 h-16 text-ais-on-surface-variant dark:text-gray-600 mx-auto mb-4" />
+              <p className="text-ais-on-surface-variant dark:text-gray-400 text-lg font-medium">
+                No videos available for this module yet
+              </p>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

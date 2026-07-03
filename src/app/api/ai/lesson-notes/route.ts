@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// In-memory cache shared across all users
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
-
-function getCacheKey(payload: any): string {
-  return JSON.stringify(payload);
-}
+import { createCacheKey, getCachedData, setCachedData, getCacheStats } from '@/lib/persistentCache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,16 +14,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Create cache key
-    const cacheKey = getCacheKey({ topic, subtopic });
+    const cacheKey = createCacheKey('lesson-notes', { topic, subtopic });
 
     // Check cache first
-    const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log(`✅ [Cache HIT] Returning cached lesson notes for: ${topic}`);
+    const cached = await getCachedData(cacheKey);
+    if (cached) {
+      const cacheAgeMinutes = Math.floor((Date.now() - cached.timestamp) / 1000 / 60);
+      console.log(`✅ [Cache HIT] Returning cached lesson notes for: ${topic} (cached ${cacheAgeMinutes}m ago)`);
       return NextResponse.json({
         ...cached.data,
         cached: true,
-        cacheAge: Math.floor((Date.now() - cached.timestamp) / 1000 / 60), // minutes
+        cacheAge: cacheAgeMinutes,
       });
     }
 
@@ -58,12 +52,9 @@ export async function POST(request: NextRequest) {
     const result = await response.json();
 
     // Store in cache
-    cache.set(cacheKey, {
-      data: result,
-      timestamp: Date.now(),
-    });
+    await setCachedData(cacheKey, result);
 
-    console.log(`💾 [Cached] Lesson notes for: ${topic} (Total cache size: ${cache.size})`);
+    console.log(`💾 [Cached] Lesson notes for: ${topic} (persisted to disk)`);
 
     return NextResponse.json({
       ...result,
@@ -78,10 +69,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Optional: GET endpoint to check cache stats
+// GET endpoint to check cache stats
 export async function GET() {
+  const stats = await getCacheStats('lesson-notes');
   return NextResponse.json({
-    cacheSize: cache.size,
-    cacheKeys: Array.from(cache.keys()).slice(0, 10), // First 10 keys
+    ...stats,
+    message: 'File-based cache persists across restarts',
   });
 }
