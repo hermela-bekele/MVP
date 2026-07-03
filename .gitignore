@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI response cache
+.cache/
+
+# Training videos (large files - download separately or use CDN)
+public/videos/training/**/*.mp4
+public/videos/training/**/*.webm
+public/videos/training/**/*.mov
+# Keep folder structure
+!public/videos/training/**/.gitkeep

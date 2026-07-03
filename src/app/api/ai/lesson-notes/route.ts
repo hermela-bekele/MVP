@@ -1,5 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchPrimeAI } from '@/lib/primeAiServer';
+import { NextRequest, NextResponse } from "next/server";
+import { fetchPrimeAI } from "@/lib/primeAiServer";
+import {
+  createCacheKey,
+  getCachedData,
+  setCachedData,
+  getCacheStats,
+} from "@/lib/persistentCache";
 
 export const maxDuration = 120;
 
@@ -14,69 +20,72 @@ function getCacheKey(payload: any): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, subtopic = '' } = body;
+    const { topic, subtopic = "" } = body;
 
     if (!topic) {
-      return NextResponse.json(
-        { error: 'Topic is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Topic is required" }, { status: 400 });
     }
 
     // Create cache key
-    const cacheKey = getCacheKey({ topic, subtopic });
+    const cacheKey = createCacheKey("lesson-notes", { topic, subtopic });
 
     // Check cache first
-    const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log(`✅ [Cache HIT] Returning cached lesson notes for: ${topic}`);
+    const cached = await getCachedData(cacheKey);
+    if (cached) {
+      const cacheAgeMinutes = Math.floor(
+        (Date.now() - cached.timestamp) / 1000 / 60,
+      );
+      console.log(
+        `✅ [Cache HIT] Returning cached lesson notes for: ${topic} (cached ${cacheAgeMinutes}m ago)`,
+      );
       return NextResponse.json({
         ...cached.data,
         cached: true,
-        cacheAge: Math.floor((Date.now() - cached.timestamp) / 1000 / 60), // minutes
+        cacheAge: cacheAgeMinutes,
       });
     }
 
     // Cache miss - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI for: ${topic}`);
-    const response = await fetchPrimeAI('/lesson-notes', { topic, subtopic });
+    const response = await fetchPrimeAI("/lesson-notes", { topic, subtopic });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`❌ Prime AI error: ${response.status}`, errorText);
       return NextResponse.json(
-        { error: 'Failed to generate lesson notes', details: errorText },
-        { status: response.status }
+        { error: "Failed to generate lesson notes", details: errorText },
+        { status: response.status },
       );
     }
 
     const result = await response.json();
 
     // Store in cache
-    cache.set(cacheKey, {
-      data: result,
-      timestamp: Date.now(),
-    });
+    await setCachedData(cacheKey, result);
 
-    console.log(`💾 [Cached] Lesson notes for: ${topic} (Total cache size: ${cache.size})`);
+    console.log(`💾 [Cached] Lesson notes for: ${topic} (persisted to disk)`);
 
     return NextResponse.json({
       ...result,
       cached: false,
     });
   } catch (error) {
-    console.error('❌ Lesson notes API error:', error);
+    console.error("❌ Lesson notes API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }
 
-// Optional: GET endpoint to check cache stats
+// GET endpoint to check cache stats
 export async function GET() {
+  const stats = await getCacheStats("lesson-notes");
   return NextResponse.json({
-    cacheSize: cache.size,
-    cacheKeys: Array.from(cache.keys()).slice(0, 10), // First 10 keys
+    ...stats,
+    message: "File-based cache persists across restarts",
   });
 }

@@ -123,6 +123,14 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: "Teacher Training",
     subtitle: "MOE materials by type and your certification progress.",
   },
+  "training-subject-matter": {
+    title: "Subject Matter Training",
+    subtitle: "Professional development in your teaching subject area.",
+  },
+  "training-continuous": {
+    title: "Continuous Development",
+    subtitle: "Ongoing professional development and pedagogical skills.",
+  },
   feedback: {
     title: "Feedback",
     subtitle: "View feedback received and provide comments to students.",
@@ -229,23 +237,24 @@ export default function TeacherPortalPage() {
       actions={shellActions}
       headerVariant="portal"
     >
-      <Suspense fallback={<TabLoading />}>
-        {activeTab === "dashboard" && <TeacherDashboard />}
-        {activeTab === "timetable" && <TeacherTimetableTab />}
-        {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
-        {activeTab === "manage-students" && <TeacherStudentsTab />}
-        {activeTab === "resources" && <TeacherResourcesTab />}
-        {activeTab === "assessments" && <TeacherAssessmentsTab />}
-        {activeTab === "checkins" && <TeacherCheckinsTab />}
-        {activeTab === "manage-classes" && <TeacherClassesTab />}
-        {activeTab === "attendance" && <TeacherAttendanceTab />}
-        {activeTab === "training" && (
-          <TeacherTrainingTab typeFilter={trainingTypeFilter} />
-        )}
-        {activeTab === "feedback" && <TeacherFeedbackTab />}
-        {activeTab === "settings" && <TeacherSettingsTab />}
-      </Suspense>
-      <TeacherQuickActions onNavigate={runQuickAction} />
+      {activeTab === "dashboard" && <TeacherDashboard />}
+      {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
+      {activeTab === "manage-students" && <TeacherStudentsTab />}
+      {activeTab === "resources" && <TeacherResourcesTab />}
+      {activeTab === "assessments" && <TeacherAssessmentsTab />}
+      {activeTab === "checkins" && <TeacherCheckinsTab />}
+      {activeTab === "manage-classes" && <TeacherClassesTab />}
+      {activeTab === "attendance" && <TeacherAttendanceTab />}
+      {(activeTab === "training" ||
+        activeTab === "training-subject-matter" ||
+        activeTab === "training-continuous") && (
+        <TeacherTrainingTab
+          typeFilter={trainingTypeFilter}
+          activeTabType={activeTab}
+        />
+      )}
+      {activeTab === "feedback" && <TeacherFeedbackTab />}
+      {activeTab === "settings" && <TeacherSettingsTab />}
     </DashboardShell>
   );
 }
