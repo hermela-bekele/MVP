@@ -27,6 +27,18 @@ import { VideoPlayer } from "@/components/ui/VideoPlayer";
 
 const CARDS_PER_PAGE = 6; // Show 6 cards: 3 per row × 2 rows
 
+const trainingText = "text-ais-on-surface dark:text-gray-100";
+const trainingMuted = "text-ais-on-surface-variant dark:text-gray-400";
+const trainingGreen = "text-emerald-600 dark:text-emerald-400";
+const trainingGreenBg = "bg-emerald-100 dark:bg-emerald-900/30";
+const trainingPanel =
+  "bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700";
+const trainingSessionActive =
+  "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300";
+const trainingBtnGreen =
+  "bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500";
+const trainingMarkdownWrap = "overflow-x-auto";
+
 export const TeacherTrainingTab: React.FC<{
   typeFilter: string;
   activeTabType?: string;

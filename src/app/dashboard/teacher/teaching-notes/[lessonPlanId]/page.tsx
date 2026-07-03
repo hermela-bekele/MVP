@@ -1,10 +1,9 @@
 "use client";
 
-import React, { Suspense, use, useCallback } from "react";
+import React, { Suspense, lazy, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { TeacherTeachingNotes } from "@/components/dashboard/teacher/TeacherTeachingNotes";
 import {
   aisBtnPrimary,
   aisBtnSecondary,
@@ -17,6 +16,12 @@ function TabLoading() {
     </div>
   );
 }
+
+const TeacherTeachingNotes = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherTeachingNotes").then((m) => ({
+    default: m.TeacherTeachingNotes,
+  })),
+);
 
 export default function LessonPlanNotesPage({
   params,
