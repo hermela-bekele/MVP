@@ -3,6 +3,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
@@ -13,10 +14,27 @@ interface MarkdownRendererProps {
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
+  // Pre-process content to fix common issues
+  const processedContent = content
+    // Fix LaTeX delimiters - convert single $ to inline math
+    .replace(/\$([^\$\n]+?)\$/g, (match, p1) => {
+      // Don't process if it's already escaped or part of $$
+      if (match.startsWith('$$') || match.endsWith('$$')) return match;
+      return `$${p1}$`;
+    })
+    // Fix caret notation for powers (x^2 -> x²)
+    .replace(/\^(\d+)/g, (match, p1) => {
+      const superscripts: Record<string, string> = {
+        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
+      };
+      return superscripts[p1] || match;
+    });
+
   return (
     <div className={`markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           h1: ({ node, ...props }) => (
@@ -99,7 +117,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

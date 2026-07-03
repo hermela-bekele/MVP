@@ -34,9 +34,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   const { isCollapsed, isMobileOpen, toggleCollapsed, closeMobile } = useSidebar();
   const router = useRouter();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [expandedDropdowns, setExpandedDropdowns] = useState<string[]>([]);
+
+  const toggleDropdown = (id: string) => {
+    setExpandedDropdowns(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Auto-expand dropdown when subsection is active
+  React.useEffect(() => {
+    const links = getNavLinks();
+    
+    // Find any dropdown that has the current activeTab as a subItem
+    links.forEach(link => {
+      if (link.subItems && link.subItems.some(sub => sub.id === activeTab)) {
+        if (!expandedDropdowns.includes(link.id!)) {
+          setExpandedDropdowns(prev => [...prev, link.id!]);
+        }
+      }
+    });
+  }, [activeTab]); // Removed expandedDropdowns from dependencies to avoid loops
 
   // Navigation links based on role
-  const getNavLinks = (): { id?: string; label: string; icon?: React.ReactNode; type?: 'header'; badge?: number }[] => {
+  const getNavLinks = (): { id?: string; label: string; icon?: React.ReactNode; type?: 'header'; badge?: number; subItems?: { id: string; label: string }[] }[] => {
     switch (activeRole) {
       case 'moe':
         return [
@@ -113,7 +134,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           { id: 'manage-classes', label: 'Manage Classes', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m9 0V9a2 2 0 00-2-2M5 12h5m0 0l-2-2m2 2l-2 2"/></svg> },
           { id: 'attendance', label: 'Manage Attendance', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> },
           { type: 'header', label: 'Professional' },
-          { id: 'training', label: 'Teacher Training', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg> },
+          { 
+            id: 'training', 
+            label: 'Teacher Training', 
+            icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg>,
+            subItems: [
+              { id: 'training-subject-matter', label: 'Subject Matter Training' },
+              { id: 'training-continuous', label: 'Continuous Development' }
+            ]
+          },
           { id: 'checkins', label: 'Check-ins', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg> },
           { id: 'feedback', label: 'Feedback', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg> },
           { id: 'settings', label: 'Settings', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg> },
@@ -218,49 +247,96 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
               </div>
             );
           }
+          
           const isActive = link.id === activeTab;
           const isHovered = link.id === hoveredItem;
+          const hasDropdown = link.subItems && link.subItems.length > 0;
+          const isExpanded = expandedDropdowns.includes(link.id!);
+          const isSubItemActive = hasDropdown && link.subItems!.some(sub => sub.id === activeTab);
+          
           return (
-            <div key={link.id} className="relative">
-              <button
-                onClick={() => handleNavClick(link.id!)}
-                onMouseEnter={() => setHoveredItem(link.id!)}
-                onMouseLeave={() => setHoveredItem(null)}
-                className={`${aisSidebarNavItem}
-                  ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
-                  ${isActive ? aisSidebarNavItemActive : aisSidebarNavItemInactive}`}
-                title={isCollapsed ? link.label : undefined}
-                aria-label={link.label}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <span
-                  className={`transition-transform duration-200 ${
-                    isActive ? aisSidebarNavIconActive : aisSidebarNavIconInactive
-                  }`}
+            <div key={link.id}>
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    if (hasDropdown && !isCollapsed) {
+                      toggleDropdown(link.id!);
+                    } else {
+                      handleNavClick(link.id!);
+                    }
+                  }}
+                  onMouseEnter={() => setHoveredItem(link.id!)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  className={`${aisSidebarNavItem}
+                    ${isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5'}
+                    ${isActive || isSubItemActive ? aisSidebarNavItemActive : aisSidebarNavItemInactive}`}
+                  title={isCollapsed ? link.label : undefined}
+                  aria-label={link.label}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  {link.icon}
-                </span>
-                {!isCollapsed && (
-                  <span className="truncate">{link.label}</span>
-                )}
-                {!isCollapsed && link.badge && (
-                  <span className={aisSidebarBadge}>
-                    {link.badge}
+                  <span
+                    className={`transition-transform duration-200 ${
+                      isActive || isSubItemActive ? aisSidebarNavIconActive : aisSidebarNavIconInactive
+                    }`}
+                  >
+                    {link.icon}
                   </span>
-                )}
-              </button>
+                  {!isCollapsed && (
+                    <>
+                      <span className="truncate">{link.label}</span>
+                      {link.badge && (
+                        <span className={aisSidebarBadge}>
+                          {link.badge}
+                        </span>
+                      )}
+                      {hasDropdown && (
+                        <svg
+                          className={`w-4 h-4 ml-auto transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      )}
+                    </>
+                  )}
+                </button>
 
-              {/* Tooltip for collapsed mode */}
-              {isCollapsed && isHovered && (
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 pointer-events-none">
-                  <div className="bg-popover text-popover-foreground text-xs font-medium px-3 py-1.5 rounded-md shadow-lg border border-border/80 whitespace-nowrap animate-fade-in">
-                    {link.label}
-                    {link.badge && (
-                      <span className="ml-2 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground text-[9px] font-bold px-1">
-                        {link.badge}
-                      </span>
-                    )}
+                {/* Tooltip for collapsed mode */}
+                {isCollapsed && isHovered && (
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 pointer-events-none">
+                    <div className="bg-popover text-popover-foreground text-xs font-medium px-3 py-1.5 rounded-md shadow-lg border border-border/80 whitespace-nowrap animate-fade-in">
+                      {link.label}
+                      {link.badge && (
+                        <span className="ml-2 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive/90 text-destructive-foreground text-[9px] font-bold px-1">
+                          {link.badge}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Dropdown Sub-items */}
+              {hasDropdown && isExpanded && !isCollapsed && (
+                <div className="relative mt-0.5 space-y-0.5">
+                  {/* Subtle vertical line indicator */}
+                  <div className="absolute left-[1.15rem] top-2 bottom-2 w-px bg-ais-card-border" aria-hidden="true" />
+                  
+                  {link.subItems!.map((subItem) => {
+                    const isSubActive = activeTab === subItem.id;
+                    return (
+                      <button
+                        key={subItem.id}
+                        onClick={() => handleNavClick(subItem.id)}
+                        className={`${aisSidebarNavItem} gap-3 px-3 py-2.5 pl-9
+                          ${isSubActive ? aisSidebarNavItemActive : aisSidebarNavItemInactive}`}
+                      >
+                        <span className="truncate">{subItem.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
