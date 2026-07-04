@@ -5,7 +5,6 @@ import { Sidebar } from '@/components/dashboard/Sidebar';
 import { Navbar } from '@/components/dashboard/Navbar';
 import { PageHeader } from '@/components/dashboard/PageHeader';
 import { PageTransition } from '@/components/ui/page-transition';
-import { DashboardFooter } from '@/components/dashboard/DashboardFooter';
 import type { BreadcrumbItem } from '@/components/ui/breadcrumb';
 
 export interface DashboardShellProps {
@@ -62,7 +61,6 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         />
       )}
       {children}
-      <DashboardFooter />
     </>
   );
 

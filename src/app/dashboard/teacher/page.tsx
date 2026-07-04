@@ -1,28 +1,83 @@
 "use client";
 
-import React, { useState } from "react";
-import { FilePlus, PenLine, Upload } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { PenLine, Upload } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Button } from "@/components/ui/button";
-import { getDemoTeacher } from "@/lib/teacherPortal";
 import {
-  aisUserBadge,
-  aisUserBadgeAvatar,
   aisBtnPrimary,
   aisBtnSecondary,
 } from "@/components/dashboard/teacher/aisStyles";
-import { TeacherDashboard } from "@/components/dashboard/teacher/TeacherDashboard";
-import { TeacherTeachingNotes } from "@/components/dashboard/teacher/TeacherTeachingNotes";
-import { TeacherStudentsTab } from "@/components/dashboard/teacher/TeacherStudentsTab";
-import { TeacherResourcesTab } from "@/components/dashboard/teacher/TeacherResourcesTab";
-import { TeacherAssessmentsTab } from "@/components/dashboard/teacher/TeacherAssessmentsTab";
-import { TeacherCheckinsTab } from "@/components/dashboard/teacher/TeacherCheckinsTab";
-import { TeacherClassesTab } from "@/components/dashboard/teacher/TeacherClassesTab";
-import { TeacherAttendanceTab } from "@/components/dashboard/teacher/TeacherAttendanceTab";
-import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
-import { TeacherFeedbackTab } from "@/components/dashboard/teacher/TeacherFeedbackTab";
-import { TeacherSettingsTab } from "@/components/dashboard/teacher/TeacherSettingsTab";
+import { TeacherQuickActions } from "@/components/dashboard/teacher/TeacherQuickActions";
+
+function TabLoading() {
+  return (
+    <div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
+      Loading…
+    </div>
+  );
+}
+
+const TeacherDashboard = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherDashboard").then((m) => ({
+    default: m.TeacherDashboard,
+  })),
+);
+const TeacherTeachingNotes = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherTeachingNotes").then((m) => ({
+    default: m.TeacherTeachingNotes,
+  })),
+);
+const TeacherStudentsTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherStudentsTab").then((m) => ({
+    default: m.TeacherStudentsTab,
+  })),
+);
+const TeacherResourcesTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherResourcesTab").then((m) => ({
+    default: m.TeacherResourcesTab,
+  })),
+);
+const TeacherAssessmentsTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherAssessmentsTab").then((m) => ({
+    default: m.TeacherAssessmentsTab,
+  })),
+);
+const TeacherCheckinsTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherCheckinsTab").then((m) => ({
+    default: m.TeacherCheckinsTab,
+  })),
+);
+const TeacherClassesTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherClassesTab").then((m) => ({
+    default: m.TeacherClassesTab,
+  })),
+);
+const TeacherAttendanceTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherAttendanceTab").then((m) => ({
+    default: m.TeacherAttendanceTab,
+  })),
+);
+const TeacherTrainingTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherTrainingTab").then((m) => ({
+    default: m.TeacherTrainingTab,
+  })),
+);
+const TeacherFeedbackTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherFeedbackTab").then((m) => ({
+    default: m.TeacherFeedbackTab,
+  })),
+);
+const TeacherSettingsTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherSettingsTab").then((m) => ({
+    default: m.TeacherSettingsTab,
+  })),
+);
+const TeacherTimetableTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherTimetableTab").then((m) => ({
+    default: m.TeacherTimetableTab,
+  })),
+);
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -30,10 +85,13 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle:
       "Welcome back. Here is the latest activity from your teaching sections.",
   },
+  timetable: {
+    title: "Teaching Timetable",
+    subtitle: "Your full weekly class schedule across all sections.",
+  },
   "teaching-notes": {
     title: "Teaching Notes",
-    subtitle:
-      "View all notes per lesson plan, create new notes with AI, and submit for department head approval.",
+    subtitle: "View all notes per lesson plan and create new notes with AI.",
   },
   "manage-students": {
     title: "Manage Students",
@@ -83,10 +141,31 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 };
 
 export default function TeacherPortalPage() {
-  const { teachers } = useApp();
-  const teacher = getDemoTeacher(teachers);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [trainingTypeFilter, setTrainingTypeFilter] = useState("All");
+
+  const runQuickAction = useCallback((tab: string, eventName?: string) => {
+    setActiveTab(tab);
+    if (eventName) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new Event(eventName));
+      }, 100);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleQuickAction = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab: string; event?: string }>)
+        .detail;
+      if (detail?.tab) {
+        runQuickAction(detail.tab, detail.event);
+      }
+    };
+
+    window.addEventListener("teacher-quick-action", handleQuickAction);
+    return () =>
+      window.removeEventListener("teacher-quick-action", handleQuickAction);
+  }, [runQuickAction]);
 
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
@@ -96,14 +175,18 @@ export default function TeacherPortalPage() {
         <button
           type="button"
           className={`${aisBtnSecondary} text-xs`}
-          onClick={() => window.dispatchEvent(new Event("open-teacher-lesson-plan"))}
+          onClick={() =>
+            window.dispatchEvent(new Event("open-teacher-lesson-plan"))
+          }
         >
           + Create lesson plan
         </button>
         <button
           type="button"
           className={`${aisBtnPrimary} text-xs`}
-          onClick={() => window.dispatchEvent(new Event("open-teacher-create-note"))}
+          onClick={() =>
+            window.dispatchEvent(new Event("open-teacher-create-note"))
+          }
         >
           + New teaching note
         </button>
@@ -120,46 +203,7 @@ export default function TeacherPortalPage() {
         <PenLine className="h-3.5 w-3.5" aria-hidden />
         Record grade
       </Button>
-    ) : activeTab === "resources" ? (
-      <Button
-        variant="organic"
-        size="sm"
-        className="text-xs h-9 gap-1.5 border-none"
-        onClick={() => window.dispatchEvent(new Event("open-teacher-resource"))}
-      >
-        <Upload className="h-3.5 w-3.5" aria-hidden />
-        Upload resource
-      </Button>
-    ) : activeTab === "assessments" ? (
-      <Button
-        variant="organic"
-        size="sm"
-        className="text-xs h-9 gap-1.5 border-none"
-        onClick={() =>
-          window.dispatchEvent(new Event("open-teacher-assessment"))
-        }
-      >
-        <FilePlus className="h-3.5 w-3.5" aria-hidden />
-        New assessment
-      </Button>
-    ) : (
-      <span className={aisUserBadge}>
-        <span className={aisUserBadgeAvatar} aria-hidden>
-          {teacher.name
-            .split(/\s+/)
-            .map((part) => part[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase()}
-        </span>
-        <span>
-          {teacher.name}
-          <span className="text-ais-on-surface-variant"> · </span>
-          {teacher.subjects[0]}
-        </span>
-      </span>
-    );
-
+    ) : null;
   return (
     <DashboardShell
       activeTab={activeTab}
@@ -178,11 +222,11 @@ export default function TeacherPortalPage() {
       {activeTab === "checkins" && <TeacherCheckinsTab />}
       {activeTab === "manage-classes" && <TeacherClassesTab />}
       {activeTab === "attendance" && <TeacherAttendanceTab />}
-      {(activeTab === "training" || 
-        activeTab === "training-subject-matter" || 
+      {(activeTab === "training" ||
+        activeTab === "training-subject-matter" ||
         activeTab === "training-continuous") && (
-        <TeacherTrainingTab 
-          typeFilter={trainingTypeFilter} 
+        <TeacherTrainingTab
+          typeFilter={trainingTypeFilter}
           activeTabType={activeTab}
         />
       )}

@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Save, Send, Sparkles, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, MoreVertical, Plus, Save, Send, Sparkles, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { aiService, type AITeachingNotesResult, type AILessonPlanResult } from '@/lib/ai';
+import type { AITeachingNotesResult, AILessonPlanResult } from '@/lib/ai';
 import {
-  DEMO_TEACHER_ID,
   GRADE_OPTIONS,
   filterTeacherLessonPlans,
   notesForLessonPlan,
@@ -33,32 +33,53 @@ import {
   aisHeadlineSm,
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
-import { TeachingNotesRenderer } from '@/components/ui/TeachingNotesRenderer';
-import { LessonPlanRenderer } from '@/components/ui/LessonPlanRenderer';
+const TeachingNotesRenderer = lazy(() =>
+  import('@/components/ui/TeachingNotesRenderer').then((m) => ({
+    default: m.TeachingNotesRenderer,
+  })),
+);
+const LessonPlanRenderer = lazy(() =>
+  import('@/components/ui/LessonPlanRenderer').then((m) => ({
+    default: m.LessonPlanRenderer,
+  })),
+);
 
-function noteStatusVariant(status: TeachingNote['status']) {
-  if (status === 'Rejected') return 'error' as const;
-  if (status === 'Draft') return 'neutral' as const;
-  if (status === 'Approved') return 'success' as const;
-  return 'warning' as const;
+function RendererLoading() {
+  return (
+    <div className="flex min-h-[120px] items-center justify-center text-sm text-muted-foreground">
+      Loading preview…
+    </div>
+  );
 }
 
-export const TeacherTeachingNotes: React.FC = () => {
+function noteStatusVariant(status: TeachingNote['status']) {
+  if (status === 'Draft') return 'neutral' as const;
+  return 'success' as const;
+}
+
+interface TeacherTeachingNotesProps {
+  lessonPlanId?: string;
+}
+
+export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
+  lessonPlanId,
+}) => {
+  const router = useRouter();
   const {
     lessonPlans,
     teachingNotes,
     createLessonPlan,
     createTeachingNote,
     updateTeachingNote,
-    submitTeachingNoteForApproval,
     addNotification,
+    resolveTeacherId,
   } = useApp();
 
-  const teacherPlans = filterTeacherLessonPlans(lessonPlans);
-  const myNotes = teachingNotes.filter((n) => n.teacherId === DEMO_TEACHER_ID);
+  const teacherId = resolveTeacherId();
+  const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
+  const myNotes = teachingNotes.filter((n) => n.teacherId === teacherId);
   const unlinkedNotes = myNotes.filter((n) => !n.lessonPlanId);
 
-  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(teacherPlans[0]?.id ?? null);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [planTitle, setPlanTitle] = useState('');
   const [planGrade, setPlanGrade] = useState('Grade 11');
@@ -80,8 +101,16 @@ export const TeacherTeachingNotes: React.FC = () => {
   const [noteTitle, setNoteTitle] = useState('');
   const [generatingNotes, setGeneratingNotes] = useState(false);
   const [aiNotesResult, setAiNotesResult] = useState<AITeachingNotesResult | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const activePlan = teacherPlans.find((p) => p.id === linkedPlanId);
+  const detailPlan = lessonPlanId
+    ? teacherPlans.find((p) => p.id === lessonPlanId)
+    : undefined;
+  const detailPlanNotes = detailPlan
+    ? notesForLessonPlan(myNotes, detailPlan.id)
+    : [];
 
   useEffect(() => {
     const openPlan = () => setIsPlanOpen(true);
@@ -97,6 +126,18 @@ export const TeacherTeachingNotes: React.FC = () => {
     };
   }, [teacherPlans]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
+
   const openCreateNote = (planId: string) => {
     const plan = teacherPlans.find((p) => p.id === planId);
     setEditingNoteId(null);
@@ -108,7 +149,6 @@ export const TeacherTeachingNotes: React.FC = () => {
     setNoteTitle('');
     setAiNotesResult(null);
     setNoteModalOpen(true);
-    if (planId) setExpandedPlanId(planId);
   };
 
   const openEditNote = (note: TeachingNote) => {
@@ -137,7 +177,7 @@ export const TeacherTeachingNotes: React.FC = () => {
       // Build a prompt for the AI service
       const prompt = `topic: ${notesTopic}\nsubtopic: \ngrade: ${notesGrade}\nsubject: ${notesSubject}\nlanguage: ${notesLanguage}`;
       
-      // Call the deployed AI API
+      const { aiService } = await import('@/lib/ai');
       const response = await aiService.generateTeachingNotes(prompt);
       
       console.log('📦 Raw API response:', response);
@@ -219,23 +259,23 @@ export const TeacherTeachingNotes: React.FC = () => {
   const handleSaveDraft = () => {
     const payload = buildNotePayload();
     if (editingNoteId) {
-      updateTeachingNote(editingNoteId, payload);
+      updateTeachingNote(editingNoteId, { ...payload, status: 'Draft' });
       addNotification('Draft saved', 'Teaching note updated.', 'success');
     } else {
-      createTeachingNote(payload);
+      createTeachingNote(payload, 'Draft');
       addNotification('Draft created', 'Teaching note saved as draft.', 'success');
     }
     setNoteModalOpen(false);
   };
 
-  const handleSubmitForApproval = () => {
+  const handleSaveNote = () => {
     const payload = buildNotePayload();
     if (editingNoteId) {
-      updateTeachingNote(editingNoteId, payload);
-      submitTeachingNoteForApproval(editingNoteId);
+      updateTeachingNote(editingNoteId, { ...payload, status: 'Saved' });
+      addNotification('Note saved', 'Teaching note updated.', 'success');
     } else {
-      const id = createTeachingNote(payload);
-      submitTeachingNoteForApproval(id);
+      createTeachingNote(payload, 'Saved');
+      addNotification('Note saved', 'Teaching note saved.', 'success');
     }
     setNoteModalOpen(false);
     setAiNotesResult(null);
@@ -251,7 +291,7 @@ export const TeacherTeachingNotes: React.FC = () => {
       // Build a prompt for the AI service
       const prompt = `topic: ${planTopic}\nduration_minutes: ${planSessions * 45}\ngrade: ${planGrade}\nsubject: ${planSubject}\nsessions: ${planSessions}`;
       
-      // Call the deployed AI API
+      const { aiService } = await import('@/lib/ai');
       const response = await aiService.generateLessonPlan(prompt);
       
       console.log('📦 Raw lesson plan response:', response);
@@ -363,94 +403,154 @@ export const TeacherTeachingNotes: React.FC = () => {
     }
   }, [viewNote]);
 
-  const renderNoteRow = (note: TeachingNote) => (
-    <div key={note.id} className={`${aisListRow} flex flex-col justify-between gap-2 sm:flex-row sm:items-center`}>
-      <div className="min-w-0">
-        <p className={`${aisDataMd} font-semibold`}>{note.title}</p>
-        <p className={`${aisBodySm} mt-0.5`}>
-          {note.topic} · {note.language} · Updated {note.updatedAt ?? note.createdAt}
+  const renderNoteCard = (note: TeachingNote) => (
+    <div key={note.id} className={`${aisCard} relative flex flex-col overflow-hidden`}>
+      <div className="flex flex-1 flex-col p-4">
+        {/* Status badge + three-dot menu */}
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <AisStatusBadge variant={noteStatusVariant(note.status)}>{note.status}</AisStatusBadge>
+          <div className="relative" ref={openMenuId === note.id ? menuRef : undefined}>
+            <button
+              type="button"
+              aria-label="Note actions"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover"
+              onClick={() => setOpenMenuId(openMenuId === note.id ? null : note.id)}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {openMenuId === note.id && (
+              <div className="absolute right-0 top-8 z-50 min-w-[130px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => { setOpenMenuId(null); setViewNote(note); }}
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  onClick={() => { setOpenMenuId(null); openEditNote(note); }}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        <p className={`${aisDataMd} font-semibold line-clamp-2`}>{note.title}</p>
+        <p className={`${aisBodySm} mt-1`}>{note.topic}</p>
+        <p className={`${aisBodySm} mt-0.5`}>{note.language}</p>
+        <p className={`${aisBodySm} mt-1 text-ais-on-surface-variant`}>
+          Updated {note.updatedAt ?? note.createdAt}
         </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <AisStatusBadge variant={noteStatusVariant(note.status)}>{note.status}</AisStatusBadge>
-        <AisBtnSecondary className="!px-2.5 !py-1 text-[10px]" onClick={() => setViewNote(note)}>View</AisBtnSecondary>
-        <AisBtnSecondary className="!px-2.5 !py-1 text-[10px]" onClick={() => openEditNote(note)}>Edit</AisBtnSecondary>
-        {note.status === 'Draft' && (
-          <AisBtnPrimary className="!px-2.5 !py-1 text-[10px]" onClick={() => submitTeachingNoteForApproval(note.id)}>
-            Submit
-          </AisBtnPrimary>
-        )}
       </div>
     </div>
   );
 
+  const goToLessonPlan = (planId: string) => {
+    router.push(`/dashboard/teacher/teaching-notes/${planId}`);
+  };
+
+  const goBackToList = () => {
+    router.push('/dashboard/teacher');
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('teacher-quick-action', { detail: { tab: 'teaching-notes' } }),
+      );
+    }, 100);
+  };
+
   return (
     <AisPage>
-      <div className="space-y-4">
-        <p className={aisLabelCaps}>Teaching notes by lesson plan</p>
-        {teacherPlans.length === 0 ? (
-          <p className={aisBodyMd}>Create a lesson plan first, then attach teaching notes to it.</p>
-        ) : (
-          teacherPlans.map((plan) => {
-            const planNotes = notesForLessonPlan(myNotes, plan.id);
-            const isOpen = expandedPlanId === plan.id;
-            return (
-              <div key={plan.id} className={`${aisCard} overflow-hidden`}>
-                <div className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-ais-row-hover">
-                  <button
-                    type="button"
-                    className="min-w-0 flex-1 text-left"
-                    onClick={() => setExpandedPlanId(isOpen ? null : plan.id)}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className={aisHeadlineSm}>{plan.title}</p>
-                      <span className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ais-primary">
-                        {planNotes.length} {planNotes.length === 1 ? 'note' : 'notes'}
-                      </span>
-                    </div>
-                    <p className={`${aisBodySm} mt-1 flex flex-wrap items-center gap-1`}>
-                      {plan.grade} · {plan.subject} · {plan.sessions} sessions ·
-                      <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>{plan.status}</AisStatusBadge>
-                    </p>
-                  </button>
-                  <div className="flex shrink-0 items-center">
-                    <AisBtnPrimary
-                      className="!text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCreateNote(plan.id);
-                      }}
-                    >
-                      <Plus className="h-3.5 w-3.5" aria-hidden />
-                      Add note
-                    </AisBtnPrimary>
-                  </div>
-                </div>
-                {isOpen && (
-                  <div className="space-y-3 border-t border-ais-card-border px-4 pb-4 pt-3">
-                    {planNotes.length === 0 ? (
-                      <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-3`}>
-                        No teaching notes yet for this lesson plan.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">{planNotes.map(renderNoteRow)}</div>
-                    )}
-                    <PlanSummary plan={plan} />
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      {lessonPlanId ? (
+        detailPlan ? (
+          <div className="space-y-4">
+            {/* Lesson plan details — always at the top */}
+            <PlanSummary plan={detailPlan} />
 
-      {unlinkedNotes.length > 0 && (
+            {/* Notes grid — 3 cards per row */}
+            {detailPlanNotes.length === 0 ? (
+              <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-4`}>
+                No teaching notes yet for this lesson plan.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {detailPlanNotes.map(renderNoteCard)}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className={aisBodyMd}>Lesson plan not found.</p>
+            <AisBtnSecondary onClick={goBackToList}>
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Back to lesson plans
+            </AisBtnSecondary>
+          </div>
+        )
+      ) : (
+        <div className="space-y-4">
+          <p className={aisLabelCaps}>Teaching notes by lesson plan</p>
+          {teacherPlans.length === 0 ? (
+            <p className={aisBodyMd}>Create a lesson plan first, then attach teaching notes to it.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {teacherPlans.map((plan) => {
+                const planNotes = notesForLessonPlan(myNotes, plan.id);
+                return (
+                  <div
+                    key={plan.id}
+                    className={`${aisCard} flex min-h-[200px] flex-col overflow-hidden transition-shadow hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]`}
+                  >
+                    <button
+                      type="button"
+                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-ais-row-hover"
+                      onClick={() => goToLessonPlan(plan.id)}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={`${aisHeadlineSm} line-clamp-2`}>{plan.title}</p>
+                        <span className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-1 text-[11px] font-bold tabular-nums text-ais-primary">
+                          {planNotes.length} {planNotes.length === 1 ? 'note' : 'notes'}
+                        </span>
+                      </div>
+                      <p className={`${aisBodySm} mt-2 flex flex-1 flex-wrap items-start gap-1`}>
+                        {plan.grade} · {plan.subject}
+                      </p>
+                      <p className={`${aisBodySm} mt-1`}>{plan.sessions} sessions</p>
+                      <div className="mt-3">
+                        <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>
+                          {plan.status}
+                        </AisStatusBadge>
+                      </div>
+                    </button>
+                    <div className="border-t border-ais-card-border p-3">
+                      <AisBtnPrimary
+                        className="!w-full !text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCreateNote(plan.id);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden />
+                        Add note
+                      </AisBtnPrimary>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!lessonPlanId && unlinkedNotes.length > 0 && (
         <div className={`${aisCard} p-4`}>
           <div className="mb-3 border-b border-ais-card-border pb-3">
             <h3 className={aisHeadlineSm}>Notes without lesson plan</h3>
             <p className={`${aisBodyMd} mt-0.5`}>Standalone teaching materials not linked to a syllabus plan.</p>
           </div>
-          <div className="space-y-2">{unlinkedNotes.map(renderNoteRow)}</div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{unlinkedNotes.map(renderNoteCard)}</div>
         </div>
       )}
 
@@ -488,9 +588,9 @@ export const TeacherTeachingNotes: React.FC = () => {
             {generatingNotes ? 'Generating with AI...' : 'Generate with AI'}
           </AisBtnPrimary>
           {aiNotesResult && (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
-                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
+                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated Teaching Notes Preview
                 </label>
@@ -503,33 +603,27 @@ export const TeacherTeachingNotes: React.FC = () => {
                   Clear & Regenerate
                 </button>
               </div>
-              <TeachingNotesRenderer content={aiNotesResult} />
+              <Suspense fallback={<RendererLoading />}>
+                <TeachingNotesRenderer content={aiNotesResult} />
+              </Suspense>
             </div>
           )}
-          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
-              type="button"
-              onClick={() => setNoteModalOpen(false)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+          <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
+            <AisBtnSecondary type="button" onClick={() => setNoteModalOpen(false)}>
               <X className="h-3.5 w-3.5" aria-hidden />
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+            </AisBtnSecondary>
+            <AisBtnSecondary type="button" onClick={handleSaveDraft}>
               <Save className="h-3.5 w-3.5" aria-hidden />
               Save draft
-            </button>
+            </AisBtnSecondary>
             <button
               type="button"
-              onClick={handleSubmitForApproval}
+              onClick={handleSaveNote}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
             >
-              <Send className="h-4 w-4" aria-hidden />
-              Submit for dept approval
+              <Save className="h-4 w-4" aria-hidden />
+              Save note
             </button>
           </DialogFooter>
         </div>
@@ -542,9 +636,10 @@ export const TeacherTeachingNotes: React.FC = () => {
               <AisStatusBadge variant={noteStatusVariant(viewNote.status)}>{viewNote.status}</AisStatusBadge>
               <span className={aisBodyMd}>{viewNote.grade} · {viewNote.subject} · {viewNote.language}</span>
             </div>
-            {viewNote.deptComments && <p className={aisCallout}>{viewNote.deptComments}</p>}
             {parsedViewContent ? (
-              <TeachingNotesRenderer content={parsedViewContent} />
+              <Suspense fallback={<RendererLoading />}>
+                <TeachingNotesRenderer content={parsedViewContent} />
+              </Suspense>
             ) : (
               <p className={aisBodyMd}>{viewNote.contentSummary}</p>
             )}
@@ -603,9 +698,9 @@ export const TeacherTeachingNotes: React.FC = () => {
           </div>
           
           {aiPlanResult && (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
-                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+            <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
+                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated Lesson Plan Preview
                 </label>
@@ -618,7 +713,9 @@ export const TeacherTeachingNotes: React.FC = () => {
                   Clear & Regenerate
                 </button>
               </div>
-              <LessonPlanRenderer content={aiPlanResult} />
+              <Suspense fallback={<RendererLoading />}>
+                <LessonPlanRenderer content={aiPlanResult} />
+              </Suspense>
             </div>
           )}
           
@@ -629,18 +726,17 @@ export const TeacherTeachingNotes: React.FC = () => {
             </>
           )}
           
-          <DialogFooter className="border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
+          <DialogFooter className="pt-4 -mb-1">
+            <AisBtnSecondary
               type="button"
               onClick={() => {
                 setIsPlanOpen(false);
                 setAiPlanResult(null);
                 setPlanTopic('');
               }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
-            </button>
+            </AisBtnSecondary>
             <button
               type="submit"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"

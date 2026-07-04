@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { FilePlus, Upload, Sparkles } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
@@ -24,7 +25,19 @@ import {
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 
+const QUESTION_FORMAT_OPTIONS = [
+  'Multiple Choice',
+  'Writing',
+  'Fill the Blank',
+  'Matching',
+  'True/False',
+  'Mixed',
+] as const;
+
+type QuestionFormat = (typeof QUESTION_FORMAT_OPTIONS)[number];
+
 export const TeacherAssessmentsTab: React.FC = () => {
+  const router = useRouter();
   const { assessments, createAssessment } = useApp();
   const myAssessments = filterTeacherAssessments(assessments);
 
@@ -36,6 +49,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [difficulty, setDifficulty] = useState<Assessment['difficulty']>('Medium');
   const [uploadMode, setUploadMode] = useState<'create' | 'upload'>('create');
   const [topic, setTopic] = useState('');
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('Mixed');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -64,7 +79,15 @@ export const TeacherAssessmentsTab: React.FC = () => {
     
     setIsGenerating(true);
     try {
-      const content = await generateAssessmentWithAI(type, topic, grade, subject, difficulty);
+      const content = await generateAssessmentWithAI(
+        type,
+        topic,
+        grade,
+        subject,
+        difficulty,
+        numQuestions,
+        questionFormat
+      );
       setGeneratedContent(content);
       setShowPreview(true);
     } catch (error) {
@@ -78,7 +101,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title) return;
-    
+    if (uploadMode === 'create' && !generatedContent) return;
+
     createAssessment({
       title,
       type,
@@ -89,7 +113,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
         uploadMode === 'upload'
           ? [{ id: 1, question: 'Uploaded assessment file — see attachment in school records.', type: 'File', answer: 'N/A' }]
           : generatedContent
-          ? [{ id: 1, question: generatedContent, type: 'AI Generated', answer: 'See assessment content' }]
+          ? [{ id: 1, question: generatedContent, type: questionFormat, answer: 'See assessment content' }]
           : [
               { id: 1, question: 'Sample question 1', type: 'MCQ', options: ['A', 'B', 'C', 'D'], answer: 'A' },
               { id: 2, question: 'Sample question 2', type: 'Short Answer', answer: 'Open response' },
@@ -99,10 +123,24 @@ export const TeacherAssessmentsTab: React.FC = () => {
     // Reset form
     setTitle('');
     setTopic('');
+    setNumQuestions(10);
+    setQuestionFormat('Mixed');
     setGeneratedContent('');
     setShowPreview(false);
     setIsOpen(false);
   };
+
+  const resetModal = () => {
+    setIsOpen(false);
+    setGeneratedContent('');
+    setShowPreview(false);
+    setTopic('');
+    setNumQuestions(10);
+    setQuestionFormat('Mixed');
+  };
+
+  const canSubmit =
+    uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
 
   return (
     <AisPage>
@@ -139,8 +177,12 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <AisEmptyRow colSpan={6} message="No assessments created yet." />
             ) : (
               myAssessments.map((a) => (
-                <AisTr key={a.id}>
-                  <AisTd className="font-semibold">{a.title}</AisTd>
+                <AisTr
+                  key={a.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/dashboard/teacher/assessments/${a.id}`)}
+                >
+                  <AisTd className="font-semibold text-primary hover:underline">{a.title}</AisTd>
                   <AisTd>{a.type}</AisTd>
                   <AisTd>{a.grade} · {a.subject}</AisTd>
                   <AisTd>{a.difficulty}</AisTd>
@@ -157,12 +199,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
       <Dialog
         isOpen={isOpen}
-        onClose={() => {
-          setIsOpen(false);
-          setGeneratedContent('');
-          setShowPreview(false);
-          setTopic('');
-        }}
+        onClose={resetModal}
         title={uploadMode === 'upload' ? 'Upload assessment' : 'Create assessment'}
         size="xl"
         largeTitle
@@ -170,7 +207,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-5 pt-1">
           {/* Topic Input */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-200 uppercase tracking-wide">Topic</label>
+            <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Topic</label>
             <input
               className={aisInput}
               required
@@ -180,9 +217,43 @@ export const TeacherAssessmentsTab: React.FC = () => {
             />
           </div>
 
+          {/* Assessment type & number of questions */}
+          {uploadMode === 'create' && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Select
+                variant="ais"
+                label="Assessment type"
+                options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+                value={type}
+                onChange={(e) => setType(e.target.value as Assessment['type'])}
+              />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
+                  Number of questions
+                </label>
+                <input
+                  type="number"
+                  className={aisInput}
+                  required
+                  min={1}
+                  max={50}
+                  value={numQuestions}
+                  onChange={(e) => setNumQuestions(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                />
+              </div>
+              <Select
+                variant="ais"
+                label="Question format"
+                options={QUESTION_FORMAT_OPTIONS.map((f) => ({ value: f, label: f }))}
+                value={questionFormat}
+                onChange={(e) => setQuestionFormat(e.target.value as QuestionFormat)}
+              />
+            </div>
+          )}
+
           {/* Title Input (auto-populated) */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-200 uppercase tracking-wide">Assessment Title</label>
+            <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Assessment Title</label>
             <input
               className={aisInput}
               required
@@ -193,14 +264,16 @@ export const TeacherAssessmentsTab: React.FC = () => {
           </div>
 
           {/* Parameters Grid */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Select
-              variant="ais"
-              label="Type"
-              options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
-              value={type}
-              onChange={(e) => setType(e.target.value as Assessment['type'])}
-            />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+            {uploadMode === 'upload' && (
+              <Select
+                variant="ais"
+                label="Assessment type"
+                options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+                value={type}
+                onChange={(e) => setType(e.target.value as Assessment['type'])}
+              />
+            )}
             <Select
               variant="ais"
               label="Grade"
@@ -246,9 +319,9 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
           {/* Preview Generated Content */}
           {showPreview && generatedContent && (
-            <div className="space-y-2 max-h-96 overflow-y-auto border border-ais-card-border dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border dark:border-gray-700">
-                <label className="text-xs font-semibold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+            <div className="space-y-2 max-h-96 overflow-y-auto border border-ais-card-border rounded-xl p-4 bg-ais-surface-container-low/40">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
+                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated Assessment Preview
                 </label>
@@ -269,25 +342,18 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
           {uploadMode === 'upload' && <input type="file" className="text-xs text-ais-on-surface-variant" onChange={() => {}} />}
 
-          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                setGeneratedContent('');
-                setShowPreview(false);
-                setTopic('');
-              }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+          <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
+            <AisBtnSecondary type="button" onClick={resetModal}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
-            >
-              Submit for dept head approval
-            </button>
+            </AisBtnSecondary>
+            {canSubmit && (
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+              >
+                Submit for dept head approval
+              </button>
+            )}
           </DialogFooter>
         </form>
       </Dialog>

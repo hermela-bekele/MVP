@@ -1,18 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { getDemoTeacher } from '@/lib/teacherPortal';
 import { AisBtnPrimary, AisPage, aisInput } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodyMd, aisBodySm, aisCard, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherSettingsTab: React.FC = () => {
-  const { teachers, updateTeacher, addNotification } = useApp();
-  const teacher = getDemoTeacher(teachers);
+  const { teachers, updateTeacher, addNotification, currentUser } = useApp();
+  const teacher = getDemoTeacher(teachers, currentUser?.email, currentUser?.displayName);
 
   const [name, setName] = useState(teacher.name);
   const [email, setEmail] = useState(teacher.email);
   const [phone, setPhone] = useState(teacher.phone);
+
+  useEffect(() => {
+    setName(teacher.name);
+    setEmail(teacher.email);
+    setPhone(teacher.phone);
+  }, [teacher.id, teacher.name, teacher.email, teacher.phone]);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifySms, setNotifySms] = useState(false);
   const [language, setLanguage] = useState('English');

@@ -29,7 +29,7 @@ function subjectToDeptId(subject: string) {
   return 'dept-stem';
 }
 
-export const EmployeeManagement: React.FC = () => {
+export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
   const { teachers, addTeacher, updateTeacher, toggleTeacherStatus } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
@@ -50,12 +50,13 @@ export const EmployeeManagement: React.FC = () => {
 
   // Handle external open event
   useEffect(() => {
+    if (readOnly) return;
     const handleOpenModal = () => {
       setIsModalOpen(true);
     };
     window.addEventListener('open-onboard-modal', handleOpenModal);
     return () => window.removeEventListener('open-onboard-modal', handleOpenModal);
-  }, []);
+  }, [readOnly]);
 
   const loadEmployeeForm = (teacher: Teacher) => {
     setEmployeeName(teacher.name);
@@ -199,15 +200,17 @@ export const EmployeeManagement: React.FC = () => {
           >
             View
           </Button>
-          <Button
-            type="button"
-            variant="organic"
-            size="sm"
-            onClick={() => openEmployeeEdit(row)}
-            className="text-[10px] h-7 px-2 border-none"
-          >
-            Edit
-          </Button>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="organic"
+              size="sm"
+              onClick={() => openEmployeeEdit(row)}
+              className="text-[10px] h-7 px-2 border-none"
+            >
+              Edit
+            </Button>
+          )}
         </div>
       ),
     },
@@ -229,6 +232,7 @@ export const EmployeeManagement: React.FC = () => {
       </TablePanel>
 
       {/* Onboard Instructor dialog Modal */}
+      {!readOnly && (
       <Dialog
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -352,6 +356,7 @@ export const EmployeeManagement: React.FC = () => {
 
         </form>
       </Dialog>
+      )}
 
       <Dialog
         isOpen={detailTeacher !== null && detailMode !== null}
@@ -391,30 +396,34 @@ export const EmployeeManagement: React.FC = () => {
             </div>
 
             <DialogFooter className="mt-4 border-t border-border/20 pt-4 flex-wrap gap-2">
-              <Button
-                type="button"
-                variant={detailTeacher.status === 'Active' ? 'destructive' : 'organic'}
-                size="sm"
-                onClick={() => {
-                  toggleTeacherStatus(detailTeacher.id);
-                  closeEmployeeDetail();
-                }}
-                className="text-xs h-9 border-none mr-auto"
-              >
-                {detailTeacher.status === 'Active' ? 'Deactivate roster' : 'Activate roster'}
-              </Button>
+              {!readOnly && (
+                <Button
+                  type="button"
+                  variant={detailTeacher.status === 'Active' ? 'destructive' : 'organic'}
+                  size="sm"
+                  onClick={() => {
+                    toggleTeacherStatus(detailTeacher.id);
+                    closeEmployeeDetail();
+                  }}
+                  className="text-xs h-9 border-none mr-auto"
+                >
+                  {detailTeacher.status === 'Active' ? 'Deactivate roster' : 'Activate roster'}
+                </Button>
+              )}
               <Button type="button" variant="outline" size="sm" onClick={closeEmployeeDetail} className="text-xs h-9">
                 Close
               </Button>
-              <Button
-                type="button"
-                variant="organic"
-                size="sm"
-                onClick={() => setDetailMode('edit')}
-                className="text-xs h-9 border-none font-semibold"
-              >
-                Edit record
-              </Button>
+              {!readOnly && (
+                <Button
+                  type="button"
+                  variant="organic"
+                  size="sm"
+                  onClick={() => setDetailMode('edit')}
+                  className="text-xs h-9 border-none font-semibold"
+                >
+                  Edit record
+                </Button>
+              )}
             </DialogFooter>
           </div>
         )}

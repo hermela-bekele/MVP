@@ -10,7 +10,6 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
-import { delay } from '@/lib/ai';
 
 export default function StudentPortalPage() {
   const { students, addNotification } = useApp();
@@ -18,102 +17,6 @@ export default function StudentPortalPage() {
 
   // Let's retrieve Selam Abebe as our active student
   const activeStudent = students.find(s => s.id === 'std-1') || students[0];
-
-  // Chatbot State
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState([
-    { role: 'assistant', text: 'ሰላም! I am your AI Study Buddy. How can I help you study Biology, Mathematics, or Science today?' }
-  ]);
-  const [sendingChat, setSendingChat] = useState(false);
-
-  // Mock Quiz State
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [score, setScore] = useState(0);
-  const [quizFinished, setQuizFinished] = useState(false);
-
-  const quizQuestions = [
-    {
-      id: 1,
-      subject: 'Biology',
-      question: 'Which of the following organelles is responsible for synthesizing chemical energy in the form of ATP?',
-      options: ['Cell Nucleus', 'Cell Wall', 'Mitochondria', 'Ribosomes'],
-      answer: 'Mitochondria'
-    },
-    {
-      id: 2,
-      subject: 'Mathematics',
-      question: 'Solve for the roots of the quadratic equation x^2 - 5x + 6 = 0.',
-      options: ['x=1, x=6', 'x=2, x=3', 'x=-2, x=-3', 'x=0, x=5'],
-      answer: 'x=2, x=3'
-    },
-    {
-      id: 3,
-      subject: 'Chemistry',
-      question: 'What type of chemical bonding occurs through the direct sharing of electron pairs between non-metallic atoms?',
-      options: ['Ionic Bonding', 'Covalent Bonding', 'Metallic Bonding', 'Hydrogen Bonding'],
-      answer: 'Covalent Bonding'
-    }
-  ];
-
-  const handleSendChat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const userMessage = chatInput;
-    setChatHistory((prev) => [...prev, { role: 'user', text: userMessage }]);
-    setChatInput('');
-    setSendingChat(true);
-
-    try {
-      await delay(800); // Simulated delay
-      let aiResponse = "I'm not fully sure about that topic. Could you ask me about Biology cell structures, Fractions, or quadratic factoring?";
-      
-      const cleanInput = userMessage.toLowerCase();
-      if (cleanInput.includes('mitochondr') || cleanInput.includes('cell') || cleanInput.includes('biology')) {
-        aiResponse = "Excellent question! In Grade 9 Biology, we learn that the Mitochondrion is the 'powerhouse of the cell' because it synthesizes ATP through cellular respiration. Remember: plant cells have both mitochondria and chloroplasts, whereas animal cells only have mitochondria!";
-      } else if (cleanInput.includes('root') || cleanInput.includes('quadratic') || cleanInput.includes('factor')) {
-        aiResponse = "To solve a quadratic equation ax^2 + bx + c = 0, you can factor it or use the quadratic formula: x = [-b ± √(b^2 - 4ac)] / 2a. The discriminant (b^2 - 4ac) determines if the roots are real or imaginary!";
-      } else if (cleanInput.includes('fraction') || cleanInput.includes('math')) {
-        aiResponse = "When adding fractions, always find the Least Common Denominator (LCD). For example, to add 1/2 and 1/3, the LCD is 6, so it becomes 3/6 + 2/6 = 5/6!";
-      } else if (cleanInput.includes('ሰላም') || cleanInput.includes('hello')) {
-        aiResponse = "ሰላም! I am ready to review your secondary curriculum. Ask me to explain a concept or quiz you on today's biology notes!";
-      }
-
-      setChatHistory((prev) => [...prev, { role: 'assistant', text: aiResponse }]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSendingChat(false);
-    }
-  };
-
-  const handleSelectAnswer = (option: string) => {
-    setSelectedAnswer(option);
-  };
-
-  const handleNextQuestion = () => {
-    if (selectedAnswer === quizQuestions[currentQuestionIndex].answer) {
-      setScore(score + 1);
-    }
-
-    if (currentQuestionIndex < quizQuestions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
-    } else {
-      setQuizFinished(true);
-      addNotification('AI Quiz Completed', `You scored ${score + (selectedAnswer === quizQuestions[currentQuestionIndex].answer ? 1 : 0)} out of 3! Keep studying.`, 'success');
-    }
-  };
-
-  const resetQuiz = () => {
-    setCurrentQuestionIndex(0);
-    setSelectedAnswer(null);
-    setScore(0);
-    setQuizFinished(false);
-    setQuizStarted(true);
-  };
 
   const homeworkList = [
     { id: 'hw-1', subject: 'Biology', task: 'Write 200 words on Mitochondria cellular functions.', due: 'Tomorrow', status: 'Pending' },
@@ -157,7 +60,6 @@ export default function StudentPortalPage() {
 
   const tabTitles: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'My Performance', subtitle: 'Grades, attendance, and homework at a glance.' },
-    'study-assistant': { title: 'AI Study Assistant', subtitle: 'Ask questions and practice with quizzes.' },
     resources: { title: 'Books & Resources', subtitle: 'Digital textbooks and study materials.' },
     timetable: { title: 'Class Timetable', subtitle: 'Your weekly class schedule.' },
   };
@@ -255,146 +157,7 @@ export default function StudentPortalPage() {
           )}
 
           {/* ==================================================== */}
-          {/* TAB 2: AI STUDY ASSISTANT                            */}
-          {/* ==================================================== */}
-          {activeTab === 'study-assistant' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in text-left">
-              
-              {/* AI Tutor Chatbot */}
-              <Card className="flex flex-col h-[500px]">
-                <CardHeader className="shrink-0 border-b border-border/40">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                    <span>🤖</span> AI Study Buddy Chatbot
-                  </CardTitle>
-                  <CardDescription>Ask academic queries about Biology cellular processes, math equations, or fractions.</CardDescription>
-                </CardHeader>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3.5 leading-normal text-xxs font-medium">
-                  {chatHistory.map((ch, idx) => (
-                    <div 
-                      key={idx} 
-                      className={`flex ${ch.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-xs p-3 rounded-lg border ${
-                        ch.role === 'user'
-                          ? 'bg-primary border-primary/20 text-primary-foreground font-semibold rounded-br-none'
-                          : 'bg-card border-border/80 text-foreground rounded-bl-none'
-                      }`}>
-                        <p>{ch.text}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {sendingChat && (
-                    <div className="flex justify-start">
-                      <div className="max-w-xs p-3 rounded-lg border bg-card border-border/80 text-muted-foreground italic rounded-bl-none flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" />
-                        <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce delay-75" />
-                        <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce delay-150" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <form onSubmit={handleSendChat} className="p-3 border-t border-border/40 shrink-0 bg-muted/20 flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type 'Explain cell mitochondria' or ask math questions..."
-                    className="flex-1 h-10 px-3 bg-card border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <Button 
-                    type="submit" 
-                    variant="organic" 
-                    className="h-10 text-xs shrink-0 border-none cursor-pointer"
-                  >
-                    Send
-                  </Button>
-                </form>
-              </Card>
-
-              {/* AI Syllabus Mock Quiz */}
-              <Card className="flex flex-col h-[500px]">
-                <CardHeader className="shrink-0 border-b border-border/40">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                    <span>📝</span> AI Curated Study Quiz
-                  </CardTitle>
-                  <CardDescription>Test your retention of core chapters. Receive dynamic recommendations based on score.</CardDescription>
-                </CardHeader>
-                <div className="flex-1 overflow-y-auto p-6 flex flex-col justify-center items-center">
-                  {!quizStarted ? (
-                    <div className="text-center space-y-4 max-w-sm">
-                      <span className="text-3xl">🚀</span>
-                      <h4 className="text-xs font-bold text-foreground">Continuous Assessment Challenge</h4>
-                      <p className="text-xxs text-muted-foreground leading-normal font-medium">This AI mock quiz covers Grade 9 Biology organelles, equations factoring, and chemical covalent bonds.</p>
-                      <Button onClick={() => setQuizStarted(true)} className="text-xs h-10 border-none font-semibold cursor-pointer">
-                        Start 3-Question Challenge
-                      </Button>
-                    </div>
-                  ) : quizFinished ? (
-                    <div className="text-center space-y-4 max-w-sm">
-                      <span className="text-3xl">{score >= 2 ? '🎉' : '📚'}</span>
-                      <h4 className="text-xs font-bold text-foreground">Challenge Finished!</h4>
-                      <p className="text-xs font-bold text-primary font-mono">Your Score: {score} / 3 Correct</p>
-                      
-                      <div className="p-3.5 bg-muted/40 border border-border/40 rounded-lg text-xxs font-medium leading-normal">
-                        <span className="font-bold text-foreground block mb-1">AI Recommendation:</span>
-                        {score === 3 
-                          ? 'Perfect retention! You are fully synced for national levels. Suggest requesting enrichment material.'
-                          : 'Good attempt. Ensure you review the chemistry covalent covalent notes and math projector roots chapters.'}
-                      </div>
-
-                      <Button onClick={resetQuiz} className="text-xs h-10 border-none bg-primary text-white font-semibold cursor-pointer">
-                        Retake Challenge
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="w-full text-left space-y-5 text-xxs font-medium">
-                      <div className="flex justify-between border-b border-border/40 pb-2">
-                        <span className="font-bold text-primary">Subject: {quizQuestions[currentQuestionIndex].subject}</span>
-                        <span className="text-muted-foreground font-bold font-mono">Question {currentQuestionIndex + 1} of 3</span>
-                      </div>
-
-                      <h4 className="font-bold text-foreground text-xs leading-normal">
-                        {quizQuestions[currentQuestionIndex].question}
-                      </h4>
-
-                      <div className="space-y-2">
-                        {quizQuestions[currentQuestionIndex].options.map((opt) => {
-                          const isSelected = selectedAnswer === opt;
-                          return (
-                            <button
-                              key={opt}
-                              onClick={() => handleSelectAnswer(opt)}
-                              className={`w-full text-left p-3.5 rounded-lg border text-xxs font-bold transition-all duration-200 cursor-pointer ${
-                                isSelected
-                                  ? 'bg-primary/10 border-primary text-foreground'
-                                  : 'bg-card border-border/60 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <div className="flex justify-end pt-2 border-t border-border/40">
-                        <Button
-                          onClick={handleNextQuestion}
-                          disabled={!selectedAnswer}
-                          className="text-xs h-10 border-none cursor-pointer"
-                        >
-                          {currentQuestionIndex === quizQuestions.length - 1 ? 'Finish Quiz' : 'Next Question'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-            </div>
-          )}
-
-          {/* ==================================================== */}
-          {/* TAB 3: BOOKS & RESOURCES                             */}
+          {/* TAB 2: BOOKS & RESOURCES                             */}
           {/* ==================================================== */}
           {activeTab === 'resources' && (
             <div className="space-y-6 animate-fade-in text-left">
@@ -427,7 +190,7 @@ export default function StudentPortalPage() {
           )}
 
           {/* ==================================================== */}
-          {/* TAB 4: CLASS TIMETABLE                               */}
+          {/* TAB 3: CLASS TIMETABLE                               */}
           {/* ==================================================== */}
           {activeTab === 'timetable' && (
             <div className="space-y-6 animate-fade-in text-left">

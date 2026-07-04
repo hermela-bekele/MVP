@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchPrimeAI } from '@/lib/primeAiServer';
+
+export const maxDuration = 120;
 
 // In-memory cache shared across all users
 const cache = new Map<string, { data: any; timestamp: number }>();
@@ -36,15 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Cache miss - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI for: ${topic}`);
-    const apiUrl = process.env.NEXT_PUBLIC_PRIME_AI_API_URL || 'https://prime-ai-bndr.onrender.com';
-    
-    const response = await fetch(`${apiUrl}/lesson-plan`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ topic, duration_minutes }),
-    });
+    const response = await fetchPrimeAI('/lesson-plan', { topic, duration_minutes });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -70,9 +65,13 @@ export async function POST(request: NextRequest) {
       cached: false,
     });
   } catch (error) {
-    console.error('❌ Lesson plan API error:', error);
+    const cause = error instanceof Error && error.cause ? ` cause: ${String(error.cause)}` : '';
+    console.error('❌ Lesson plan API error:', error, cause);
     return NextResponse.json(
-      { error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }

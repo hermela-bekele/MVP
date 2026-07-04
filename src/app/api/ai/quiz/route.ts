@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchPrimeAI } from '@/lib/primeAiServer';
+
+export const maxDuration = 120;
 
 // In-memory cache shared across all users
 const cache = new Map<string, { data: any; timestamp: number }>();
@@ -11,7 +14,7 @@ function getCacheKey(payload: any): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, difficulty = 'medium', num_questions = 5 } = body;
+    const { topic, difficulty = 'medium', num_questions = 5, question_type = 'mixed' } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -20,8 +23,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const payload = { topic, difficulty, num_questions, question_type };
+
     // Create cache key
-    const cacheKey = getCacheKey({ topic, difficulty, num_questions });
+    const cacheKey = getCacheKey(payload);
 
     // Check cache first
     const cached = cache.get(cacheKey);
@@ -36,15 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Cache miss - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI for quiz: ${topic}`);
-    const apiUrl = process.env.NEXT_PUBLIC_PRIME_AI_API_URL || 'https://prime-ai-bndr.onrender.com';
-    
-    const response = await fetch(`${apiUrl}/quiz`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ topic, difficulty, num_questions }),
-    });
+    const response = await fetchPrimeAI('/quiz', payload);
 
     if (!response.ok) {
       const errorText = await response.text();

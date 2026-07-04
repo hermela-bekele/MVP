@@ -51,19 +51,19 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(var(--dashboard-bg))]">
       <div className="hidden lg:flex lg:w-[42%] flex-col justify-between bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-fg))] p-10 xl:p-14">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-white text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg">
+          <div className="h-11 w-11 rounded-xl bg-[hsl(var(--sidebar-fg))] text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg shadow-md">
             PR
           </div>
           <div>
             <p className="font-bold text-lg">Prime Teaching System</p>
-            <p className="text-xs text-white/60">Account recovery</p>
+            <p className="text-xs text-[hsl(var(--sidebar-muted))]">Account recovery</p>
           </div>
         </div>
-        <p className="text-sm text-white/75 max-w-sm leading-relaxed">
+        <p className="text-sm text-[hsl(var(--sidebar-muted))] max-w-sm leading-relaxed">
           Only administrators can recover login credentials here. Students and employees
           should contact their school administrator for login details.
         </p>
-        <p className="text-xs text-white/50">© 2026 Ministry of Education, Ethiopia</p>
+        <p className="text-xs text-[hsl(var(--sidebar-muted))]">© 2026 Ministry of Education, Ethiopia</p>
       </div>
 
       <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
@@ -165,8 +165,8 @@ export default function ForgotPasswordPage() {
                   ✓
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  In this demo environment, return to login and use a preset account to
-                  access your portal.
+                  Password recovery is not fully enabled yet. Contact your school administrator
+                  to reset your credentials, or create a new account if you are eligible.
                 </p>
                 <Button onClick={() => router.push('/login')} className="w-full h-11 font-semibold">
                   Back to Login

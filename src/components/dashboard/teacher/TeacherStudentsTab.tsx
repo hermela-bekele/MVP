@@ -6,7 +6,6 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { TeacherGradebook } from '@/components/dashboard/teacher/TeacherGradebook';
 import {
-  DEMO_TEACHER_ID,
   GRADE_OPTIONS,
   SECTION_OPTIONS,
   filterTeacherStudents,
@@ -33,7 +32,8 @@ import { aisBodyMd, aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 type SubTab = 'roster' | 'gradebook' | 'parents';
 
 export const TeacherStudentsTab: React.FC = () => {
-  const { students, sendParentMessage, parentMessages, studentGradeEntries } = useApp();
+  const { students, sendParentMessage, parentMessages, studentGradeEntries, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
 
   const [subTab, setSubTab] = useState<SubTab>('roster');
 
@@ -49,8 +49,8 @@ export const TeacherStudentsTab: React.FC = () => {
   const [parentMsg, setParentMsg] = useState('');
 
   const roster = useMemo(() => filterTeacherStudents(students, grade, section), [students, grade, section]);
-  const myMessages = parentMessages.filter((m) => m.teacherId === DEMO_TEACHER_ID);
-  const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries);
+  const myMessages = parentMessages.filter((m) => m.teacherId === teacherId);
+  const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries, teacherId);
   const selectedStudent = roster.find((s) => s.id === messageStudentId);
 
   const handleSendParent = (e: React.FormEvent) => {
@@ -176,14 +176,10 @@ export const TeacherStudentsTab: React.FC = () => {
             To: {selectedStudent?.parentName} ({selectedStudent?.parentPhone})
           </p>
           <textarea className={aisTextarea} required value={parentMsg} onChange={(e) => setParentMsg(e.target.value)} placeholder="Write about grades, quizzes, projects, mid/final exams, or attendance..." />
-          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
-              type="button"
-              onClick={() => setMessageStudentId(null)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+          <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
+            <AisBtnSecondary type="button" onClick={() => setMessageStudentId(null)}>
               Cancel
-            </button>
+            </AisBtnSecondary>
             <button
               type="submit"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"

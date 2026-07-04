@@ -6,7 +6,6 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import {
   CURRENT_TERM,
-  DEMO_TEACHER_ID,
   GRADE_ENTRY_TYPES,
   GRADE_OPTIONS,
   SECTION_OPTIONS,
@@ -33,7 +32,8 @@ import {
 import { aisBodyMd, aisBodySm, aisCard, aisDataMd, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherGradebook: React.FC = () => {
-  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry } = useApp();
+  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
 
   const [classGrade, setClassGrade] = useState('Grade 9');
   const [classSection, setClassSection] = useState('A');
@@ -53,16 +53,16 @@ export const TeacherGradebook: React.FC = () => {
   const roster = useMemo(() => filterTeacherStudents(students, classGrade, classSection), [students, classGrade, classSection]);
 
   const myEntries = useMemo(() => {
-    let list = filterTeacherGradeEntries(studentGradeEntries).filter(
+    let list = filterTeacherGradeEntries(studentGradeEntries, teacherId).filter(
       (e) => e.gradeLevel === classGrade && e.section === classSection
     );
     if (filterType !== 'All') list = list.filter((e) => e.entryType === filterType);
     return list;
-  }, [studentGradeEntries, classGrade, classSection, filterType]);
+  }, [studentGradeEntries, classGrade, classSection, filterType, teacherId]);
 
   const myAssessments = useMemo(
-    () => assessments.filter((a) => a.teacherId === DEMO_TEACHER_ID && a.grade === classGrade),
-    [assessments, classGrade]
+    () => assessments.filter((a) => a.teacherId === teacherId && a.grade === classGrade),
+    [assessments, classGrade, teacherId]
   );
 
   const openAdd = (studentId: string, presetType?: StudentGradeEntryType) => {
@@ -243,14 +243,10 @@ export const TeacherGradebook: React.FC = () => {
           </div>
           <input className={aisInput} placeholder="Remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           <p className={aisBodySm}>Saving recalculates cumulative GPA from weighted term scores and syncs to student & parent portals.</p>
-          <DialogFooter className="flex-wrap gap-3 border-t border-ais-card-border dark:border-gray-700 pt-4 -mb-1">
-            <button
-              type="button"
-              onClick={() => setIsFormOpen(false)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+          <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
+            <AisBtnSecondary type="button" onClick={() => setIsFormOpen(false)}>
               Cancel
-            </button>
+            </AisBtnSecondary>
             <button
               type="submit"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"

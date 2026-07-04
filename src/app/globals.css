@@ -1,35 +1,38 @@
 @import "tailwindcss";
 
+/* Dark mode is class-only — app always forces light (see AppContext) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
-    /* Green & white — Prime / eSkooly school theme */
+    /* Blue & white — Prime / eSkooly school theme */
     --background: 0 0% 100%;
-    --foreground: 158 32% 14%;
-    --dashboard-bg: 240 100% 99%;
+    --foreground: 218 32% 14%;
+    --dashboard-bg: 228 100% 99%;
 
     --card: 0 0% 100%;
-    --card-foreground: 158 32% 14%;
+    --card-foreground: 218 32% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 158 32% 14%;
+    --popover-foreground: 218 32% 14%;
 
-    --primary: 152 69% 31%;
+    --primary: 218 100% 39%;
     --primary-foreground: 0 0% 100%;
 
-    /* AIS sidebar — light gray surface, blue accents */
+    /* AIS sidebar — light blue surface, blue accents */
     --sidebar-bg: 228 100% 97%;
     --sidebar-fg: 218 100% 39%;
     --sidebar-muted: 230 9% 44%;
     --sidebar-active: 0 0% 100%;
     --sidebar-active-fg: 218 100% 39%;
 
-    --secondary: 140 35% 94%;
-    --secondary-foreground: 158 32% 14%;
+    --secondary: 220 35% 94%;
+    --secondary-foreground: 218 32% 14%;
 
-    --muted: 140 28% 95%;
-    --muted-foreground: 155 12% 40%;
+    --muted: 220 28% 95%;
+    --muted-foreground: 218 12% 40%;
 
-    --accent: 152 45% 38%;
+    --accent: 218 80% 48%;
     --accent-foreground: 0 0% 100%;
     
     --destructive: 0 84.2% 60.2%;
@@ -41,58 +44,15 @@
     --warning: 38 92% 50%;
     --warning-foreground: 224 71.4% 4.1%;
     
-    --border: 140 18% 88%;
-    --input: 140 18% 88%;
-    --ring: 152 69% 31%;
+    --border: 220 18% 88%;
+    --input: 220 18% 88%;
+    --ring: 218 100% 39%;
 
     --radius: 0.5rem;
 
     /* Sidebar */
     --sidebar-width: 256px;
     --sidebar-collapsed-width: 72px;
-  }
-
-  .dark {
-    --background: 158 28% 8%;
-    --foreground: 140 20% 96%;
-    --dashboard-bg: 158 26% 7%;
-    
-    --card: 158 24% 11%;
-    --card-foreground: 140 20% 96%;
-    
-    --popover: 158 24% 11%;
-    --popover-foreground: 140 20% 96%;
-    
-    --primary: 152 55% 42%;
-    --primary-foreground: 0 0% 100%;
-
-    --sidebar-bg: 220 18% 14%;
-    --sidebar-fg: 218 80% 72%;
-    --sidebar-muted: 220 10% 55%;
-    --sidebar-active: 220 16% 20%;
-    --sidebar-active-fg: 218 80% 72%;
-    
-    --secondary: 158 22% 16%;
-    --secondary-foreground: 140 20% 96%;
-    
-    --muted: 158 22% 16%;
-    --muted-foreground: 140 12% 62%;
-    
-    --accent: 152 40% 45%;
-    --accent-foreground: 0 0% 100%;
-    
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 210 20% 98%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 224 71.4% 4.1%;
-    
-    --border: 158 18% 20%;
-    --input: 158 18% 20%;
-    --ring: 152 55% 42%;
   }
 }
 
@@ -192,21 +152,8 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.25);
   }
 
-  .dark .glass {
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
   .glass-subtle {
     background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-
-  .dark .glass-subtle {
-    background: rgba(15, 23, 42, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
@@ -271,11 +218,6 @@ body {
 .academic-bg {
   background-size: 20px 20px;
   background-image: radial-gradient(circle, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-}
-
-.dark .academic-bg {
-  background-size: 20px 20px;
-  background-image: radial-gradient(circle, rgba(51, 65, 85, 0.15) 1px, transparent 1px);
 }
 
 /* ====================================

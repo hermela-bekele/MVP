@@ -1,42 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-
-type RoleGroup = 'admin' | 'staff' | 'student';
-
-const presets = [
-  { label: 'MOE Admin', email: 'moe.admin@prime.gov.et', pass: 'moe123', role: 'moe', group: 'admin' as RoleGroup },
-  { label: 'School Head', email: 'principal.semeneh@prime.edu.et', pass: 'school123', role: 'school-head', group: 'admin' as RoleGroup },
-  { label: 'Curriculum Head', email: 'curriculum.lead@prime.edu.et', pass: 'curr123', role: 'curriculum-head', group: 'admin' as RoleGroup },
-  { label: 'Dept Head', email: 'dept.head.math@prime.edu.et', pass: 'dept123', role: 'department-head', group: 'staff' as RoleGroup },
-  { label: 'Teacher', email: 'martha.feyissa@prime.edu.et', pass: 'teacher123', role: 'teacher', group: 'staff' as RoleGroup },
-  { label: 'Student', email: 'selam.abebe@std.edu.et', pass: 'student123', role: 'student', group: 'student' as RoleGroup },
-  { label: 'Parent', email: 'abebe.demeke@gmail.com', pass: 'parent123', role: 'parent', group: 'student' as RoleGroup },
-];
+import { Input } from '@/components/ui/input';
+import { api, ApiError } from '@/lib/api';
+import { dashboardPathForRole } from '@/lib/auth';
 
 export default function LoginPage() {
-  const { setActiveRole } = useApp();
+  const { login, currentUser, authReady } = useApp();
   const router = useRouter();
-  const [roleGroup, setRoleGroup] = useState<RoleGroup>('admin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
-  const filteredPresets = presets.filter((p) => p.group === roleGroup);
+  useEffect(() => {
+    if (authReady && currentUser) {
+      router.replace(dashboardPathForRole(currentUser.role));
+    }
+  }, [authReady, currentUser, router]);
 
-  const handleQuickFill = (preset: (typeof presets)[0]) => {
-    setEmail(preset.email);
-    setPassword(preset.pass);
-    setError('');
-  };
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registered') !== '1') return;
 
-  const handleLogin = (e: React.FormEvent) => {
+    setRegisteredSuccess(true);
+    const emailParam = params.get('email');
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam));
+    }
+    window.history.replaceState({}, '', '/login');
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Please enter your email and password.');
@@ -46,52 +47,51 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    setTimeout(() => {
-      const match = presets.find((p) => p.email.toLowerCase() === email.toLowerCase());
-      if (match) {
-        setActiveRole(match.role);
-        router.push(`/dashboard/${match.role}`);
+    try {
+      const user = await api.login(email.trim(), password);
+      login(user, remember);
+      router.replace(dashboardPathForRole(user.role));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError('Invalid email or password.');
+      } else if (err instanceof ApiError) {
+        setError(err.message);
       } else {
-        setActiveRole('teacher');
-        router.push('/dashboard/teacher');
+        setError('Could not reach the server. Check that the API is running on port 3004.');
       }
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(var(--dashboard-bg))]">
-      {/* Brand panel — eSkooly-style welcome */}
-      <div className="hidden lg:flex lg:w-[42%] xl:w-[45%] flex-col justify-between bg-[hsl(var(--sidebar-bg))] text-white p-10 xl:p-14">
+      <div className="hidden lg:flex lg:w-[42%] xl:w-[45%] flex-col justify-between bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-fg))] p-10 xl:p-14">
         <div>
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-white text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg shadow-md">
+            <div className="h-11 w-11 rounded-xl bg-[hsl(var(--sidebar-fg))] text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg shadow-md">
               PR
             </div>
             <div>
               <p className="font-bold text-lg leading-tight">Prime Teaching System</p>
-              <p className="text-xs text-white/60">Ethiopian Education Management</p>
+              <p className="text-xs text-[hsl(var(--sidebar-muted))]">Ethiopian Education Management</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-4 my-12">
-          <h1 className="text-3xl xl:text-4xl font-bold leading-tight">
-            Continue Managing!
-          </h1>
-          <p className="text-white/75 text-sm leading-relaxed max-w-md">
-            Pick up right where you left off. Sign in to your school dashboard for
-            attendance, academics, lesson plans, and national reporting — built for
-            Ethiopian schools.
+          <h1 className="text-3xl xl:text-4xl font-bold leading-tight">Continue Managing!</h1>
+          <p className="text-[hsl(var(--sidebar-muted))] text-sm leading-relaxed max-w-md">
+            Sign in to your role-specific dashboard for attendance, academics, lesson plans,
+            and national reporting — built for Ethiopian schools.
           </p>
         </div>
 
-        <p className="text-xs text-white/50">
+        <p className="text-xs text-[hsl(var(--sidebar-muted))]">
           © 2026 Ministry of Education, Ethiopia · Prime Teaching System v1.0
         </p>
       </div>
 
-      {/* Login form */}
       <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
@@ -105,40 +105,17 @@ export default function LoginPage() {
             <div className="text-center mb-6">
               <h2 className="text-xl font-bold text-foreground">Welcome Back! 👋</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter your credentials to access your school dashboard.
+                Enter your credentials to access your portal.
               </p>
-            </div>
-
-            {/* Role group tabs — like eSkooly Admin / Employee / Student */}
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 text-center">
-                You&apos;re signing in as
-              </p>
-              <div className="grid grid-cols-3 gap-1 p-1 bg-muted/50 rounded-lg border border-border/60">
-                {(
-                  [
-                    { id: 'admin' as RoleGroup, label: 'Admin' },
-                    { id: 'staff' as RoleGroup, label: 'Employee' },
-                    { id: 'student' as RoleGroup, label: 'Student' },
-                  ] as const
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setRoleGroup(tab.id)}
-                    className={`py-2.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                      roleGroup === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/80'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
+              {registeredSuccess && (
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-sm">
+                  Account created successfully. Sign in with your email and password.
+                </div>
+              )}
+
               {error && (
                 <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
                   {error}
@@ -146,24 +123,35 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">Email Address</label>
+                <label htmlFor="login-email" className="text-xs font-semibold text-foreground">
+                  Email Address
+                </label>
                 <input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@prime.edu.et"
+                  autoComplete="email"
+                  required
                   className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-xs font-semibold text-foreground">Password</label>
-                <input
+                <label htmlFor="login-password" className="text-xs font-semibold text-foreground">
+                  Password
+                </label>
+                <Input
+                  id="login-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full h-11 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                  inputSize="lg"
+                  className="rounded-lg text-sm"
                 />
               </div>
 
@@ -185,37 +173,17 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              <Button
-                type="submit"
-                loading={loading}
-                className="w-full h-11 font-semibold text-sm"
-              >
+              <Button type="submit" loading={loading} className="w-full h-11 font-semibold text-sm">
                 Login
               </Button>
             </form>
-
-            <div className="mt-6 pt-5 border-t border-border/60">
-              <p className="text-xs font-semibold text-muted-foreground mb-3 text-center">
-                Demo accounts ({roleGroup})
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {filteredPresets.map((preset) => (
-                  <button
-                    key={preset.role}
-                    type="button"
-                    onClick={() => handleQuickFill(preset)}
-                    className="text-left px-3 py-2.5 min-h-[44px] rounded-lg border border-border/70 bg-muted/30 hover:border-primary/40 hover:bg-primary/5 text-xs font-medium text-foreground transition-colors cursor-pointer"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-6">
             Don&apos;t have an account?{' '}
-            <span className="text-primary font-semibold cursor-pointer">Contact your school admin</span>
+            <Link href="/register" className="text-primary font-semibold hover:underline">
+              Create an account
+            </Link>
           </p>
         </div>
       </div>

@@ -46,6 +46,33 @@ export interface Student {
   emergencyContact: string;
 }
 
+export type RegistrationApplicationStatus =
+  | 'Draft'
+  | 'Submitted'
+  | 'Under Review'
+  | 'Approved'
+  | 'Rejected'
+  | 'Enrolled';
+
+export interface RegistrationApplication {
+  id: string;
+  applicantName: string;
+  dateOfBirth?: string;
+  gradeApplied: string;
+  sectionRequested: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string;
+  emergencyContact: string;
+  medicalInfo?: string;
+  previousSchool?: string;
+  status: RegistrationApplicationStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewerNotes?: string;
+  enrolledStudentId?: string;
+}
+
 export interface LessonPlan {
   id: string;
   subject: string;
@@ -851,6 +878,10 @@ export interface TrainingMaterial {
   resourceUrl: string;
   category: string;
   trainingType?: 'Pedagogy' | 'MOE Mandatory' | 'STEM' | 'Assessment' | 'Subject Specialty';
+  departmentId?: string;
+  grade?: string;
+  subject?: string;
+  disseminated?: boolean;
   uploadedAt: string;
 }
 
@@ -866,7 +897,7 @@ export interface TeachingNote {
   contentSummary: string;
   /** JSON-serialized AI note payload for full view/print */
   contentBody?: string;
-  status: 'Draft' | 'Pending Dept Head' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Saved';
   deptComments?: string;
   createdAt: string;
   updatedAt?: string;
@@ -995,11 +1026,11 @@ export const mockExams: ExamPaper[] = [
 ];
 
 export const mockTrainingMaterials: TrainingMaterial[] = [
-  { id: 'tm-1', title: 'MOE Modern Secondary Pedagogy Guide v2', resourceUrl: '#', category: 'Pedagogy', trainingType: 'MOE Mandatory', uploadedAt: '2026-05-10' },
-  { id: 'tm-2', title: 'Inclusion & Classroom Management Guide', resourceUrl: '#', category: 'Classroom Management', trainingType: 'Pedagogy', uploadedAt: '2026-05-12' },
-  { id: 'tm-3', title: 'STEM Lab Safety & Practical Assessment Rubric', resourceUrl: '#', category: 'STEM', trainingType: 'STEM', uploadedAt: '2026-05-14' },
-  { id: 'tm-4', title: 'Grade 9–12 Biology Syllabus Alignment Pack', resourceUrl: '#', category: 'Biology', trainingType: 'Subject Specialty', uploadedAt: '2026-05-15' },
-  { id: 'tm-5', title: 'Formative Assessment Design Workshop', resourceUrl: '#', category: 'Assessment', trainingType: 'Assessment', uploadedAt: '2026-05-16' },
+  { id: 'tm-1', title: 'MOE Modern Secondary Pedagogy Guide v2', resourceUrl: '#', category: 'Pedagogy', trainingType: 'MOE Mandatory', uploadedAt: '2026-05-10', disseminated: true },
+  { id: 'tm-2', title: 'Inclusion & Classroom Management Guide', resourceUrl: '#', category: 'Classroom Management', trainingType: 'Pedagogy', uploadedAt: '2026-05-12', disseminated: true },
+  { id: 'tm-3', title: 'STEM Lab Safety & Practical Assessment Rubric', resourceUrl: '#', category: 'STEM', trainingType: 'STEM', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Biology', uploadedAt: '2026-05-14', disseminated: true },
+  { id: 'tm-4', title: 'Grade 9–12 Biology Syllabus Alignment Pack', resourceUrl: '#', category: 'Biology', trainingType: 'Subject Specialty', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Biology', uploadedAt: '2026-05-15', disseminated: false },
+  { id: 'tm-6', title: 'Mathematics Grade 9–12 Problem-Solving Framework', resourceUrl: '#', category: 'Mathematics', trainingType: 'Subject Specialty', departmentId: 'dept-math', grade: 'Grade 9', subject: 'Mathematics', uploadedAt: '2026-05-17', disseminated: false },
 ];
 
 export const mockTeachingNotes: TeachingNote[] = [
@@ -1013,8 +1044,7 @@ export const mockTeachingNotes: TeachingNote[] = [
     topic: 'Cellular Respiration',
     language: 'English',
     contentSummary: 'AI-generated notes covering mitochondria, ATP synthesis, and aerobic pathways.',
-    status: 'Approved',
-    deptComments: 'Aligned with MOE syllabus — approved for classroom use.',
+    status: 'Saved',
     createdAt: '2026-05-12',
   },
   {
@@ -1027,8 +1057,7 @@ export const mockTeachingNotes: TeachingNote[] = [
     topic: 'Membrane transport',
     language: 'English',
     contentSummary: 'Student handout for passive and active transport with diagram prompts.',
-    status: 'Approved',
-    deptComments: 'Ready for classroom distribution.',
+    status: 'Saved',
     createdAt: '2026-05-16',
     updatedAt: '2026-05-16',
   },
@@ -1041,7 +1070,7 @@ export const mockTeachingNotes: TeachingNote[] = [
     subject: 'Biology',
     topic: 'Cell organelles',
     language: 'English',
-    contentSummary: 'Draft reference sheet — not yet submitted for approval.',
+    contentSummary: 'Draft reference sheet for cell organelles.',
     status: 'Draft',
     createdAt: '2026-05-22',
   },
@@ -1225,6 +1254,68 @@ export const mockParentMessages: ParentMessage[] = [
     parentName: 'Kebede Abebe',
     message: 'Dear parent — Yonas attendance has dropped below 86%. Please confirm if a parent-teacher meeting works this week.',
     sentAt: '2026-05-20',
+  },
+];
+
+export const mockRegistrationApplications: RegistrationApplication[] = [
+  {
+    id: 'reg-app-1',
+    applicantName: 'Hanna Tadesse',
+    dateOfBirth: '2010-03-14',
+    gradeApplied: 'Grade 9',
+    sectionRequested: 'A',
+    parentName: 'Tadesse Lemma',
+    parentPhone: '+251-911-234567',
+    parentEmail: 'tadesse.lemma@gmail.com',
+    emergencyContact: 'Aunt: +251-912-345678',
+    previousSchool: 'Bole Primary School',
+    status: 'Submitted',
+    submittedAt: '2026-05-28',
+  },
+  {
+    id: 'reg-app-2',
+    applicantName: 'Daniel Mekonnen',
+    dateOfBirth: '2009-08-22',
+    gradeApplied: 'Grade 10',
+    sectionRequested: 'B',
+    parentName: 'Mekonnen Assefa',
+    parentPhone: '+251-922-456789',
+    parentEmail: 'mekonnen.a@yahoo.com',
+    emergencyContact: 'Uncle: +251-933-567890',
+    previousSchool: 'Kirkos Secondary School',
+    status: 'Under Review',
+    submittedAt: '2026-05-27',
+  },
+  {
+    id: 'reg-app-3',
+    applicantName: 'Sara Girma',
+    dateOfBirth: '2011-01-05',
+    gradeApplied: 'Grade 9',
+    sectionRequested: 'C',
+    parentName: 'Girma Haile',
+    parentPhone: '+251-944-678901',
+    parentEmail: 'girma.haile@outlook.com',
+    emergencyContact: 'Grandmother: +251-955-789012',
+    status: 'Approved',
+    submittedAt: '2026-05-25',
+    reviewedAt: '2026-05-26',
+    reviewerNotes: 'Documents verified. Ready for enrollment.',
+  },
+  {
+    id: 'reg-app-4',
+    applicantName: 'Bereket Solomon',
+    dateOfBirth: '2008-11-30',
+    gradeApplied: 'Grade 11',
+    sectionRequested: 'A',
+    parentName: 'Solomon Tesfaye',
+    parentPhone: '+251-966-890123',
+    parentEmail: '',
+    emergencyContact: 'Father: +251-966-890123',
+    previousSchool: 'Adama Secondary School',
+    status: 'Rejected',
+    submittedAt: '2026-05-20',
+    reviewedAt: '2026-05-21',
+    reviewerNotes: 'Incomplete transfer documents from previous school.',
   },
 ];
 

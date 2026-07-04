@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { uploadFile } from "@/lib/api";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { KpiWidget, KpiGrid } from "@/components/dashboard/KpiWidget";
 import {
@@ -18,16 +19,16 @@ import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { MetricProgressRow } from "@/components/ui/metric-progress-row";
-import { generateLessonPlanAI, AILessonPlanResult } from "@/lib/ai";
-import { subjectPerformance } from "@/lib/mockData";
+import { computeSubjectPerformance } from "@/lib/analytics";
 import {
-  DEPT_SCHOOL_ID,
-  filterStemBySubject,
-  isStemSubject,
-  isStemTeacher,
-  stemPerformanceBarClass,
-  stemStatusLabel,
-  type StemSubjectStatus,
+  classSectionKey,
+  filterBySubjectScope,
+  isSubjectTeacher,
+  resolveDeptHeadScope,
+  subjectMatches,
+  subjectPerformanceBarClass,
+  subjectStatusLabel,
+  type SubjectPerformanceStatus,
 } from "@/lib/departmentHead";
 
 export default function DepartmentHeadPortalPage() {
@@ -41,30 +42,31 @@ export default function DepartmentHeadPortalPage() {
     departments,
     trainings,
     trainingMaterials,
+    studentGradeEntries,
     approveAssessment,
     rejectAssessment,
-    createLessonPlan,
     addTeacher,
     checkIns,
+    addTrainingMaterial,
+    disseminateTrainingMaterial,
     addNotification,
+    currentUser,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState("dashboard");
-
-  // Lesson Plan Generator State
-  const [selectedGrade, setSelectedGrade] = useState("Grade 9");
-  const [selectedSubject, setSelectedSubject] = useState("Biology");
-  const [selectedTopic, setSelectedTopic] = useState("");
-  const [sessionCount, setSessionCount] = useState(4);
-  const [generatingPlan, setGeneratingPlan] = useState(false);
-  const [aiPlanResult, setAiPlanResult] = useState<AILessonPlanResult | null>(
-    null,
+  const scope = useMemo(
+    () => resolveDeptHeadScope(currentUser),
+    [currentUser],
   );
 
-  // Lesson Plan Form Editor State
-  const [editedTitle, setEditedTitle] = useState("");
-  const [editedObjectives, setEditedObjectives] = useState<string[]>([]);
-  const [editedHomework, setEditedHomework] = useState("");
+  const department = useMemo(
+    () =>
+      scope
+        ? departments.find((d) => d.id === scope.departmentId)
+        : undefined,
+    [departments, scope],
+  );
+
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   // Assessment Modal State
   const [selectedAsmId, setSelectedAsmId] = useState<string | null>(null);
@@ -76,56 +78,90 @@ export default function DepartmentHeadPortalPage() {
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherEmail, setNewTeacherEmail] = useState("");
   const [newTeacherPhone, setNewTeacherPhone] = useState("");
-  const [newTeacherSubject, setNewTeacherSubject] = useState("Biology");
   const [newTeacherGrade, setNewTeacherGrade] = useState("Grade 9");
   const [newTeacherCert, setNewTeacherCert] = useState(
     "Professional License A",
   );
 
+  // Study resources upload state
+  const [isResourceUploadOpen, setIsResourceUploadOpen] = useState(false);
+  const [resourceTitle, setResourceTitle] = useState("");
+  const [resourceUrl, setResourceUrl] = useState("");
+  const [resourceFile, setResourceFile] = useState<File | null>(null);
+  const [resourceUploading, setResourceUploading] = useState(false);
+  const [resourceCategory, setResourceCategory] = useState("Pedagogy");
+  const [resourceGrade, setResourceGrade] = useState("Grade 9");
+
   const departmentTeachers = useMemo(
-    () => teachers.filter(isStemTeacher),
-    [teachers],
+    () => (scope ? teachers.filter((t) => isSubjectTeacher(t, scope)) : []),
+    [teachers, scope],
   );
 
   const departmentAssessments = useMemo(
-    () => filterStemBySubject(assessments),
-    [assessments],
+    () => (scope ? filterBySubjectScope(assessments, scope) : []),
+    [assessments, scope],
   );
 
   const departmentLessonPlans = useMemo(
-    () => filterStemBySubject(lessonPlans),
-    [lessonPlans],
+    () => (scope ? filterBySubjectScope(lessonPlans, scope) : []),
+    [lessonPlans, scope],
   );
 
-  const schoolStudents = useMemo(
-    () => students.filter((s) => s.schoolId === DEPT_SCHOOL_ID),
-    [students],
+  const departmentClasses = useMemo(() => {
+    const teacherNames = new Set(departmentTeachers.map((t) => t.name));
+    return classes.filter((cls) => teacherNames.has(cls.homeroomTeacher));
+  }, [classes, departmentTeachers]);
+
+  const departmentStudents = useMemo(() => {
+    if (!scope) return [];
+    const sectionKeys = new Set(
+      departmentClasses.map((cls) => classSectionKey(cls.grade, cls.section)),
+    );
+    return students.filter(
+      (s) =>
+        s.schoolId === scope.schoolId &&
+        sectionKeys.has(classSectionKey(s.grade, s.section)),
+    );
+  }, [students, departmentClasses, scope]);
+
+  const departmentAttendance = useMemo(() => {
+    const sectionKeys = new Set(
+      departmentClasses.map((cls) => classSectionKey(cls.grade, cls.section)),
+    );
+    return attendance.filter((row) =>
+      sectionKeys.has(classSectionKey(row.grade, row.section)),
+    );
+  }, [attendance, departmentClasses]);
+
+  const subjectPerformance = useMemo(
+    () => computeSubjectPerformance(studentGradeEntries),
+    [studentGradeEntries],
   );
 
-  const stemMetrics = useMemo(
-    () => subjectPerformance.filter((s) => isStemSubject(s.subject)),
-    [],
+  const subjectMetrics = useMemo(
+    () =>
+      scope
+        ? subjectPerformance.filter((s) => subjectMatches(s.subject, scope.subject))
+        : [],
+    [subjectPerformance, scope],
   );
 
   const pendingAssessments = departmentAssessments.filter(
     (asm) => asm.status === "Pending Dept Head",
-  );
-  const pendingLessonPlans = departmentLessonPlans.filter(
-    (lp) => lp.status === "Pending Dept Head",
   );
   const selectedAsm = departmentAssessments.find(
     (asm) => asm.id === selectedAsmId,
   );
 
   const avgDeptGrade =
-    stemMetrics.length > 0
+    subjectMetrics.length > 0
       ? (
-          stemMetrics.reduce((sum, s) => sum + s.average, 0) /
-          stemMetrics.length
+          subjectMetrics.reduce((sum, s) => sum + s.average, 0) /
+          subjectMetrics.length
         ).toFixed(1)
       : "—";
 
-  const subjectAlerts = stemMetrics.filter(
+  const subjectAlerts = subjectMetrics.filter(
     (s) => s.status === "Critical" || s.status === "Warning",
   ).length;
 
@@ -133,64 +169,72 @@ export default function DepartmentHeadPortalPage() {
     (t) => t.status === "Active",
   ).length;
 
-  const stemDept = departments.find((d) => d.id === "dept-stem");
-
-  const stemTeacherNames = useMemo(
+  const deptTeacherNames = useMemo(
     () => new Set(departmentTeachers.map((t) => t.name)),
     [departmentTeachers],
   );
 
   const departmentCheckIns = useMemo(
-    () =>
-      checkIns.filter(
-        (c) =>
-          stemTeacherNames.has(c.respondentName) ||
-          c.type === "Student Satisfaction" ||
-          c.type === "Teacher Wellness",
-      ),
-    [checkIns, stemTeacherNames],
+    () => checkIns.filter((c) => deptTeacherNames.has(c.respondentName)),
+    [checkIns, deptTeacherNames],
   );
 
-  const handleGeneratePlan = async () => {
-    setGeneratingPlan(true);
-    setAiPlanResult(null);
+  const departmentStudyResources = useMemo(
+    () =>
+      scope
+        ? trainingMaterials.filter(
+            (m) =>
+              m.departmentId === scope.departmentId ||
+              (!m.departmentId &&
+                m.subject &&
+                subjectMatches(m.subject, scope.subject)),
+          )
+        : [],
+    [trainingMaterials, scope],
+  );
+
+  const departmentTrainings = useMemo(() => {
+    if (!scope) return [];
+    const subjectKey = scope.subject.toLowerCase();
+    return trainings.filter((tr) => tr.title.toLowerCase().includes(subjectKey));
+  }, [trainings, scope]);
+
+  const handleUploadResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resourceTitle || (!resourceFile && !resourceUrl.trim())) return;
+
+    setResourceUploading(true);
     try {
-      const result = await generateLessonPlanAI(
-        selectedGrade,
-        selectedSubject,
-        selectedTopic,
-        sessionCount,
-      );
-      setAiPlanResult(result);
-      setEditedTitle(result.title);
-      setEditedObjectives([...result.objectives]);
-      setEditedHomework(result.homework);
-      addNotification(
-        "AI Plan Drafted",
-        `Lesson plan draft for ${selectedSubject} generated successfully.`,
-        "success",
-      );
+      let finalUrl = resourceUrl.trim();
+      if (resourceFile) {
+        finalUrl = await uploadFile(resourceFile);
+      }
+      addTrainingMaterial({
+        title: resourceTitle,
+        resourceUrl: finalUrl,
+        category: resourceCategory,
+        departmentId: scope?.departmentId ?? "dept-math",
+        grade: resourceGrade,
+        subject: scope?.subject ?? "Mathematics",
+        trainingType: resourceCategory === "STEM" ? "STEM" : "Pedagogy",
+      });
+      setResourceTitle("");
+      setResourceUrl("");
+      setResourceFile(null);
+      setIsResourceUploadOpen(false);
     } catch (err) {
-      console.error(err);
+      addNotification(
+        "Upload failed",
+        err instanceof Error ? err.message : "Could not upload file. Try again.",
+        "alert",
+      );
     } finally {
-      setGeneratingPlan(false);
+      setResourceUploading(false);
     }
   };
 
-  const handlePublishPlan = () => {
-    if (!aiPlanResult) return;
-    createLessonPlan({
-      title: editedTitle,
-      subject: selectedSubject,
-      grade: selectedGrade,
-      sessions: sessionCount,
-      objectives: editedObjectives,
-      activities: aiPlanResult.activities,
-      assessments: aiPlanResult.assessments,
-      homework: editedHomework,
-    });
-    setAiPlanResult(null);
-    setSelectedTopic("");
+  const handleDisseminateResource = (id: string) => {
+    disseminateTrainingMaterial(id);
   };
 
   const handleApproveAsm = () => {
@@ -215,26 +259,17 @@ export default function DepartmentHeadPortalPage() {
 
   const handleOnboardTeacher = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeacherName || !newTeacherEmail || !newTeacherPhone) return;
-
-    const deptId =
-      newTeacherSubject === "Mathematics"
-        ? "dept-math"
-        : newTeacherSubject === "Chemistry"
-          ? "dept-chem"
-          : newTeacherSubject === "Physics"
-            ? "dept-phy"
-            : "dept-bio";
+    if (!newTeacherName || !newTeacherEmail || !newTeacherPhone || !scope) return;
 
     addTeacher({
       name: newTeacherName,
       email: newTeacherEmail,
       phone: newTeacherPhone,
-      subjects: [newTeacherSubject],
+      subjects: [scope.subject],
       grades: [newTeacherGrade],
       certification: newTeacherCert || "Professional License A",
-      schoolId: "sch-1",
-      departmentId: deptId,
+      schoolId: scope.schoolId,
+      departmentId: scope.departmentId,
     });
 
     // Reset fields
@@ -247,7 +282,7 @@ export default function DepartmentHeadPortalPage() {
   const tabTitles: Record<string, { title: string; subtitle?: string }> = {
     dashboard: {
       title: "Subject Performance",
-      subtitle: "STEM department metrics and alerts.",
+      subtitle: `${scope?.subject ?? "Subject"} department metrics and alerts.`,
     },
     reports: {
       title: "Class Reports",
@@ -256,10 +291,6 @@ export default function DepartmentHeadPortalPage() {
     analysis: {
       title: "Department Analysis",
       subtitle: "Deep-dive analytics.",
-    },
-    "lesson-plans": {
-      title: "Lesson Planning",
-      subtitle: "AI-assisted lesson plan drafting.",
     },
     timetable: {
       title: "Academic Calendar",
@@ -311,10 +342,10 @@ export default function DepartmentHeadPortalPage() {
       setActiveTab={setActiveTab}
       title={meta.title}
       subtitle={meta.subtitle}
-      eyebrow="STEM Department · Bole Secondary"
+      eyebrow={`${scope?.subject ?? "Subject"} Department · Bole Secondary`}
       actions={
         <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-          Ato Demis Khabte
+          {currentUser?.displayName ?? department?.headName ?? "Department Head"}
         </span>
       }
     >
@@ -329,8 +360,8 @@ export default function DepartmentHeadPortalPage() {
             />
             <KpiWidget
               label="Pending Reviews"
-              value={pendingAssessments.length + pendingLessonPlans.length}
-              hint={`${pendingAssessments.length} tests · ${pendingLessonPlans.length} plans`}
+              value={pendingAssessments.length}
+              hint={`${pendingAssessments.length} tests awaiting review`}
               tone="emphasis"
               icon={<span>📝</span>}
             />
@@ -352,14 +383,19 @@ export default function DepartmentHeadPortalPage() {
 
           {/* Subject Breakdown and Teacher Index */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* STEM Performance Index */}
+            {/* Subject Performance Index */}
             <ContentCard
-              title="STEM Subject Performance Indicators"
+              title={`${scope?.subject ?? "Subject"} Performance Indicators`}
               description="Average grades compared with student academic risk index thresholds (target 70%)."
             >
               <div className="space-y-5">
-                {stemMetrics.map((sub) => {
-                  const status = sub.status as StemSubjectStatus;
+                {subjectMetrics.length === 0 ? (
+                  <p className="text-center py-6 text-sm text-muted-foreground">
+                    No performance data for {scope?.subject ?? "this subject"} yet.
+                  </p>
+                ) : (
+                  subjectMetrics.map((sub) => {
+                  const status = sub.status as SubjectPerformanceStatus;
                   return (
                     <MetricProgressRow
                       key={sub.subject}
@@ -371,19 +407,20 @@ export default function DepartmentHeadPortalPage() {
                           variant={status === "Stable" ? "success" : "warning"}
                           size="sm"
                         >
-                          {stemStatusLabel(status)}
+                          {subjectStatusLabel(status)}
                         </Badge>
                       }
                       subtitle={`Risk index: ${sub.riskIndex}%`}
                       value={sub.average}
-                      barClassName={stemPerformanceBarClass(
+                      barClassName={subjectPerformanceBarClass(
                         sub.average,
                         status,
                       )}
                       targetPercent={70}
                     />
                   );
-                })}
+                })
+                )}
               </div>
             </ContentCard>
 
@@ -437,233 +474,11 @@ export default function DepartmentHeadPortalPage() {
         </div>
       )}
 
-      {/* ==================================================== */}
-      {/* TAB 2: AI LESSON PLAN GENERATOR                      */}
-      {/* ==================================================== */}
-      {activeTab === "lesson-plans" && (
-        <div className="space-y-6 animate-fade-in text-left">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                AI Lesson Plan Draft Office
-              </CardTitle>
-              <CardDescription>
-                Generate customized, curriculum-aligned lesson frameworks using
-                parameterized prompt structures.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-2">
-              {/* Inputs Desk */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <Select
-                  label="Target Grade Level"
-                  options={[
-                    { value: "Grade 7", label: "Grade 7" },
-                    { value: "Grade 8", label: "Grade 8" },
-                    { value: "Grade 9", label: "Grade 9" },
-                    { value: "Grade 10", label: "Grade 10" },
-                    { value: "Grade 11", label: "Grade 11" },
-                    { value: "Grade 12", label: "Grade 12" },
-                  ]}
-                  value={selectedGrade}
-                  onChange={(e) => setSelectedGrade(e.target.value)}
-                />
-
-                <Select
-                  label="Subject Syllabus"
-                  options={[
-                    { value: "Biology", label: "Biology" },
-                    { value: "Mathematics", label: "Mathematics" },
-                    { value: "Chemistry", label: "Chemistry" },
-                    { value: "Physics", label: "Physics" },
-                  ]}
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                />
-
-                <div className="flex flex-col space-y-1">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Lesson Topic
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedTopic}
-                    onChange={(e) => setSelectedTopic(e.target.value)}
-                    placeholder="e.g. Fractions / Cell Mitochondria"
-                    className="h-10 px-3 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                  />
-                </div>
-
-                <Select
-                  label="Session Length"
-                  options={[
-                    { value: "2", label: "2 Sessions" },
-                    { value: "3", label: "3 Sessions" },
-                    { value: "4", label: "4 Sessions" },
-                    { value: "5", label: "5 Sessions" },
-                    { value: "6", label: "6 Sessions" },
-                  ]}
-                  value={String(sessionCount)}
-                  onChange={(e) => setSessionCount(Number(e.target.value))}
-                />
-              </div>
-
-              <Button
-                variant="organic"
-                onClick={handleGeneratePlan}
-                loading={generatingPlan}
-                className="text-xs h-10 border-none cursor-pointer"
-              >
-                ✨ Draft Syllabus with AI
-              </Button>
-
-              {/* AI Generated Interactive Editor */}
-              {aiPlanResult && (
-                <div className="border border-border/60 bg-muted/20 p-5 rounded-xl space-y-5 animate-fade-in">
-                  <div className="flex justify-between items-center border-b border-border/40 pb-3">
-                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                      <span>✨</span> AI Drafted Blueprint (Editable)
-                    </h3>
-                    <Button
-                      onClick={handlePublishPlan}
-                      className="text-xxs h-8 border-none font-semibold cursor-pointer"
-                    >
-                      Release & Sync to School
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4 text-xxs font-semibold">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Plan Header Title
-                      </label>
-                      <input
-                        type="text"
-                        value={editedTitle}
-                        onChange={(e) => setEditedTitle(e.target.value)}
-                        className="w-full h-10 px-3 bg-card border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Learning Objectives
-                      </label>
-                      {editedObjectives.map((obj, idx) => (
-                        <input
-                          key={idx}
-                          type="text"
-                          value={obj}
-                          onChange={(e) => {
-                            const next = [...editedObjectives];
-                            next[idx] = e.target.value;
-                            setEditedObjectives(next);
-                          }}
-                          className="w-full h-10 px-3 bg-card border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                      ))}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Simulated Activity Blocks
-                      </label>
-                      <div className="space-y-2 max-h-48 overflow-y-auto border border-border/40 p-3 rounded-lg bg-card/60">
-                        {aiPlanResult.activities.map((act) => (
-                          <div
-                            key={act.session}
-                            className="flex justify-between border-b border-border/30 pb-2 last:border-0 last:pb-0 text-left"
-                          >
-                            <span>
-                              Session {act.session}: {act.activity}
-                            </span>
-                            <span className="text-muted-foreground shrink-0 font-bold font-mono">
-                              {act.duration}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Homework Instructions
-                      </label>
-                      <textarea
-                        value={editedHomework}
-                        onChange={(e) => setEditedHomework(e.target.value)}
-                        className="w-full h-20 p-3 bg-card border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <TablePanel
-            title="STEM Lesson Plan Submissions"
-            description="Plans awaiting department endorsement or already in school review"
-          >
-            <table className="eskooly-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Subject / Grade</th>
-                  <th>Teacher</th>
-                  <th>Sessions</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departmentLessonPlans.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="p-6 text-center text-muted-foreground"
-                    >
-                      No STEM lesson plans on file.
-                    </td>
-                  </tr>
-                ) : (
-                  departmentLessonPlans.map((lp) => (
-                    <tr key={lp.id} className="hover:bg-muted/20">
-                      <td className="p-3 font-semibold text-foreground">
-                        {lp.title}
-                      </td>
-                      <td className="p-3">
-                        {lp.subject} · {lp.grade}
-                      </td>
-                      <td className="p-3">{lp.teacherName}</td>
-                      <td className="p-3 font-mono">{lp.sessions}</td>
-                      <td className="p-3">
-                        <Badge
-                          variant={
-                            lp.status === "Approved"
-                              ? "success"
-                              : lp.status === "Rejected"
-                                ? "danger"
-                                : "warning"
-                          }
-                          size="sm"
-                        >
-                          {lp.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </TablePanel>
-        </div>
-      )}
-
       {activeTab === "reports" && (
         <div className="space-y-6 animate-fade-in">
           <TablePanel
             title="Class Performance Reports"
-            description="Student GPA and attendance for Bole Secondary STEM cohorts"
+            description={`Student GPA and attendance for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -677,7 +492,7 @@ export default function DepartmentHeadPortalPage() {
                 </tr>
               </thead>
               <tbody>
-                {schoolStudents.map((std) => (
+                {departmentStudents.map((std) => (
                   <tr key={std.id} className="hover:bg-muted/20">
                     <td className="p-3 font-semibold text-foreground">
                       {std.name}
@@ -713,7 +528,7 @@ export default function DepartmentHeadPortalPage() {
       {activeTab === "analysis" && (
         <div className="space-y-6 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {stemMetrics.map((sub) => (
+            {subjectMetrics.map((sub) => (
               <Card key={sub.subject}>
                 <CardContent className="pt-5 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase">
@@ -747,7 +562,7 @@ export default function DepartmentHeadPortalPage() {
                 Department snapshot
               </CardTitle>
               <CardDescription>
-                {stemDept?.name ?? "STEM Department"} · Bole Community School
+                {department?.name ?? `${scope?.subject ?? "Subject"} Department`} · Bole Community School
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
@@ -761,7 +576,7 @@ export default function DepartmentHeadPortalPage() {
               </div>
               <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
                 <p className="text-2xl font-bold text-primary">
-                  {classes.length}
+                  {departmentClasses.length}
                 </p>
                 <p className="text-xxs text-muted-foreground mt-1">
                   Class sections
@@ -769,7 +584,7 @@ export default function DepartmentHeadPortalPage() {
               </div>
               <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
                 <p className="text-2xl font-bold text-primary">
-                  {schoolStudents.length}
+                  {departmentStudents.length}
                 </p>
                 <p className="text-xxs text-muted-foreground mt-1">Students</p>
               </div>
@@ -843,8 +658,8 @@ export default function DepartmentHeadPortalPage() {
       {activeTab === "classes" && (
         <div className="space-y-6 animate-fade-in">
           <TablePanel
-            title="STEM class sections"
-            description="Homeroom assignments at Bole Community School"
+            title={`${scope?.subject ?? "Subject"} class sections`}
+            description="Homeroom assignments linked to your department instructors"
           >
             <table className="eskooly-table">
               <thead>
@@ -857,7 +672,7 @@ export default function DepartmentHeadPortalPage() {
                 </tr>
               </thead>
               <tbody>
-                {classes.map((cls) => (
+                {departmentClasses.map((cls) => (
                   <tr key={cls.id} className="hover:bg-muted/20">
                     <td className="p-3 font-semibold text-foreground">
                       {cls.name}
@@ -878,7 +693,7 @@ export default function DepartmentHeadPortalPage() {
         <div className="space-y-6 animate-fade-in">
           <TablePanel
             title="Department attendance log"
-            description="Recent roll-call entries for STEM grades"
+            description={`Recent roll-call entries for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -891,7 +706,7 @@ export default function DepartmentHeadPortalPage() {
                 </tr>
               </thead>
               <tbody>
-                {attendance.map((row) => (
+                {departmentAttendance.map((row) => (
                   <tr key={row.id} className="hover:bg-muted/20">
                     <td className="p-3 font-semibold text-foreground">
                       {row.studentName}
@@ -933,11 +748,16 @@ export default function DepartmentHeadPortalPage() {
                 MOE professional development catalog
               </CardTitle>
               <CardDescription>
-                Programs available to STEM instructors at your school
+                Programs relevant to {scope?.subject ?? "your"} instructors at your school
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-2">
-              {trainings.map((tr) => (
+              {departmentTrainings.length === 0 ? (
+                <p className="text-center py-8 text-sm text-muted-foreground">
+                  No professional development programs tagged for {scope?.subject ?? "this subject"} yet.
+                </p>
+              ) : (
+                departmentTrainings.map((tr) => (
                 <div
                   key={tr.id}
                   className="p-4 bg-muted/40 border border-border/40 rounded-xl flex flex-col sm:flex-row sm:justify-between gap-3"
@@ -962,7 +782,8 @@ export default function DepartmentHeadPortalPage() {
                     </p>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </CardContent>
           </Card>
         </div>
@@ -970,31 +791,196 @@ export default function DepartmentHeadPortalPage() {
 
       {activeTab === "resources" && (
         <div className="space-y-6 animate-fade-in">
+          <div className="flex justify-end">
+            <Button
+              variant="organic"
+              size="sm"
+              className="text-xs h-9 gap-1.5 border-none"
+              onClick={() => setIsResourceUploadOpen(true)}
+            >
+              + Upload resource
+            </Button>
+          </div>
+
           <TablePanel
             title="Study & pedagogy resources"
-            description="Shared materials for STEM staff"
+            description={`Upload materials for ${scope?.subject ?? "subject"} staff and disseminate to all teacher resource libraries`}
           >
             <table className="eskooly-table">
               <thead>
                 <tr>
                   <th>Resource</th>
                   <th>Category</th>
+                  <th>Grade / Subject</th>
                   <th>Uploaded</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {trainingMaterials.map((mat) => (
-                  <tr key={mat.id} className="hover:bg-muted/20">
-                    <td className="p-3 font-semibold text-foreground">
-                      {mat.title}
+                {departmentStudyResources.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+                      No study resources uploaded yet.
                     </td>
-                    <td className="p-3">{mat.category}</td>
-                    <td className="p-3">{mat.uploadedAt}</td>
                   </tr>
-                ))}
+                ) : (
+                  departmentStudyResources.map((mat) => (
+                    <tr key={mat.id} className="hover:bg-muted/20">
+                      <td className="p-3 font-semibold text-foreground">
+                        <a
+                          href={mat.resourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-primary hover:underline"
+                        >
+                          {mat.title}
+                        </a>
+                      </td>
+                      <td className="p-3">{mat.category}</td>
+                      <td className="p-3">
+                        {mat.grade && mat.subject
+                          ? `${mat.grade} · ${mat.subject}`
+                          : mat.grade || mat.subject || "—"}
+                      </td>
+                      <td className="p-3">{mat.uploadedAt}</td>
+                      <td className="p-3">
+                        <Badge
+                          variant={mat.disseminated ? "success" : "neutral"}
+                          size="sm"
+                        >
+                          {mat.disseminated ? "Disseminated" : "Draft"}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        {mat.disseminated ? (
+                          <span className="text-xs text-muted-foreground">
+                            Visible to teachers
+                          </span>
+                        ) : (
+                          <Button
+                            variant="organic"
+                            size="sm"
+                            className="text-xs h-8 border-none"
+                            onClick={() => handleDisseminateResource(mat.id)}
+                          >
+                            Disseminate
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </TablePanel>
+
+          <Dialog
+            isOpen={isResourceUploadOpen}
+            onClose={() => setIsResourceUploadOpen(false)}
+            title="Upload study resource"
+            size="md"
+          >
+            <form onSubmit={handleUploadResource} className="space-y-4 pt-2">
+              <input
+                className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-sm text-foreground focus:outline-none"
+                required
+                placeholder="Resource title"
+                value={resourceTitle}
+                onChange={(e) => setResourceTitle(e.target.value)}
+              />
+              <Select
+                label="Category"
+                options={[
+                  { value: "Pedagogy", label: "Pedagogy" },
+                  { value: "STEM", label: "STEM" },
+                  { value: "Assessment", label: "Assessment" },
+                  { value: "Classroom Management", label: "Classroom Management" },
+                  { value: "Biology", label: "Biology" },
+                  { value: "Chemistry", label: "Chemistry" },
+                  { value: "Physics", label: "Physics" },
+                  { value: "Mathematics", label: "Mathematics" },
+                ]}
+                value={resourceCategory}
+                onChange={(e) => setResourceCategory(e.target.value)}
+              />
+              <Select
+                label="Grade"
+                options={[
+                  { value: "Grade 9", label: "Grade 9" },
+                  { value: "Grade 10", label: "Grade 10" },
+                  { value: "Grade 11", label: "Grade 11" },
+                  { value: "Grade 12", label: "Grade 12" },
+                ]}
+                value={resourceGrade}
+                onChange={(e) => setResourceGrade(e.target.value)}
+              />
+              <input
+                className="w-full h-10 px-3 bg-muted/60 border border-border rounded-md text-sm text-foreground focus:outline-none"
+                readOnly
+                value={scope?.subject ?? "Mathematics"}
+              />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  File from device
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.txt,.csv,.zip"
+                  className="w-full text-sm text-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setResourceFile(file);
+                    if (file && !resourceTitle) {
+                      setResourceTitle(file.name.replace(/\.[^.]+$/, ""));
+                    }
+                  }}
+                />
+                {resourceFile && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {resourceFile.name} ({(resourceFile.size / 1024).toFixed(0)} KB)
+                  </p>
+                )}
+              </div>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border/60" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">or paste a link</span>
+                </div>
+              </div>
+              <input
+                className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-sm text-foreground focus:outline-none"
+                placeholder="External file URL (optional if uploading from device)"
+                value={resourceUrl}
+                onChange={(e) => setResourceUrl(e.target.value)}
+              />
+              <DialogFooter className="flex-wrap gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={resourceUploading}
+                  onClick={() => {
+                    setIsResourceUploadOpen(false);
+                    setResourceFile(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="organic"
+                  size="sm"
+                  className="border-none"
+                  disabled={resourceUploading || (!resourceFile && !resourceUrl.trim())}
+                >
+                  {resourceUploading ? "Uploading…" : "Save to library"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Dialog>
         </div>
       )}
 
@@ -1006,7 +992,7 @@ export default function DepartmentHeadPortalPage() {
                 Wellness & satisfaction check-ins
               </CardTitle>
               <CardDescription>
-                Teacher wellness and student feedback relevant to STEM
+                Teacher wellness and student feedback from {scope?.subject ?? "subject"} instructors
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-2">
@@ -1057,14 +1043,14 @@ export default function DepartmentHeadPortalPage() {
                 Department portal settings
               </CardTitle>
               <CardDescription>
-                STEM department preferences at Bole Community School
+                {scope?.subject ?? "Subject"} department preferences at Bole Community School
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="flex justify-between py-2 border-b border-border/40">
                 <span className="text-muted-foreground">Department head</span>
                 <span className="font-semibold">
-                  {stemDept?.headName ?? "Ato Demis Khabte"}
+                  {currentUser?.displayName ?? department?.headName ?? "—"}
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b border-border/40">
@@ -1072,10 +1058,8 @@ export default function DepartmentHeadPortalPage() {
                 <span className="font-semibold">Bole Community School</span>
               </div>
               <div className="flex justify-between py-2 border-b border-border/40">
-                <span className="text-muted-foreground">Subjects overseen</span>
-                <span className="font-semibold">
-                  Math, Biology, Chemistry, Physics
-                </span>
+                <span className="text-muted-foreground">Subject overseen</span>
+                <span className="font-semibold">{scope?.subject ?? "—"}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground">
@@ -1104,46 +1088,31 @@ export default function DepartmentHeadPortalPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2">
-                  <span className="text-lg">🏫</span>
-                  <h4 className="text-xs font-bold text-foreground">
-                    Grade 9 divisions
-                  </h4>
-                  <p className="text-xxs text-muted-foreground">
-                    Allocated: 2 Teachers (Biology, Math)
-                  </p>
-                  <p className="text-xxs text-primary font-bold">
-                    Capacity: 45 Pupils Max
-                  </p>
+              {departmentClasses.length === 0 ? (
+                <p className="text-center py-8 text-sm text-muted-foreground">
+                  No class sections assigned to {scope?.subject ?? "subject"} instructors yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {departmentClasses.map((cls) => (
+                    <div
+                      key={cls.id}
+                      className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2"
+                    >
+                      <span className="text-lg">🏫</span>
+                      <h4 className="text-xs font-bold text-foreground">
+                        {cls.grade} · Section {cls.section}
+                      </h4>
+                      <p className="text-xxs text-muted-foreground">
+                        Homeroom: {cls.homeroomTeacher}
+                      </p>
+                      <p className="text-xxs text-primary font-bold">
+                        {scope?.subject ?? "Subject"} block · {cls.studentsCount} pupils
+                      </p>
+                    </div>
+                  ))}
                 </div>
-
-                <div className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2">
-                  <span className="text-lg">🏫</span>
-                  <h4 className="text-xs font-bold text-foreground">
-                    Grade 10 divisions
-                  </h4>
-                  <p className="text-xxs text-muted-foreground">
-                    Allocated: 2 Teachers (Math, Biology)
-                  </p>
-                  <p className="text-xxs text-primary font-bold">
-                    Capacity: 45 Pupils Max
-                  </p>
-                </div>
-
-                <div className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2">
-                  <span className="text-lg">🏫</span>
-                  <h4 className="text-xs font-bold text-foreground">
-                    Grade 11 divisions
-                  </h4>
-                  <p className="text-xxs text-muted-foreground">
-                    Allocated: 2 Teachers (Chemistry, Math)
-                  </p>
-                  <p className="text-xxs text-primary font-bold">
-                    Capacity: 40 Pupils Max
-                  </p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1156,7 +1125,7 @@ export default function DepartmentHeadPortalPage() {
         <div className="space-y-6 animate-fade-in text-left">
           <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-border/60">
             <span className="text-xs font-semibold text-foreground">
-              STEM Department Instructors: {departmentTeachers.length}
+              {scope?.subject ?? "Subject"} Instructors: {departmentTeachers.length}
             </span>
             <Button
               onClick={() => setIsOnboardOpen(true)}
@@ -1167,7 +1136,7 @@ export default function DepartmentHeadPortalPage() {
           </div>
 
           <TablePanel
-            title="STEM Department Instructors"
+            title={`${scope?.subject ?? "Subject"} Instructors`}
             description="Training sync, certification, and roster status"
           >
             <table className="eskooly-table">
@@ -1238,8 +1207,8 @@ export default function DepartmentHeadPortalPage() {
           <Dialog
             isOpen={isOnboardOpen}
             onClose={() => setIsOnboardOpen(false)}
-            title="STEM Instructor Onboarding"
-            description="Register a new educator into the department system registry."
+            title={`${scope?.subject ?? "Subject"} Instructor Onboarding`}
+            description={`Register a new ${scope?.subject ?? "subject"} educator into the department system registry.`}
           >
             <form
               onSubmit={handleOnboardTeacher}
@@ -1293,15 +1262,11 @@ export default function DepartmentHeadPortalPage() {
                   <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                     Primary Subject
                   </label>
-                  <Select
-                    options={[
-                      { value: "Biology", label: "Biology" },
-                      { value: "Mathematics", label: "Mathematics" },
-                      { value: "Chemistry", label: "Chemistry" },
-                      { value: "Physics", label: "Physics" },
-                    ]}
-                    value={newTeacherSubject}
-                    onChange={(e) => setNewTeacherSubject(e.target.value)}
+                  <input
+                    type="text"
+                    readOnly
+                    value={scope?.subject ?? "Mathematics"}
+                    className="w-full h-10 px-3 bg-muted/60 border border-border rounded-md text-xs text-foreground"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1561,8 +1526,7 @@ export default function DepartmentHeadPortalPage() {
                 Feedback loops
               </CardTitle>
               <CardDescription>
-                Teacher wellness and student satisfaction tied to STEM
-                instruction this term.
+                Teacher wellness and student satisfaction tied to {scope?.subject ?? "subject"} instruction this term.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-2">
