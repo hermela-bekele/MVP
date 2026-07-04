@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as Record<string, unknown>;
 
     // Store in cache (only single-turn questions)
     if (shouldCache) {

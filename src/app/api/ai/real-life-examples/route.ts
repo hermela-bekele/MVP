@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await response.json();
+    const result = (await response.json()) as Record<string, unknown>;
 
     // Store in cache
     cache.set(cacheKey, {
