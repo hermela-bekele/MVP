@@ -353,7 +353,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(user);
     setActiveRoleState(user.role);
     persistSession(user, remember);
-  }, []);
+    void refreshFromApi();
+  }, [refreshFromApi]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);

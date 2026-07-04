@@ -6,6 +6,7 @@ import { uploadFile } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { GRADE_OPTIONS } from '@/lib/teacherPortal';
+import { filterTrainingMaterialsForTeacher } from '@/lib/trainingResources';
 import type { TeacherResource, TrainingMaterial } from '@/lib/mockData';
 import {
   AisBtnSecondary,
@@ -41,22 +42,21 @@ function categoryToType(category: string): TeacherResource['type'] {
 }
 
 export const TeacherResourcesTab: React.FC = () => {
-  const { teacherResources, trainingMaterials, teachers, addTeacherResource, addNotification, resolveTeacherId } = useApp();
+  const {
+    teacherResources,
+    trainingMaterials,
+    addTeacherResource,
+    addNotification,
+    resolveTeacherId,
+    refreshFromApi,
+  } = useApp();
   const teacherId = resolveTeacherId();
-  const teacher = teachers.find((t) => t.id === teacherId);
 
   const myResources = teacherResources.filter((r) => r.teacherId === teacherId);
 
   const departmentResources = useMemo(
-    () =>
-      trainingMaterials.filter(
-        (m) =>
-          m.disseminated &&
-          (!m.departmentId ||
-            m.departmentId === teacher?.departmentId ||
-            m.departmentId === 'dept-stem'),
-      ),
-    [trainingMaterials, teacher?.departmentId],
+    () => filterTrainingMaterialsForTeacher(trainingMaterials),
+    [trainingMaterials],
   );
 
   const allResources: ResourceRow[] = useMemo(() => {
@@ -79,6 +79,10 @@ export const TeacherResourcesTab: React.FC = () => {
   const [url, setUrl] = useState('');
   const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    void refreshFromApi();
+  }, [refreshFromApi]);
 
   useEffect(() => {
     const open = () => setIsOpen(true);

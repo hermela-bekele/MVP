@@ -804,7 +804,7 @@ export default function DepartmentHeadPortalPage() {
 
           <TablePanel
             title="Study & pedagogy resources"
-            description={`Upload materials for ${scope?.subject ?? "subject"} staff and disseminate to teacher resource libraries`}
+            description={`Upload materials for ${scope?.subject ?? "subject"} staff and disseminate to all teacher resource libraries`}
           >
             <table className="eskooly-table">
               <thead>
