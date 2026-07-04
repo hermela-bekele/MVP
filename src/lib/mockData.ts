@@ -898,6 +898,7 @@ export interface TeachingNote {
   /** JSON-serialized AI note payload for full view/print */
   contentBody?: string;
   status: 'Draft' | 'Saved';
+  deptComments?: string;
   createdAt: string;
   updatedAt?: string;
 }
