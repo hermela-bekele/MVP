@@ -131,7 +131,7 @@ function convertMarkdownToHTML(markdown: string): string {
   
   // Unordered lists
   html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+  html = html.replace(/(<li>[\s\S]*<\/li>)/, '<ul>$1</ul>');
   
   // Ordered lists  
   html = html.replace(/^\s*\d+\.\s+(.*)$/gm, '<li>$1</li>');
@@ -148,7 +148,7 @@ function convertMarkdownToHTML(markdown: string): string {
     const cellTags = cells.map(cell => `<td>${cell.trim()}</td>`).join('');
     return `<tr>${cellTags}</tr>`;
   });
-  html = html.replace(/(<tr>.*<\/tr>)/s, '<table>$1</table>');
+  html = html.replace(/(<tr>[\s\S]*<\/tr>)/, '<table>$1</table>');
   
   return html;
 }
