@@ -440,7 +440,18 @@ These concepts form the foundation for advanced topics such as algebraic modelin
     ],
     passingScore: 70,
     completed: false,
-    videoCount: 0,
+    videoCount: 1,
+    
+    videos: [
+      {
+        id: 'video-1-1',
+        title: 'Relations and Functions - Teaching Guide',
+        duration: '12:30',
+        url: 'https://res.cloudinary.com/bdztfxvd/video/upload/v1783277682/video_2026-07-05_20-43-18_q7fuls.mp4',
+        thumbnail: '/api/placeholder/320/180',
+      }
+    ],
+    
     assessmentContent: `# MODULE ASSESSMENT
 
 ## Unit 1: Relations and Functions — End-of-Module Assessment
