@@ -45,6 +45,7 @@ next-env.d.ts
 
 # Training videos (large files - download separately or use CDN)
 public/videos/training/**/*.mp4
+public/videos/subject-matter/**/*.mp4
 public/videos/training/**/*.webm
 public/videos/training/**/*.mov
 # Keep folder structure
