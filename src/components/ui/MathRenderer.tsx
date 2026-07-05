@@ -1,17 +1,6 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import dynamic from 'next/dynamic';
-
-// Dynamically import KaTeX to avoid SSR issues
-const InlineMath = dynamic(
-  () => import('react-katex').then(mod => mod.InlineMath),
-  { ssr: false }
-);
-const BlockMath = dynamic(
-  () => import('react-katex').then(mod => mod.BlockMath),
-  { ssr: false }
-);
 
 interface MathRendererProps {
   content: string;
@@ -21,12 +10,18 @@ interface MathRendererProps {
 export const MathRenderer: React.FC<MathRendererProps> = ({ content, className = '' }) => {
   
   const renderLineWithMath = (line: string, key: number): React.ReactNode => {
+    // Check if line contains LaTeX
+    if (!line.includes('$')) {
+      return line;
+    }
+
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     
     // Find all math expressions (both $$ and $)
     const mathRegex = /\$\$([^\$]+)\$\$|\$([^\$\n]+)\$/g;
     let match;
+    let matchIndex = 0;
     
     while ((match = mathRegex.exec(line)) !== null) {
       // Add text before math
@@ -37,20 +32,20 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       // Add math (display or inline)
       const mathContent = match[1] || match[2];
       const isDisplay = match[0].startsWith('$$');
+      const mathKey = `math-${key}-${matchIndex++}`;
       
-      try {
-        parts.push(
-          isDisplay ? (
-            <BlockMath key={`math-${key}-${match.index}`} math={mathContent} />
-          ) : (
-            <InlineMath key={`math-${key}-${match.index}`} math={mathContent} />
-          )
-        );
-      } catch (e) {
-        // Fallback if LaTeX rendering fails
-        console.error('LaTeX render error:', e);
-        parts.push(match[0]);
-      }
+      // Use dangerouslySetInnerHTML with KaTeX rendering
+      // This will be processed by a useEffect hook
+      parts.push(
+        <span
+          key={mathKey}
+          className={isDisplay ? 'katex-display-wrapper' : 'katex-inline-wrapper'}
+          data-math={mathContent}
+          data-display={isDisplay ? 'true' : 'false'}
+        >
+          {match[0]}
+        </span>
+      );
       
       lastIndex = match.index + match[0].length;
     }
@@ -68,25 +63,25 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
     const processedLines: React.ReactNode[] = [];
     
     lines.forEach((line, idx) => {
-      const content = renderLineWithMath(line, idx);
+      const lineContent = renderLineWithMath(line, idx);
       
       // Headers
       if (line.startsWith('###')) {
         processedLines.push(
           <h3 key={idx} className="text-lg font-semibold mt-4 mb-2 text-ais-on-surface dark:text-gray-100">
-            {content}
+            {lineContent}
           </h3>
         );
       } else if (line.startsWith('##')) {
         processedLines.push(
           <h2 key={idx} className="text-xl font-bold mt-6 mb-3 text-ais-on-surface dark:text-gray-100">
-            {content}
+            {lineContent}
           </h2>
         );
       } else if (line.startsWith('#')) {
         processedLines.push(
           <h1 key={idx} className="text-2xl font-bold mt-6 mb-4 text-ais-on-surface dark:text-gray-100">
-            {content}
+            {lineContent}
           </h1>
         );
       }
@@ -94,7 +89,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else if (/^Q\[?\d+\]?:/i.test(line)) {
         processedLines.push(
           <p key={idx} className="mt-4 mb-2 font-semibold text-base text-ais-on-surface dark:text-gray-100">
-            {content}
+            {lineContent}
           </p>
         );
       }
@@ -102,7 +97,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else if (/^[A-D]\)/.test(line.trim())) {
         processedLines.push(
           <p key={idx} className="ml-6 mb-1 text-sm text-ais-on-surface-variant dark:text-gray-300">
-            {content}
+            {lineContent}
           </p>
         );
       }
@@ -110,7 +105,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else if (line.includes('✓ Correct')) {
         processedLines.push(
           <p key={idx} className="ml-6 mt-2 mb-3 text-sm font-medium text-green-600 dark:text-green-400">
-            {content}
+            {lineContent}
           </p>
         );
       }
@@ -118,7 +113,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else if (/^\d+\.\s/.test(line)) {
         processedLines.push(
           <p key={idx} className="mt-3 mb-2 font-medium text-ais-on-surface dark:text-gray-200">
-            {content}
+            {lineContent}
           </p>
         );
       }
@@ -126,7 +121,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else if (/^\s*-\s*[A-D]\)/.test(line)) {
         processedLines.push(
           <p key={idx} className="ml-6 text-sm text-ais-on-surface-variant dark:text-gray-400">
-            {content}
+            {lineContent}
           </p>
         );
       }
@@ -134,7 +129,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else if (line.startsWith('- ')) {
         processedLines.push(
           <li key={idx} className="ml-4 text-sm text-ais-on-surface dark:text-gray-300">
-            {content}
+            {lineContent}
           </li>
         );
       }
@@ -145,7 +140,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
         );
       }
       // Bold text (**text**)
-      else if (line.includes('**')) {
+      else if (line.includes('**') && !line.includes('$')) {
         const parts = line.split('**');
         const formatted = parts.map((part, i) =>
           i % 2 === 1 ? <strong key={i} className="dark:text-gray-100">{part}</strong> : part
@@ -164,7 +159,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       else {
         processedLines.push(
           <p key={idx} className="mb-2 text-sm text-ais-on-surface dark:text-gray-300">
-            {content}
+            {lineContent}
           </p>
         );
       }
@@ -173,8 +168,45 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
     return processedLines;
   }, [content]);
 
+  // Process LaTeX after render
+  React.useEffect(() => {
+    const renderMath = async () => {
+      // Dynamically import katex only on client side
+      const katex = (await import('katex')).default;
+      
+      // Find all math wrappers
+      const mathElements = document.querySelectorAll('[data-math]');
+      
+      mathElements.forEach((element) => {
+        const math = element.getAttribute('data-math');
+        const isDisplay = element.getAttribute('data-display') === 'true';
+        
+        if (math) {
+          try {
+            katex.render(math, element as HTMLElement, {
+              displayMode: isDisplay,
+              throwOnError: false,
+              trust: false,
+            });
+          } catch (e) {
+            console.error('KaTeX render error:', e);
+            // Keep original text on error
+          }
+        }
+      });
+    };
+    
+    renderMath();
+  }, [content]);
+
   return (
     <div className={`math-content prose prose-sm max-w-none dark:prose-invert ${className}`}>
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+        integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
+        crossOrigin="anonymous"
+      />
       {processedContent}
     </div>
   );
