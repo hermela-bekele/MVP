@@ -444,30 +444,16 @@ ___________________________________________________________________________
     
     passingScore: 70,
     completed: false,
-    videoCount: 3,
+    videoCount: 1,
     
     videos: [
       {
         id: 'video-1-1',
-        title: 'Introduction to Problem-Solving Approach',
+        title: 'Problem-Solving Based Mathematics Instruction',
         duration: '12:30',
-        url: 'https://example.com/video1',
+        url: 'https://res.cloudinary.com/bdztfxvd/video/upload/v1783277682/video_2026-07-05_20-43-18_q7fuls.mp4',
         thumbnail: '/api/placeholder/320/180',
-      },
-      {
-        id: 'video-1-2',
-        title: 'Designing Effective Tasks',
-        duration: '15:45',
-        url: 'https://example.com/video2',
-        thumbnail: '/api/placeholder/320/180',
-      },
-      {
-        id: 'video-1-3',
-        title: 'Three-Phase Lesson Structure Demo',
-        duration: '18:20',
-        url: 'https://example.com/video3',
-        thumbnail: '/api/placeholder/320/180',
-      },
+      }
     ],
   },
   
@@ -558,28 +544,28 @@ ___________________________________________________________________________
         id: 'video-2-1',
         title: 'Understanding Relations',
         duration: '14:20',
-        url: 'https://example.com/video4',
+        url: '/videos/video1.mp4',  // Your 31 MB video
         thumbnail: '/api/placeholder/320/180',
       },
       {
         id: 'video-2-2',
         title: 'Function Notation and Graphs',
         duration: '16:30',
-        url: 'https://example.com/video5',
+        url: '/videos/video2.mp4',  // Your 64 MB video
         thumbnail: '/api/placeholder/320/180',
       },
       {
         id: 'video-2-3',
         title: 'Composition of Functions',
         duration: '12:45',
-        url: 'https://example.com/video6',
+        url: '/videos/video1.mp4',  // Reuse video 1
         thumbnail: '/api/placeholder/320/180',
       },
       {
         id: 'video-2-4',
         title: 'Introduction to GeoGebra for Functions',
         duration: '20:15',
-        url: 'https://example.com/video7',
+        url: '/videos/video2.mp4',  // Reuse video 2
         thumbnail: '/api/placeholder/320/180',
       },
     ],
