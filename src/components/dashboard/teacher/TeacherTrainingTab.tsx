@@ -567,8 +567,11 @@ export const TeacherTrainingTab: React.FC<{
           ) : (
             <div className="col-span-3 text-center py-12">
               <PlayCircle className="w-16 h-16 text-ais-on-surface-variant mx-auto mb-4" />
-              <p className={`${aisBodyMd} text-lg font-medium`}>
-                No videos available for this module yet
+              <p className="text-lg font-semibold text-ais-on-surface mb-2">
+                No videos attached for this module
+              </p>
+              <p className={`text-sm ${aisBodyMd}`}>
+                Videos will show up once uploaded
               </p>
             </div>
           )}
