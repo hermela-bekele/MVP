@@ -15,6 +15,7 @@ export interface ModuleAssessment {
   question: string;
   options?: string[]; // For multiple choice
   correctAnswer?: string;
+  explanation?: string;
   points: number;
 }
 

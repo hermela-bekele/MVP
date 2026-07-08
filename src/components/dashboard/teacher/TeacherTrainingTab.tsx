@@ -20,7 +20,7 @@ import {
 } from "@/lib/continuousDevelopmentModules";
 import { TRAINING_MODULES } from "@/lib/trainingModules";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
-import { AssessmentQuiz } from "@/components/dashboard/teacher/AssessmentQuiz";
+import { ModuleAssessmentPanel } from "@/components/dashboard/teacher/ModuleAssessmentPanel";
 import { AisPage } from "@/components/dashboard/teacher/TeacherPortalUi";
 import {
   aisBadgePrimary,
@@ -75,10 +75,21 @@ export const TeacherTrainingTab: React.FC<{
   const endIndex = startIndex + CARDS_PER_PAGE;
   const currentModules = ALL_MODULES.slice(startIndex, endIndex);
 
-  // Initialize selected session when module changes
+  // Keep the selected session in sync with module updates without
+  // resetting progress back to the first session.
   useEffect(() => {
     if (selectedModule && selectedModule.sessions.length > 0) {
-      setSelectedSession(selectedModule.sessions[0]);
+      setSelectedSession((currentSelectedSession) => {
+        if (!currentSelectedSession) {
+          return selectedModule.sessions[0];
+        }
+
+        return (
+          selectedModule.sessions.find(
+            (session) => session.id === currentSelectedSession.id,
+          ) ?? selectedModule.sessions[0]
+        );
+      });
       setContentTab("content");
     }
   }, [selectedModule]);
@@ -87,21 +98,34 @@ export const TeacherTrainingTab: React.FC<{
   const handleMarkComplete = (sessionId: string) => {
     if (!selectedModule) return;
 
+    const currentSessionIndex = selectedModule.sessions.findIndex(
+      (session) => session.id === sessionId,
+    );
+    const sessionToToggle = selectedModule.sessions[currentSessionIndex];
+
+    if (!sessionToToggle) return;
+
+    const nextCompletedState = !sessionToToggle.completed;
+
     // Find the session and toggle completion
     const updatedSessions = selectedModule.sessions.map((s) =>
-      s.id === sessionId ? { ...s, completed: !s.completed } : s,
+      s.id === sessionId ? { ...s, completed: nextCompletedState } : s,
     );
 
     // Update the module
     const updatedModule = { ...selectedModule, sessions: updatedSessions };
     setSelectedModule(updatedModule);
 
-    // Update selected session if it's the one being marked
+    // Advance to the next session after completion, otherwise keep the
+    // current session selected with its updated completion state.
     if (selectedSession?.id === sessionId) {
-      setSelectedSession({
-        ...selectedSession,
-        completed: !selectedSession.completed,
-      });
+      const nextSession =
+        nextCompletedState &&
+        currentSessionIndex < updatedSessions.length - 1
+          ? updatedSessions[currentSessionIndex + 1]
+          : updatedSessions[currentSessionIndex];
+
+      setSelectedSession(nextSession);
     }
   };
 
@@ -500,10 +524,14 @@ export const TeacherTrainingTab: React.FC<{
               ) : contentTab === "assessment" ? (
                 <>
                   {isAssessmentUnlocked(selectedModule) ? (
-                    <AssessmentQuiz
+                    <ModuleAssessmentPanel
                       questions={selectedModule.assessmentQuestions}
                       passingScore={selectedModule.passingScore}
                       moduleTitle={selectedModule.title}
+                      assessmentContent={selectedModule.assessmentContent}
+                      moduleContent={selectedModule.sessions
+                        .map((session) => session.content)
+                        .join("\n\n")}
                       onComplete={(score, passed) => {
                         console.log(
                           `Assessment completed: ${score}% - ${passed ? "Passed" : "Failed"}`,

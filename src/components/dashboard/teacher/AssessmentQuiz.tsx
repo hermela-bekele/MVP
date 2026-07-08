@@ -8,6 +8,7 @@ interface AssessmentQuizProps {
   questions: ModuleAssessment[];
   passingScore: number;
   moduleTitle: string;
+  continueLabel?: string;
   onComplete?: (score: number, passed: boolean) => void;
 }
 
@@ -15,6 +16,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
   questions,
   passingScore,
   moduleTitle,
+  continueLabel = 'Continue',
   onComplete,
 }) => {
   // Filter out non-multiple-choice questions
@@ -23,6 +25,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
+  const [answerKeysRevealed, setAnswerKeysRevealed] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
 
   const currentQuestion = multipleChoiceQuestions[currentQuestionIndex];
@@ -54,23 +57,24 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
 
   const calculateResults = () => {
     setShowResults(true);
-    const correctCount = multipleChoiceQuestions.reduce((count, question, index) => {
-      return count + (selectedAnswers[index] === question.correctAnswer ? 1 : 0);
-    }, 0);
-    
-    const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
-    const passed = scorePercentage >= passingScore;
-    
-    if (onComplete) {
-      onComplete(scorePercentage, passed);
-    }
+    setAnswerKeysRevealed(false);
   };
 
   const handleRetake = () => {
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
     setShowResults(false);
+    setAnswerKeysRevealed(false);
     setQuizStarted(false);
+  };
+
+  const handleContinue = () => {
+    const correctCount = multipleChoiceQuestions.reduce((count, question, index) => {
+      return count + (selectedAnswers[index] === question.correctAnswer ? 1 : 0);
+    }, 0);
+    const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
+    const passed = scorePercentage >= passingScore;
+    onComplete?.(scorePercentage, passed);
   };
 
   // Start screen
@@ -168,12 +172,18 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
               )}
             </div>
             <h2 className="text-3xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
-              {passed ? 'Congratulations! 🎉' : 'Keep Learning'}
+              {answerKeysRevealed
+                ? passed
+                  ? 'Congratulations! 🎉'
+                  : 'Keep Learning'
+                : 'Your Results'}
             </h2>
             <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
-              {passed 
-                ? 'You have successfully passed the assessment!' 
-                : 'You can retake the assessment after reviewing the module content.'}
+              {answerKeysRevealed
+                ? passed
+                  ? 'You have successfully passed the assessment!'
+                  : 'You can retake the assessment after reviewing the module content.'
+                : `You answered all ${totalQuestions} questions. Review your score, then check the answer key.`}
             </p>
           </div>
 
@@ -211,7 +221,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
           {/* Answer Review */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-6 mb-6 text-left">
             <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-4">
-              Review Your Answers
+              {answerKeysRevealed ? 'Answer Key' : 'Your Answers'}
             </h3>
             <div className="space-y-3">
               {multipleChoiceQuestions.map((question, index) => {
@@ -220,31 +230,44 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
                   <div 
                     key={question.id}
                     className={`p-3 rounded-lg border ${
-                      isCorrect 
-                        ? 'border-primary/30 dark:border-primary/30 bg-primary/5 dark:bg-primary/10' 
-                        : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+                      answerKeysRevealed
+                        ? isCorrect 
+                          ? 'border-primary/30 dark:border-primary/30 bg-primary/5 dark:bg-primary/10' 
+                          : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+                        : 'border-ais-card-border dark:border-gray-700'
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      {isCorrect ? (
-                        <CheckCircle className="w-5 h-5 text-primary dark:text-primary-light flex-shrink-0 mt-0.5" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                      {answerKeysRevealed && (
+                        isCorrect ? (
+                          <CheckCircle className="w-5 h-5 text-primary dark:text-primary-light flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        )
                       )}
                       <div className="flex-1">
                         <p className="text-sm font-medium text-ais-on-surface dark:text-gray-200 mb-1">
                           Question {index + 1}
                         </p>
+                        <p className="text-xs text-ais-on-surface-variant dark:text-gray-400 mb-1">
+                          {question.question}
+                        </p>
                         <p className="text-xs text-ais-on-surface-variant dark:text-gray-400">
                           Your answer: <span className="font-semibold">{selectedAnswers[index]}</span>
-                          {!isCorrect && (
-                            <span className="ml-2">
-                              · Correct: <span className="font-semibold text-primary dark:text-primary-light">
-                                {question.correctAnswer}
-                              </span>
-                            </span>
-                          )}
                         </p>
+                        {answerKeysRevealed && (
+                          <p className="text-xs text-ais-on-surface-variant dark:text-gray-400 mt-1">
+                            Correct answer:{' '}
+                            <span className="font-semibold text-primary dark:text-primary-light">
+                              {question.correctAnswer}
+                            </span>
+                          </p>
+                        )}
+                        {answerKeysRevealed && question.explanation && (
+                          <p className="text-xs text-ais-on-surface-variant dark:text-gray-400 italic border-l-2 border-primary/30 pl-3 mt-2">
+                            {question.explanation}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -253,13 +276,35 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={handleRetake}
-            className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 mx-auto"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Retake Assessment
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={handleRetake}
+              className="px-6 py-2 rounded-lg border border-ais-card-border dark:border-gray-700 text-ais-on-surface dark:text-gray-300 hover:bg-ais-surface-container-low dark:hover:bg-gray-700 transition-colors font-medium text-sm flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Retake Assessment
+            </button>
+
+            {!answerKeysRevealed ? (
+              <button
+                onClick={() => setAnswerKeysRevealed(true)}
+                className="px-8 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
+              >
+                Check Answer
+                <CheckCircle className="w-4 h-4" />
+              </button>
+            ) : (
+              onComplete && (
+                <button
+                  onClick={handleContinue}
+                  className="px-8 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
+                >
+                  {continueLabel}
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
     );
