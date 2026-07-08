@@ -270,16 +270,16 @@ After your next lesson:
     videos: [
       {
         id: 'v1-1',
-        title: 'Classroom Communication: Enhancing Student Learning',
-        duration: '12:00',
-        url: '/videos/training/module-1/classroom_communication_enhancing_student_learning.mp4',
+        title: 'Teacher Induction',
+        duration: '10:00',
+        url: 'https://res.cloudinary.com/bdztfxvd/video/upload/v1783276593/Teacher_Induction_xxkqt0.mp4',
         thumbnail: '/videos/training/thumbnails/module-1-video-1.jpg'
       },
       {
         id: 'v1-2',
-        title: 'Why Simple Explanations Improve Student Understanding',
-        duration: '10:00',
-        url: '/videos/training/module-1/why_simple_explanations_improve_student_understand.mp4',
+        title: 'Teacher Induction and Classroom Management',
+        duration: '12:00',
+        url: 'https://res.cloudinary.com/bdztfxvd/video/upload/v1783276765/Teacher_induction_and_class_room_management_dud6ys.mp4',
         thumbnail: '/videos/training/thumbnails/module-1-video-2.jpg'
       }
     ]
