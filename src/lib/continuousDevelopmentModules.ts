@@ -1,6 +1,12 @@
 // Continuous Professional Development Modules
 // TEACHING SKILLS modules for all Ethiopian secondary school teachers
 
+import {
+  PRIME_DAY1_DAY2_ASSESSMENT_CONTENT,
+  PRIME_DAY1_DAY2_ASSESSMENT_QUESTIONS,
+  PRIME_DAY1_DAY2_SESSIONS,
+} from './primeTeacherDevelopmentDay1Day2';
+
 export interface SessionContent {
   id: string;
   number: string;
@@ -16,6 +22,7 @@ export interface ModuleAssessment {
   question: string;
   options?: string[];
   correctAnswer?: string;
+  explanation?: string;
   points: number;
 }
 
@@ -61,8 +68,36 @@ export function getModuleById(id: string): TrainingModule | undefined {
 
 export const CONTINUOUS_DEVELOPMENT_MODULES: TrainingModule[] = [
   {
+    id: 'cpd-module-7',
+    title: 'Module 1: Professional Teacher Role & Inclusive Teaching (Day 1-2)',
+    category: 'TEACHING SKILLS',
+    description: 'Classroom readiness, learners & inclusion · 4 hrs',
+    duration: '4 Hours',
+    sessionsCount: 7,
+    target: 'Secondary School Teachers (All Subjects)',
+
+    overview: `This PRIME Teacher Development Programme module covers Day 1 and Day 2 of professional teacher training. Day 1 focuses on the professional teacher role and classroom readiness — preparing the board, materials, students, and yourself before students enter the room, and using a simple first 5-minute routine. Day 2 focuses on understanding learners and inclusive teaching — recognizing adolescent needs, identifying participation barriers, and applying low-cost supports so every student can reach the same learning goal.`,
+
+    objectives: [
+      'List six duties of a professional teacher',
+      'Prepare a classroom readiness checklist and first 5-minute routine',
+      'Apply respectful correction that protects dignity',
+      'Name four needs of high school students',
+      'Identify barriers to student participation and plan simple supports',
+      'Use inclusive strategies for large classes without lowering standards',
+    ],
+
+    sessions: PRIME_DAY1_DAY2_SESSIONS,
+    assessmentContent: PRIME_DAY1_DAY2_ASSESSMENT_CONTENT,
+    assessmentQuestions: PRIME_DAY1_DAY2_ASSESSMENT_QUESTIONS,
+    passingScore: 70,
+    completed: false,
+    videoCount: 0,
+  },
+
+  {
     id: 'cpd-module-1',
-    title: 'Module 1: Classroom Delivery and Explanation Skills',
+    title: 'Module 2: Classroom Delivery and Explanation Skills',
     category: 'TEACHING SKILLS',
     description: 'Foundation skills for effective instruction · 3 hrs',
     duration: '3 Hours',
@@ -178,7 +213,7 @@ After your next lesson:
       }
     ],
     
-    assessmentContent: `# Module 1 Assessment
+    assessmentContent: `# Module 2 Assessment
 
 ## Section A — Multiple Choice
 
@@ -252,7 +287,7 @@ After your next lesson:
 
   {
     id: 'cpd-module-2',
-    title: 'Module 2: Active Learning and Student Engagement',
+    title: 'Module 3: Active Learning and Student Engagement',
     category: 'TEACHING SKILLS',
     description: 'Transform passive classrooms · 3 hrs',
     duration: '3 Hours',
@@ -341,7 +376,7 @@ Cold calling — calling on a student who did not raise their hand — is the si
       }
     ],
     
-    assessmentContent: `# Module 2 Assessment
+    assessmentContent: `# Module 3 Assessment
 
 ## Section A — Multiple Choice
 
@@ -395,7 +430,7 @@ Cold calling — calling on a student who did not raise their hand — is the si
   
   {
     id: 'cpd-module-3',
-    title: 'Module 3: How to Develop Effective Assessment',
+    title: 'Module 4: How to Develop Effective Assessment',
     category: 'TEACHING SKILLS',
     description: 'Design assessments that serve learning · 3 hrs',
     duration: '3 Hours',
@@ -490,7 +525,7 @@ This process takes 10 minutes. It will save you hours of re-teaching later.`
       }
     ],
     
-    assessmentContent: `# Module 3 Assessment
+    assessmentContent: `# Module 4 Assessment
 
 Questions on formative vs summative assessment, three cognitive levels, and using assessment data.`,
     
@@ -512,7 +547,7 @@ Questions on formative vs summative assessment, three cognitive levels, and usin
   
   {
     id: 'cpd-module-4',
-    title: 'Module 4: Classroom Management',
+    title: 'Module 5: Classroom Management',
     category: 'TEACHING SKILLS',
     description: 'Strategies for 50-70 students · 3 hrs',
     duration: '3 Hours',
@@ -605,7 +640,7 @@ When disruption happens, the quality of your response determines whether it esca
       }
     ],
     
-    assessmentContent: `# Module 4 Assessment`,
+    assessmentContent: `# Module 5 Assessment`,
     assessmentQuestions: [],
     passingScore: 70,
     completed: false,
@@ -624,7 +659,7 @@ When disruption happens, the quality of your response determines whether it esca
   
   {
     id: 'cpd-module-5',
-    title: 'Module 5: Student Motivation and Adolescent Development',
+    title: 'Module 6: Student Motivation and Adolescent Development',
     category: 'TEACHING SKILLS',
     description: 'Understanding and building motivation · 3 hrs',
     duration: '3 Hours',
@@ -718,7 +753,7 @@ Zewditu teaches Grade 11 physics. Fatima, a student disengaged for two months, c
       }
     ],
     
-    assessmentContent: `# Module 5 Assessment`,
+    assessmentContent: `# Module 6 Assessment`,
     assessmentQuestions: [],
     passingScore: 70,
     completed: false,
@@ -737,7 +772,7 @@ Zewditu teaches Grade 11 physics. Fatima, a student disengaged for two months, c
   
   {
     id: 'cpd-module-6',
-    title: 'Module 6: Accountability and Parent Communication',
+    title: 'Module 7: Accountability and Parent Communication',
     category: 'TEACHING SKILLS',
     description: 'Building collaborative partnerships · 2.5 hrs',
     duration: '2.5 Hours',
@@ -826,7 +861,7 @@ Three months later, four of the five students have improved their grades. The fi
       }
     ],
     
-    assessmentContent: `# Module 6 Assessment`,
+    assessmentContent: `# Module 7 Assessment`,
     assessmentQuestions: [],
     passingScore: 70,
     completed: false,
@@ -841,5 +876,6 @@ Three months later, four of the five students have improved their grades. The fi
         thumbnail: '/videos/training/thumbnails/module-6-video.jpg'
       }
     ]
-  }
+  },
+
 ];
