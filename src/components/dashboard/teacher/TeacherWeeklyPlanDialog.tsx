@@ -179,7 +179,11 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
         subject: selectedAnnual.subject || defaultSubject,
         topic: topic.trim(),
         subtopic: [unit, page, buildWeekContext()].filter(Boolean).join('\n').slice(0, 1200),
-        student_level: studentLevel,
+        student_level: studentLevel as
+          | 'differentiated'
+          | 'beginner'
+          | 'intermediate'
+          | 'advanced',
         periods_per_week: periodsPerWeek,
         session_duration: sessionDuration,
         days_per_week: Math.min(5, Math.max(1, periodsPerWeek)),

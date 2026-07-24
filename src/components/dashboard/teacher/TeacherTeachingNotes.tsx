@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, MoreVertical, Plus, Printer, Save, Send, Sparkles, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
@@ -180,16 +180,53 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const activePlan = ownWeeklyPlans.find((p) => p.id === linkedPlanId);
-  const sessionTopicOptions = useMemo(
-    () => (activePlan ? getWeeklyPlanSessionTopicOptions(activePlan) : []),
-    [activePlan],
-  );
+  const sessionTopicOptions = activePlan
+    ? getWeeklyPlanSessionTopicOptions(activePlan)
+    : [];
   const detailPlan = lessonPlanId
     ? teacherPlans.find((p) => p.id === lessonPlanId)
     : undefined;
   const detailPlanNotes = detailPlan
     ? notesForLessonPlan(myNotes, detailPlan.id)
     : [];
+
+  const applySessionTopic = (plan: LessonPlan, scope: string) => {
+    const options = getWeeklyPlanSessionTopicOptions(plan);
+    const match = options.find((o) => o.value === scope) ?? options[0];
+    if (!match) {
+      setSelectedSessionScope('');
+      setNotesTopic('');
+      setNoteTitle('');
+      return;
+    }
+    setSelectedSessionScope(match.value);
+    setNotesTopic(match.topic || match.label);
+    setNoteTitle(
+      match.value === 'all'
+        ? `${weeklyPlanWeekLabel(plan)} — All sessions notes`
+        : `${match.label} — Notes`,
+    );
+  };
+
+  const openCreateNote = (planId: string) => {
+    const plan = ownWeeklyPlans.find((p) => p.id === planId);
+    setEditingNoteId(null);
+    setLinkedPlanId(planId);
+    setNotesGrade(plan?.grade ?? defaultGrade);
+    setNotesSubject(plan?.subject ?? defaultSubject);
+    setNotesLanguage('English');
+    setNoteTitle('');
+    setAiNotesResult(null);
+    setNoteContentText('');
+    setShowNoteContentPreview(false);
+    if (plan) {
+      applySessionTopic(plan, 'all');
+    } else {
+      setSelectedSessionScope('');
+      setNotesTopic('');
+    }
+    setNoteModalOpen(true);
+  };
 
   useEffect(() => {
     if (teacherProfile.name === 'Loading…') return;
@@ -215,7 +252,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       window.removeEventListener('open-teacher-lesson-plan', openPlan);
       window.removeEventListener('open-teacher-create-note', openNote as EventListener);
     };
-  }, [ownWeeklyPlans]);
+  }, [ownWeeklyPlans]); // openCreateNote closes over latest weekly plans via rebind each render
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -229,24 +266,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuId]);
 
-  const applySessionTopic = (plan: LessonPlan, scope: string) => {
-    const options = getWeeklyPlanSessionTopicOptions(plan);
-    const match = options.find((o) => o.value === scope) ?? options[0];
-    if (!match) {
-      setSelectedSessionScope('');
-      setNotesTopic('');
-      setNoteTitle('');
-      return;
-    }
-    setSelectedSessionScope(match.value);
-    setNotesTopic(match.topic || match.label);
-    setNoteTitle(
-      match.value === 'all'
-        ? `${weeklyPlanWeekLabel(plan)} — All sessions notes`
-        : `${match.label} — Notes`,
-    );
-  };
-
   const closeNoteModal = () => {
     setNoteModalOpen(false);
     setEditingNoteId(null);
@@ -254,27 +273,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     setAiNotesResult(null);
     setShowNoteContentPreview(false);
     setShowNotesPreview(false);
-  };
-
-  const openCreateNote = (planId: string) => {
-    const plan = ownWeeklyPlans.find((p) => p.id === planId);
-    setEditingNoteId(null);
-    setLinkedPlanId(planId);
-    setNotesGrade(plan?.grade ?? defaultGrade);
-    setNotesSubject(plan?.subject ?? defaultSubject);
-    setNotesLanguage('English');
-    setNoteTitle('');
-    setAiNotesResult(null);
-    setNoteContentText('');
-    setShowNoteContentPreview(false);
-    if (plan) {
-      // Default to all sessions so teachers can narrow to one session if needed
-      applySessionTopic(plan, 'all');
-    } else {
-      setSelectedSessionScope('');
-      setNotesTopic('');
-    }
-    setNoteModalOpen(true);
   };
 
   const openEditNote = (note: TeachingNote) => {

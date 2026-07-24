@@ -96,17 +96,8 @@ function cell(
     rowSpan: opts?.rowSpan && opts.rowSpan > 1 ? opts.rowSpan : undefined,
     verticalAlign: VerticalAlign.CENTER,
     shading: opts?.shading ? { fill: opts.shading } : undefined,
-    children: children.length
-      ? children.map((c) =>
-          opts?.center
-            ? new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 40, before: 0, line: 240 },
-                children: c.children,
-              })
-            : c,
-        )
-      : [p('')],
+    // Paragraphs already carry their own alignment (see `p()` / headerCell)
+    children: children.length ? children : [p('')],
   });
 }
 

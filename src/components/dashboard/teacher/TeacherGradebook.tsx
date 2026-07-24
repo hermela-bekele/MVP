@@ -159,22 +159,33 @@ export const TeacherGradebook: React.FC = () => {
 
   const linkedAsm = myAssessments.find((a) => a.id === linkedAssessment);
 
-  useEffect(() => {
+  const handleLinkedAssessmentChange = (assessmentId: string) => {
+    setLinkedAssessment(assessmentId);
     if (!useQuestionMarks) return;
-    const prompts = linkedAsm?.questions?.map((q) => q.question) ?? [];
-    const count = linkedAsm?.questions?.length
-      ? linkedAsm.questions.length
-      : Math.max(1, questionCount);
-    if (linkedAsm?.questions?.length) setQuestionCount(linkedAsm.questions.length);
+    const asm = myAssessments.find((a) => a.id === assessmentId);
+    const prompts = asm?.questions?.map((q) => q.question) ?? [];
+    const count = asm?.questions?.length ? asm.questions.length : Math.max(1, questionCount);
+    if (asm?.questions?.length) setQuestionCount(asm.questions.length);
     setQuestionMarks((prev) => buildQuestionMarks(count, prompts, prev));
-  }, [linkedAssessment, questionCount, useQuestionMarks, linkedAsm?.questions?.length]);
+    if (asm?.questions?.length) {
+      const marks = buildQuestionMarks(asm.questions.length, prompts);
+      setScore(String(marks.filter((q) => q.correct).length));
+      setMaxScore(String(marks.length));
+    }
+  };
 
-  useEffect(() => {
-    if (!useQuestionMarks || questionMarks.length === 0) return;
-    const correct = questionMarks.filter((q) => q.correct).length;
-    setScore(String(correct));
-    setMaxScore(String(questionMarks.length));
-  }, [questionMarks, useQuestionMarks]);
+  const toggleQuestion = (n: number) => {
+    setQuestionMarks((prev) => {
+      const next = prev.map((q) =>
+        q.questionNumber === n ? { ...q, correct: !q.correct } : q,
+      );
+      if (useQuestionMarks && next.length > 0) {
+        setScore(String(next.filter((q) => q.correct).length));
+        setMaxScore(String(next.length));
+      }
+      return next;
+    });
+  };
 
   const findCell = (studentId: string, col: ColumnDef) =>
     classEntries.find(
@@ -255,12 +266,6 @@ export const TeacherGradebook: React.FC = () => {
     setIsFormOpen(false);
   };
 
-  const toggleQuestion = (n: number) => {
-    setQuestionMarks((prev) =>
-      prev.map((q) => (q.questionNumber === n ? { ...q, correct: !q.correct } : q)),
-    );
-  };
-
   const detailStudent = detailEntry
     ? students.find((s) => s.id === detailEntry.studentId)
     : null;
@@ -323,7 +328,7 @@ export const TeacherGradebook: React.FC = () => {
                   </AisTh>
                 ))}
                 <AisTh className="text-center">Term avg</AisTh>
-                <AisTh />
+                <AisTh className="w-16">{''}</AisTh>
               </tr>
             </thead>
             <tbody>
@@ -571,7 +576,7 @@ export const TeacherGradebook: React.FC = () => {
                 })),
               ]}
               value={linkedAssessment}
-              onChange={(e) => setLinkedAssessment(e.target.value)}
+              onChange={(e) => handleLinkedAssessmentChange(e.target.value)}
             />
           </div>
 
@@ -579,7 +584,14 @@ export const TeacherGradebook: React.FC = () => {
             <input
               type="checkbox"
               checked={useQuestionMarks}
-              onChange={(e) => setUseQuestionMarks(e.target.checked)}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setUseQuestionMarks(on);
+                if (on && questionMarks.length > 0) {
+                  setScore(String(questionMarks.filter((q) => q.correct).length));
+                  setMaxScore(String(questionMarks.length));
+                }
+              }}
               className="rounded border-ais-card-border"
             />
             Mark each question correct / incorrect
@@ -596,7 +608,15 @@ export const TeacherGradebook: React.FC = () => {
                     max={50}
                     className={aisInput}
                     value={questionCount}
-                    onChange={(e) => setQuestionCount(Math.max(1, Number(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const n = Math.max(1, Number(e.target.value) || 1);
+                      setQuestionCount(n);
+                      const prompts = linkedAsm?.questions?.map((q) => q.question) ?? [];
+                      const marks = buildQuestionMarks(n, prompts, questionMarks);
+                      setQuestionMarks(marks);
+                      setScore(String(marks.filter((q) => q.correct).length));
+                      setMaxScore(String(marks.length));
+                    }}
                   />
                 </div>
               )}

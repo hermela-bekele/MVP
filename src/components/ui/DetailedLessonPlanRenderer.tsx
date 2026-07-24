@@ -390,6 +390,8 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
                     Teaching Approach
                   </h4>
 
+                  {session.teachingApproach && (
+                    <>
                   {/* Starting Activity */}
                   <ActivityCard 
                     title="Starting Activity" 
@@ -410,6 +412,8 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
                     activity={session.teachingApproach.concludingActivity}
                     color="orange"
                   />
+                    </>
+                  )}
                 </div>
               </div>
             </details>

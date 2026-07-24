@@ -81,7 +81,11 @@ export const DetailedLessonPlanDialog: React.FC<DetailedLessonPlanDialogProps> =
         subject: planSubject,
         topic: topicRequired ? mainTopic.trim() : '',
         subtopic: subTopic.trim(),
-        student_level: studentLevel,
+        student_level: studentLevel as
+          | 'differentiated'
+          | 'beginner'
+          | 'intermediate'
+          | 'advanced',
         periods_per_week: periodsPerWeek,
         session_duration: sessionDuration,
         learning_days_per_year: learningDaysPerYear,

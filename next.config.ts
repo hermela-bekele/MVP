@@ -1,18 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  
-  // Increase timeouts for development (WSL/slow file system)
+  // Keep builds stable on constrained/WSL environments
   experimental: {
-    // Increase webpack timeout for large components
     workerThreads: false,
     cpus: 1,
   },
-  
-  // Production build optimizations
+
+  // Next.js 16 renamed this option (old key warns as invalid)
+  serverExternalPackages: [],
+
+  // Explicit empty Turbopack config so Next 16 doesn't fail when a webpack
+  // hook is also present (dev uses --webpack; production can use either).
+  turbopack: {},
+
   webpack: (config, { dev, isServer }) => {
-    // Increase timeout for chunk loading
+    // Dev-only client overlay tweaks (used with `next dev --webpack`)
     if (dev && !isServer) {
       config.devServer = {
         ...config.devServer,
@@ -25,12 +28,8 @@ const nextConfig: NextConfig = {
         },
       };
     }
-    
     return config;
   },
-  
-  // Increase serverComponentsExternalPackages timeout
-  serverComponentsExternalPackages: [],
 };
 
 export default nextConfig;
