@@ -14,7 +14,14 @@ function getCacheKey(payload: any): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, difficulty = 'medium', num_questions = 5, question_type = 'mixed' } = body;
+    const {
+      topic,
+      difficulty = 'medium',
+      num_questions = 5,
+      question_type = 'mixed',
+      lesson_plan_context = '',
+      student_level = 'differentiated',
+    } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -23,7 +30,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const payload = { topic, difficulty, num_questions, question_type };
+    const payload: Record<string, unknown> = {
+      topic,
+      difficulty,
+      num_questions,
+      question_type,
+      student_level,
+    };
+    if (lesson_plan_context?.trim()) {
+      payload.lesson_plan_context = lesson_plan_context.trim();
+    }
 
     // Create cache key
     const cacheKey = getCacheKey(payload);

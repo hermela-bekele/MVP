@@ -1,10 +1,16 @@
 import https from 'https';
+import http from 'http';
 
 const PRIME_AI_CONNECT_TIMEOUT_MS = 60_000;
-const PRIME_AI_REQUEST_TIMEOUT_MS = 120_000;
+const PRIME_AI_REQUEST_TIMEOUT_MS = 180_000;
 const MAX_RETRIES = 3;
 
 const httpsAgent = new https.Agent({
+  keepAlive: true,
+  timeout: PRIME_AI_CONNECT_TIMEOUT_MS,
+});
+
+const httpAgent = new http.Agent({
   keepAlive: true,
   timeout: PRIME_AI_CONNECT_TIMEOUT_MS,
 });
@@ -51,15 +57,21 @@ function postJson(url: string, body: Record<string, unknown>): Promise<PrimeAIRe
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     const payload = JSON.stringify(body);
+    
+    // Use http for localhost, https for production
+    const isHttps = parsedUrl.protocol === 'https:';
+    const httpModule = isHttps ? https : http;
+    const agent = isHttps ? httpsAgent : httpAgent;
+    const defaultPort = isHttps ? 443 : 80;
 
-    const request = https.request(
+    const request = httpModule.request(
       {
         protocol: parsedUrl.protocol,
         hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 443,
+        port: parsedUrl.port || defaultPort,
         path: `${parsedUrl.pathname}${parsedUrl.search}`,
         method: 'POST',
-        agent: httpsAgent,
+        agent: agent,
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),

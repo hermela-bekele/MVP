@@ -10,6 +10,7 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
+import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
 
 export default function StudentPortalPage() {
   const { students, addNotification } = useApp();
@@ -153,6 +154,16 @@ export default function StudentPortalPage() {
 
               </div>
 
+            </div>
+          )}
+
+          {activeTab === 'academic-calendar' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <PublishedAcademicCalendarPanel
+                schoolId={activeStudent?.schoolId || 'sch-1'}
+                title="School academic calendar"
+                description="Official dates disseminated by your school head — exams, breaks, and MOE activities."
+              />
             </div>
           )}
 

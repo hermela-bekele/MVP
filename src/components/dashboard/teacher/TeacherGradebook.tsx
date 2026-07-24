@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, Plus, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -13,9 +14,15 @@ import {
   filterTeacherGradeEntries,
   filterTeacherStudents,
   gradesForStudent,
+  primarySubjectForTeacher,
+  resolveTeacherProfile,
   weightedTermAverage,
 } from '@/lib/teacherPortal';
-import type { StudentGradeEntry, StudentGradeEntryType } from '@/lib/mockData';
+import type {
+  GradeQuestionResult,
+  StudentGradeEntry,
+  StudentGradeEntryType,
+} from '@/lib/mockData';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -29,58 +36,173 @@ import {
   aisFormLabel,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { aisBodyMd, aisBodySm, aisCard, aisDataMd, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
+import {
+  aisBodyMd,
+  aisBodySm,
+  aisCard,
+  aisDataMd,
+  aisHeadlineSm,
+  aisLabelCaps,
+} from '@/components/dashboard/teacher/aisStyles';
+
+type ColumnDef = {
+  key: string;
+  entryType: StudentGradeEntryType;
+  title: string;
+  maxScore: number;
+  weight: number;
+};
+
+const TYPE_ORDER: StudentGradeEntryType[] = [
+  'Quiz',
+  'Test',
+  'Assignment',
+  'Project',
+  'Mid Exam',
+  'Final Exam',
+  'Practical',
+];
+
+function columnKey(entryType: string, title: string) {
+  return `${entryType}::${title}`;
+}
+
+function buildQuestionMarks(
+  count: number,
+  linkedPrompts: string[] = [],
+  existing?: GradeQuestionResult[],
+): GradeQuestionResult[] {
+  return Array.from({ length: count }, (_, i) => {
+    const n = i + 1;
+    const prev = existing?.find((q) => q.questionNumber === n);
+    return {
+      questionNumber: n,
+      correct: prev?.correct ?? true,
+      prompt: linkedPrompts[i] || prev?.prompt,
+    };
+  });
+}
 
 export const TeacherGradebook: React.FC = () => {
-  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry, resolveTeacherId } = useApp();
+  const {
+    students,
+    teachers,
+    studentGradeEntries,
+    assessments,
+    upsertStudentGradeEntry,
+    deleteStudentGradeEntry,
+    resolveTeacherId,
+  } = useApp();
   const teacherId = resolveTeacherId();
+  const teacherProfile = resolveTeacherProfile(teachers, teacherId);
+  const defaultSubject = primarySubjectForTeacher(teacherProfile);
 
   const [classGrade, setClassGrade] = useState('Grade 9');
   const [classSection, setClassSection] = useState('A');
-  const [filterType, setFilterType] = useState<string>('All');
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [detailEntry, setDetailEntry] = useState<StudentGradeEntry | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
 
+  const [selectedStudentId, setSelectedStudentId] = useState('');
   const [entryType, setEntryType] = useState<StudentGradeEntryType>('Quiz');
   const [title, setTitle] = useState('');
   const [score, setScore] = useState('');
-  const [maxScore, setMaxScore] = useState('100');
+  const [maxScore, setMaxScore] = useState('10');
   const [weight, setWeight] = useState('10');
   const [remarks, setRemarks] = useState('');
   const [linkedAssessment, setLinkedAssessment] = useState('');
+  const [questionCount, setQuestionCount] = useState(10);
+  const [questionMarks, setQuestionMarks] = useState<GradeQuestionResult[]>([]);
+  const [useQuestionMarks, setUseQuestionMarks] = useState(true);
 
-  const roster = useMemo(() => filterTeacherStudents(students, classGrade, classSection), [students, classGrade, classSection]);
+  const roster = useMemo(
+    () => filterTeacherStudents(students, classGrade, classSection),
+    [students, classGrade, classSection],
+  );
 
-  const myEntries = useMemo(() => {
-    let list = filterTeacherGradeEntries(studentGradeEntries, teacherId).filter(
-      (e) => e.gradeLevel === classGrade && e.section === classSection
-    );
-    if (filterType !== 'All') list = list.filter((e) => e.entryType === filterType);
-    return list;
-  }, [studentGradeEntries, classGrade, classSection, filterType, teacherId]);
+  const classEntries = useMemo(
+    () =>
+      filterTeacherGradeEntries(studentGradeEntries, teacherId).filter(
+        (e) => e.gradeLevel === classGrade && e.section === classSection,
+      ),
+    [studentGradeEntries, classGrade, classSection, teacherId],
+  );
+
+  const columns = useMemo(() => {
+    const map = new Map<string, ColumnDef & { sortDate: string }>();
+    for (const e of classEntries) {
+      const key = columnKey(e.entryType, e.title);
+      const prev = map.get(key);
+      if (!prev || e.recordedAt > prev.sortDate) {
+        map.set(key, {
+          key,
+          entryType: e.entryType,
+          title: e.title,
+          maxScore: e.maxScore,
+          weight: e.weight,
+          sortDate: e.recordedAt,
+        });
+      }
+    }
+    return [...map.values()].sort((a, b) => {
+      const ai = TYPE_ORDER.indexOf(a.entryType);
+      const bi = TYPE_ORDER.indexOf(b.entryType);
+      if (ai !== bi) return ai - bi;
+      return a.sortDate.localeCompare(b.sortDate) || a.title.localeCompare(b.title);
+    });
+  }, [classEntries]);
 
   const myAssessments = useMemo(
     () => assessments.filter((a) => a.teacherId === teacherId && a.grade === classGrade),
-    [assessments, classGrade, teacherId]
+    [assessments, classGrade, teacherId],
   );
 
-  const openAdd = (studentId: string, presetType?: StudentGradeEntryType) => {
-    setSelectedStudentId(studentId);
+  const linkedAsm = myAssessments.find((a) => a.id === linkedAssessment);
+
+  useEffect(() => {
+    if (!useQuestionMarks) return;
+    const prompts = linkedAsm?.questions?.map((q) => q.question) ?? [];
+    const count = linkedAsm?.questions?.length
+      ? linkedAsm.questions.length
+      : Math.max(1, questionCount);
+    if (linkedAsm?.questions?.length) setQuestionCount(linkedAsm.questions.length);
+    setQuestionMarks((prev) => buildQuestionMarks(count, prompts, prev));
+  }, [linkedAssessment, questionCount, useQuestionMarks, linkedAsm?.questions?.length]);
+
+  useEffect(() => {
+    if (!useQuestionMarks || questionMarks.length === 0) return;
+    const correct = questionMarks.filter((q) => q.correct).length;
+    setScore(String(correct));
+    setMaxScore(String(questionMarks.length));
+  }, [questionMarks, useQuestionMarks]);
+
+  const findCell = (studentId: string, col: ColumnDef) =>
+    classEntries.find(
+      (e) =>
+        e.studentId === studentId &&
+        e.entryType === col.entryType &&
+        e.title === col.title,
+    );
+
+  const openAdd = (studentId?: string, col?: ColumnDef) => {
     setEditingId(undefined);
-    setEntryType(presetType ?? 'Quiz');
-    setTitle('');
+    setSelectedStudentId(studentId || roster[0]?.id || '');
+    setEntryType(col?.entryType ?? 'Quiz');
+    setTitle(col?.title ?? '');
     setScore('');
-    setMaxScore('100');
-    setWeight(presetType === 'Final Exam' ? '30' : presetType === 'Mid Exam' ? '25' : '10');
+    setMaxScore(String(col?.maxScore ?? 10));
+    setWeight(String(col?.weight ?? 10));
     setRemarks('');
     setLinkedAssessment('');
+    setQuestionCount(col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10);
+    setQuestionMarks(buildQuestionMarks(col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10));
+    setUseQuestionMarks(true);
     setIsFormOpen(true);
   };
 
   const openEdit = (entry: StudentGradeEntry) => {
-    setSelectedStudentId(entry.studentId);
     setEditingId(entry.id);
+    setSelectedStudentId(entry.studentId);
     setEntryType(entry.entryType);
     setTitle(entry.title);
     setScore(String(entry.score));
@@ -88,171 +210,477 @@ export const TeacherGradebook: React.FC = () => {
     setWeight(String(entry.weight));
     setRemarks(entry.remarks ?? '');
     setLinkedAssessment(entry.assessmentId ?? '');
+    const hasQ = (entry.questionResults?.length ?? 0) > 0;
+    setUseQuestionMarks(hasQ || entry.entryType === 'Quiz' || entry.entryType === 'Test');
+    setQuestionCount(entry.questionResults?.length || Math.round(entry.maxScore) || 10);
+    setQuestionMarks(
+      entry.questionResults?.length
+        ? entry.questionResults
+        : buildQuestionMarks(Math.round(entry.maxScore) || 10),
+    );
+    setDetailEntry(null);
     setIsFormOpen(true);
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudentId || !title) return;
+    if (!selectedStudentId || !title.trim()) return;
     const student = students.find((s) => s.id === selectedStudentId);
     if (!student) return;
+
+    const results = useQuestionMarks ? questionMarks : undefined;
+    const computedScore = useQuestionMarks
+      ? questionMarks.filter((q) => q.correct).length
+      : parseFloat(score) || 0;
+    const computedMax = useQuestionMarks
+      ? questionMarks.length
+      : parseFloat(maxScore) || 100;
 
     upsertStudentGradeEntry({
       id: editingId,
       studentId: selectedStudentId,
-      subject: 'Biology',
+      subject: defaultSubject,
       gradeLevel: student.grade,
       section: student.section,
       entryType,
-      title,
+      title: title.trim(),
       assessmentId: linkedAssessment || undefined,
-      score: parseFloat(score) || 0,
-      maxScore: parseFloat(maxScore) || 100,
+      score: computedScore,
+      maxScore: computedMax,
       weight: parseFloat(weight) || 0,
       term: CURRENT_TERM,
       remarks: remarks || undefined,
+      questionResults: results,
     });
     setIsFormOpen(false);
   };
 
+  const toggleQuestion = (n: number) => {
+    setQuestionMarks((prev) =>
+      prev.map((q) => (q.questionNumber === n ? { ...q, correct: !q.correct } : q)),
+    );
+  };
+
+  const detailStudent = detailEntry
+    ? students.find((s) => s.id === detailEntry.studentId)
+    : null;
+
   return (
-    <div className="space-y-6">
-      <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
-        <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={classGrade} onChange={(e) => setClassGrade(e.target.value)} />
-        <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={classSection} onChange={(e) => setClassSection(e.target.value)} />
-        <Select variant="ais" label="Filter by type" options={['All', ...GRADE_ENTRY_TYPES].map((t) => ({ value: t, label: t }))} value={filterType} onChange={(e) => setFilterType(e.target.value)} />
+    <div className="relative space-y-6">
+      <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+        <Select
+          variant="ais"
+          label="Class grade"
+          options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({
+            value: g,
+            label: g,
+          }))}
+          value={classGrade}
+          onChange={(e) => setClassGrade(e.target.value)}
+        />
+        <Select
+          variant="ais"
+          label="Section"
+          options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))}
+          value={classSection}
+          onChange={(e) => setClassSection(e.target.value)}
+        />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {GRADE_ENTRY_TYPES.map((t) => (
-          <AisBtnSecondary key={t} type="button" className="!px-2.5 !py-1 text-[10px]" onClick={() => roster[0] && openAdd(roster[0].id, t)} disabled={roster.length === 0}>
-            + {t}
-          </AisBtnSecondary>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <AisBtnPrimary type="button" className="!text-xs" onClick={() => openAdd()} disabled={roster.length === 0}>
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          Add quiz / test result
+        </AisBtnPrimary>
+        <p className={aisBodySm}>
+          Click a score cell to see which questions were correct or incorrect.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {roster.map((std) => {
-          const entries = gradesForStudent(filterTeacherGradeEntries(studentGradeEntries), std.id);
-          const termAvg = weightedTermAverage(entries);
-          return (
-            <div key={std.id} className={`${aisCard} p-4`}>
-              <div className="mb-3 border-b border-ais-card-border pb-2">
-                <p className={aisDataMd}>{std.name}</p>
-                <p className={aisBodySm}>{std.studentId} · GPA {std.gpa.toFixed(2)}</p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className={aisBodySm}>Term average</span>
-                  <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
-                    {termAvg != null ? `${termAvg}%` : '—'}
-                  </AisStatusBadge>
-                </div>
-                {entries.length === 0 ? (
-                  <p className={aisBodySm}>No scores recorded yet.</p>
-                ) : (
-                  entries.slice(0, 4).map((e) => (
-                    <div key={e.id} className="flex justify-between border-b border-ais-row-border pb-1 text-xs">
-                      <span>
-                        <span className="font-semibold text-ais-on-surface">{e.entryType}</span> · {e.title}
+      <AisPanel
+        title="Class results"
+        description="All students × assessments taken this term. Click a result for question-level detail."
+        flush
+      >
+        <div className="overflow-x-auto">
+          <AisTable>
+            <thead>
+              <tr className="bg-ais-surface-container-low">
+                <AisTh className="sticky left-0 z-10 bg-ais-surface-container-low min-w-[160px]">
+                  Student
+                </AisTh>
+                {columns.map((col) => (
+                  <AisTh key={col.key} className="min-w-[100px] text-center whitespace-nowrap">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
+                        {col.entryType}
                       </span>
-                      <span className="font-mono tabular-nums">
-                        {e.score}/{e.maxScore} ({entryPercent(e)}%)
+                      <span>{col.title}</span>
+                      <span className="text-[10px] font-normal text-ais-on-surface-variant">
+                        /{col.maxScore}
                       </span>
                     </div>
-                  ))
-                )}
-                {entries.length > 4 && <p className={aisBodySm}>+{entries.length - 4} more entries</p>}
-                <AisBtnSecondary className="mt-2 w-full !justify-center text-xs" onClick={() => openAdd(std.id)}>
-                  Add / edit grades
-                </AisBtnSecondary>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <AisPanel title="All grade entries" description="Quiz, test, project, midterm, final, and practical results" flush>
-        <AisTable>
-          <thead>
-            <tr className="bg-ais-surface-container-low">
-              <AisTh>Student</AisTh>
-              <AisTh>Type</AisTh>
-              <AisTh>Title</AisTh>
-              <AisTh>Score</AisTh>
-              <AisTh>%</AisTh>
-              <AisTh>Weight</AisTh>
-              <AisTh>Term</AisTh>
-              <AisTh>Actions</AisTh>
-            </tr>
-          </thead>
-          <tbody>
-            {myEntries.length === 0 ? (
-              <AisEmptyRow colSpan={8} message="No grade entries for this class. Use the quick-add buttons above." />
-            ) : (
-              myEntries.map((e) => {
-                const std = students.find((s) => s.id === e.studentId);
-                return (
-                  <AisTr key={e.id}>
-                    <AisTd className="font-semibold">{std?.name ?? e.studentId}</AisTd>
-                    <AisTd>
-                      <AisStatusBadge variant="neutral">{e.entryType}</AisStatusBadge>
-                    </AisTd>
-                    <AisTd className="text-xs">{e.title}</AisTd>
-                    <AisTd className="font-mono tabular-nums">{e.score}/{e.maxScore}</AisTd>
-                    <AisTd className="font-bold tabular-nums">{entryPercent(e)}%</AisTd>
-                    <AisTd className="tabular-nums">{e.weight}%</AisTd>
-                    <AisTd className={aisBodySm}>{e.term}</AisTd>
-                    <AisTd>
-                      <div className="flex gap-1">
-                        <AisBtnSecondary className="!px-2 !py-1 text-[10px]" onClick={() => openEdit(e)}>Edit</AisBtnSecondary>
-                        <button type="button" className="rounded-lg border border-ais-error/30 px-2 py-1 text-[10px] font-bold text-ais-error hover:bg-ais-error/10" onClick={() => deleteStudentGradeEntry(e.id)}>
-                          Del
-                        </button>
-                      </div>
-                    </AisTd>
-                  </AisTr>
-                );
-              })
-            )}
-          </tbody>
-        </AisTable>
+                  </AisTh>
+                ))}
+                <AisTh className="text-center">Term avg</AisTh>
+                <AisTh />
+              </tr>
+            </thead>
+            <tbody>
+              {roster.length === 0 ? (
+                <AisEmptyRow
+                  colSpan={Math.max(3, columns.length + 3)}
+                  message="No students in this section."
+                />
+              ) : (
+                roster.map((std) => {
+                  const entries = gradesForStudent(classEntries, std.id);
+                  const termAvg = weightedTermAverage(entries);
+                  return (
+                    <AisTr key={std.id}>
+                      <AisTd className="sticky left-0 z-10 bg-white dark:bg-ais-surface font-semibold">
+                        <p>{std.name}</p>
+                        <p className={`${aisBodySm} font-normal`}>{std.studentId}</p>
+                      </AisTd>
+                      {columns.map((col) => {
+                        const cell = findCell(std.id, col);
+                        if (!cell) {
+                          return (
+                            <AisTd key={col.key} className="text-center">
+                              <button
+                                type="button"
+                                className="rounded-lg px-2 py-1 text-xs text-ais-on-surface-variant hover:bg-ais-row-hover hover:text-ais-primary"
+                                onClick={() => openAdd(std.id, col)}
+                                title="Add result"
+                              >
+                                —
+                              </button>
+                            </AisTd>
+                          );
+                        }
+                        const pct = entryPercent(cell);
+                        return (
+                          <AisTd key={col.key} className="text-center">
+                            <button
+                              type="button"
+                              onClick={() => setDetailEntry(cell)}
+                              className={`inline-flex min-w-[3.25rem] flex-col items-center rounded-xl px-2 py-1.5 text-xs font-bold tabular-nums transition-colors hover:ring-2 hover:ring-ais-primary/30 ${
+                                pct >= 70
+                                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+                                  : pct >= 50
+                                    ? 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200'
+                                    : 'bg-rose-50 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200'
+                              }`}
+                            >
+                              <span>
+                                {cell.score}/{cell.maxScore}
+                              </span>
+                              <span className="text-[10px] font-semibold opacity-80">{pct}%</span>
+                            </button>
+                          </AisTd>
+                        );
+                      })}
+                      <AisTd className="text-center">
+                        <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
+                          {termAvg != null ? `${termAvg}%` : '—'}
+                        </AisStatusBadge>
+                      </AisTd>
+                      <AisTd>
+                        <AisBtnSecondary
+                          className="!px-2 !py-1 text-[10px]"
+                          onClick={() => openAdd(std.id)}
+                        >
+                          + Score
+                        </AisBtnSecondary>
+                      </AisTd>
+                    </AisTr>
+                  );
+                })
+              )}
+            </tbody>
+          </AisTable>
+        </div>
+        {roster.length > 0 && columns.length === 0 && (
+          <p className={`${aisBodyMd} p-4`}>
+            No assessments recorded yet. Use <strong>Add quiz / test result</strong> to enter scores.
+          </p>
+        )}
       </AisPanel>
 
-      <Dialog isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title={editingId ? 'Edit grade entry' : 'Record grade'} size="lg">
+      {/* Side detail panel */}
+      {detailEntry && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/30"
+            aria-label="Close detail"
+            onClick={() => setDetailEntry(null)}
+          />
+          <aside className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-ais-card-border bg-white shadow-2xl dark:bg-ais-surface animate-fade-in">
+            <div className="flex items-start justify-between gap-3 border-b border-ais-card-border p-4">
+              <div>
+                <p className={aisLabelCaps}>Result detail</p>
+                <h3 className={aisHeadlineSm}>{detailStudent?.name ?? 'Student'}</h3>
+                <p className={aisBodySm}>
+                  {detailEntry.entryType} · {detailEntry.title}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-full p-2 hover:bg-ais-row-hover"
+                onClick={() => setDetailEntry(null)}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto p-4">
+              <div className={`${aisCard} p-4`}>
+                <div className="flex items-center justify-between">
+                  <span className={aisBodySm}>Score</span>
+                  <span className={`${aisDataMd} font-mono tabular-nums`}>
+                    {detailEntry.score}/{detailEntry.maxScore} ({entryPercent(detailEntry)}%)
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className={aisBodySm}>Weight</span>
+                  <span className="text-sm tabular-nums">{detailEntry.weight}%</span>
+                </div>
+                {detailEntry.remarks && (
+                  <p className={`${aisBodySm} mt-3 border-t border-ais-card-border pt-3`}>
+                    {detailEntry.remarks}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ais-on-surface-variant">
+                  Question results
+                </p>
+                {(detailEntry.questionResults?.length ?? 0) === 0 ? (
+                  <p className={aisBodySm}>
+                    No question-level marks yet. Edit this result to mark each question correct or
+                    incorrect.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {detailEntry.questionResults!.map((q) => (
+                      <li
+                        key={q.questionNumber}
+                        className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
+                          q.correct
+                            ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-900/20'
+                            : 'border-rose-200 bg-rose-50/80 dark:border-rose-800 dark:bg-rose-900/20'
+                        }`}
+                      >
+                        <span
+                          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+                            q.correct
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-rose-600 text-white'
+                          }`}
+                        >
+                          {q.correct ? (
+                            <Check className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <X className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">
+                            Question {q.questionNumber}{' '}
+                            <span className="font-normal text-ais-on-surface-variant">
+                              — {q.correct ? 'Correct' : 'Incorrect'}
+                            </span>
+                          </p>
+                          {q.prompt && (
+                            <p className={`${aisBodySm} mt-0.5 line-clamp-2`}>{q.prompt}</p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 border-t border-ais-card-border p-4">
+              <AisBtnSecondary className="flex-1 !justify-center" onClick={() => openEdit(detailEntry)}>
+                Edit result
+              </AisBtnSecondary>
+              <button
+                type="button"
+                className="rounded-2xl border border-ais-error/30 px-4 py-2 text-xs font-bold text-ais-error hover:bg-ais-error/10"
+                onClick={() => {
+                  deleteStudentGradeEntry(detailEntry.id);
+                  setDetailEntry(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <Dialog
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        title={editingId ? 'Edit quiz / test result' : 'Add quiz / test result'}
+        size="2xl"
+        largeTitle
+      >
         <form onSubmit={handleSave} className="space-y-4 pt-2">
-          <p className={aisBodySm}>Student: {students.find((s) => s.id === selectedStudentId)?.name}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Select variant="ais" label="Assessment type" options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))} value={entryType} onChange={(e) => setEntryType(e.target.value as StudentGradeEntryType)} />
-            <Select variant="ais" label="Link to assessment (optional)" options={[{ value: '', label: 'None' }, ...myAssessments.map((a) => ({ value: a.id, label: `${a.type}: ${a.title}` }))]} value={linkedAssessment} onChange={(e) => setLinkedAssessment(e.target.value)} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              variant="ais"
+              label="Student"
+              options={roster.map((s) => ({ value: s.id, label: s.name }))}
+              value={selectedStudentId}
+              onChange={(e) => setSelectedStudentId(e.target.value)}
+            />
+            <Select
+              variant="ais"
+              label="Assessment type"
+              options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))}
+              value={entryType}
+              onChange={(e) => setEntryType(e.target.value as StudentGradeEntryType)}
+            />
           </div>
-          <input className={aisInput} required placeholder="Title (e.g. Unit 3 Quiz)" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <div className="grid grid-cols-3 gap-3">
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className={aisFormLabel}>Score</label>
-              <input type="number" className={aisInput} value={score} onChange={(e) => setScore(e.target.value)} />
+              <label className={aisFormLabel}>Title (column name)</label>
+              <input
+                className={aisInput}
+                required
+                placeholder="e.g. Quiz 1, Mid Exam, Unit Test 2"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
-            <div className="space-y-1">
-              <label className={aisFormLabel}>Max</label>
-              <input type="number" className={aisInput} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <label className={aisFormLabel}>Weight %</label>
-              <input type="number" className={aisInput} value={weight} onChange={(e) => setWeight(e.target.value)} />
-            </div>
+            <Select
+              variant="ais"
+              label="Link to assessment (optional)"
+              options={[
+                { value: '', label: 'None' },
+                ...myAssessments.map((a) => ({
+                  value: a.id,
+                  label: `${a.type}: ${a.title}${a.questions?.length ? ` (${a.questions.length} Q)` : ''}`,
+                })),
+              ]}
+              value={linkedAssessment}
+              onChange={(e) => setLinkedAssessment(e.target.value)}
+            />
           </div>
-          <input className={aisInput} placeholder="Remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-          <p className={aisBodySm}>Saving recalculates cumulative GPA from weighted term scores and syncs to student & parent portals.</p>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={useQuestionMarks}
+              onChange={(e) => setUseQuestionMarks(e.target.checked)}
+              className="rounded border-ais-card-border"
+            />
+            Mark each question correct / incorrect
+          </label>
+
+          {useQuestionMarks ? (
+            <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+              {!linkedAsm?.questions?.length && (
+                <div className="space-y-1 max-w-[140px]">
+                  <label className={aisFormLabel}>Number of questions</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    className={aisInput}
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </div>
+              )}
+              <p className={aisBodySm}>
+                Score auto-fills from correct marks ({questionMarks.filter((q) => q.correct).length}/
+                {questionMarks.length}). Tap a question to toggle.
+              </p>
+              <div className="grid max-h-[240px] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
+                {questionMarks.map((q) => (
+                  <button
+                    key={q.questionNumber}
+                    type="button"
+                    onClick={() => toggleQuestion(q.questionNumber)}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                      q.correct
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-100'
+                        : 'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-700 dark:bg-rose-900/30 dark:text-rose-100'
+                    }`}
+                  >
+                    {q.correct ? (
+                      <Check className="h-3.5 w-3.5 shrink-0" />
+                    ) : (
+                      <X className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    Q{q.questionNumber}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3 max-w-xs">
+                <div className="space-y-1">
+                  <label className={aisFormLabel}>Weight %</label>
+                  <input
+                    type="number"
+                    className={aisInput}
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className={aisFormLabel}>Score</label>
+                <input
+                  type="number"
+                  className={aisInput}
+                  value={score}
+                  onChange={(e) => setScore(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={aisFormLabel}>Max</label>
+                <input
+                  type="number"
+                  className={aisInput}
+                  value={maxScore}
+                  onChange={(e) => setMaxScore(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className={aisFormLabel}>Weight %</label>
+                <input
+                  type="number"
+                  className={aisInput}
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <input
+            className={aisInput}
+            placeholder="Remarks (optional)"
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+          />
+
           <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
             <AisBtnSecondary type="button" onClick={() => setIsFormOpen(false)}>
               Cancel
             </AisBtnSecondary>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
-            >
-              Save grade
-            </button>
+            <AisBtnPrimary type="submit">Save result</AisBtnPrimary>
           </DialogFooter>
         </form>
       </Dialog>
