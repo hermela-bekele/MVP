@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, MoreVertical, Plus, Printer, Save, Send, Sparkles, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
