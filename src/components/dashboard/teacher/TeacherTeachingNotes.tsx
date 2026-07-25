@@ -33,6 +33,8 @@ import {
   aisHeadlineSm,
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
+const TEACHER_AI_ENABLED = process.env.NEXT_PUBLIC_ENABLE_TEACHER_AI === 'true';
+
 const TeachingNotesRenderer = lazy(() =>
   import('@/components/ui/TeachingNotesRenderer').then((m) => ({
     default: m.TeachingNotesRenderer,
@@ -583,10 +585,15 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </div>
             <Select variant="ais" label="Language" options={[{ value: 'English', label: 'English' }, { value: 'Amharic', label: 'Amharic' }, { value: 'Afaan Oromo', label: 'Afaan Oromo' }]} value={notesLanguage} onChange={(e) => setNotesLanguage(e.target.value)} />
           </div>
-          <AisBtnPrimary type="button" onClick={handleGenerateNotes} disabled={generatingNotes || !notesTopic}>
-            <Sparkles className="h-3.5 w-3.5 animate-pulse" aria-hidden />
-            {generatingNotes ? 'Generating with AI...' : 'Generate with AI'}
-          </AisBtnPrimary>
+          {TEACHER_AI_ENABLED && (
+            <AisBtnPrimary type="button" onClick={handleGenerateNotes} disabled={generatingNotes || !notesTopic}>
+              <Sparkles className="h-3.5 w-3.5 animate-pulse" aria-hidden />
+              {generatingNotes ? 'Generating with AI...' : 'Generate with AI'}
+            </AisBtnPrimary>
+          )}
+          {!TEACHER_AI_ENABLED && (
+            <p className={aisBodySm}>AI generation is disabled for MVP. Write or paste notes below, then save.</p>
+          )}
           {aiNotesResult && (
             <div className="space-y-3 max-h-[400px] overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
               <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">

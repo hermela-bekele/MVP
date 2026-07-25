@@ -16,6 +16,7 @@ import {
   weightedTermAverage,
 } from '@/lib/teacherPortal';
 import type { StudentGradeEntry, StudentGradeEntryType } from '@/lib/mockData';
+import { api } from '@/lib/api';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -32,8 +33,9 @@ import {
 import { aisBodyMd, aisBodySm, aisCard, aisDataMd, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherGradebook: React.FC = () => {
-  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry, resolveTeacherId } = useApp();
+  const { students, studentGradeEntries, assessments, upsertStudentGradeEntry, deleteStudentGradeEntry, resolveTeacherId, refreshFromApi } = useApp();
   const teacherId = resolveTeacherId();
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const [classGrade, setClassGrade] = useState('Grade 9');
   const [classSection, setClassSection] = useState('A');
@@ -183,12 +185,13 @@ export const TeacherGradebook: React.FC = () => {
               <AisTh>%</AisTh>
               <AisTh>Weight</AisTh>
               <AisTh>Term</AisTh>
+              <AisTh>Visibility</AisTh>
               <AisTh>Actions</AisTh>
             </tr>
           </thead>
           <tbody>
             {myEntries.length === 0 ? (
-              <AisEmptyRow colSpan={8} message="No grade entries for this class. Use the quick-add buttons above." />
+              <AisEmptyRow colSpan={9} message="No grade entries for this class. Use the quick-add buttons above." />
             ) : (
               myEntries.map((e) => {
                 const std = students.find((s) => s.id === e.studentId);
@@ -204,8 +207,26 @@ export const TeacherGradebook: React.FC = () => {
                     <AisTd className="tabular-nums">{e.weight}%</AisTd>
                     <AisTd className={aisBodySm}>{e.term}</AisTd>
                     <AisTd>
-                      <div className="flex gap-1">
+                      <AisStatusBadge variant={e.published ? 'success' : 'neutral'}>
+                        {e.published ? 'Published' : 'Draft'}
+                      </AisStatusBadge>
+                    </AisTd>
+                    <AisTd>
+                      <div className="flex flex-wrap gap-1">
                         <AisBtnSecondary className="!px-2 !py-1 text-[10px]" onClick={() => openEdit(e)}>Edit</AisBtnSecondary>
+                        <AisBtnSecondary
+                          className="!px-2 !py-1 text-[10px]"
+                          disabled={publishingId === e.id}
+                          onClick={() => {
+                            setPublishingId(e.id);
+                            void api
+                              .publishGrade(e.id, !e.published)
+                              .then(() => refreshFromApi?.())
+                              .finally(() => setPublishingId(null));
+                          }}
+                        >
+                          {e.published ? 'Unpublish' : 'Publish'}
+                        </AisBtnSecondary>
                         <button type="button" className="rounded-lg border border-ais-error/30 px-2 py-1 text-[10px] font-bold text-ais-error hover:bg-ais-error/10" onClick={() => deleteStudentGradeEntry(e.id)}>
                           Del
                         </button>

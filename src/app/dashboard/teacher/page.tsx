@@ -78,6 +78,16 @@ const TeacherTimetableTab = lazy(() =>
     default: m.TeacherTimetableTab,
   })),
 );
+const TeacherPracticeBank = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherPracticeBank").then((m) => ({
+    default: m.TeacherPracticeBank,
+  })),
+);
+const MessageCenter = lazy(() =>
+  import("@/components/dashboard/messaging/MessageCenter").then((m) => ({
+    default: m.MessageCenter,
+  })),
+);
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -91,7 +101,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   "teaching-notes": {
     title: "Teaching Notes",
-    subtitle: "View all notes per lesson plan and create new notes with AI.",
+    subtitle: "Lesson notes and session plans for your classes.",
   },
   "manage-students": {
     title: "Manage Students",
@@ -101,6 +111,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   resources: {
     title: "Resources",
     subtitle: "Upload and disseminate worksheets, slides, and lab guides.",
+  },
+  "practice-bank": {
+    title: "Practice Bank",
+    subtitle: "Author questions and publish practice sets for students.",
   },
   assessments: {
     title: "Manage Assessments",
@@ -133,6 +147,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   feedback: {
     title: "Feedback",
     subtitle: "View feedback received and provide comments to students.",
+  },
+  messages: {
+    title: "Parent Messages",
+    subtitle: "One-to-one conversations with parents about your students.",
   },
   settings: {
     title: "Settings",
@@ -214,24 +232,31 @@ export default function TeacherPortalPage() {
       actions={shellActions}
       headerVariant="portal"
     >
-      {activeTab === "dashboard" && <TeacherDashboard />}
-      {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
-      {activeTab === "manage-students" && <TeacherStudentsTab />}
-      {activeTab === "resources" && <TeacherResourcesTab />}
-      {activeTab === "assessments" && <TeacherAssessmentsTab />}
-      {activeTab === "checkins" && <TeacherCheckinsTab />}
-      {activeTab === "manage-classes" && <TeacherClassesTab />}
-      {activeTab === "attendance" && <TeacherAttendanceTab />}
-      {(activeTab === "training" ||
-        activeTab === "training-subject-matter" ||
-        activeTab === "training-continuous") && (
-        <TeacherTrainingTab
-          typeFilter={trainingTypeFilter}
-          activeTabType={activeTab}
-        />
-      )}
-      {activeTab === "feedback" && <TeacherFeedbackTab />}
-      {activeTab === "settings" && <TeacherSettingsTab />}
+      <Suspense fallback={<TabLoading />}>
+        {activeTab === "dashboard" && <TeacherDashboard />}
+        {activeTab === "timetable" && <TeacherTimetableTab />}
+        {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
+        {activeTab === "manage-students" && <TeacherStudentsTab />}
+        {activeTab === "resources" && <TeacherResourcesTab />}
+        {activeTab === "practice-bank" && <TeacherPracticeBank />}
+        {activeTab === "assessments" && <TeacherAssessmentsTab />}
+        {activeTab === "checkins" && <TeacherCheckinsTab />}
+        {activeTab === "manage-classes" && <TeacherClassesTab />}
+        {activeTab === "attendance" && <TeacherAttendanceTab />}
+        {(activeTab === "training" ||
+          activeTab === "training-subject-matter" ||
+          activeTab === "training-continuous") && (
+          <TeacherTrainingTab
+            typeFilter={trainingTypeFilter}
+            activeTabType={activeTab}
+          />
+        )}
+        {activeTab === "feedback" && <TeacherFeedbackTab />}
+        {activeTab === "messages" && (
+          <MessageCenter mode="staff" staffRoleHint="teacher" />
+        )}
+        {activeTab === "settings" && <TeacherSettingsTab />}
+      </Suspense>
     </DashboardShell>
   );
 }
