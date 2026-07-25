@@ -1,13 +1,21 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Download, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { MathRenderer } from '@/components/ui/MathRenderer';
+import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
 import { filterTeacherAssessments } from '@/lib/teacherPortal';
 import type { Assessment } from '@/lib/mockData';
+import {
+  assessmentToMarkdown,
+  generatePDFFromMarkdown,
+  printMarkdown,
+  slugifyFilename,
+} from '@/lib/pdfUtils';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -58,6 +66,29 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<Omit<AssessmentQuestion, 'id'>>(emptyForm());
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const handlePrintAssessment = async () => {
+    if (!assessment) return;
+    await printMarkdown(assessmentToMarkdown(assessment), assessment.title);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!assessment) return;
+    setIsGeneratingPDF(true);
+    try {
+      await generatePDFFromMarkdown(
+        assessmentToMarkdown(assessment),
+        `${slugifyFilename(assessment.title)}.pdf`,
+        assessment.title,
+      );
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   const nextQuestionId = (questions: AssessmentQuestion[]) =>
     questions.length === 0 ? 1 : Math.max(...questions.map((q) => q.id)) + 1;
@@ -138,6 +169,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
   }
 
   const showOptions = form.type === 'MCQ';
+  const isAiDocument = isGeneratedAssessmentBlob(assessment?.questions ?? []);
 
   return (
     <AisPage>
@@ -149,6 +181,14 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
             <AisStatusBadge variant={approvalBadgeVariant(assessment.status)}>
               {assessment.status}
             </AisStatusBadge>
+            <AisBtnSecondary onClick={handlePrintAssessment} disabled={assessment.questions.length === 0}>
+              <Printer className="h-3.5 w-3.5" aria-hidden />
+              Print
+            </AisBtnSecondary>
+            <AisBtnSecondary onClick={handleDownloadPDF} disabled={isGeneratingPDF || assessment.questions.length === 0}>
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              {isGeneratingPDF ? 'Generating…' : 'Download PDF'}
+            </AisBtnSecondary>
             <AisBtnPrimary onClick={openAdd}>
               <Plus className="h-3.5 w-3.5" aria-hidden />
               Add question
@@ -167,6 +207,10 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
           <p className={`${aisBodySm} py-8 text-center`}>
             No questions yet. Click &quot;Add question&quot; to create one manually.
           </p>
+        ) : isAiDocument ? (
+          <div className="rounded-xl border border-ais-card-border bg-white p-6 dark:bg-gray-900/40">
+            <AssessmentContentRenderer content={assessment.questions[0].question} />
+          </div>
         ) : (
           <div className="space-y-4">
             {assessment.questions.map((q, index) => (
@@ -180,7 +224,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                       Question {index + 1} · {q.type}
                     </p>
                     <div className={`${aisDataMd} mt-2 font-medium`}>
-                      <MathRenderer content={q.question} />
+                      <AssessmentContentRenderer content={q.question} />
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -216,10 +260,10 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                   </ul>
                 )}
 
-                <p className={`${aisBodySm} text-ais-on-surface-variant`}>
+                <div className={`${aisBodySm} text-ais-on-surface-variant`}>
                   <span className="font-semibold text-ais-on-surface">Answer: </span>
                   <MathRenderer content={q.answer} />
-                </p>
+                </div>
               </div>
             ))}
           </div>

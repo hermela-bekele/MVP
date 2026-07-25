@@ -8,6 +8,7 @@ import {
   aisBtnPrimary,
   aisBtnSecondary,
 } from "@/components/dashboard/teacher/aisStyles";
+import { portalTabPath } from "@/lib/portalPaths";
 
 function TabLoading() {
   return (
@@ -35,17 +36,18 @@ export default function AssessmentDetailPage({
 
   const navigateToTeacherTab = useCallback(
     (tab: string) => {
-      router.push("/dashboard/teacher");
-      window.setTimeout(() => {
-        window.dispatchEvent(
-          new CustomEvent("teacher-quick-action", { detail: { tab } }),
-        );
-      }, 100);
+      router.push(portalTabPath("teacher", tab));
     },
     [router],
   );
 
-  const handleBack = () => navigateToTeacherTab("assessments");
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    navigateToTeacherTab("assessments");
+  };
 
   return (
     <DashboardShell

@@ -7,6 +7,8 @@ import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
+import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
+
 export default function ParentPortalPage() {
   const { students, attendance, addNotification } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -168,6 +170,16 @@ export default function ParentPortalPage() {
 
               </div>
 
+            </div>
+          )}
+
+          {activeTab === 'academic-calendar' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <PublishedAcademicCalendarPanel
+                schoolId={activeChild?.schoolId || 'sch-1'}
+                title="School academic calendar"
+                description="Stay on top of exam windows, breaks, and parent gatherings disseminated by the school."
+              />
             </div>
           )}
 

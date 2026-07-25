@@ -364,7 +364,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                     <button
                       type="button"
                       onClick={clearNotifications}
-                      className="text-[10px] font-bold text-ais-primary hover:text-[#003ea8] cursor-pointer"
+                      className="text-[10px] font-bold text-ais-primary hover:text-ais-primary-container cursor-pointer"
                     >
                       Clear all
                     </button>

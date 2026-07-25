@@ -1,4 +1,5 @@
 import { LessonPlan, Assessment, Student } from './mockData';
+import type { AnnualLessonPlanResult } from './annualLessonPlan';
 
 // Simulated latency helper
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,6 +10,123 @@ export interface AILessonPlanResult {
   activities: { session: number; activity: string; duration: string }[];
   assessments: string[];
   homework: string;
+}
+
+export interface AnnualPlanUnit {
+  order: number;
+  title: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  volume: 'Low' | 'Medium' | 'High';
+  estimatedDays: number;
+  objectives: string[];
+  teacherMustInclude: string[];
+  expectedOutcomes: string[];
+}
+
+export interface AnnualLessonPlanWeekRowAI {
+  semester: string;
+  month: string;
+  week: string;
+  date: string;
+  unit: string;
+  contents: string[];
+  periodsNeeded: number;
+  page: string;
+  generalObjectives: string[];
+  teachingMethods: string[];
+  teachingAids: string[];
+  evaluationMethods: string[];
+  homework?: string[];
+  comments?: string;
+}
+
+export interface AnnualLessonPlanMetaAI {
+  academicYear?: string;
+  schoolName?: string;
+  teacherName?: string;
+  grade?: string;
+  subject?: string;
+  schoolDaysPerYear?: number;
+  periodsPerWeek?: number;
+  periodsPerYear?: number;
+  referenceMaterials?: string;
+  generalObjectives?: string[];
+}
+
+export interface WeeklyProcedureRow {
+  stage: string;
+  time: string;
+  lessonContents: string;
+  teacherActivity: string;
+  studentActivity: string;
+  teachingAid: string;
+  reference: string;
+}
+
+export interface WeeklySpecialNeeds {
+  active: string;
+  medium: string;
+  slow: string;
+}
+
+export interface WeeklyLessonSession {
+  sessionNumber: number;
+  subject: string;
+  mainTopic: string;
+  subTopic: string;
+  textbookPages?: string;
+  prerequisiteKnowledge: string;
+  rationale: string;
+  objectives: string[];
+  durationMinutes?: number;
+  /** School template rows (preferred) */
+  procedures?: WeeklyProcedureRow[];
+  specialNeeds?: WeeklySpecialNeeds;
+  /** Legacy 3-phase shape (still accepted / migrated server-side) */
+  teachingApproach?: {
+    startingActivity: {
+      time: string;
+      content: string;
+      teacherActivity: string;
+      studentActivity: string;
+      teachingAids: string[];
+      assessment: string;
+    };
+    mainActivity: {
+      time: string;
+      content: string;
+      teacherActivity: string;
+      studentActivity: string;
+      teachingAids: string[];
+      assessment: string;
+    };
+    concludingActivity: {
+      time: string;
+      content: string;
+      teacherActivity: string;
+      studentActivity: string;
+      teachingAids: string[];
+      assessment: string;
+    };
+  };
+}
+
+export interface AIDetailedLessonPlanResult {
+  type: 'yearly' | 'monthly' | 'weekly';
+  subject: string;
+  mainTopic: string;
+  subTopic: string;
+  prerequisiteKnowledge: string;
+  rationale: string;
+  objectives: string[];
+  sources?: { page?: number | string; topic?: string; note?: string }[];
+  /** Legacy unit-card annual format */
+  units?: AnnualPlanUnit[];
+  /** Template-aligned annual table rows (preferred) */
+  weeks?: AnnualLessonPlanWeekRowAI[];
+  meta?: AnnualLessonPlanMetaAI;
+  sessions?: WeeklyLessonSession[];
+  overview?: string; // For yearly and monthly
 }
 
 export interface AITeachingNotesResult {
@@ -691,6 +809,78 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     }
   }
 
+  async generateDetailedLessonPlan(params: {
+    plan_type: 'yearly' | 'monthly' | 'weekly';
+    grade: string;
+    subject: string;
+    topic?: string;
+    subtopic?: string;
+    student_level?: 'differentiated' | 'beginner' | 'intermediate' | 'advanced';
+    periods_per_week?: number;
+    session_duration?: number;
+    learning_days_per_year?: number;
+    days_per_week?: number;
+    /** Scaffolded teaching weeks from the disseminated school calendar */
+    calendar_weeks?: {
+      id: string;
+      semester: string;
+      month: string;
+      week: string;
+      date: string;
+      periodsAvailable: number;
+    }[];
+    /** Full-year calendar weeks for map-based unit/page allocation across batches */
+    year_calendar_weeks?: {
+      id: string;
+      semester: string;
+      month: string;
+      week: string;
+      date: string;
+      periodsAvailable: number;
+    }[];
+    non_teaching_windows?: string[];
+    teacher_name?: string;
+    school_name?: string;
+    academic_year?: string;
+    reference_materials?: string;
+  }): Promise<{ plan: AIDetailedLessonPlanResult; sources: { page?: number; topic?: string }[] }> {
+    const result = await this.callPrimeAI('/detailed-lesson-plan', {
+      plan_type: params.plan_type,
+      grade: params.grade,
+      subject: params.subject,
+      topic: params.topic ?? '',
+      subtopic: params.subtopic ?? '',
+      student_level: params.student_level ?? 'differentiated',
+      periods_per_week: params.periods_per_week ?? 3,
+      session_duration: params.session_duration ?? 45,
+      learning_days_per_year: params.learning_days_per_year ?? 180,
+      days_per_week: params.days_per_week ?? 5,
+      calendar_weeks: params.calendar_weeks ?? [],
+      year_calendar_weeks: params.year_calendar_weeks ?? [],
+      non_teaching_windows: params.non_teaching_windows ?? [],
+      teacher_name: params.teacher_name ?? '',
+      school_name: params.school_name ?? '',
+      academic_year: params.academic_year ?? '',
+      reference_materials: params.reference_materials ?? 'TEXT BOOK',
+    });
+
+    const plan = (result.plan ?? result) as AIDetailedLessonPlanResult;
+    const sources = (result.sources ?? []) as { page?: number; topic?: string }[];
+    const isYearly = params.plan_type === 'yearly';
+
+    return {
+      plan: {
+        ...plan,
+        subTopic: plan.subTopic ?? (plan as { subtopic?: string }).subtopic ?? '',
+        sources: isYearly ? sources : sources,
+        units: plan.units ?? (plan as { units?: AnnualPlanUnit[] }).units,
+        weeks: plan.weeks,
+        meta: plan.meta,
+      },
+      sources,
+    };
+  }
+
   async generateLessonPlan(prompt: string): Promise<{ content: string }> {
     try {
       console.log('📚 generateLessonPlan called');
@@ -735,51 +925,288 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     }
   }
 
-  async generateTeachingNotes(prompt: string): Promise<{ content: string }> {
+  async generateTeachingNotes(params: {
+    topic: string;
+    subtopic?: string;
+    grade?: string;
+    subject?: string;
+    language?: string;
+    sessionContext?: string;
+    studentLevel?: string;
+  } | string): Promise<{ content: string }> {
+    const normalized =
+      typeof params === 'string'
+        ? {
+            topic:
+              params.match(/topic:\s*([^\n]+)/i)?.[1]?.trim() ?? 'General Mathematics',
+            subtopic: params.match(/subtopic:\s*([^\n]+)/i)?.[1]?.trim() ?? '',
+            grade: params.match(/grade:\s*([^\n]+)/i)?.[1]?.trim() ?? 'Grade 9',
+            subject: params.match(/subject:\s*([^\n]+)/i)?.[1]?.trim() ?? 'Biology',
+            language: params.match(/language:\s*([^\n]+)/i)?.[1]?.trim() ?? 'English',
+            sessionContext:
+              params.match(/session_context:\s*([\s\S]+)/i)?.[1]?.trim() ?? '',
+            studentLevel: 'differentiated',
+          }
+        : params;
+
+    const {
+      topic,
+      subtopic = '',
+      grade = 'Grade 9',
+      subject = 'Biology',
+      language = 'English',
+      sessionContext = '',
+      studentLevel = 'differentiated',
+    } = normalized;
+
     try {
       console.log('📖 generateTeachingNotes called');
-      console.log('   Prompt:', prompt.substring(0, 150) + '...');
-      
-      // Extract parameters from prompt
-      const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
-      const subtopicMatch = prompt.match(/subtopic:\s*([^\n]+)/i);
-      
-      const topic = topicMatch ? topicMatch[1].trim() : 'General Mathematics';
-      const subtopic = subtopicMatch ? subtopicMatch[1].trim() : '';
-      
-      // Use the correct /lesson-notes endpoint
+      console.log('   Topic:', topic);
+
       const result = await this.callPrimeAI('/lesson-notes', {
         topic,
         subtopic,
+        session_context: sessionContext,
+        student_level: studentLevel,
       });
-      
+
       console.log('✅ Prime AI returned teaching notes');
       return { content: result.content || JSON.stringify(result) };
     } catch (error) {
       console.error('❌ generateTeachingNotes failed, using fallback:', error);
       console.warn('⚠️ Using fallback teaching notes generation');
-      
+
       await delay(1200);
-      
-      // Extract parameters
-      const gradeMatch = prompt.match(/grade:\s*([^\n]+)/i);
-      const subjectMatch = prompt.match(/subject:\s*(\w+)/i);
-      const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
-      const languageMatch = prompt.match(/language:\s*(\w+)/i);
-      
-      const grade = gradeMatch ? gradeMatch[1].trim() : 'Grade 9';
-      const subject = subjectMatch ? subjectMatch[1] : 'Biology';
-      const topic = topicMatch ? topicMatch[1].trim() : subject;
-      const language = languageMatch ? languageMatch[1] : 'English';
-      
+
       return {
-        content: JSON.stringify(await generateTeachingNotesAI(grade, subject, topic, language))
+        content: JSON.stringify(
+          await generateTeachingNotesAI(grade, subject, topic, language),
+        ),
       };
     }
   }
 }
 
 export const aiService = new AIService();
+
+/** Maps UI question format labels to Prime AI backend keys. */
+export function normalizeQuestionFormat(format: string): string {
+  const key = format.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '_');
+  const aliases: Record<string, string> = {
+    multiple_choice: 'multiple_choice',
+    writing: 'writing',
+    fill_the_blank: 'fill_in_the_blank',
+    fill_in_the_blank: 'fill_in_the_blank',
+    matching: 'matching',
+    true_false: 'true_false',
+    mixed: 'mixed',
+    mcq: 'multiple_choice',
+    short_answer: 'writing',
+  };
+  return aliases[key] ?? key;
+}
+
+export function parseAnnualPlanDetail(plan: LessonPlan): AnnualLessonPlanResult | null {
+  if (!plan.planDetail) return null;
+  try {
+    const parsed = JSON.parse(plan.planDetail) as AnnualLessonPlanResult;
+    if (parsed?.weeks?.length) return parsed;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function parseWeeklyPlanDetail(plan: LessonPlan): AIDetailedLessonPlanResult | null {
+  if (!plan.planDetail) return null;
+  try {
+    const parsed = JSON.parse(plan.planDetail) as AIDetailedLessonPlanResult;
+    if (parsed?.type === 'weekly' || parsed?.sessions?.length) return parsed;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function getAnnualMonthOptions(annual: AnnualLessonPlanResult): string[] {
+  const months: string[] = [];
+  for (const w of annual.weeks || []) {
+    if (w.month && !months.includes(w.month)) months.push(w.month);
+  }
+  return months;
+}
+
+export function getAnnualWeeksForMonth(annual: AnnualLessonPlanResult, month: string) {
+  return (annual.weeks || []).filter((w) => w.month === month);
+}
+
+/** Session topic options from a weekly detailed plan (for teaching notes). */
+export function getWeeklyPlanSessionTopicOptions(plan: LessonPlan) {
+  const weekly = parseWeeklyPlanDetail(plan);
+  const planObjectives = (plan.objectives || []).filter(Boolean);
+  const weeklyObjectives = (weekly?.objectives || []).filter(Boolean);
+  const allObjectives = [...new Set([...planObjectives, ...weeklyObjectives])];
+
+  if (weekly?.sessions?.length) {
+    const sessionOptions = weekly.sessions.map((s) => ({
+      value: String(s.sessionNumber),
+      label: `Session ${s.sessionNumber}: ${s.subTopic || s.mainTopic}${
+        s.textbookPages ? ` (${s.textbookPages})` : ''
+      }`,
+      topic: s.subTopic || s.mainTopic || plan.title,
+      subtopic: s.textbookPages || '',
+      context: [
+        `Weekly lesson plan: ${plan.title}`,
+        `Focus: Session ${s.sessionNumber} — ${s.subTopic || s.mainTopic}`,
+        s.textbookPages ? `Textbook pages: ${s.textbookPages}` : '',
+        allObjectives.length
+          ? `Lesson plan objectives:\n${allObjectives.map((o) => `- ${o}`).join('\n')}`
+          : '',
+        (s.objectives || []).length
+          ? `Session objectives:\n${(s.objectives || []).map((o) => `- ${o}`).join('\n')}`
+          : '',
+        ...(s.procedures || []).map(
+          (p) => `${p.stage}: ${p.lessonContents} [${p.reference}]`,
+        ),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    }));
+
+    const allSessionsTopic =
+      weekly.mainTopic ||
+      weekly.sessions.map((s) => s.subTopic || s.mainTopic).filter(Boolean).join('; ') ||
+      plan.title;
+
+    const allSessionsContext = [
+      `Weekly lesson plan: ${plan.title}`,
+      `Focus: ALL ${weekly.sessions.length} sessions this week`,
+      weekly.mainTopic ? `Main topic: ${weekly.mainTopic}` : '',
+      weekly.subTopic ? `Subtopic: ${weekly.subTopic}` : '',
+      allObjectives.length
+        ? `Lesson plan objectives:\n${allObjectives.map((o) => `- ${o}`).join('\n')}`
+        : '',
+      '',
+      'Sessions:',
+      ...weekly.sessions.flatMap((s) => [
+        `Session ${s.sessionNumber}: ${s.subTopic || s.mainTopic}${
+          s.textbookPages ? ` (${s.textbookPages})` : ''
+        }`,
+        ...((s.objectives || []).map((o) => `  - ${o}`)),
+      ]),
+    ]
+      .filter((line) => line !== undefined)
+      .join('\n');
+
+    return [
+      {
+        value: 'all',
+        label: `All sessions (${weekly.sessions.length})`,
+        topic: allSessionsTopic,
+        subtopic: weekly.subTopic || '',
+        context: allSessionsContext,
+      },
+      ...sessionOptions,
+    ];
+  }
+
+  return getLessonPlanSessionOptions(plan).map((o) => ({
+    ...o,
+    topic:
+      o.value === 'all'
+        ? plan.title
+        : plan.activities.find((a) => String(a.session) === o.value)?.activity || plan.title,
+    subtopic: o.value === 'all' ? '' : o.label,
+    context:
+      o.value === 'all'
+        ? buildLessonPlanContext(plan)
+        : [
+            `Lesson plan: ${plan.title}`,
+            `Focus: ${o.label}`,
+            planObjectives.length
+              ? `Lesson plan objectives:\n${planObjectives.map((obj) => `- ${obj}`).join('\n')}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+  }));
+}
+
+export function getLessonPlanSessionOptions(plan: LessonPlan) {
+  const sessionOptions =
+    plan.activities.length > 0
+      ? plan.activities.map((a) => ({
+          value: String(a.session),
+          label: `Session ${a.session}: ${a.activity} (${a.duration})`,
+        }))
+      : Array.from({ length: plan.sessions }, (_, i) => ({
+          value: String(i + 1),
+          label: `Session ${i + 1}`,
+        }));
+
+  return [
+    {
+      value: 'all',
+      label: `Whole lesson plan (${plan.sessions} session${plan.sessions === 1 ? '' : 's'})`,
+    },
+    ...sessionOptions,
+  ];
+}
+
+export function resolveSessionScope(plan: LessonPlan, scope: string) {
+  if (scope === 'all') {
+    return {
+      topic: plan.title,
+      subtopic: plan.objectives[0] ?? '',
+      sessionContext: buildLessonPlanContext(plan),
+      label: `All sessions — ${plan.title}`,
+    };
+  }
+
+  const sessionNum = Number(scope);
+  const activity = plan.activities.find((a) => a.session === sessionNum);
+  const activityLine = activity
+    ? `Activity: ${activity.activity} (${activity.duration})`
+    : '';
+
+  return {
+    topic: plan.title,
+    subtopic: activity?.activity ?? `Session ${sessionNum}`,
+    sessionContext: [
+      `Lesson plan: ${plan.title}`,
+      `Focus: Session ${sessionNum}`,
+      activityLine,
+      plan.objectives.length
+        ? `Objectives:\n${plan.objectives.map((o) => `- ${o}`).join('\n')}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    label: activity
+      ? `Session ${sessionNum}: ${activity.activity}`
+      : `Session ${sessionNum}`,
+  };
+}
+
+export function buildLessonPlanContext(plan: LessonPlan): string {
+  const lines = [
+    `Title: ${plan.title}`,
+    `Grade: ${plan.grade} | Subject: ${plan.subject} | Sessions: ${plan.sessions}`,
+    '',
+    'Learning Objectives:',
+    ...plan.objectives.map((o) => `- ${o}`),
+    '',
+    'Session Activities:',
+    ...plan.activities.map((a) => `- Session ${a.session}: ${a.activity} (${a.duration})`),
+  ];
+  if (plan.homework) {
+    lines.push('', `Homework: ${plan.homework}`);
+  }
+  if (plan.assessments.length > 0) {
+    lines.push('', 'Planned Assessments:', ...plan.assessments.map((a) => `- ${a}`));
+  }
+  return lines.join('\n');
+}
 
 export const generateAssessmentWithAI = async (
   type: string,
@@ -788,15 +1215,21 @@ export const generateAssessmentWithAI = async (
   subject: string,
   difficulty: string,
   numQuestions: number = 10,
-  questionFormat: string = 'Mixed'
+  questionFormat: string = 'Mixed',
+  lessonPlanContext?: string,
+  studentLevel: string = 'differentiated',
 ): Promise<string> => {
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       topic,
       difficulty: difficulty.toLowerCase(),
       num_questions: numQuestions,
-      question_type: questionFormat.toLowerCase().replace(/\s+/g, '_'),
+      question_type: normalizeQuestionFormat(questionFormat),
+      student_level: studentLevel,
     };
+    if (lessonPlanContext?.trim()) {
+      payload.lesson_plan_context = lessonPlanContext.trim();
+    }
 
     const cacheKey = aiService['getCacheKey']('/quiz', payload);
     const cached = aiService['getFromCache'](cacheKey);
@@ -837,10 +1270,132 @@ Generate ${numQuestions} ${formatLabel} on **${topic}** for ${grade} ${subject}.
 
 ## Questions
 
-1. [Sample ${questionFormat === 'Mixed' ? 'multiple choice' : questionFormat.toLowerCase()} question related to ${topic}]
+1. [Sample ${questionFormat.toLowerCase()} question related to ${topic}]
 
 ---
 
 **Total: ${numQuestions} questions**`;
+  }
+};
+
+export type BaselineSemesterTiming = 'semester_1_start' | 'semester_2_start';
+
+export function derivePreviousGrade(grade: string): string {
+  const match = grade.match(/(\d+)/);
+  if (match) {
+    const n = parseInt(match[1], 10);
+    if (n > 1) return `Grade ${n - 1}`;
+  }
+  return 'Previous Grade';
+}
+
+export function baselineScopeLabel(
+  grade: string,
+  subject: string,
+  timing: BaselineSemesterTiming,
+  focusTopic?: string,
+): string {
+  const prev = derivePreviousGrade(grade);
+  if (timing === 'semester_1_start') {
+    return focusTopic?.trim()
+      ? `${prev} prerequisites — ${focusTopic.trim()}`
+      : `${prev} ${subject} prerequisites for ${grade}`;
+  }
+  return focusTopic?.trim()
+    ? `Semester 1 review — ${focusTopic.trim()}`
+    : `${grade} ${subject} — Semester 1 review`;
+}
+
+export function baselineTimingLabel(timing: BaselineSemesterTiming, grade: string): string {
+  if (timing === 'semester_1_start') {
+    return `Semester 1 Start (${derivePreviousGrade(grade)} prerequisites)`;
+  }
+  return 'Semester 2 Start (Semester 1 review)';
+}
+
+export const generateBaselineAssessmentWithAI = async (
+  grade: string,
+  subject: string,
+  semesterTiming: BaselineSemesterTiming,
+  focusTopic: string,
+  difficulty: string,
+  numQuestions: number = 10,
+  questionFormat: string = 'Mixed',
+  studentLevel: string = 'differentiated',
+): Promise<string> => {
+  try {
+    const payload: Record<string, unknown> = {
+      grade,
+      subject,
+      semester_timing: semesterTiming,
+      focus_topic: focusTopic.trim(),
+      difficulty: difficulty.toLowerCase(),
+      num_questions: numQuestions,
+      question_type: normalizeQuestionFormat(questionFormat),
+      student_level: studentLevel,
+    };
+
+    const cacheKey = aiService['getCacheKey']('/baseline-assessment', payload);
+    const cached = aiService['getFromCache'](cacheKey);
+    if (cached) {
+      return cached.content || JSON.stringify(cached);
+    }
+
+    const result = await aiService['callPrimeAI']('/baseline-assessment', payload);
+    return result.content || JSON.stringify(result);
+  } catch (error) {
+    console.error('AI Service failed for baseline assessment, using fallback:', error);
+
+    const scope = baselineScopeLabel(grade, subject, semesterTiming, focusTopic);
+    const timing = baselineTimingLabel(semesterTiming, grade);
+
+    return `# Baseline Assessment — ${grade} ${subject}
+
+**Timing:** ${timing}  
+**Scope:** ${scope}  
+**Difficulty:** ${difficulty}  
+**Questions:** ${numQuestions}  
+**Format:** ${questionFormat}
+
+---
+
+## Baseline Assessment Overview
+
+This diagnostic assessment checks student readiness before new instruction begins.
+Administer at the **${timing.toLowerCase()}**.
+
+**Skill areas probed:**
+- Core prerequisite concepts inferred from the ${grade} textbook
+- Foundational skills needed for upcoming units
+
+---
+
+## Instructions for Students
+
+- Answer all questions to the best of your ability
+- Show all working for calculation questions
+- This is a diagnostic — it helps your teacher identify areas for review
+
+---
+
+## Questions
+
+${Array.from({ length: Math.min(numQuestions, 5) }, (_, i) => (
+  `**Skill Area:** Prerequisite concept ${i + 1}\n\nQ${i + 1}: [Sample ${questionFormat.toLowerCase()} question for ${scope}]`
+)).join('\n\n')}
+
+---
+
+## Answer Key
+
+[Teacher answer key with gap analysis per skill area]
+
+---
+
+## Gap Analysis Guide
+
+- Missed algebra items → review ${derivePreviousGrade(grade)} equation solving
+- Missed geometry items → review prior grade angle and shape properties
+- Recommend targeted remediation before proceeding with new content`;
   }
 };

@@ -79,7 +79,7 @@ export const Badge: React.FC<BadgeProps> = ({
     md: 'px-2.5 py-1 text-xs gap-1.5',
   };
 
-  const colors = colorMap[variant];
+  const colors = colorMap[variant] ?? colorMap.neutral;
 
   return (
     <span

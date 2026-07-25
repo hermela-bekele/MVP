@@ -8,6 +8,7 @@ import {
   aisBtnPrimary,
   aisBtnSecondary,
 } from "@/components/dashboard/teacher/aisStyles";
+import { portalTabPath } from "@/lib/portalPaths";
 
 function TabLoading() {
   return (
@@ -31,16 +32,20 @@ export default function LessonPlanNotesPage({
   const { lessonPlanId } = use(params);
   const router = useRouter();
 
-  const navigateToTeacherTab = useCallback((tab: string) => {
-    router.push("/dashboard/teacher");
-    window.setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("teacher-quick-action", { detail: { tab } }),
-      );
-    }, 100);
-  }, [router]);
+  const navigateToTeacherTab = useCallback(
+    (tab: string) => {
+      router.push(portalTabPath("teacher", tab));
+    },
+    [router],
+  );
 
-  const handleBack = () => navigateToTeacherTab("teaching-notes");
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    navigateToTeacherTab("teaching-notes");
+  };
 
   return (
     <DashboardShell
@@ -51,7 +56,7 @@ export default function LessonPlanNotesPage({
       eyebrow="Bole Secondary · Teacher Portal"
       headerVariant="portal"
       breadcrumbs={[
-        { label: "Teaching Notes", onClick: handleBack },
+        { label: "Teaching Notes", onClick: () => navigateToTeacherTab("teaching-notes") },
         { label: "Lesson plan notes" },
       ]}
       actions={
@@ -62,7 +67,7 @@ export default function LessonPlanNotesPage({
             onClick={handleBack}
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-            Back to lesson plans
+            Back
           </button>
           <button
             type="button"

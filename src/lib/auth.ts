@@ -7,6 +7,8 @@ export interface AuthUser {
   subject?: string;
   /** Department linked to the subject head */
   departmentId?: string;
+  /** School the user belongs to (when applicable) */
+  schoolId?: string;
 }
 
 export const PORTAL_ROLES = [

@@ -203,7 +203,7 @@ export function AisBtnPrimary({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button type={type} className={`${aisBtnPrimary} text-xs ${className}`} {...props}>
+    <button type={type} className={`${aisBtnPrimary} ${className}`} {...props}>
       {children}
     </button>
   );
@@ -216,7 +216,7 @@ export function AisBtnSecondary({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button type={type} className={`${aisBtnSecondary} text-xs ${className}`} {...props}>
+    <button type={type} className={`${aisBtnSecondary} ${className}`} {...props}>
       {children}
     </button>
   );
