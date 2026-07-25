@@ -89,500 +89,625 @@ export function getModuleById(id: string): TrainingModule | undefined {
 export const TRAINING_MODULES: TrainingModule[] = [
   {
     id: 'module-1',
-    title: 'Unit 1 — Problem-solving based mathematics instruction',
-    category: 'MATH · SECONDARY',
-    description: 'MOE Mathematics Module · 5 hrs',
-    duration: '5 Hours',
-    sessionsCount: 3,
-    target: 'Secondary School Mathematics Teachers',
-    
-    overview: `Mathematics teaching is most powerful when students discover ideas through engaging problems — not when they passively receive rules. This unit challenges you to rethink how you design and deliver lessons. By the end, you will have the knowledge, tools, and confidence to shift from rule-based instruction to a rich, problem-solving approach that builds real mathematical understanding.`,
-    
-    objectives: [
-      'Appreciate why mathematics instruction needs to move beyond rule memorization.',
-      'Identify and design high-quality problem-solving tasks for your students.',
-      'Structure a complete problem-solving lesson using the Before-During-After framework.',
-    ],
-    
-    sessions: [
-      {
-        id: 'session-1-1',
-        number: '1.1',
-        title: 'Why and How of Problem-Solving Approach',
-        duration: '1.5 hours',
-        completed: true,
-        content: `# Session 1.1 — Why and How of Problem-Solving Approach
-
-Think about your own mathematics classes — as a student, and as a teacher. Was the focus on following procedures, or on thinking through ideas? Most Ethiopian classrooms rely heavily on the rule-based model: the teacher explains a formula, works examples on the board, and students practice similar problems. This session asks a bold question: **Is that enough?**
-
-## The Two Teaching Styles: A Real Comparison
-
-To make this concrete, consider how two teachers — Teacher A and Teacher B — approached the same Grade 9 lesson on solving linear inequalities.
-
-| Teacher A — Rule-Based | Teacher B — Problem-Solving |
-|------------------------|----------------------------|
-| Starts by announcing the topic and writing rules on the board. | Gives a real story: Helen saves 5 Birr/week (starting from 400). When does she have more than 565 Birr? |
-| Demonstrates: $x + 4 < 7 \\rightarrow x < 3$, step by step. | Students work in pairs, explore different approaches. |
-| Students practice similar examples. | Students present solutions; teacher connects them to formal notation. |
-| Gives homework from textbook. | Inequality emerges naturally: $400 + 5w > 565 \\rightarrow w > 33$ |
-| **Result:** Students can copy the method but struggle to transfer it to new situations. | **Result:** Students construct their own understanding and connect new content to real experience. |
-
-## 💡 KEY INSIGHT
-
-Teaching through problem-solving does NOT mean making mathematics harder — it means making it more meaningful. When students solve problems first, formal definitions land on fertile ground. They are not receiving information passively; they are building understanding actively. The rule-based approach produces students who can follow steps but cannot think mathematically in new situations.
-
----
-
-## Reflection Questions
-
-1. Think of a recent lesson you taught. Was it more like Teacher A or Teacher B?
-2. What challenges might you face in shifting to a problem-solving approach?
-3. What support would you need to make this transition?`,
-      },
-      {
-        id: 'session-1-2',
-        number: '1.2',
-        title: 'What Makes a Good Problem-Solving Task?',
-        duration: '2 hours',
-        completed: true,
-        content: `# Session 1.2 — What Makes a Good Problem-Solving Task?
-
-Not all tasks are equal. The difference between a routine exercise and a genuine problem-solving task is significant — and knowing that difference is what allows you to design lessons that develop real mathematical thinking.
-
-## Routine vs. Non-Routine: The Critical Distinction
-
-| Routine Task | Non-Routine (Problem-Solving) Task |
-|--------------|-------------------------------------|
-| Students already know the method needed. | Method is not immediately obvious. |
-| Focus is on getting the correct answer. | Focus is on thinking, exploring, and reasoning. |
-| One fixed strategy is expected. | Multiple solution paths are encouraged. |
-| **Example:** "Find the area and perimeter of the rectangle below." | **Example:** "A farmer has 16 m of fencing. How can he enclose the largest possible rectangular field?" |
-
-## The Temperature Change Task — A Model Example
-
-Here is a powerful non-routine task drawn from real Ethiopian geography. It develops integer subtraction through meaningful exploration rather than abstract drill:
-
-### 📍 Example Non-Routine Task
-
-**Cities have recorded the following temperatures:**
-
-- Addis Ababa: +12°C
-- City-1: -7°C
-- City-2: -5°C
-- City-3: +22°C
-
-**Questions:**
-
-1. When we travel from Addis Ababa (+12°C) to City-1 (-7°C), does the temperature rise or fall? By how much? Explain your reasoning.
-2. What is the temperature change traveling from City-2 (-5°C) to City-3 (+22°C)?
-3. If a city in Ethiopia is 15°C warmer than City-1, what is its temperature?
-
-## 💡 KEY INSIGHT
-
-**Why is this task powerful?**
-
-- ✅ It connects integers to real experience (travel, weather).
-- ✅ It allows multiple solution strategies (number line, counting, subtraction formula).
-- ✅ It builds towards the formal operation of integer subtraction — but the students construct that understanding themselves.
-- ✅ It also requires students to communicate their reasoning, developing language alongside mathematics.
-
-## Checklist: Hallmarks of a Strong Problem-Solving Task
-
-- ✅ Connected to a real or meaningful context that students can relate to.
-- ✅ Method and solution are not immediately obvious — genuine thinking is required.
-- ✅ Multiple solution strategies are possible and encouraged.
-- ✅ Builds towards important mathematical concepts or skills.
-- ✅ Allows exploration and discussion, not just calculation.
-- ✅ Appropriately challenging — difficult enough to engage, achievable enough not to frustrate.
-
----
-
-## Practice Activity
-
-Design a non-routine problem-solving task for a topic you will teach next week. Use the checklist above to ensure your task has the key characteristics.`,
-      },
-      {
-        id: 'session-1-3',
-        number: '1.3',
-        title: 'The Three-Phase Lesson Structure',
-        duration: '1.5 hours',
-        completed: false,
-        content: `# Session 1.3 — The Three-Phase Lesson Structure
-
-Teaching through problem-solving is not simply handing students a problem and waiting. It requires deliberate structure. **Van de Walle's three-phase model** — Before, During, After — gives you a clear and effective framework for every problem-solving lesson.
-
-## The Three Phases
-
-| Phase | What the Teacher Does | What Students Do |
-|-------|----------------------|------------------|
-| **BEFORE** (Getting Ready) | Activate prior knowledge relevant to the problem. Clarify the task — make sure students understand what is being asked, not how to solve it. Set expectations for group work and sharing. | Read and understand the problem. Connect it to what they already know. Begin thinking about possible approaches. |
-| **DURING** (Learners' Work) | Circulate and observe without giving away solutions. Ask probing questions: 'What have you tried?' 'Can you show that another way?' Note interesting strategies to highlight later. | Work individually or in small groups to explore the problem. Try different strategies. Discuss ideas with peers. Record their thinking and reasoning. |
-| **AFTER** (Whole-Class Discussion) | Invite students to share and explain their solutions. Facilitate discussion of different methods — not just the answer. Connect students' strategies to formal mathematical notation. Summarize key concepts that emerged. | Present and explain their solution approach. Listen to and evaluate peers' strategies. Make connections across different methods. Internalize the formal mathematical concept. |
-
-## Applying the Three Phases — Temperature Change Task Example
-
-### 📋 Lesson Planning Example
-
-**BEFORE:**
-Ask students: 'Have you ever felt a big difference in temperature when traveling?' Briefly review positive and negative numbers on the number line. Present the task clearly — ensure all students understand they need to find temperature changes, not just look at numbers.
-
-**DURING:**
-Walk around. Some students may draw number lines, others may count steps, others may subtract. Ask: 'Which direction did the temperature go?' 'How far apart are these two values?' Don't correct immediately — let ideas develop.
-
-**AFTER:**
-Have 2-3 groups share. One may have used a number line, another subtraction. Show how both connect: traveling from -7 to +12 is a change of $12 - (-7) = 19°C$. Formalize the rule for integer subtraction from the students' own work.
-
-## 💡 KEY INSIGHT
-
-**5 Strategies for Effective Problem-Solving Instruction:**
-
-1. **Select problems that are challenging but accessible** — multiple entry points help all learners.
-2. **Create a safe classroom culture** where wrong attempts are valued as learning steps.
-3. **Use scaffolding wisely:** guide thinking with questions, never give away the solution.
-4. **Celebrate diverse solution methods** — there is rarely only one correct path.
-5. **Always close with reflection:** What did we learn? What strategy worked best? Why?
-
----
-
-## 🎓 Unit Summary
-
-By shifting from rule-based to problem-solving instruction, you empower students to:
-
-- **Think** mathematically, not just memorize procedures
-- **Connect** mathematics to real experiences
-- **Communicate** their reasoning clearly
-- **Transfer** their learning to new situations
-
-This is the foundation of deep mathematical understanding.
-
----
-
-## Final Reflection
-
-1. Plan one lesson using the Before-During-After framework.
-2. What will you do differently in your next mathematics class?
-3. How will you know if your students are developing deeper understanding?`,
-      },
-    ],
-    
-    assessmentContent: `# MODULE ASSESSMENT
-
-## Unit 1 End-of-Module Assessment
-
-This assessment checks your understanding of problem-solving based mathematics instruction. Answer all questions honestly — the goal is to strengthen your teaching, not to test memorization.
-
----
-
-## SECTION A: Multiple Choice (1 mark each)
-
-Circle the best answer for each question.
-
-### 1. Which of the following BEST describes the core difference between Teacher A and Teacher B in the case study?
-
-A. Teacher A used more examples than Teacher B.  
-B. Teacher A taught rules before problems; Teacher B used problems to develop understanding.  
-C. Teacher B gave easier problems to students.  
-D. Teacher A focused on homework while Teacher B focused on group work.
-
-### 2. A non-routine problem-solving task is one where:
-
-A. Students can answer it quickly using a memorized rule.  
-B. The solution method is not immediately obvious and requires exploration.  
-C. Only one correct solution exists.  
-D. The problem is very long and complex.
-
-### 3. In the 'Before' phase of a problem-solving lesson, the teacher should primarily:
-
-A. Demonstrate how to solve a similar problem first.  
-B. Activate prior knowledge and ensure students understand the task — without showing how to solve it.  
-C. Allow students to independently read the textbook.  
-D. Correct students' homework from the previous lesson.
-
-### 4. Which of the following makes the Temperature Change Task (Addis Ababa to City-1) a good problem-solving task?
-
-A. It involves large numbers that require a calculator.  
-B. It is based on a real context, allows multiple solution strategies, and builds toward integer subtraction.  
-C. It can be solved using a formula directly from the textbook.  
-D. It is designed for Grade 12 students only.
-
-### 5. During the 'During' phase, when a group of students is stuck, what should the teacher do?
-
-A. Solve the problem on the board so the whole class can see.  
-B. Tell the group which formula to use.  
-C. Ask probing questions to open their thinking without giving away the solution.  
-D. Move on to the next activity since they are not making progress.
-
----
-
-## SECTION B: Short Answer (5 marks each)
-
-### 6. Explain in your own words why the problem-solving approach to teaching mathematics is more effective than the rule-based approach for developing students' long-term mathematical understanding. Use one specific example from Unit 1 to support your explanation. (5 marks)
-
-*Your answer:*
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-### 7. A colleague tells you: 'I don't use problem-solving tasks because my students are not strong enough — they need to know the rules first before they can do any real problems.' How would you respond to this colleague? What evidence or argument from this unit would you use? (5 marks)
-
-*Your answer:*
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-### 8. Design a brief Before-During-After lesson plan (in point form) for teaching the concept of solving linear equations using a real-life context of your choice. State the context, describe your actions in each phase, and explain how the formal equation will emerge from the students' work. (5 marks)
-
-**Context:** _______________________________________________________________
-
-**BEFORE:**
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-**DURING:**
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
-**AFTER:**
-
-___________________________________________________________________________
-
-___________________________________________________________________________
-
----
-
-**Total Marks: 20**
-
-**Passing Score: 14/20 (70%)**`,
-
-    assessmentQuestions: [
-      { 
-        id: 'q1', 
-        type: 'multiple-choice', 
-        question: 'Which of the following BEST describes the core difference between Teacher A and Teacher B in the case study?', 
-        options: [
-          'Teacher A used more examples than Teacher B.',
-          'Teacher A taught rules before problems; Teacher B used problems to develop understanding.',
-          'Teacher B gave easier problems to students.',
-          'Teacher A focused on homework while Teacher B focused on group work.'
-        ], 
-        correctAnswer: 'Teacher A taught rules before problems; Teacher B used problems to develop understanding.', 
-        points: 1 
-      },
-      { 
-        id: 'q2', 
-        type: 'multiple-choice', 
-        question: 'A non-routine problem-solving task is one where:', 
-        options: [
-          'Students can answer it quickly using a memorized rule.',
-          'The solution method is not immediately obvious and requires exploration.',
-          'Only one correct solution exists.',
-          'The problem is very long and complex.'
-        ], 
-        correctAnswer: 'The solution method is not immediately obvious and requires exploration.', 
-        points: 1 
-      },
-      { 
-        id: 'q3', 
-        type: 'multiple-choice', 
-        question: 'In the "Before" phase of a problem-solving lesson, the teacher should primarily:', 
-        options: [
-          'Demonstrate how to solve a similar problem first.',
-          'Activate prior knowledge and ensure students understand the task — without showing how to solve it.',
-          'Allow students to independently read the textbook.',
-          'Correct students\' homework from the previous lesson.'
-        ], 
-        correctAnswer: 'Activate prior knowledge and ensure students understand the task — without showing how to solve it.', 
-        points: 1 
-      },
-      { 
-        id: 'q4', 
-        type: 'multiple-choice', 
-        question: 'Which of the following makes the Temperature Change Task (Addis Ababa to City-1) a good problem-solving task?', 
-        options: [
-          'It involves large numbers that require a calculator.',
-          'It is based on a real context, allows multiple solution strategies, and builds toward integer subtraction.',
-          'It can be solved using a formula directly from the textbook.',
-          'It is designed for Grade 12 students only.'
-        ], 
-        correctAnswer: 'It is based on a real context, allows multiple solution strategies, and builds toward integer subtraction.', 
-        points: 1 
-      },
-      { 
-        id: 'q5', 
-        type: 'multiple-choice', 
-        question: 'During the "During" phase, when a group of students is stuck, what should the teacher do?', 
-        options: [
-          'Solve the problem on the board so the whole class can see.',
-          'Tell the group which formula to use.',
-          'Ask probing questions to open their thinking without giving away the solution.',
-          'Move on to the next activity since they are not making progress.'
-        ], 
-        correctAnswer: 'Ask probing questions to open their thinking without giving away the solution.', 
-        points: 1 
-      },
-      { id: 'q6', type: 'short-answer', question: 'Problem-solving effectiveness', points: 5 },
-      { id: 'q7', type: 'short-answer', question: 'Respond to colleague', points: 5 },
-      { id: 'q8', type: 'essay', question: 'Lesson plan design', points: 5 },
-    ],
-    
-    passingScore: 70,
-    completed: false,
-    videoCount: 3,
-    
-    videos: [
-      {
-        id: 'video-1-1',
-        title: 'Introduction to Problem-Solving Approach',
-        duration: '12:30',
-        url: 'https://example.com/video1',
-        thumbnail: '/api/placeholder/320/180',
-      },
-      {
-        id: 'video-1-2',
-        title: 'Designing Effective Tasks',
-        duration: '15:45',
-        url: 'https://example.com/video2',
-        thumbnail: '/api/placeholder/320/180',
-      },
-      {
-        id: 'video-1-3',
-        title: 'Three-Phase Lesson Structure Demo',
-        duration: '18:20',
-        url: 'https://example.com/video3',
-        thumbnail: '/api/placeholder/320/180',
-      },
-    ],
-  },
-  
-  {
-    id: 'module-2',
-    title: 'Unit 2 — Teaching relations and functions',
+    title: 'Unit 1 — Relations and Functions',
     category: 'MATH · GR 10-11',
-    description: 'MOE Mathematics Module · 11 hrs',
-    duration: '11 Hours',
-    sessionsCount: 5,
+    description: 'MOE Mathematics Module · 6 hrs',
+    duration: '6 Hours',
+    sessionsCount: 4,
     target: 'Grade 10-11 Mathematics Teachers',
     
-    overview: `This unit focuses on helping students develop a deep understanding of relations and functions through visual representations, real-world applications, and GeoGebra technology integration.`,
+    overview: `Relations describe connections between elements of sets using ordered pairs, tables, graphs, or mapping diagrams. A function is a special relation where each input has exactly one output. Inequalities represent regions of solutions on a plane, while function composition models multi-step processes by combining functions in sequence. These concepts form the foundation for advanced topics such as algebraic modeling, calculus, and real-world problem solving.`,
     
     objectives: [
-      'Understand the conceptual difference between relations and functions.',
-      'Use multiple representations (tables, graphs, equations) to explore functions.',
-      'Integrate GeoGebra to visualize and explore mathematical concepts dynamically.',
-      'Design lessons that connect abstract concepts to students\' experiences.',
+      'Explain a relation as a connection between two sets and represent relations using multiple forms.',
+      'Graph linear inequalities and interpret solution regions on a coordinate plane.',
+      'Distinguish functions from general relations using the vertical line test.',
+      'Evaluate composite functions and interpret function composition in real-world contexts.',
     ],
     
     sessions: [
       {
         id: 'session-2-1',
         number: '2.1',
-        title: 'Relations',
-        duration: '2 hours',
+        title: 'The Concept of Relation',
+        duration: '1.5 hours',
         completed: false,
-        content: `# Session 2.1 — Relations
+        content: `# Session 2.1 — The Concept of Relation
 
-*Content in development...*`,
+## Learning Objectives
+
+By the end of the lesson, students should be able to:
+
+- Explain a relation as a connection between two sets
+- Represent relations using ordered pairs, tables, mapping diagrams, and graphs
+- Identify domain and range
+
+## Classroom Activity
+
+Provide students with real-life paired data:
+
+| Crop | Region |
+|------|--------|
+| Coffee | Sidama |
+| Teff | Arsi |
+| Sesame | Humera |
+| Maize | Oromia |
+
+**Students:**
+
+1. Write ordered pairs
+2. Draw a mapping diagram
+3. Identify domain and range
+4. Discuss whether one element can relate to multiple outputs
+
+## Key Teaching Points
+
+### 1. **A relation is any rule or connection that pairs elements from one set (input set) to another set (output set)**
+
+Emphasize that **no mathematical formula is required** for a relation to exist. A relation is about association, not computation.
+
+### 2. **Relations are defined as sets of ordered pairs $(x, y)$**
+
+Teachers should stress that:
+- The first element $(x)$ always comes from the input set
+- The second element $(y)$ comes from the output set
+
+### 3. **The concept of relation is structural, not procedural**
+
+Students must understand that a relation is about **association**, not computation.
+
+### 4. **A relation can be:**
+
+- **One-to-one:** Each input has exactly one unique output
+- **One-to-many:** One input can have multiple outputs
+- **Many-to-one:** Multiple inputs can share the same output
+
+Teachers should explicitly demonstrate each type using examples.
+
+### 5. **Domain and Range**
+
+- **Domain** = the complete set of all inputs (all first elements without repetition)
+- **Range** = the complete set of outputs (all second elements without repetition)
+
+### 6. **The same relation can be shown in different forms**
+
+Teachers should emphasize that representation changes (table, graph, mapping, ordered pairs), but the relation does not change.
+
+### 7. **Real-life connections**
+
+Students should be guided to see that relations exist in everyday life:
+- Students ↔ Subjects
+- Cities ↔ Climate
+- Products ↔ Prices
+
+**Emphasize interpretation over memorization of definitions.**
+
+## Common Difficulties
+
+- Confusing domain with range
+- Thinking a relation must follow a formula
+- Assuming all relations are functions
+- Repeating values incorrectly in sets
+
+## Reflection
+
+What local examples can better help students understand relations in your classroom context?`,
       },
       {
         id: 'session-2-2',
         number: '2.2',
-        title: 'Inequalities',
-        duration: '2 hours',
+        title: 'Relations Involving Inequalities',
+        duration: '1.5 hours',
         completed: false,
-        content: `# Session 2.2 — Inequalities
+        content: `# Session 2.2 — Relations Involving Inequalities
 
-*Content in development...*`,
+## Learning Objectives
+
+Students should be able to:
+
+- Graph linear inequalities
+- Identify solution regions
+- Interpret domain and range from graphs
+
+## Classroom Activity
+
+Graph the inequalities:
+
+$$y < 2x + 1$$
+
+$$y \\geq x$$
+
+**Students:**
+
+1. Identify boundary lines (solid or dashed)
+2. Shade correct regions
+3. Determine overlapping solution region
+4. Interpret domain and range
+
+## Key Teaching Points
+
+### 1. **Inequalities represent infinite sets of solutions, not single points or lines**
+
+### 2. **Boundary lines must be interpreted carefully:**
+
+- **≤ or ≥** means the boundary **is included** → **solid line**
+- **< or >** means boundary **is excluded** → **dashed line**
+
+### 3. **Each inequality divides the plane into two half-planes**
+
+Students must learn to:
+- Pick a test point (often $(0, 0)$ if not on the line)
+- Substitute into inequality
+- Decide which region satisfies the condition
+
+### 4. **When combining inequalities, the solution is the intersection (overlap) of valid regions**
+
+### 5. **Domain and range are not given directly**
+
+They must be interpreted from the shaded region:
+- **Domain** = projection on $x$-axis
+- **Range** = projection on $y$-axis
+
+### 6. **Real-world modeling**
+
+Teachers should emphasize that inequalities are used to model:
+- Constraints
+- Limits
+- Real-world decision regions (budget, capacity, time)
+
+## Common Difficulties
+
+- Shading incorrect region
+- Confusing inequality symbols
+- Using wrong boundary type (solid vs dashed)
+- Ignoring test point method
+
+## Reflection
+
+How can inequality graphs help students understand real-life constraints such as budget or production limits?`,
       },
       {
         id: 'session-2-3',
         number: '2.3',
-        title: 'Functions',
-        duration: '3 hours',
+        title: 'The Concept of Function',
+        duration: '1.5 hours',
         completed: false,
-        content: `# Session 2.3 — Functions
+        content: `# Session 2.3 — The Concept of Function
 
-*Content in development...*`,
+## Learning Objectives
+
+Students should be able to:
+
+- Distinguish functions from general relations
+- Represent functions in multiple forms
+- Apply the vertical line test
+- Find inputs and outputs
+
+## Classroom Activity
+
+**Function machine:**
+
+$$-2 \\rightarrow -6$$
+$$2 \\rightarrow 6$$
+$$4 \\rightarrow 12$$
+
+**Students:**
+
+1. Determine rule
+2. Predict output for 8
+3. Find input for output 18
+4. Check whether it is a function
+
+## Key Teaching Points
+
+### 1. **A function assigns exactly one output per input**
+
+This is the **defining property** of a function.
+
+### 2. **Many-to-one is allowed, but one-to-many is NOT**
+
+- ✅ Multiple inputs can have the same output (many-to-one)
+- ❌ One input cannot have multiple outputs (one-to-many)
+
+### 3. **Input = independent variable; output = dependent variable**
+
+The output **depends on** the input.
+
+### 4. **Functions can be represented as:**
+
+- Equations: $f(x) = 3x$
+- Tables
+- Graphs
+- Mapping diagrams
+
+### 5. **The vertical line test provides a visual check**
+
+If a vertical line intersects a graph **more than once**, it is **NOT a function**.
+
+### 6. **Finding inputs from outputs requires reverse operations**
+
+Students must work backwards step-by-step (**inverse reasoning**).
+
+### 7. **Direction matters**
+
+Teachers should constantly reinforce direction:
+
+$$\\text{Input} \\rightarrow \\text{Process} \\rightarrow \\text{Output}$$
+
+**Emphasize interpretation, not only computation.**
+
+## Common Difficulties
+
+- Confusing relation with function
+- Misinterpreting repeated outputs (thinking they violate function rule)
+- Difficulty reversing operations
+- Over-relying on memorized rules
+
+## Reflection
+
+Give an example of a real-life situation that is **not** a function and explain why.`,
       },
       {
         id: 'session-2-4',
         number: '2.4',
-        title: 'Composition',
-        duration: '2 hours',
+        title: 'Composition of Functions',
+        duration: '1.5 hours',
         completed: false,
-        content: `# Session 2.4 — Composition
+        content: `# Session 2.4 — Composition of Functions
 
-*Content in development...*`,
+## Learning Objectives
+
+Students should be able to:
+
+- Evaluate composite functions
+- Interpret function composition in real-world contexts
+- Understand order of operations in functions
+
+## Classroom Activity
+
+Let:
+
+$$f(t) = 5t$$ (production rate)
+
+$$g(n) = 20n - 50$$ (profit function)
+
+**Students:**
+
+1. Compute $g(f(t))$
+2. Interpret meaning
+3. Evaluate profit for given time
+4. Compare with $f(g(t))$
+
+## Key Teaching Points
+
+### 1. **Composition means applying one function inside another**
+
+The output of one function becomes the input of the next.
+
+### 2. **Order matters:**
+
+$$f(g(x)) \\neq g(f(x))$$
+
+- $f(g(x))$: apply $g$ first, then $f$
+- $g(f(x))$: apply $f$ first, then $g$
+
+### 3. **The inner function is evaluated first**
+
+Always work from the **inside out**.
+
+### 4. **Composition models step-by-step real-life processes**
+
+Examples:
+- Production → Cost → Profit
+- Distance → Speed → Time
+- Temperature → Energy → Cost
+
+### 5. **Function composition is NOT just substitution**
+
+It is a **process chain** where one output feeds into the next input.
+
+### 6. **Function composition is generally NOT commutative**
+
+$$f(g(x)) \\neq g(f(x))$$
+
+Order changes the result!
+
+### 7. **The domain of a composite function depends on:**
+
+- The inner function's domain
+- Restrictions from the outer function
+
+**Emphasize interpretation, not only computation.**
+
+## Common Difficulties
+
+- Reversing order of functions
+- Incorrect substitution
+- Losing meaning of variables
+- Treating composition as simple algebra
+
+## Reflection
+
+Design a real-life situation that uses two-step functional processes.
+
+---
+
+## 🎓 Module Summary
+
+Relations describe connections between elements of sets using ordered pairs, tables, graphs, or mapping diagrams. A function is a special relation where each input has exactly one output. Inequalities represent regions of solutions on a plane, while function composition models multi-step processes by combining functions in sequence.
+
+These concepts form the foundation for advanced topics such as algebraic modeling, calculus, and real-world problem solving. Teachers should emphasize conceptual understanding, multiple representations, and real-life applications to strengthen student learning.`,
       },
+    ],
+    passingScore: 70,
+    completed: false,
+    videoCount: 1,
+    
+    videos: [
       {
-        id: 'session-2-5',
-        number: '2.5',
-        title: 'GeoGebra',
-        duration: '2 hours',
-        completed: false,
-        content: `# Session 2.5 — GeoGebra
-
-*Content in development...*`,
-      },
+        id: 'video-1-1',
+        title: 'Relations and Functions - Teaching Guide',
+        duration: '12:30',
+        url: 'https://res.cloudinary.com/bdztfxvd/video/upload/v1783277682/video_2026-07-05_20-43-18_q7fuls.mp4',
+        thumbnail: '/api/placeholder/320/180',
+      }
     ],
     
     assessmentContent: `# MODULE ASSESSMENT
 
-## Unit 2 End-of-Module Assessment
+## Unit 1: Relations and Functions — End-of-Module Assessment
 
-*Assessment in development...*`,
+This assessment checks your understanding of relations, functions, inequalities, and composition. Answer all questions honestly — the goal is to strengthen your teaching, not to test memorization.
 
-    assessmentQuestions: [],
-    passingScore: 70,
-    completed: false,
-    videoCount: 4,
-    
-    videos: [
-      {
-        id: 'video-2-1',
-        title: 'Understanding Relations',
-        duration: '14:20',
-        url: 'https://example.com/video4',
-        thumbnail: '/api/placeholder/320/180',
+---
+
+## Multiple Choice Questions (10 Items - 1 mark each)
+
+### 1. What best describes a relation in mathematics?
+
+A. A rule that assigns exactly one output to each input  
+B. A set of ordered pairs linking elements of two sets  
+C. A formula that always produces a number  
+D. A graph that forms a straight line
+
+**Answer: B**
+
+---
+
+### 2. Which of the following correctly defines the domain of a relation?
+
+A. All output values  
+B. All second elements in ordered pairs  
+C. All first elements in ordered pairs  
+D. All points on a graph
+
+**Answer: C**
+
+---
+
+### 3. In a mapping diagram, a relation is NOT a function if:
+
+A. Each input has exactly one output  
+B. Multiple inputs have the same output  
+C. One input has more than one output  
+D. Outputs are repeated
+
+**Answer: C**
+
+---
+
+### 4. Which of the following is TRUE about all functions?
+
+A. Every relation is a function  
+B. Each input has exactly one output  
+C. Each output has exactly one input  
+D. Functions cannot be represented graphically
+
+**Answer: B**
+
+---
+
+### 5. The vertical line test is used to:
+
+A. Find the slope of a line  
+B. Determine if a graph represents a function  
+C. Find domain and range  
+D. Solve inequalities
+
+**Answer: B**
+
+---
+
+### 6. Which of the following is a correct statement about inequalities?
+
+A. They always represent a single point  
+B. They represent regions of solutions  
+C. They cannot be graphed  
+D. They always form straight lines only
+
+**Answer: B**
+
+---
+
+### 7. In graphing inequalities, a dashed line is used when:
+
+A. The boundary is included  
+B. The inequality includes equality (≤ or ≥)  
+C. The boundary is not included (< or >)  
+D. The graph is a function
+
+**Answer: C**
+
+---
+
+### 8. If $f(x)$ is applied after $g(x)$, the correct notation is:
+
+A. $g(f(x))$  
+B. $f(g(x))$  
+C. $f(x) + g(x)$  
+D. $f \\cdot g(x)$
+
+**Answer: B**
+
+---
+
+### 9. Which statement about composition of functions is TRUE?
+
+A. Order does not matter  
+B. $f(g(x)) = g(f(x))$ always  
+C. The inner function is evaluated first  
+D. Functions cannot be composed
+
+**Answer: C**
+
+---
+
+### 10. Which of the following best describes a many-to-one relation?
+
+A. Each input has different outputs  
+B. One input has multiple outputs  
+C. Multiple inputs share the same output  
+D. No inputs have outputs
+
+**Answer: C**
+
+---
+
+**Total Marks: 10**
+
+**Passing Score: 7/10 (70%)**`,
+
+    assessmentQuestions: [
+      { 
+        id: 'q1', 
+        type: 'multiple-choice', 
+        question: 'What best describes a relation in mathematics?', 
+        options: [
+          'A rule that assigns exactly one output to each input',
+          'A set of ordered pairs linking elements of two sets',
+          'A formula that always produces a number',
+          'A graph that forms a straight line'
+        ], 
+        correctAnswer: 'A set of ordered pairs linking elements of two sets', 
+        points: 1 
       },
-      {
-        id: 'video-2-2',
-        title: 'Function Notation and Graphs',
-        duration: '16:30',
-        url: 'https://example.com/video5',
-        thumbnail: '/api/placeholder/320/180',
+      { 
+        id: 'q2', 
+        type: 'multiple-choice', 
+        question: 'Which of the following correctly defines the domain of a relation?', 
+        options: [
+          'All output values',
+          'All second elements in ordered pairs',
+          'All first elements in ordered pairs',
+          'All points on a graph'
+        ], 
+        correctAnswer: 'All first elements in ordered pairs', 
+        points: 1 
       },
-      {
-        id: 'video-2-3',
-        title: 'Composition of Functions',
-        duration: '12:45',
-        url: 'https://example.com/video6',
-        thumbnail: '/api/placeholder/320/180',
+      { 
+        id: 'q3', 
+        type: 'multiple-choice', 
+        question: 'In a mapping diagram, a relation is NOT a function if:', 
+        options: [
+          'Each input has exactly one output',
+          'Multiple inputs have the same output',
+          'One input has more than one output',
+          'Outputs are repeated'
+        ], 
+        correctAnswer: 'One input has more than one output', 
+        points: 1 
       },
-      {
-        id: 'video-2-4',
-        title: 'Introduction to GeoGebra for Functions',
-        duration: '20:15',
-        url: 'https://example.com/video7',
-        thumbnail: '/api/placeholder/320/180',
+      { 
+        id: 'q4', 
+        type: 'multiple-choice', 
+        question: 'Which of the following is TRUE about all functions?', 
+        options: [
+          'Every relation is a function',
+          'Each input has exactly one output',
+          'Each output has exactly one input',
+          'Functions cannot be represented graphically'
+        ], 
+        correctAnswer: 'Each input has exactly one output', 
+        points: 1 
       },
-    ],
-  },
-];
+      { 
+        id: 'q5', 
+        type: 'multiple-choice', 
+        question: 'The vertical line test is used to:', 
+        options: [
+          'Find the slope of a line',
+          'Determine if a graph represents a function',
+          'Find domain and range',
+          'Solve inequalities'
+        ], 
+        correctAnswer: 'Determine if a graph represents a function', 
+        points: 1 
+      },
+      { 
+        id: 'q6', 
+        type: 'multiple-choice', 
+        question: 'Which of the following is a correct statement about inequalities?', 
+        options: [
+          'They always represent a single point',
+          'They represent regions of solutions',
+          'They cannot be graphed',
+          'They always form straight lines only'
+        ], 
+        correctAnswer: 'They represent regions of solutions', 
+        points: 1 
+      },
+      { 
+        id: 'q7', 
+        type: 'multiple-choice', 
+        question: 'In graphing inequalities, a dashed line is used when:', 
+        options: [
+          'The boundary is included',
+          'The inequality includes equality (≤ or ≥)',
+          'The boundary is not included (< or >)',
+          'The graph is a function'
+        ], 
+        correctAnswer: 'The boundary is not included (< or >)', 
+        points: 1 
+      },
+      { 
+        id: 'q8', 
+        type: 'multiple-choice', 
+        question: 'If f(x) is applied after g(x), the correct notation is:', 
+        options: [
+          'g(f(x))',
+          'f(g(x))',
+          'f(x) + g(x)',
+          'f · g(x)'
+        ], 
+        correctAnswer: 'f(g(x))', 
+        points: 1 
+      },
+      { 
+        id: 'q9', 
+        type: 'multiple-choice', 
+        question: 'Which statement about composition of functions is TRUE?', 
+        options: [
+          'Order does not matter',
+          'f(g(x)) = g(f(x)) always',
+          'The inner function is evaluated first',
+          'Functions cannot be composed'
+        ], 
+        correctAnswer: 'The inner function is evaluated first', 
+        points: 1 
+      },
+      { 
+        id: 'q10', 
+        type: 'multiple-choice', 
+        question: 'Which of the following best describes a many-to-one relation?', 
+        options: [
+          'Each input has different outputs',
+          'One input has multiple outputs',
+          'Multiple inputs share the same output',
+          'No inputs have outputs'
+        ], 
+        correctAnswer: 'Multiple inputs share the same output', 
+        points: 1 
+      },
+    ]
+  }
+]
