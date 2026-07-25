@@ -3,10 +3,13 @@ export interface AuthUser {
   email: string;
   role: PortalRole;
   displayName: string;
-  /** Subject overseen by a department-head (e.g. Mathematics) */
   subject?: string;
-  /** Department linked to the subject head */
   departmentId?: string;
+  schoolId?: string | null;
+  linkedStudentId?: string | null;
+  linkedParentId?: string | null;
+  permissions?: string[];
+  token?: string;
 }
 
 export const PORTAL_ROLES = [
@@ -19,12 +22,13 @@ export const PORTAL_ROLES = [
   'teacher',
   'student',
   'parent',
+  'finance',
 ] as const;
 
 export type PortalRole = (typeof PORTAL_ROLES)[number];
 
 /** Roles users may choose when self-registering */
-export const SELF_REGISTER_ROLES: PortalRole[] = [...PORTAL_ROLES];
+export const SELF_REGISTER_ROLES: PortalRole[] = ['parent', 'student'];
 
 export const SESSION_STORAGE_KEY = 'pts-session';
 
@@ -47,6 +51,7 @@ export function roleLabel(role: PortalRole): string {
     teacher: 'Teacher',
     student: 'Student',
     parent: 'Parent',
+    finance: 'Finance Officer',
   };
   return labels[role];
 }
@@ -90,4 +95,10 @@ export function clearSession(): void {
   localStorage.removeItem(SESSION_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_STORAGE_KEY);
   localStorage.removeItem('pts-active-role');
+}
+
+export function hasPermission(user: AuthUser | null | undefined, code: string): boolean {
+  if (!user) return false;
+  if (user.role === 'moe') return true;
+  return (user.permissions ?? []).includes(code);
 }

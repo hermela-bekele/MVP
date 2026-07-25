@@ -1,326 +1,624 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { api, type AdmissionApplication, type Invoice } from '@/lib/api';
+import { readStoredSession } from '@/lib/auth';
 import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { ContentCard } from '@/components/dashboard/ContentCard';
 import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ParentAttendanceCalendar } from '@/components/dashboard/parent/ParentAttendanceCalendar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { EmptyState } from '@/components/ui/empty-state';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
+import { InvoiceDetailDialog } from '@/components/dashboard/billing/InvoiceDetailDialog';
+import { AnnouncementFeed } from '@/components/dashboard/announcements/AnnouncementFeed';
+import { MessageCenter } from '@/components/dashboard/messaging/MessageCenter';
+import { ParentReenrollmentInvites } from '@/components/dashboard/parent/ParentReenrollmentInvites';
+import { ParentFeedbackForm } from '@/components/dashboard/parent/ParentFeedbackForm';
+
+type Child = {
+  id: string;
+  name: string;
+  grade: string;
+  section: string;
+  schoolId?: string;
+  gpa?: number;
+  attendanceRate?: number;
+};
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function deadlineVariant(color: Invoice['deadlineColor']) {
+  if (color === 'green') return 'success' as const;
+  if (color === 'yellow') return 'warning' as const;
+  return 'danger' as const;
+}
+
 export default function ParentPortalPage() {
-  const { students, attendance, addNotification } = useApp();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const session = readStoredSession();
+  const { attendance: appAttendance, addNotification } = useApp();
+  const [tab, setTab] = useState('dashboard');
+  const [children, setChildren] = useState<Child[]>([]);
+  const [childId, setChildId] = useState('');
+  const [grades, setGrades] = useState<Record<string, unknown>[]>([]);
+  const [attendance, setAttendance] = useState<
+    { id?: string; date: string; status: string; remarks?: string | null }[]
+  >([]);
+  const [docs, setDocs] = useState<Record<string, unknown>[]>([]);
+  const [announcements, setAnnouncements] = useState<Record<string, unknown>[]>([]);
+  const [calendar, setCalendar] = useState<Record<string, unknown>[]>([]);
+  const [timetable, setTimetable] = useState<Record<string, unknown>[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [applications, setApplications] = useState<AdmissionApplication[]>([]);
+  const [payAmount, setPayAmount] = useState('');
+  const [payProvider, setPayProvider] = useState('telebirr');
+  const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  // Let's implement an interactive Child Switcher so the parent can inspect
-  // both Selam Abebe (High score) and Yonas Kassa (Low score/attendance warning)
-  const [selectedChildId, setSelectedChildId] = useState('std-1');
+  const child = useMemo(
+    () => children.find((c) => c.id === childId) || children[0],
+    [children, childId]
+  );
 
-  // Messaging State
-  const [messageInput, setMessageInput] = useState('');
-  const [chatHistory, setChatHistory] = useState([
-    { role: 'teacher', text: 'Greeting! This is homeroom teacher Martha Feyissa. Selam has been performing exceptionally in our Grade 9 Biology laboratory assignments.' }
-  ]);
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      api.portalChildren().catch(() => []),
+      api.myApplications().catch(() => [] as AdmissionApplication[]),
+      api.listInvoices().catch(() => [] as Invoice[]),
+      api.portalAnnouncements(session?.schoolId || undefined).catch(() => []),
+    ]).then(([rows, apps, inv, anns]) => {
+      const mapped = (rows as Record<string, unknown>[]).map((r) => ({
+        id: String(r.id),
+        name: String(r.name),
+        grade: String(r.grade),
+        section: String(r.section),
+        schoolId: String(r.school_id || r.schoolId || ''),
+        gpa: Number(r.gpa ?? 0),
+        attendanceRate: Number(r.attendance_rate ?? r.attendanceRate ?? 0),
+      }));
+      setChildren(mapped);
+      if (mapped[0]) setChildId((prev) => prev || mapped[0].id);
+      setApplications(apps);
+      setInvoices(inv);
+      setAnnouncements(anns);
+    }).finally(() => setLoading(false));
+  }, [session?.schoolId]);
 
-  const activeChild = students.find(s => s.id === selectedChildId) || students[0];
+  useEffect(() => {
+    if (!child) return;
+    const schoolId = child.schoolId;
+    api.portalGrades(child.id).then(setGrades).catch(() => setGrades([]));
+    api
+      .portalAttendance(child.id)
+      .then((rows) => {
+        const mapped = (rows as Record<string, unknown>[]).map((r) => ({
+          id: String(r.id ?? ''),
+          date: String(r.date),
+          status: String(r.status),
+          remarks: (r.remarks as string) ?? null,
+        }));
+        if (mapped.length) {
+          setAttendance(mapped);
+        } else {
+          setAttendance(
+            appAttendance
+              .filter((a) => a.studentId === child.id)
+              .map((a) => ({
+                id: a.id,
+                date: a.date,
+                status: a.status,
+                remarks: a.remarks ?? null,
+              }))
+          );
+        }
+      })
+      .catch(() => {
+        setAttendance(
+          appAttendance
+            .filter((a) => a.studentId === child.id)
+            .map((a) => ({
+              id: a.id,
+              date: a.date,
+              status: a.status,
+              remarks: a.remarks ?? null,
+            }))
+        );
+      });
+    api.portalDocuments(child.id).then(setDocs).catch(() => setDocs([]));
+    api.portalCalendar(schoolId).then(setCalendar).catch(() => setCalendar([]));
+    api
+      .portalTimetable(child.grade, child.section, schoolId)
+      .then(setTimetable)
+      .catch(() => setTimetable([]));
+  }, [child, appAttendance]);
 
-  const handleChildSwitch = (id: string) => {
-    setSelectedChildId(id);
-
-    // Update initial message thread based on child
-    if (id === 'std-2') {
-      setChatHistory([
-        { role: 'teacher', text: 'Hello Ato Kassa. I am writing to alert you that Yonas has missed two consecutive chemistry laboratory blocks this week. Daily attendance is critical for exam preparation.' }
-      ]);
-    } else {
-      setChatHistory([
-        { role: 'teacher', text: 'Greeting! This is homeroom teacher Martha Feyissa. Selam has been performing exceptionally in our Grade 9 Biology laboratory assignments.' }
-      ]);
+  const pay = async (invoiceId: string) => {
+    setPayingId(invoiceId);
+    setToast(null);
+    try {
+      const amount = Number(payAmount);
+      await api.payInvoice(invoiceId, {
+        provider: payProvider,
+        amount: amount || undefined,
+        confirm: true,
+      });
+      setToast({ type: 'ok', text: 'Payment recorded successfully.' });
+      addNotification('Payment received', 'Your invoice balance was updated.', 'success');
+      const next = await api.listInvoices();
+      setInvoices(next);
+      setPayAmount('');
+      const updated = next.find((i) => i.id === invoiceId) || null;
+      if (selectedInvoice?.id === invoiceId) setSelectedInvoice(updated);
+    } catch (err) {
+      setToast({ type: 'err', text: err instanceof Error ? err.message : 'Payment failed' });
+    } finally {
+      setPayingId(null);
     }
   };
 
-  const handleSendMessage = (textToSend?: string) => {
-    const text = textToSend || messageInput;
-    if (!text.trim()) return;
-
-    setChatHistory((prev) => [...prev, { role: 'parent', text }]);
-    setMessageInput('');
-
-    // Simulate reply cycle
-    setTimeout(() => {
-      setChatHistory((prev) => [
-        ...prev,
-        { role: 'teacher', text: `Received. I have noted this down in the ${activeChild.name} portal log. Let's keep aligned on the homework sheets.` }
-      ]);
-      addNotification('Teacher Replied', 'Martha Feyissa sent you a message back.', 'info');
-    }, 1200);
-  };
-
-  // Filter attendance logs for active child
-  const childAttendance = attendance.filter((att) => att.studentId === activeChild.id);
-
-  // Calendar parameters (May 2026)
-  const calendarDays = Array.from({ length: 31 }).map((_, i) => {
-    const day = i + 1;
-    const dateStr = `2026-05-${day < 10 ? '0' + day : day}`;
-    const log = childAttendance.find((att) => att.date === dateStr);
-    return { day, log };
-  });
-
   const childSwitcher = (
-    <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/70 rounded-lg">
-      <button
-        type="button"
-        onClick={() => handleChildSwitch('std-1')}
-        className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${
-          selectedChildId === 'std-1' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        Selam Abebe
-      </button>
-      <button
-        type="button"
-        onClick={() => handleChildSwitch('std-2')}
-        className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${
-          selectedChildId === 'std-2' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-        }`}
-      >
-        Yonas Kassa
-      </button>
+    <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1 shadow-sm">
+      {children.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => setChildId(c.id)}
+          className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition-all ${
+            child?.id === c.id
+              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+              : 'text-muted-foreground hover:bg-card hover:text-foreground'
+          }`}
+        >
+          {c.name}
+        </button>
+      ))}
     </div>
   );
 
-  const tabTitles: Record<string, { title: string; subtitle?: string }> = {
-    dashboard: { title: 'Child Progress Hub', subtitle: `Monitoring ${activeChild.name}` },
-    attendance: { title: 'Attendance Log', subtitle: 'Monthly attendance calendar.' },
-    messaging: { title: 'Teacher Messaging', subtitle: 'Communicate with homeroom teachers.' },
-  };
-  const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
+  const openInvoices = invoices.filter((i) => i.balanceDue > 0);
 
   return (
     <DashboardShell
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      title={meta.title}
-      subtitle={meta.subtitle}
-      eyebrow="Parent Portal · Bole Secondary"
-      actions={childSwitcher}
+      title="Family monitoring hub"
+      subtitle={
+        child
+          ? `Tracking ${child.name} · ${child.grade} ${child.section}`
+          : 'Academics, attendance, and school payments'
+      }
+      eyebrow="Parent portal"
+      activeTab={tab}
+      setActiveTab={setTab}
+      actions={children.length ? childSwitcher : undefined}
+      headerVariant="portal"
     >
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6 text-left">
-              <KpiGrid>
-                <KpiWidget label="Cumulative GPA" value={activeChild.gpa.toFixed(2)} hint={activeChild.gpa >= 3 ? 'High standing' : 'Needs support'} tone="default" icon={<span>★</span>} />
-                <KpiWidget label="Attendance" value={`${activeChild.attendanceRate}%`} hint={activeChild.attendanceRate >= 90 ? 'On target' : 'Below target'} tone="emphasis" icon={<span>📅</span>} />
-                <KpiWidget label="Section" value={`G9-${activeChild.section}`} hint="Homeroom: Martha F." tone="default" icon={<span>🏫</span>} />
-                <KpiWidget label="Status" value={activeChild.status} hint="Enrollment" tone="emphasis" icon={<span>✓</span>} />
-              </KpiGrid>
+      {toast && (
+        <div
+          className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+            toast.type === 'ok'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-destructive/30 bg-destructive/10 text-destructive'
+          }`}
+        >
+          {toast.text}
+        </div>
+      )}
 
-              {/* Progress Gauges and Alert Watchlists */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* GPA Comparison gauge */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">GPA Comparison Benchmark</CardTitle>
-                    <CardDescription>Comparative scores against overall Bole school grade-level average.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2 space-y-4">
-                    <MetricProgressRow
-                      label={`${activeChild.name} Cumulative GPA`}
-                      value={(activeChild.gpa / 4.0) * 100}
-                      valueDisplay={activeChild.gpa.toFixed(2)}
-                      barClassName="bg-primary"
-                    />
-                    <MetricProgressRow
-                      label="Grade Level Average GPA"
-                      value={(2.98 / 4.0) * 100}
-                      valueDisplay="2.98"
-                      barClassName="bg-primary/45"
-                    />
-                  </CardContent>
-                </Card>
+      {loading && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+          ))}
+        </div>
+      )}
 
-                {/* Directive watch lists */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Urgent School Alerts</CardTitle>
-                    <CardDescription>Direct alerts logged by instructors or principal regarding your child.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    {activeChild.id === 'std-2' ? (
-                      <div className="p-3.5 bg-red-500/5 border border-red-500/20 text-foreground rounded-lg text-xxs leading-normal flex items-start space-x-3 text-left">
-                        <span className="text-base">⚠️</span>
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-red-500">Critical Attendance Drop: Yonas Kassa</h4>
-                          <p className="text-muted-foreground">Yonas attendance rate has fallen to 85.2%. School rules require principal conference if attendance drops below 85%.</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-3.5 bg-muted/50 border border-border text-foreground rounded-lg text-xxs leading-normal flex items-start space-x-3 text-left">
-                        <span className="text-base">✓</span>
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-foreground">Academic Standing: Excellent</h4>
-                          <p className="text-muted-foreground">Selam is currently ranked top 5% in Section A. Nominated for Science and Math regional olympiads.</p>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+      {!loading && tab === 'dashboard' && child && (
+        <div className="space-y-5 animate-fade-in">
+          <KpiGrid>
+            <KpiWidget label="GPA" value={child.gpa?.toFixed(2) ?? '—'} hint="Cumulative" tone="emphasis" />
+            <KpiWidget
+              label="Attendance"
+              value={`${Number(child.attendanceRate ?? 0).toFixed(1)}%`}
+              hint="This term"
+            />
+            <KpiWidget label="Open invoices" value={String(openInvoices.length)} hint="Action needed" />
+            <KpiWidget label="Class" value={`${child.grade} ${child.section}`} hint="Current placement" />
+          </KpiGrid>
 
-              </div>
-
-            </div>
-          )}
-
-          {/* ==================================================== */}
-          {/* TAB 2: ATTENDANCE LOG                                */}
-          {/* ==================================================== */}
-          {activeTab === 'attendance' && (
-            <div className="space-y-6 animate-fade-in text-left">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold">Attendance Log Calendar (May 2026)</CardTitle>
-                  <CardDescription>Flagging present, late, or absent logs. Helps trace consistency.</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2 space-y-6">
-                  
-                  {/* Indicators */}
-                  <div className="flex space-x-4 text-xxs font-bold">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-primary rounded-full" /> Present</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-muted-foreground rounded-full" /> Late</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-red-500 rounded-full" /> Absent</span>
-                  </div>
-
-                  {/* Calendar Grid */}
-                  <div className="grid grid-cols-7 gap-2 max-w-xl mx-auto border border-border/40 p-4 rounded-xl bg-muted/20 text-center text-xxs font-bold">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                      <div key={day} className="text-muted-foreground py-1">{day}</div>
-                    ))}
-                    
-                    {/* Filler for calendar alignment */}
-                    <div />
-                    <div />
-                    <div />
-                    <div />
-
-                    {calendarDays.map(({ day, log }) => {
-                      const isToday = day === 20;
-                      return (
-                        <div 
-                          key={day} 
-                          className={`p-2 border border-border/30 rounded-md relative flex flex-col items-center justify-between h-12 bg-card ${
-                            isToday ? 'ring-2 ring-primary ring-offset-2' : ''
-                          }`}
-                        >
-                          <span className="text-[10px] text-muted-foreground">{day}</span>
-                          {log ? (
-                            <span className={`w-2 h-2 rounded-full mt-1 ${
-                              log.status === 'Present' 
-                                ? 'bg-primary' 
-                                : log.status === 'Late'
-                                ? 'bg-muted-foreground'
-                                : 'bg-primary/40'
-                            }`} title={`${log.status}: ${log.remarks || 'None'}`} />
-                          ) : (
-                            <span className="w-2 h-2 bg-primary rounded-full mt-1" title="Present (Simulated)" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* ==================================================== */}
-          {/* TAB 3: TEACHER MESSAGING                             */}
-          {/* ==================================================== */}
-          {activeTab === 'messaging' && (
-            <div className="space-y-6 animate-fade-in text-left">
-              <Card className="flex flex-col h-[500px]">
-                <CardHeader className="shrink-0 border-b border-border/40">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                    <span>💬</span> Live-Simulated Messaging Desk
-                  </CardTitle>
-                  <CardDescription>Direct alignment threads with homeroom teacher Martha Feyissa.</CardDescription>
-                </CardHeader>
-                
-                {/* Chat History */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3.5 leading-normal text-xxs font-medium">
-                  {chatHistory.map((ch, idx) => (
-                    <div 
-                      key={idx} 
-                      className={`flex ${ch.role === 'parent' ? 'justify-end' : 'justify-start'}`}
+          <div className="grid gap-5 lg:grid-cols-5">
+            <div className="lg:col-span-3">
+              <ContentCard title="Latest announcements" description="Posted by school head">
+                <div className="space-y-3">
+                  {announcements.slice(0, 4).map((a) => (
+                    <div
+                      key={String(a.id)}
+                      className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/[0.03] to-transparent p-3.5 transition hover:border-primary/25"
                     >
-                      <div className={`max-w-xs p-3 rounded-lg border ${
-                        ch.role === 'parent'
-                          ? 'bg-primary border-primary/20 text-primary-foreground font-semibold rounded-br-none'
-                          : 'bg-card border-border/80 text-foreground rounded-bl-none'
-                      }`}>
-                        <p>{ch.text}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">{String(a.title)}</p>
+                        <Badge variant="info">School</Badge>
                       </div>
+                      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{String(a.body)}</p>
                     </div>
                   ))}
-                </div>
-
-                {/* Quick replies for instant feedback */}
-                <div className="p-3 border-t border-border/40 bg-card shrink-0 flex flex-wrap gap-2 justify-start">
-                  <span className="text-[10px] text-muted-foreground w-full mb-1 font-semibold uppercase tracking-wider">Quick Preset Replies:</span>
-                  {activeChild.id === 'std-2' ? (
-                    <>
-                      <button 
-                        onClick={() => handleSendMessage("I will strictly review his math worksheets tonight.")}
-                        className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-md text-[10px] font-bold cursor-pointer border border-border"
-                      >
-                        ✏️ Will review math sheets tonight
-                      </button>
-                      <button 
-                        onClick={() => handleSendMessage("Please arrange a homeroom discussion session this Friday.")}
-                        className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-md text-[10px] font-bold cursor-pointer border border-border"
-                      >
-                        📅 Arrange homeroom meeting
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button 
-                        onClick={() => handleSendMessage("Thank you, she is excited to join the regional STEM olympiad!")}
-                        className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-md text-[10px] font-bold cursor-pointer border border-border"
-                      >
-                        🏅 Glad she will join Science Olympiad!
-                      </button>
-                      <button 
-                        onClick={() => handleSendMessage("Please send any extra continuous biology laboratory worksheets.")}
-                        className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-md text-[10px] font-bold cursor-pointer border border-border"
-                      >
-                        📚 Request extra biology sheets
-                      </button>
-                    </>
+                  {!announcements.length && (
+                    <EmptyState title="No announcements" description="School updates will appear here." />
                   )}
                 </div>
-
-                {/* Manual Input */}
-                <div className="p-3 border-t border-border/40 bg-muted/20 shrink-0 flex gap-2">
-                  <input
-                    type="text"
-                    value={messageInput}
-                    onChange={(e) => setMessageInput(e.target.value)}
-                    placeholder="Type custom message to homeroom teacher..."
-                    className="flex-1 h-10 px-3 bg-card border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <Button 
-                    onClick={() => handleSendMessage()}
-                    variant="organic" 
-                    className="h-10 text-xs shrink-0 border-none cursor-pointer"
-                  >
-                    Send
+              </ContentCard>
+            </div>
+            <div className="lg:col-span-2 space-y-5">
+              <ContentCard title="Payment snapshot" description="Balances across children">
+                <div className="space-y-3">
+                  {openInvoices.slice(0, 3).map((inv) => (
+                    <button
+                      key={inv.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedInvoice(inv);
+                        setTab('invoices');
+                      }}
+                      className="w-full rounded-lg border border-border/60 bg-card p-3 text-left transition hover:border-primary/30 hover:shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-primary">{inv.invoiceNumber}</p>
+                        <Badge variant={deadlineVariant(inv.deadlineColor)}>
+                          {inv.status.replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Due {inv.dueDate} · {inv.balanceDue.toLocaleString()} {inv.currency} left
+                      </p>
+                      <MetricProgressRow
+                        className="mt-2"
+                        label="Paid"
+                        value={
+                          inv.amountPaid + inv.balanceDue > 0
+                            ? (inv.amountPaid / (inv.amountPaid + inv.balanceDue)) * 100
+                            : 100
+                        }
+                        valueDisplay={`${inv.amountPaid} / ${inv.amountPaid + inv.balanceDue}`}
+                      />
+                    </button>
+                  ))}
+                  {!openInvoices.length && (
+                    <p className="text-xs text-muted-foreground">All invoices are settled.</p>
+                  )}
+                  <Button size="sm" variant="outline" className="w-full" onClick={() => setTab('invoices')}>
+                    View all invoices
                   </Button>
                 </div>
-              </Card>
+              </ContentCard>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
+      {!loading && tab === 'grades' && (
+        <ContentCard
+          title="Published grades"
+          description="Quiz, test, mid, final, assignment, and project — only published results"
+        >
+          {grades.length ? (
+            <div className="overflow-hidden rounded-xl border border-border/60">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Subject</th>
+                    <th className="px-4 py-3 font-semibold">Type</th>
+                    <th className="px-4 py-3 font-semibold">Title</th>
+                    <th className="px-4 py-3 font-semibold text-right">Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grades.map((g) => {
+                    const score = Number(g.score);
+                    const max = Number(g.max_score || g.maxScore || 100);
+                    const pct = max ? (score / max) * 100 : 0;
+                    return (
+                      <tr key={String(g.id)} className="border-t border-border/40 hover:bg-primary/[0.03]">
+                        <td className="px-4 py-3 font-medium">{String(g.subject)}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="neutral">{String(g.entry_type || g.entryType)}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{String(g.title)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-semibold text-foreground">
+                            {score}/{max}
+                          </span>
+                          <span className="ml-2 text-[11px] text-muted-foreground">{pct.toFixed(0)}%</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState title="No published grades yet" description="Teachers publish results when ready for parents." />
+          )}
+        </ContentCard>
+      )}
+
+      {!loading && tab === 'attendance' && child && (
+        <ParentAttendanceCalendar childName={child.name} logs={attendance} />
+      )}
+
+      {!loading && tab === 'timetable' && (
+        <ContentCard title="Class timetable" description={`${child?.grade} ${child?.section}`}>
+          {timetable.length ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {timetable.map((t) => (
+                <div
+                  key={String(t.id)}
+                  className="rounded-xl border border-border/60 bg-gradient-to-br from-card to-primary/[0.03] p-4 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="primary">{DAY_NAMES[Number(t.day_of_week)] || `Day ${t.day_of_week}`}</Badge>
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {String(t.start_time)} – {String(t.end_time)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold">{String(t.subject)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {String(t.teacher_name || 'Teacher')}
+                    {t.room ? ` · ${String(t.room)}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No timetable published" description="Check back once the registrar posts the schedule." />
+          )}
+        </ContentCard>
+      )}
+
+      {!loading && tab === 'calendar' && (
+        <ContentCard title="Academic calendar" description="Term dates, exams, and school events">
+          {calendar.length ? (
+            <ol className="relative space-y-0 border-l border-primary/20 ml-3">
+              {calendar.map((e) => (
+                <li key={String(e.id)} className="relative pb-5 pl-6 last:pb-0">
+                  <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-card" />
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    {String(e.event_date).slice(0, 10)}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold">{String(e.title)}</p>
+                  {e.description ? (
+                    <p className="text-xs text-muted-foreground">{String(e.description)}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <EmptyState title="Calendar is empty" description="School events will show here when published." />
+          )}
+        </ContentCard>
+      )}
+
+      {!loading && tab === 'documents' && (
+        <ContentCard title="Student documents" description="Admission and academic files">
+          {docs.length ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {docs.map((d) => (
+                <a
+                  key={String(d.id)}
+                  href={String(d.file_url)}
+                  className="group flex items-start gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold group-hover:text-primary">{String(d.title)}</p>
+                    <p className="text-[11px] capitalize text-muted-foreground">{String(d.doc_type)}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No documents" description="Uploaded files for this student will appear here." />
+          )}
+        </ContentCard>
+      )}
+
+      {!loading && tab === 'invoices' && (
+        <div className="space-y-5 animate-fade-in">
+          <ContentCard title="Pay an invoice" description="Partial payments are allowed and tracked">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Partial amount (optional)"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                placeholder="Leave blank for full balance"
+                helperText="Enter an amount to pay part of the balance"
+              />
+              <Select
+                label="Payment method"
+                value={payProvider}
+                onChange={(e) => setPayProvider(e.target.value)}
+                options={[
+                  { value: 'telebirr', label: 'Telebirr' },
+                  { value: 'chapa', label: 'Chapa' },
+                  { value: 'bank_transfer', label: 'Bank transfer' },
+                  { value: 'manual', label: 'Manual / cash' },
+                ]}
+              />
+            </div>
+          </ContentCard>
+
+          <div className="grid gap-4">
+            {invoices.map((inv) => (
+              <button
+                key={inv.id}
+                type="button"
+                onClick={() => setSelectedInvoice(inv)}
+                className="w-full rounded-2xl border border-border/70 bg-card p-5 text-left shadow-sm transition hover:border-primary/35 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/25"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-primary underline-offset-2 group-hover:underline">
+                        {inv.invoiceNumber}
+                      </h3>
+                      <Badge variant="neutral">{inv.invoiceType}</Badge>
+                      <Badge variant={deadlineVariant(inv.deadlineColor)}>
+                        {inv.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Issued {inv.issueDate} · Due {inv.dueDate} ({inv.daysRemaining} days) · Click for
+                      breakdown & receipt
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-4 text-xs">
+                      <span>
+                        Paid{' '}
+                        <strong className="text-foreground">
+                          {inv.amountPaid.toLocaleString()} {inv.currency}
+                        </strong>
+                      </span>
+                      <span>
+                        Balance{' '}
+                        <strong className="text-foreground">
+                          {inv.balanceDue.toLocaleString()} {inv.currency}
+                        </strong>
+                      </span>
+                    </div>
+                    <MetricProgressRow
+                      className="mt-3 max-w-md"
+                      label="Collection"
+                      value={
+                        inv.amountPaid + inv.balanceDue > 0
+                          ? (inv.amountPaid / (inv.amountPaid + inv.balanceDue)) * 100
+                          : 100
+                      }
+                      valueDisplay={`${Math.round(
+                        inv.amountPaid + inv.balanceDue > 0
+                          ? (inv.amountPaid / (inv.amountPaid + inv.balanceDue)) * 100
+                          : 100
+                      )}%`}
+                    />
+                  </div>
+                  {inv.balanceDue > 0 && (
+                    <Button
+                      size="sm"
+                      variant="organic"
+                      className="border-none"
+                      disabled={payingId === inv.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        pay(inv.id);
+                      }}
+                    >
+                      {payingId === inv.id ? 'Processing…' : 'Pay now'}
+                    </Button>
+                  )}
+                </div>
+              </button>
+            ))}
+            {!invoices.length && (
+              <EmptyState title="No invoices" description="Admission and tuition invoices will show here." />
+            )}
+          </div>
+
+          <InvoiceDetailDialog
+            invoice={selectedInvoice}
+            open={!!selectedInvoice}
+            onClose={() => setSelectedInvoice(null)}
+            paying={payingId === selectedInvoice?.id}
+            onPay={(inv) => pay(inv.id)}
+          />
+        </div>
+      )}
+
+      {!loading && tab === 'applications' && (
+        <div className="space-y-4">
+        <ContentCard title="My applications" description="Edit while the school still allows changes">
+          {applications.length ? (
+            <div className="space-y-3">
+              {applications.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {a.applicantName}{' '}
+                      <span className="font-normal text-muted-foreground">· {a.referenceCode}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {a.gradeApplied}
+                      {a.sectionRequested ? ` ${a.sectionRequested}` : ''} · {a.sourceChannel || 'website'}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Badge variant="neutral">{a.status.replace(/_/g, ' ')}</Badge>
+                      {a.status === 'waitlisted' && a.waitlistRank != null && (
+                        <Badge variant="warning">Waitlist position #{a.waitlistRank}</Badge>
+                      )}
+                    </div>
+                  </div>
+                  {!a.editLocked && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const name = window.prompt('Update student name', a.applicantName);
+                        if (!name) return;
+                        await api.updateApplication(a.id, { applicantName: name });
+                        setApplications(await api.myApplications());
+                        setToast({ type: 'ok', text: 'Application updated.' });
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No applications yet"
+              description="Submit via the school apply link, then track status here."
+            />
+          )}
+        </ContentCard>
+        <ParentReenrollmentInvites />
+        </div>
+      )}
+
+      {!loading && tab === 'announcements' && (
+        <AnnouncementFeed
+          schoolName="School Head"
+          items={announcements.map((a) => ({
+            id: String(a.id),
+            title: String(a.title),
+            body: String(a.body),
+            publishedAt: a.publishedAt ? String(a.publishedAt) : a.published_at ? String(a.published_at) : null,
+            audience: a.audience ? String(a.audience) : 'all',
+            authorName: 'School Head',
+            authorRole: 'Official',
+          }))}
+        />
+      )}
+
+      {!loading && tab === 'messages' && (
+        <MessageCenter
+          mode="parent"
+          childrenOptions={children.map((c) => ({ id: c.id, name: c.name }))}
+        />
+      )}
+
+      {!loading && tab === 'feedback' && (
+        <ParentFeedbackForm childrenOptions={children.map((c) => ({ id: c.id, name: c.name }))} />
+      )}
     </DashboardShell>
   );
 }

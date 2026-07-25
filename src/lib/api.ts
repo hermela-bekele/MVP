@@ -19,12 +19,29 @@ export class ApiError extends Error {
 
 const REQUEST_TIMEOUT_MS = 8000;
 
+function authHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw =
+      localStorage.getItem('pts-session') ?? sessionStorage.getItem('pts-session');
+    if (!raw) return {};
+    const user = JSON.parse(raw) as { id?: string; token?: string };
+    const headers: Record<string, string> = {};
+    if (user?.token) headers.Authorization = `Bearer ${user.token}`;
+    if (user?.id) headers['x-user-id'] = user.id;
+    return headers;
+  } catch {
+    return {};
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}/api${path}`, {
     ...init,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders(),
       ...init?.headers,
     },
   });
@@ -102,6 +119,11 @@ export interface LoginResult {
   displayName: string;
   subject?: string;
   departmentId?: string;
+  schoolId?: string | null;
+  linkedStudentId?: string | null;
+  linkedParentId?: string | null;
+  permissions?: string[];
+  token?: string;
 }
 
 export interface RegisterPayload {
@@ -237,4 +259,317 @@ export const api = {
   markNotificationRead: (id: string) =>
     request(`/notifications/${id}/read`, { method: 'PATCH' }),
   clearNotifications: () => request('/notifications', { method: 'DELETE' }),
+
+  // Admissions / billing / portal
+  getPublicSchool: (slug: string) =>
+    request<{
+      school: { id: string; name: string; slug: string; code: string };
+      formSchema: unknown[];
+      branding?: { primaryColor?: string; tagline?: string };
+      fees: { registrationFee: number; monthlyTuition: number; currency: string };
+    }>(`/admissions/public/schools/${slug}`),
+  submitPublicApplication: (slug: string, body: Record<string, unknown>) =>
+    request(`/admissions/public/schools/${slug}/applications`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  listApplications: (schoolId?: string, status?: string) => {
+    const q = new URLSearchParams();
+    if (schoolId) q.set('schoolId', schoolId);
+    if (status) q.set('status', status);
+    const s = q.toString();
+    return request<AdmissionApplication[]>(`/admissions/applications${s ? `?${s}` : ''}`);
+  },
+  myApplications: () => request<AdmissionApplication[]>('/admissions/applications/mine'),
+  getApplication: (id: string) => request<AdmissionApplication>(`/admissions/applications/${id}`),
+  updateApplication: (id: string, body: Record<string, unknown>) =>
+    request(`/admissions/applications/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  scoreApplication: (id: string, score: number, notes?: string) =>
+    request(`/admissions/applications/${id}/score`, {
+      method: 'POST',
+      body: JSON.stringify({ score, notes }),
+    }),
+  waitlistApplication: (id: string, notes?: string) =>
+    request(`/admissions/applications/${id}/waitlist`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }),
+  rejectApplication: (id: string, reason: string) =>
+    request(`/admissions/applications/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  acceptApplication: (id: string, body?: Record<string, unknown>) =>
+    request<{ application: AdmissionApplication; invoice: Invoice; enrollmentId: string }>(
+      `/admissions/applications/${id}/accept`,
+      { method: 'POST', body: JSON.stringify(body ?? {}) }
+    ),
+  requestInfoApplication: (id: string, notes: string) =>
+    request(`/admissions/applications/${id}/request-info`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    }),
+  withdrawApplication: (id: string, reason: string) =>
+    request(`/admissions/applications/${id}/withdraw`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  forcePromoteWaitlist: (id: string) =>
+    request(`/admissions/waitlist/${id}/force-promote`, { method: 'POST', body: '{}' }),
+  listWaitlist: (schoolId?: string) =>
+    request(`/admissions/waitlist${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  listCapacity: (schoolId?: string) =>
+    request(`/admissions/capacity${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  updateCapacity: (id: string, body: { capacity: number }) =>
+    request(`/admissions/capacity/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  getSchoolSettings: (schoolId: string) => request(`/admissions/settings/${schoolId}`),
+  updateSchoolSettings: (schoolId: string, body: Record<string, unknown>) =>
+    request(`/admissions/settings/${schoolId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listInvoices: (params?: Record<string, string>) => {
+    const q = new URLSearchParams(params);
+    const s = q.toString();
+    return request<Invoice[]>(`/billing/invoices${s ? `?${s}` : ''}`);
+  },
+  payInvoice: (id: string, body: Record<string, unknown>) =>
+    request(`/billing/invoices/${id}/pay`, { method: 'POST', body: JSON.stringify(body) }),
+  recordPayment: (id: string, body: Record<string, unknown>) =>
+    request(`/billing/invoices/${id}/record-payment`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  waiveInvoice: (id: string, amount: number, reason: string) =>
+    request(`/billing/invoices/${id}/waive`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, reason }),
+    }),
+  cancelInvoice: (id: string, reason: string) =>
+    request(`/billing/invoices/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  extendInvoiceDeadline: (id: string, dueDate: string) =>
+    request(`/billing/invoices/${id}/deadline`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dueDate }),
+    }),
+  financeAgingReport: (schoolId?: string) =>
+    request(`/billing/reports/aging${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  runBillingJobs: () => request('/billing/jobs/run', { method: 'POST' }),
+
+  portalChildren: () => request<Record<string, unknown>[]>('/portal/children'),
+  portalAnnouncements: (schoolId?: string) =>
+    request(`/portal/announcements${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  createAnnouncement: (body: Record<string, unknown>) =>
+    request('/portal/announcements', { method: 'POST', body: JSON.stringify(body) }),
+  updateAnnouncement: (id: string, body: Record<string, unknown>) =>
+    request(`/portal/announcements/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteAnnouncement: (id: string) =>
+    request(`/portal/announcements/${id}`, { method: 'DELETE' }),
+  portalCalendar: (schoolId?: string) =>
+    request(`/portal/calendar${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  listFeePlans: (schoolId: string) =>
+    request<{ id: string; grade: string; registrationFee: number; monthlyTuition: number }[]>(
+      `/admissions/fee-plans/${schoolId}`
+    ),
+  saveFeePlans: (
+    schoolId: string,
+    plans: { grade: string; registrationFee: number; monthlyTuition: number; id?: string }[]
+  ) =>
+    request(`/admissions/fee-plans/${schoolId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ plans }),
+    }),
+  verifyApplicationDocument: (applicationId: string, docId: string, verified = true) =>
+    request(`/admissions/applications/${applicationId}/documents/${docId}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ verified }),
+    }),
+  listReenrollmentCampaigns: (schoolId?: string) =>
+    request<{ id: string; title: string; inviteCount: number; confirmedCount: number; status: string }[]>(
+      `/portal/reenroll/campaigns${schoolId ? `?schoolId=${schoolId}` : ''}`
+    ),
+  createReenrollmentCampaign: (body: Record<string, unknown>) =>
+    request<{ id: string; inviteCount: number }>('/portal/reenroll/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  myReenrollmentInvites: () =>
+    request<
+      {
+        id: string;
+        title: string;
+        studentName: string;
+        grade: string;
+        status: string;
+        dueDate?: string;
+      }[]
+    >('/portal/reenroll/mine'),
+  respondReenrollmentInvite: (id: string, status: 'confirmed' | 'declined') =>
+    request(`/portal/reenroll/invites/${id}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+  portalTimetable: (grade: string, section: string, schoolId?: string) => {
+    const q = new URLSearchParams({ grade, section });
+    if (schoolId) q.set('schoolId', schoolId);
+    return request(`/portal/timetable?${q}`);
+  },
+  portalDocuments: (studentId: string) =>
+    request(`/portal/documents?studentId=${studentId}`),
+  portalGrades: (studentId: string) => request(`/portal/grades?studentId=${studentId}`),
+  publishGrade: (id: string, published = true) =>
+    request(`/portal/grades/${id}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ published }),
+    }),
+  portalAttendance: (studentId: string) =>
+    request(`/portal/attendance?studentId=${studentId}`),
+  portalPracticeSets: (grade?: string, schoolId?: string) => {
+    const q = new URLSearchParams();
+    if (grade) q.set('grade', grade);
+    if (schoolId) q.set('schoolId', schoolId);
+    const s = q.toString();
+    return request(`/portal/practice-sets${s ? `?${s}` : ''}`);
+  },
+  createPracticeSet: (body: Record<string, unknown>) =>
+    request<{ id: string }>('/portal/practice-sets', { method: 'POST', body: JSON.stringify(body) }),
+  listQuestionBank: (schoolId?: string) =>
+    request<Record<string, unknown>[]>(
+      `/portal/question-bank${schoolId ? `?schoolId=${schoolId}` : ''}`
+    ),
+  createQuestion: (body: Record<string, unknown>) =>
+    request<{ id: string }>('/portal/question-bank', { method: 'POST', body: JSON.stringify(body) }),
+
+  listMessageThreads: () => request<MessageThread[]>('/portal/messages/threads'),
+  createMessageThread: (body: Record<string, unknown>) =>
+    request<{ id: string }>('/portal/messages/threads', { method: 'POST', body: JSON.stringify(body) }),
+  getThreadMessages: (threadId: string) =>
+    request<ThreadMessage[]>(`/portal/messages/threads/${threadId}`),
+  replyToThread: (threadId: string, body: string) =>
+    request<{ id: string }>(`/portal/messages/threads/${threadId}`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+  sendPortalFeedback: (body: Record<string, unknown>) =>
+    request<{ id: string }>('/portal/feedback', { method: 'POST', body: JSON.stringify(body) }),
+  createCalendarEvent: (body: Record<string, unknown>) =>
+    request<{ id: string }>('/portal/calendar', { method: 'POST', body: JSON.stringify(body) }),
+  listPortalUsers: (schoolId?: string) =>
+    request<PortalUserSummary[]>(
+      `/permissions/users${schoolId ? `?schoolId=${schoolId}` : ''}`
+    ),
+  listPortalContacts: (schoolId?: string) =>
+    request<{
+      teachers: { teacherId: string; userId?: string | null; displayName: string; email: string; role: string }[];
+      parents: { userId: string; displayName: string; email: string; role: string }[];
+      schoolHeads: { userId: string; displayName: string; email: string; role: string }[];
+    }>(`/portal/contacts${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  revokeUserPermission: (userId: string, permissionCode: string, schoolId?: string) =>
+    request(
+      `/permissions/users/${userId}/${permissionCode}${schoolId ? `?schoolId=${schoolId}` : ''}`,
+      { method: 'DELETE' }
+    ),
+
+  myPermissions: () => request<{ permissions: string[] }>('/permissions/me'),
+  permissionCatalog: () => request<{ code: string; label: string; module: string }[]>('/permissions/catalog'),
+  getUserPermissions: (userId: string, schoolId?: string) =>
+    request(`/permissions/users/${userId}${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  setUserPermission: (
+    userId: string,
+    body: { permissionCode: string; effect: 'allow' | 'deny'; schoolId?: string }
+  ) =>
+    request(`/permissions/users/${userId}`, { method: 'POST', body: JSON.stringify(body) }),
+  getRolePermissions: (role: string, schoolId?: string) =>
+    request(`/permissions/roles/${role}${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  setRolePermissions: (role: string, permissions: string[], schoolId?: string) =>
+    request(`/permissions/roles/${role}`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissions, schoolId }),
+    }),
 };
+
+export interface AdmissionApplication {
+  id: string;
+  schoolId: string;
+  referenceCode: string;
+  applicantName: string;
+  dateOfBirth?: string;
+  gradeApplied: string;
+  sectionRequested?: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string;
+  emergencyContact?: string;
+  medicalInfo?: string;
+  previousSchool?: string;
+  sourceChannel?: string;
+  priorityScore: number;
+  status: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  reviewerNotes?: string;
+  rejectionReason?: string;
+  provisionalClassId?: string;
+  enrolledStudentId?: string;
+  invoiceId?: string;
+  editLocked?: boolean;
+  waitlistRank?: number | null;
+  waitlistStatus?: string | null;
+}
+
+export interface Invoice {
+  id: string;
+  schoolId: string;
+  studentId?: string;
+  applicationId?: string;
+  parentId?: string;
+  invoiceNumber: string;
+  invoiceType: string;
+  status: string;
+  issueDate: string;
+  dueDate: string;
+  currency: string;
+  subtotal: number;
+  lateFeeTotal: number;
+  amountPaid: number;
+  balanceDue: number;
+  daysRemaining: number;
+  deadlineColor: 'green' | 'yellow' | 'red';
+  lineItems?: { id: string; description: string; lineTotal: number; lineType: string }[];
+  payments?: { id: string; amount: number; provider: string; status: string; paidAt?: string }[];
+}
+
+export interface MessageThread {
+  id: string;
+  school_id?: string;
+  schoolId?: string;
+  student_id?: string;
+  studentId?: string;
+  parent_user_id?: string;
+  parentUserId?: string;
+  staff_user_id?: string;
+  staffUserId?: string;
+  staff_role?: string;
+  staffRole?: string;
+  subject: string;
+  updated_at?: string;
+  updatedAt?: string;
+}
+
+export interface ThreadMessage {
+  id: string;
+  thread_id?: string;
+  sender_user_id?: string;
+  sender_role?: string;
+  body: string;
+  created_at?: string;
+}
+
+export interface PortalUserSummary {
+  id: string;
+  email: string;
+  role: string;
+  displayName: string;
+  schoolId?: string | null;
+}
