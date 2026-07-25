@@ -90,12 +90,63 @@ export interface LessonPlan {
   assessments: string[];
   homework: string;
   createdAt: string;
+  planType?: 'yearly' | 'monthly' | 'weekly';
+  createdByRole?: 'teacher' | 'department-head';
+  /** Serialized AI plan JSON for department-published annual plans */
+  planDetail?: string;
+}
+
+export type AcademicCalendarEventType =
+  | 'term'
+  | 'break'
+  | 'holiday'
+  | 'exam'
+  | 'moe'
+  | 'other';
+
+export type AcademicCalendarDayMark =
+  | 'mid-exam-start'
+  | 'mid-exam-end'
+  | 'quarter-end'
+  | 'quarter-break'
+  | 'semester-break'
+  | 'semester-final-start'
+  | 'semester-final-end'
+  | 'other';
+
+export interface AcademicCalendarEvent {
+  label: string;
+  startDate: string;
+  endDate: string;
+  startDateEthiopian?: string;
+  endDateEthiopian?: string;
+  type: AcademicCalendarEventType;
+  /** School-head day assignment used for color coding */
+  mark?: AcademicCalendarDayMark;
+}
+
+export interface AcademicCalendar {
+  id: string;
+  schoolId: string;
+  academicYear: string;
+  title: string;
+  moeReference?: string;
+  quarters: number;
+  quarterBreakWeeks: number;
+  semesterBreakWeeks: number;
+  midExamCount: number;
+  midExamDays?: number;
+  finalExamWeeks?: number;
+  events: AcademicCalendarEvent[];
+  status: 'Draft' | 'Published';
+  createdAt: string;
+  publishedAt?: string;
 }
 
 export interface Assessment {
   id: string;
   title: string;
-  type: 'Quiz' | 'Mid Exam' | 'Final Exam' | 'Assignment' | 'Practical';
+  type: 'Quiz' | 'Mid Exam' | 'Final Exam' | 'Assignment' | 'Practical' | 'Baseline';
   subject: string;
   grade: string;
   teacherId: string;
@@ -897,7 +948,7 @@ export interface TeachingNote {
   contentSummary: string;
   /** JSON-serialized AI note payload for full view/print */
   contentBody?: string;
-  status: 'Draft' | 'Saved';
+  status: 'Draft' | 'Saved' | 'Pending Dept Head' | 'Approved' | 'Rejected';
   deptComments?: string;
   createdAt: string;
   updatedAt?: string;
@@ -911,6 +962,14 @@ export type StudentGradeEntryType =
   | 'Mid Exam'
   | 'Final Exam'
   | 'Practical';
+
+/** Per-question mark for a student's assessment result. */
+export interface GradeQuestionResult {
+  questionNumber: number;
+  correct: boolean;
+  /** Optional label from linked assessment */
+  prompt?: string;
+}
 
 export interface StudentGradeEntry {
   id: string;
@@ -928,6 +987,8 @@ export interface StudentGradeEntry {
   term: string;
   recordedAt: string;
   remarks?: string;
+  /** Which question numbers were answered correctly / incorrectly */
+  questionResults?: GradeQuestionResult[];
   published?: boolean;
 }
 
@@ -1075,7 +1136,22 @@ export const mockTeachingNotes: TeachingNote[] = [
     status: 'Draft',
     createdAt: '2026-05-22',
   },
+  {
+    id: 'tn-4',
+    teacherId: 'tch-1',
+    lessonPlanId: 'lp-1',
+    title: 'Photosynthesis AI Notes — Pending Review',
+    grade: 'Grade 9',
+    subject: 'Biology',
+    topic: 'Photosynthesis',
+    language: 'English',
+    contentSummary: 'AI-generated teaching notes on light-dependent reactions and Calvin cycle.',
+    status: 'Pending Dept Head',
+    createdAt: '2026-06-01',
+  },
 ];
+
+export const mockAcademicCalendars: AcademicCalendar[] = [];
 
 export const mockStudentGradeEntries: StudentGradeEntry[] = [
   {
@@ -1086,12 +1162,51 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     gradeLevel: 'Grade 9',
     section: 'A',
     entryType: 'Quiz',
-    title: 'Unit 2 — Cell organelles quiz',
-    score: 18,
-    maxScore: 20,
+    title: 'Quiz 1',
+    score: 8,
+    maxScore: 10,
     weight: 10,
     term: 'Term 2 · 2026',
     recordedAt: '2026-05-10',
+    questionResults: [
+      { questionNumber: 1, correct: true },
+      { questionNumber: 2, correct: true },
+      { questionNumber: 3, correct: true },
+      { questionNumber: 4, correct: false },
+      { questionNumber: 5, correct: true },
+      { questionNumber: 6, correct: true },
+      { questionNumber: 7, correct: true },
+      { questionNumber: 8, correct: false },
+      { questionNumber: 9, correct: true },
+      { questionNumber: 10, correct: true },
+    ],
+  },
+  {
+    id: 'ge-1b',
+    studentId: 'std-1',
+    teacherId: 'tch-1',
+    subject: 'Biology',
+    gradeLevel: 'Grade 9',
+    section: 'A',
+    entryType: 'Quiz',
+    title: 'Quiz 2',
+    score: 7,
+    maxScore: 10,
+    weight: 10,
+    term: 'Term 2 · 2026',
+    recordedAt: '2026-05-17',
+    questionResults: [
+      { questionNumber: 1, correct: true },
+      { questionNumber: 2, correct: false },
+      { questionNumber: 3, correct: true },
+      { questionNumber: 4, correct: true },
+      { questionNumber: 5, correct: true },
+      { questionNumber: 6, correct: false },
+      { questionNumber: 7, correct: true },
+      { questionNumber: 8, correct: true },
+      { questionNumber: 9, correct: false },
+      { questionNumber: 10, correct: true },
+    ],
   },
   {
     id: 'ge-2',
@@ -1101,7 +1216,7 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     gradeLevel: 'Grade 9',
     section: 'A',
     entryType: 'Project',
-    title: 'Cell model group project',
+    title: 'Cell model project',
     score: 42,
     maxScore: 50,
     weight: 15,
@@ -1116,12 +1231,16 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     gradeLevel: 'Grade 9',
     section: 'A',
     entryType: 'Mid Exam',
-    title: 'Biology midterm examination',
+    title: 'Mid Exam',
     score: 76,
     maxScore: 100,
     weight: 25,
     term: 'Term 2 · 2026',
     recordedAt: '2026-05-18',
+    questionResults: Array.from({ length: 20 }, (_, i) => ({
+      questionNumber: i + 1,
+      correct: ![3, 7, 11, 14, 18].includes(i + 1),
+    })),
   },
   {
     id: 'ge-4',
@@ -1131,13 +1250,52 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     gradeLevel: 'Grade 9',
     section: 'A',
     entryType: 'Quiz',
-    title: 'Unit 2 — Cell organelles quiz',
-    score: 14,
-    maxScore: 20,
+    title: 'Quiz 1',
+    score: 6,
+    maxScore: 10,
     weight: 10,
     term: 'Term 2 · 2026',
     recordedAt: '2026-05-10',
     remarks: 'Needs review session',
+    questionResults: [
+      { questionNumber: 1, correct: true },
+      { questionNumber: 2, correct: false },
+      { questionNumber: 3, correct: true },
+      { questionNumber: 4, correct: false },
+      { questionNumber: 5, correct: true },
+      { questionNumber: 6, correct: false },
+      { questionNumber: 7, correct: true },
+      { questionNumber: 8, correct: false },
+      { questionNumber: 9, correct: true },
+      { questionNumber: 10, correct: true },
+    ],
+  },
+  {
+    id: 'ge-4b',
+    studentId: 'std-2',
+    teacherId: 'tch-1',
+    subject: 'Biology',
+    gradeLevel: 'Grade 9',
+    section: 'A',
+    entryType: 'Quiz',
+    title: 'Quiz 2',
+    score: 5,
+    maxScore: 10,
+    weight: 10,
+    term: 'Term 2 · 2026',
+    recordedAt: '2026-05-17',
+    questionResults: [
+      { questionNumber: 1, correct: true },
+      { questionNumber: 2, correct: false },
+      { questionNumber: 3, correct: false },
+      { questionNumber: 4, correct: true },
+      { questionNumber: 5, correct: false },
+      { questionNumber: 6, correct: true },
+      { questionNumber: 7, correct: false },
+      { questionNumber: 8, correct: true },
+      { questionNumber: 9, correct: false },
+      { questionNumber: 10, correct: true },
+    ],
   },
   {
     id: 'ge-5',
@@ -1147,12 +1305,35 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     gradeLevel: 'Grade 9',
     section: 'A',
     entryType: 'Test',
-    title: 'Membrane transport unit test',
+    title: 'Unit Test 1',
     score: 62,
     maxScore: 100,
     weight: 20,
     term: 'Term 2 · 2026',
     recordedAt: '2026-05-17',
+    questionResults: Array.from({ length: 15 }, (_, i) => ({
+      questionNumber: i + 1,
+      correct: ![2, 5, 8, 9, 12, 14].includes(i + 1),
+    })),
+  },
+  {
+    id: 'ge-5b',
+    studentId: 'std-2',
+    teacherId: 'tch-1',
+    subject: 'Biology',
+    gradeLevel: 'Grade 9',
+    section: 'A',
+    entryType: 'Mid Exam',
+    title: 'Mid Exam',
+    score: 68,
+    maxScore: 100,
+    weight: 25,
+    term: 'Term 2 · 2026',
+    recordedAt: '2026-05-18',
+    questionResults: Array.from({ length: 20 }, (_, i) => ({
+      questionNumber: i + 1,
+      correct: ![1, 4, 6, 10, 13, 16, 19].includes(i + 1),
+    })),
   },
   {
     id: 'ge-6',
@@ -1177,7 +1358,7 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     gradeLevel: 'Grade 9',
     section: 'B',
     entryType: 'Final Exam',
-    title: 'Final exam (practice mock)',
+    title: 'Final Exam',
     score: 88,
     maxScore: 100,
     weight: 30,

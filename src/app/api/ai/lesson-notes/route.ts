@@ -20,14 +20,19 @@ function getCacheKey(payload: any): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, subtopic = "" } = body;
+    const { topic, subtopic = '', session_context = '', student_level = 'differentiated' } = body;
 
     if (!topic) {
       return NextResponse.json({ error: "Topic is required" }, { status: 400 });
     }
 
+    const payload: Record<string, unknown> = { topic, subtopic, student_level };
+    if (session_context?.trim()) {
+      payload.session_context = session_context.trim();
+    }
+
     // Create cache key
-    const cacheKey = createCacheKey("lesson-notes", { topic, subtopic });
+    const cacheKey = createCacheKey("lesson-notes", payload);
 
     // Check cache first
     const cached = await getCachedData(cacheKey);
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Cache miss - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI for: ${topic}`);
-    const response = await fetchPrimeAI("/lesson-notes", { topic, subtopic });
+    const response = await fetchPrimeAI("/lesson-notes", payload);
 
     if (!response.ok) {
       const errorText = await response.text();

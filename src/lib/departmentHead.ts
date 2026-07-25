@@ -30,10 +30,30 @@ export interface DeptHeadScope {
   schoolId: string;
 }
 
+const SUBJECT_ALIASES: Record<string, string[]> = {
+  mathematics: ['mathematics', 'math', 'maths'],
+  biology: ['biology', 'bio', 'general science'],
+  chemistry: ['chemistry', 'chem'],
+  physics: ['physics', 'phy'],
+  english: ['english', 'english language'],
+};
+
+function normalizeSubject(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function subjectsEquivalent(a: string, b: string): boolean {
+  const left = normalizeSubject(a);
+  const right = normalizeSubject(b);
+  if (left === right || left.includes(right) || right.includes(left)) return true;
+  for (const group of Object.values(SUBJECT_ALIASES)) {
+    if (group.includes(left) && group.includes(right)) return true;
+  }
+  return false;
+}
+
 export function subjectMatches(a: string, b: string): boolean {
-  const left = a.trim().toLowerCase();
-  const right = b.trim().toLowerCase();
-  return left === right || left.includes(right) || right.includes(left);
+  return subjectsEquivalent(a, b);
 }
 
 export function departmentIdForSubject(subject: string): string {
@@ -87,6 +107,22 @@ export function filterBySubjectScope<T extends { subject: string }>(
   scope: DeptHeadScope,
 ): T[] {
   return items.filter((item) => subjectMatches(item.subject, scope.subject));
+}
+
+/** Notes/requests from teachers in this department (handles subject label mismatches). */
+export function filterDeptTeachingNotes(
+  notes: import('@/lib/mockData').TeachingNote[],
+  teachers: import('@/lib/mockData').Teacher[],
+  scope: DeptHeadScope,
+): import('@/lib/mockData').TeachingNote[] {
+  const deptTeachers = teachers.filter((t) => isSubjectTeacher(t, scope));
+  const teacherIds = new Set(deptTeachers.map((t) => t.id));
+  return notes.filter((note) => {
+    if (!teacherIds.has(note.teacherId)) return false;
+    if (subjectMatches(note.subject, scope.subject)) return true;
+    const teacher = deptTeachers.find((t) => t.id === note.teacherId);
+    return teacher?.subjects.some((sub) => subjectMatches(sub, note.subject)) ?? false;
+  });
 }
 
 export function classSectionKey(grade: string, section: string): string {

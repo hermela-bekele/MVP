@@ -18,7 +18,8 @@ import { WellnessCheckins } from '@/components/dashboard/school-head/WellnessChe
 import { SettingsPanel } from '@/components/dashboard/school-head/SettingsPanel';
 import { SchoolHeadAnnouncements } from '@/components/dashboard/school-head/SchoolHeadAnnouncements';
 import { PermissionsAdminPanel } from '@/components/dashboard/school-head/PermissionsAdminPanel';
-import { SchoolHeadCalendar } from '@/components/dashboard/school-head/SchoolHeadCalendar';
+import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
+import { SchoolHeadResourcesPanel } from '@/components/dashboard/school-head/SchoolHeadResourcesPanel';
 import { ApplicationFormBuilder } from '@/components/dashboard/school-head/ApplicationFormBuilder';
 import { SchoolBillingSettings } from '@/components/dashboard/school-head/SchoolBillingSettings';
 import { ReenrollmentCampaignPanel } from '@/components/dashboard/school-head/ReenrollmentCampaignPanel';
@@ -57,6 +58,7 @@ export default function SchoolHeadPortalPage() {
       case 'dashboard': return [...base, { label: 'Overview' }];
       case 'reports': return [...base, { label: 'Performance Reports' }];
       case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
+      case 'resources': return [...base, { label: 'School Resources' }];
       case 'messages': return [...base, { label: 'Parent Messages' }];
       case 'manage-students': return [...base, { label: 'Student Directory' }];
       case 'manage-employees': return [...base, { label: 'Faculty Directory' }];
@@ -125,6 +127,10 @@ export default function SchoolHeadPortalPage() {
     'academic-calendar': {
       title: 'Academic Calendar',
       subtitle: 'Publish term dates, exams, and school events for parent and student portals.',
+    },
+    resources: {
+      title: 'School Resources',
+      subtitle: 'Disseminate school-wide materials and supporting documents.',
     },
     messages: {
       title: 'Parent Messages',
@@ -196,7 +202,9 @@ export default function SchoolHeadPortalPage() {
           {activeTab === 'reports' && <PerformanceReports />}
 
           {/* 3. Academic Calendar */}
-          {activeTab === 'academic-calendar' && <SchoolHeadCalendar />}
+          {activeTab === 'academic-calendar' && <SchoolHeadAcademicCalendarPanel />}
+
+          {activeTab === 'resources' && <SchoolHeadResourcesPanel />}
 
           {activeTab === 'messages' && (
             <MessageCenter mode="staff" staffRoleHint="school-head" />

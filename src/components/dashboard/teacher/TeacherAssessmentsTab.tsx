@@ -2,14 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FilePlus, Upload, Sparkles } from 'lucide-react';
+import { FilePlus, Upload, Sparkles, Printer, Download } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { filterTeacherAssessments, GRADE_OPTIONS } from '@/lib/teacherPortal';
-import { generateAssessmentWithAI } from '@/lib/ai';
-import { MathRenderer } from '@/components/ui/MathRenderer';
+import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS } from '@/lib/teacherPortal';
+import { generateAssessmentWithAI, generateBaselineAssessmentWithAI, buildLessonPlanContext, baselineScopeLabel, baselineTimingLabel, derivePreviousGrade, type BaselineSemesterTiming } from '@/lib/ai';
+import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import type { Assessment } from '@/lib/mockData';
+import {
+  generatePDFFromMarkdown,
+  printMarkdown,
+  slugifyFilename,
+} from '@/lib/pdfUtils';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -38,8 +43,9 @@ type QuestionFormat = (typeof QUESTION_FORMAT_OPTIONS)[number];
 
 export const TeacherAssessmentsTab: React.FC = () => {
   const router = useRouter();
-  const { assessments, createAssessment } = useApp();
+  const { assessments, createAssessment, lessonPlans } = useApp();
   const myAssessments = filterTeacherAssessments(assessments);
+  const teacherPlans = filterTeacherLessonPlans(lessonPlans);
 
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -48,12 +54,17 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [grade, setGrade] = useState('Grade 11');
   const [difficulty, setDifficulty] = useState<Assessment['difficulty']>('Medium');
   const [uploadMode, setUploadMode] = useState<'create' | 'upload'>('create');
+  const [sourceType, setSourceType] = useState<'topic' | 'lesson_plan'>('topic');
+  const [selectedLessonPlanId, setSelectedLessonPlanId] = useState('');
   const [topic, setTopic] = useState('');
   const [numQuestions, setNumQuestions] = useState(10);
   const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('Mixed');
+  const [assessmentStudentLevel, setAssessmentStudentLevel] = useState('differentiated');
+  const [baselineTiming, setBaselineTiming] = useState<BaselineSemesterTiming>('semester_1_start');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   useEffect(() => {
     const open = () => {
@@ -64,29 +75,84 @@ export const TeacherAssessmentsTab: React.FC = () => {
     return () => window.removeEventListener('open-teacher-assessment', open);
   }, []);
 
-  // Auto-populate title based on type and topic
+  const selectedPlan = teacherPlans.find((p) => p.id === selectedLessonPlanId);
+
   useEffect(() => {
-    if (topic && type) {
+    if (sourceType === 'lesson_plan' && selectedPlan) {
+      setGrade(selectedPlan.grade);
+      setSubject(selectedPlan.subject);
+      setTopic(selectedPlan.title);
+    }
+  }, [sourceType, selectedPlan]);
+
+  const isBaseline = type === 'Baseline';
+
+  // Auto-populate title based on type and topic or lesson plan
+  useEffect(() => {
+    if (isBaseline) {
+      setTitle(`Baseline — ${grade} ${subject} (${baselineTimingLabel(baselineTiming, grade)})`);
+      return;
+    }
+    if (sourceType === 'lesson_plan' && selectedPlan && type) {
+      setTitle(`${type} — ${selectedPlan.title}`);
+    } else if (topic && type) {
       setTitle(`${type} on ${topic}`);
     }
-  }, [topic, type]);
+  }, [topic, type, sourceType, selectedPlan, isBaseline, grade, subject, baselineTiming]);
 
   const handleGenerateWithAI = async () => {
-    if (!topic) {
+    if (isBaseline) {
+      setIsGenerating(true);
+      try {
+        const content = await generateBaselineAssessmentWithAI(
+          grade,
+          subject,
+          baselineTiming,
+          topic.trim(),
+          difficulty,
+          numQuestions,
+          questionFormat,
+          assessmentStudentLevel,
+        );
+        setGeneratedContent(content);
+        setShowPreview(true);
+      } catch (error) {
+        console.error('Failed to generate baseline assessment:', error);
+        alert('Failed to generate baseline assessment. Please try again.');
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
+    if (sourceType === 'topic' && !topic.trim()) {
       alert('Please enter a topic first');
       return;
     }
+    if (sourceType === 'lesson_plan' && !selectedPlan) {
+      alert('Please select a lesson plan first');
+      return;
+    }
+
+    const effectiveTopic = sourceType === 'lesson_plan' && selectedPlan
+      ? selectedPlan.title
+      : topic.trim();
+    const lessonPlanContext = sourceType === 'lesson_plan' && selectedPlan
+      ? buildLessonPlanContext(selectedPlan)
+      : undefined;
     
     setIsGenerating(true);
     try {
       const content = await generateAssessmentWithAI(
         type,
-        topic,
+        effectiveTopic,
         grade,
         subject,
         difficulty,
         numQuestions,
-        questionFormat
+        questionFormat,
+        lessonPlanContext,
+        assessmentStudentLevel,
       );
       setGeneratedContent(content);
       setShowPreview(true);
@@ -123,8 +189,12 @@ export const TeacherAssessmentsTab: React.FC = () => {
     // Reset form
     setTitle('');
     setTopic('');
+    setSourceType('topic');
+    setSelectedLessonPlanId('');
     setNumQuestions(10);
     setQuestionFormat('Mixed');
+    setAssessmentStudentLevel('differentiated');
+    setBaselineTiming('semester_1_start');
     setGeneratedContent('');
     setShowPreview(false);
     setIsOpen(false);
@@ -135,18 +205,52 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setGeneratedContent('');
     setShowPreview(false);
     setTopic('');
+    setSourceType('topic');
+    setSelectedLessonPlanId('');
     setNumQuestions(10);
     setQuestionFormat('Mixed');
+    setAssessmentStudentLevel('differentiated');
+    setBaselineTiming('semester_1_start');
   };
+
+  const canGenerate = isBaseline
+    ? true
+    : sourceType === 'topic'
+      ? !!topic.trim()
+      : !!selectedLessonPlanId;
 
   const canSubmit =
     uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
+
+  const previewTitle = title || `${type} on ${topic || 'Assessment'}`;
+
+  const handlePrintPreview = async () => {
+    if (!generatedContent.trim()) return;
+    await printMarkdown(generatedContent, previewTitle);
+  };
+
+  const handleDownloadPreviewPDF = async () => {
+    if (!generatedContent.trim()) return;
+    setIsGeneratingPDF(true);
+    try {
+      await generatePDFFromMarkdown(
+        generatedContent,
+        `${slugifyFilename(previewTitle)}.pdf`,
+        previewTitle,
+      );
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   return (
     <AisPage>
       <AisPanel
         title="My assessments"
-        description="Quizzes, tests, and exams — submitted to department head for approval"
+        description="Quizzes, baseline diagnostics, tests, and exams — submitted to department head for approval"
         flush
         actions={
           <>
@@ -205,28 +309,146 @@ export const TeacherAssessmentsTab: React.FC = () => {
         largeTitle
       >
         <form onSubmit={handleSubmit} className="space-y-5 pt-1">
-          {/* Topic Input */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Topic</label>
-            <input
-              className={aisInput}
-              required
-              placeholder="e.g., Quadratic Equations, Derivatives, Logarithms"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+          {/* Source: topic or lesson plan (not for baseline) */}
+          {uploadMode === 'create' && !isBaseline && (
+            <Select
+              variant="ais"
+              label="Generate from"
+              options={[
+                { value: 'topic', label: 'Topic (manual entry)' },
+                { value: 'lesson_plan', label: 'Lesson plan' },
+              ]}
+              value={sourceType}
+              onChange={(e) => {
+                const next = e.target.value as 'topic' | 'lesson_plan';
+                setSourceType(next);
+                if (next === 'topic') {
+                  setSelectedLessonPlanId('');
+                } else {
+                  setTopic('');
+                }
+              }}
             />
-          </div>
+          )}
+
+          {uploadMode === 'create' && isBaseline && (
+            <div className="space-y-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+              <div>
+                <p className="text-sm font-bold text-blue-900 dark:text-blue-200">Baseline diagnostic assessment</p>
+                <p className="mt-1 text-xs text-blue-800 dark:text-blue-300">
+                  AI uses your indexed textbook to generate readiness checks — no separate previous-grade textbook needed.
+                </p>
+              </div>
+              <Select
+                variant="ais"
+                label="When to administer *"
+                options={[
+                  {
+                    value: 'semester_1_start',
+                    label: `Beginning of Semester 1 — ${derivePreviousGrade(grade)} prerequisites`,
+                  },
+                  {
+                    value: 'semester_2_start',
+                    label: `Beginning of Semester 2 — ${grade} Semester 1 review`,
+                  },
+                ]}
+                value={baselineTiming}
+                onChange={(e) => setBaselineTiming(e.target.value as BaselineSemesterTiming)}
+              />
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
+                  Focus area (optional)
+                </label>
+                <input
+                  className={aisInput}
+                  placeholder={
+                    baselineTiming === 'semester_1_start'
+                      ? 'e.g., Algebra, Functions — leave blank for full prerequisite scan'
+                      : 'e.g., Trigonometry — leave blank for full Semester 1 review'
+                  }
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Scope: {baselineScopeLabel(grade, subject, baselineTiming, topic)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {uploadMode === 'create' && !isBaseline && sourceType === 'lesson_plan' ? (
+            <div className="space-y-3">
+              <Select
+                variant="ais"
+                label="Lesson plan"
+                options={
+                  teacherPlans.length === 0
+                    ? [{ value: '', label: 'No lesson plans available' }]
+                    : teacherPlans.map((p) => ({
+                        value: p.id,
+                        label: `${p.title} (${p.grade} · ${p.subject})`,
+                      }))
+                }
+                value={selectedLessonPlanId}
+                onChange={(e) => setSelectedLessonPlanId(e.target.value)}
+              />
+              {selectedPlan && (
+                <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-3 text-xs text-ais-on-surface-variant space-y-2">
+                  <p className="font-semibold text-ais-on-surface">{selectedPlan.title}</p>
+                  <p>{selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions} sessions</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {selectedPlan.objectives.slice(0, 3).map((obj) => (
+                      <li key={obj}>{obj}</li>
+                    ))}
+                    {selectedPlan.objectives.length > 3 && (
+                      <li>+{selectedPlan.objectives.length - 3} more objectives</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : !isBaseline ? (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Topic</label>
+              <input
+                className={aisInput}
+                required={uploadMode === 'create' && sourceType === 'topic'}
+                placeholder="e.g., Quadratic Equations, Derivatives, Logarithms"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              />
+            </div>
+          ) : null}
 
           {/* Assessment type & number of questions */}
           {uploadMode === 'create' && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Select
                 variant="ais"
                 label="Assessment type"
-                options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+                options={['Baseline', 'Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
                 value={type}
-                onChange={(e) => setType(e.target.value as Assessment['type'])}
+                onChange={(e) => {
+                  const next = e.target.value as Assessment['type'];
+                  setType(next);
+                  if (next === 'Baseline') {
+                    setSourceType('topic');
+                    setSelectedLessonPlanId('');
+                  }
+                }}
               />
+              <Select
+                variant="ais"
+                label="Student level"
+                options={STUDENT_LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                value={assessmentStudentLevel}
+                onChange={(e) => setAssessmentStudentLevel(e.target.value)}
+              />
+            </div>
+          )}
+
+          {uploadMode === 'create' && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
                   Number of questions
@@ -269,7 +491,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <Select
                 variant="ais"
                 label="Assessment type"
-                options={['Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+                options={['Baseline', 'Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
                 value={type}
                 onChange={(e) => setType(e.target.value as Assessment['type'])}
               />
@@ -308,11 +530,11 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <button
                 type="button"
                 onClick={handleGenerateWithAI}
-                disabled={isGenerating || !topic}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-8 py-3 text-base font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+                disabled={isGenerating || !canGenerate}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-8 py-3 text-base font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
               >
                 <Sparkles className="h-4 w-4 animate-pulse" />
-                {isGenerating ? 'Generating with AI...' : 'Generate with AI'}
+                {isGenerating ? 'Generating with AI...' : isBaseline ? 'Generate baseline with AI' : 'Generate with AI'}
               </button>
             </div>
           )}
@@ -323,20 +545,39 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
                 <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  AI Generated Assessment Preview
+                  AI Generated {isBaseline ? 'Baseline Assessment' : 'Assessment'} Preview
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPreview(false);
-                    setGeneratedContent('');
-                  }}
-                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
-                >
-                  Clear & Regenerate
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrintPreview}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline"
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden />
+                    Print
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadPreviewPDF}
+                    disabled={isGeneratingPDF}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline disabled:opacity-50"
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden />
+                    {isGeneratingPDF ? 'Generating…' : 'Download PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPreview(false);
+                      setGeneratedContent('');
+                    }}
+                    className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                  >
+                    Clear & Regenerate
+                  </button>
+                </div>
               </div>
-              <MathRenderer content={generatedContent} />
+              <AssessmentContentRenderer content={generatedContent} />
             </div>
           )}
 
@@ -349,7 +590,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             {canSubmit && (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1d4ed8] px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-[#1e40af] shadow-md hover:shadow-lg"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
               >
                 Submit for dept head approval
               </button>

@@ -215,14 +215,14 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   const heightClass = size === 'sm' ? 'h-9 text-xs' : 'h-10 text-sm';
 
   const triggerClasses = isAis
-    ? `w-full ${heightClass} px-3 pr-9 text-left bg-white border rounded-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ais-primary/20 focus:border-ais-primary/40 ${
+    ? `w-full min-w-0 overflow-hidden ${heightClass} px-3 pr-9 text-left bg-white border rounded-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ais-primary/20 focus:border-ais-primary/40 ${
         error
           ? 'border-ais-error text-ais-on-surface'
           : isOpen
             ? 'border-ais-primary/40 ring-2 ring-ais-primary/20'
             : 'border-ais-card-border text-ais-on-surface hover:border-ais-primary/30'
       } ${disabled ? 'opacity-50 cursor-not-allowed bg-ais-surface-container-low/50' : ''} ${className}`
-    : `w-full ${heightClass} px-3 pr-9 text-left bg-card border rounded-md shadow-sm transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent ${
+    : `w-full min-w-0 overflow-hidden ${heightClass} px-3 pr-9 text-left bg-card border rounded-md shadow-sm transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent ${
         error
           ? 'border-destructive text-foreground'
           : isOpen
@@ -266,7 +266,8 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
           className={triggerClasses}
         >
           <span
-            className={`block truncate ${hasSelection ? '' : isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
+            title={displayLabel}
+            className={`block min-w-0 truncate ${hasSelection ? '' : isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
           >
             {displayLabel}
           </span>
@@ -341,7 +342,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
                         {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate">{opt.label}</span>
+                        <span className="block truncate" title={opt.label}>{opt.label}</span>
                         {opt.description && (
                           <span
                             className={`mt-0.5 block truncate text-[11px] ${

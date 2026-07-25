@@ -135,8 +135,45 @@ export function filterTeacherStudents(students: Student[], grade?: string, secti
   );
 }
 
-export function filterTeacherLessonPlans(plans: LessonPlan[], teacherId = DEMO_TEACHER_ID) {
-  return plans.filter((p) => p.teacherId === teacherId);
+export function resolveTeacherProfile(
+  teachers: Teacher[],
+  teacherId: string,
+): Teacher {
+  return (
+    teachers.find((t) => t.id === teacherId) ??
+    PLACEHOLDER_TEACHER
+  );
+}
+
+export function primarySubjectForTeacher(teacher: Teacher): string {
+  const first = teacher.subjects.find((s) => s && s !== '—');
+  return first ?? 'Mathematics';
+}
+
+export function filterTeacherLessonPlans(
+  plans: LessonPlan[],
+  teacherId = DEMO_TEACHER_ID,
+  opts?: { subjects?: string[]; grades?: string[] },
+) {
+  const subjects = (opts?.subjects ?? [])
+    .map((s) => s.toLowerCase())
+    .filter((s) => s && s !== '—');
+
+  return plans.filter((p) => {
+    if (p.teacherId === teacherId) return true;
+
+    // Department-published annual plans visible to teachers of matching subject
+    if (
+      p.planType === 'yearly' &&
+      p.createdByRole === 'department-head' &&
+      p.status === 'Approved'
+    ) {
+      if (subjects.length === 0) return true;
+      return subjects.includes((p.subject || '').toLowerCase());
+    }
+
+    return false;
+  });
 }
 
 export function filterTeacherAssessments(assessments: Assessment[], teacherId = DEMO_TEACHER_ID) {
@@ -173,6 +210,23 @@ export const GRADE_ENTRY_TYPES = [
 ] as const;
 
 export const CURRENT_TERM = 'Term 2 · 2026';
+
+export type StudentLevel = 'differentiated' | 'beginner' | 'intermediate' | 'advanced';
+export type StudentLevelScope = StudentLevel;
+
+export const STUDENT_LEVEL_OPTIONS = [
+  { value: 'differentiated', label: 'All levels (differentiated)' },
+  { value: 'beginner', label: 'Struggling / Beginner' },
+  { value: 'intermediate', label: 'Average / Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+] as const;
+
+export const STUDENT_LEVEL_LABELS: Record<string, string> = {
+  differentiated: 'All Levels',
+  beginner: 'Struggling',
+  intermediate: 'Average',
+  advanced: 'Advanced',
+};
 
 export function notesForLessonPlan(notes: TeachingNote[], lessonPlanId: string) {
   return notes.filter((n) => n.lessonPlanId === lessonPlanId);

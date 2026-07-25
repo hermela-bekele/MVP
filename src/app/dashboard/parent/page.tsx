@@ -19,6 +19,7 @@ import { AnnouncementFeed } from '@/components/dashboard/announcements/Announcem
 import { MessageCenter } from '@/components/dashboard/messaging/MessageCenter';
 import { ParentReenrollmentInvites } from '@/components/dashboard/parent/ParentReenrollmentInvites';
 import { ParentFeedbackForm } from '@/components/dashboard/parent/ParentFeedbackForm';
+import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
 
 type Child = {
   id: string;
@@ -379,27 +380,12 @@ export default function ParentPortalPage() {
         </ContentCard>
       )}
 
-      {!loading && tab === 'calendar' && (
-        <ContentCard title="Academic calendar" description="Term dates, exams, and school events">
-          {calendar.length ? (
-            <ol className="relative space-y-0 border-l border-primary/20 ml-3">
-              {calendar.map((e) => (
-                <li key={String(e.id)} className="relative pb-5 pl-6 last:pb-0">
-                  <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-card" />
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                    {String(e.event_date).slice(0, 10)}
-                  </p>
-                  <p className="mt-0.5 text-sm font-semibold">{String(e.title)}</p>
-                  {e.description ? (
-                    <p className="text-xs text-muted-foreground">{String(e.description)}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <EmptyState title="Calendar is empty" description="School events will show here when published." />
-          )}
-        </ContentCard>
+      {!loading && (tab === 'calendar' || tab === 'academic-calendar') && (
+        <PublishedAcademicCalendarPanel
+          schoolId={child?.schoolId || session?.schoolId || 'sch-1'}
+          title="School academic calendar"
+          description="Official term dates, exams, and school events disseminated by the school head."
+        />
       )}
 
       {!loading && tab === 'documents' && (

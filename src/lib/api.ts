@@ -97,6 +97,7 @@ export interface BootstrapPayload {
   exams: import('@/lib/mockData').ExamPaper[];
   trainingMaterials: import('@/lib/mockData').TrainingMaterial[];
   teachingNotes: import('@/lib/mockData').TeachingNote[];
+  academicCalendars: import('@/lib/mockData').AcademicCalendar[];
   studentGradeEntries: import('@/lib/mockData').StudentGradeEntry[];
   teacherResources: import('@/lib/mockData').TeacherResource[];
   teacherFeedbacks: import('@/lib/mockData').TeacherFeedback[];
@@ -234,6 +235,10 @@ export const api = {
     request('/teaching-notes', { method: 'POST', body: JSON.stringify(body) }),
   updateTeachingNote: (id: string, body: Record<string, unknown>) =>
     request(`/teaching-notes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  createAcademicCalendar: (body: Record<string, unknown>) =>
+    request('/academic-calendars', { method: 'POST', body: JSON.stringify(body) }),
+  publishAcademicCalendar: (id: string) =>
+    request(`/academic-calendars/${id}/publish`, { method: 'PATCH' }),
   upsertGradeEntry: (body: Record<string, unknown>) =>
     request('/grade-entries', { method: 'POST', body: JSON.stringify(body) }),
   deleteGradeEntry: (id: string) =>

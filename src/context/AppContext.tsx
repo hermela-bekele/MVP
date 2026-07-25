@@ -21,6 +21,7 @@ import {
   ParentMessage,
   TeacherCheckInPrompt,
   StudentGradeEntry,
+  AcademicCalendar,
   RegistrationApplication,
   RegistrationApplicationStatus,
   mockSchools,
@@ -36,6 +37,7 @@ import {
   mockExams,
   mockTrainingMaterials,
   mockTeachingNotes,
+  mockAcademicCalendars,
   mockTeacherResources,
   mockTeacherFeedbacks,
   mockParentMessages,
@@ -67,6 +69,7 @@ import {
   generateEmployeeId,
 } from '@/lib/hrPortal';
 import { DEMO_TEACHER_ID, percentToGpa } from '@/lib/teacherPortal';
+import { readStoredCalendars, writeStoredCalendars } from '@/lib/calendarStorage';
 import {
   type AuthUser,
   clearSession,
@@ -108,6 +111,7 @@ interface AppContextType {
   exams: ExamPaper[];
   trainingMaterials: TrainingMaterial[];
   teachingNotes: TeachingNote[];
+  academicCalendars: AcademicCalendar[];
   teacherResources: TeacherResource[];
   teacherFeedbacks: TeacherFeedback[];
   parentMessages: ParentMessage[];
@@ -193,6 +197,19 @@ interface AppContextType {
     status?: TeachingNote['status']
   ) => string;
   updateTeachingNote: (id: string, updates: Partial<TeachingNote>) => void;
+  approveTeachingNote: (id: string, comments: string) => void;
+  rejectTeachingNote: (id: string, comments: string) => void;
+  createAcademicCalendar: (
+    calendar: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>
+  ) => void;
+  updateAcademicCalendar: (
+    id: string,
+    updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>
+  ) => void;
+  publishAcademicCalendar: (id: string) => void;
+  createDeptAnnualLessonPlan: (
+    plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
+  ) => void;
   upsertStudentGradeEntry: (
     entry: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => void;
@@ -244,6 +261,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [exams, setExams] = useState<ExamPaper[]>([]);
   const [trainingMaterials, setTrainingMaterials] = useState<TrainingMaterial[]>([]);
   const [teachingNotes, setTeachingNotes] = useState<TeachingNote[]>([]);
+  const [academicCalendars, setAcademicCalendars] = useState<AcademicCalendar[]>(() =>
+    typeof window !== 'undefined' ? readStoredCalendars() : [],
+  );
   const [teacherResources, setTeacherResources] = useState<TeacherResource[]>([]);
   const [teacherFeedbacks, setTeacherFeedbacks] = useState<TeacherFeedback[]>([]);
   const [parentMessages, setParentMessages] = useState<ParentMessage[]>([]);
@@ -278,6 +298,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExams(mockExams);
     setTrainingMaterials(mockTrainingMaterials);
     setTeachingNotes(mockTeachingNotes);
+    setAcademicCalendars(readStoredCalendars());
     setTeacherResources(mockTeacherResources);
     setTeacherFeedbacks(mockTeacherFeedbacks);
     setParentMessages(mockParentMessages);
@@ -316,6 +337,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setExams(data.exams);
       setTrainingMaterials(data.trainingMaterials);
       setTeachingNotes(data.teachingNotes);
+      const apiCalendars = data.academicCalendars ?? [];
+      const storedCalendars = readStoredCalendars();
+      const mergedCalendars =
+        apiCalendars.length > 0
+          ? apiCalendars
+          : storedCalendars.length > 0
+            ? storedCalendars
+            : mockAcademicCalendars;
+      setAcademicCalendars(mergedCalendars);
+      writeStoredCalendars(mergedCalendars);
       setTeacherResources(data.teacherResources);
       setTeacherFeedbacks(data.teacherFeedbacks);
       setParentMessages(data.parentMessages);
@@ -852,16 +883,186 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     status: TeachingNote['status'] = 'Saved'
   ) => {
     const id = `tn-${Date.now()}`;
-    void api.createTeachingNote({ ...noteData, id, teacherId: resolveTeacherId(), status }).then((note) => {
-      setTeachingNotes((prev) => [note as TeachingNote, ...prev]);
-    }).catch(() => void refreshFromApi());
+    const today = new Date().toISOString().slice(0, 10);
+    const teacherId = resolveTeacherId();
+    const localNote: TeachingNote = {
+      ...noteData,
+      id,
+      teacherId,
+      status,
+      createdAt: today,
+      updatedAt: today,
+    };
+    setTeachingNotes((prev) => [localNote, ...prev]);
+    void api.createTeachingNote({ ...noteData, id, teacherId, status }).then((note) => {
+      setTeachingNotes((prev) => [note as TeachingNote, ...prev.filter((n) => n.id !== id)]);
+    }).catch(() => {
+      /* keep optimistic local note */
+    });
     return id;
   };
 
   const updateTeachingNote = (id: string, updates: Partial<TeachingNote>) => {
+    const today = new Date().toISOString().slice(0, 10);
+    setTeachingNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, ...updates, updatedAt: today } : n)),
+    );
     void api.updateTeachingNote(id, updates as Record<string, unknown>).then((note) => {
       setTeachingNotes((prev) => prev.map((n) => (n.id === id ? (note as TeachingNote) : n)));
-    }).catch(() => void refreshFromApi());
+    }).catch(() => {
+      /* keep optimistic update */
+    });
+  };
+
+  const approveTeachingNote = (id: string, comments: string) => {
+    const note = teachingNotes.find((n) => n.id === id);
+    updateTeachingNote(id, { status: 'Approved', deptComments: comments });
+    if (note) {
+      addNotification('Teaching Note Approved', `"${note.title}" approved for classroom use.`, 'success');
+    }
+  };
+
+  const rejectTeachingNote = (id: string, comments: string) => {
+    const note = teachingNotes.find((n) => n.id === id);
+    updateTeachingNote(id, { status: 'Rejected', deptComments: comments });
+    if (note) {
+      addNotification('Teaching Note Rejected', `"${note.title}" returned to teacher.`, 'alert');
+    }
+  };
+
+  const createAcademicCalendar = (
+    calendarData: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>,
+  ) => {
+    const calendar: AcademicCalendar = {
+      ...calendarData,
+      id: `cal-${Date.now()}`,
+      schoolId: 'sch-1',
+      status: 'Draft',
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setAcademicCalendars((prev) => {
+      const withoutDraft = prev.filter((c) => c.status !== 'Draft' || c.schoolId !== calendar.schoolId);
+      const next = [calendar, ...withoutDraft];
+      writeStoredCalendars(next);
+      return next;
+    });
+    void api.createAcademicCalendar(calendar as unknown as Record<string, unknown>).then((saved) => {
+      setAcademicCalendars((prev) => {
+        const next = [saved as AcademicCalendar, ...prev.filter((c) => c.id !== calendar.id && c.id !== (saved as AcademicCalendar).id)];
+        writeStoredCalendars(next);
+        return next;
+      });
+    }).catch(() => {
+      /* local + localStorage already updated */
+    });
+    addNotification('Calendar Draft Saved', `"${calendar.title}" is ready for review.`, 'info');
+  };
+
+  const updateAcademicCalendar = (
+    id: string,
+    updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>,
+  ) => {
+    let updated: AcademicCalendar | undefined;
+    setAcademicCalendars((prev) => {
+      const next = prev.map((c) => {
+        if (c.id !== id) return c;
+        updated = { ...c, ...updates };
+        return updated;
+      });
+      writeStoredCalendars(next);
+      return next;
+    });
+    if (updated) {
+      void api
+        .createAcademicCalendar(updated as unknown as Record<string, unknown>)
+        .then((saved) => {
+          setAcademicCalendars((prev) => {
+            const next = prev.map((c) => (c.id === id ? (saved as AcademicCalendar) : c));
+            writeStoredCalendars(next);
+            return next;
+          });
+        })
+        .catch(() => {
+          /* localStorage already updated */
+        });
+    }
+    addNotification('Calendar Updated', 'School calendar changes saved.', 'info');
+  };
+
+  const publishAcademicCalendar = (id: string) => {
+    const today = new Date().toISOString().slice(0, 10);
+    setAcademicCalendars((prev) => {
+      const next = prev.map((c) =>
+        c.id === id ? { ...c, status: 'Published' as const, publishedAt: today } : c,
+      );
+      writeStoredCalendars(next);
+      return next;
+    });
+    const cal = academicCalendars.find((c) => c.id === id);
+    void api.publishAcademicCalendar(id).then((saved) => {
+      setAcademicCalendars((prev) => {
+        const next = prev.map((c) => (c.id === id ? (saved as AcademicCalendar) : c));
+        writeStoredCalendars(next);
+        return next;
+      });
+    }).catch(() => {
+      /* local publish already applied */
+    });
+    addNotification(
+      'Academic Calendar Disseminated',
+      cal
+        ? `"${cal.title}" is now visible to teachers, students, parents, and department heads.`
+        : 'Calendar disseminated to all school portals.',
+      'success',
+    );
+  };
+
+  const createDeptAnnualLessonPlan = (
+    planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>,
+  ) => {
+    const teacher = teachers.find((t) => t.email === currentUser?.email);
+    const teacherId = teacher?.id ?? resolveTeacherId();
+    const teacherName = currentUser?.displayName ?? teacher?.name ?? 'Department Head';
+    const payload = {
+      ...planData,
+      teacherId,
+      teacherName,
+      status: 'Approved',
+      planType: 'yearly',
+      createdByRole: 'department-head',
+      planDetail: planData.planDetail,
+    };
+
+    void api
+      .createLessonPlan(payload)
+      .then((lp) => {
+        setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
+        addNotification(
+          'Annual Plan Published',
+          `"${(lp as LessonPlan).title}" is saved and available to department teachers.`,
+          'success',
+        );
+      })
+      .catch(() => {
+        // Fallback local so the UI still works if API is briefly down
+        const plan: LessonPlan = {
+          ...planData,
+          id: `lp-${Date.now()}`,
+          teacherId,
+          teacherName,
+          status: 'Approved',
+          version: 1,
+          createdAt: new Date().toISOString().slice(0, 10),
+          planType: 'yearly',
+          createdByRole: 'department-head',
+        };
+        setLessonPlans((prev) => [plan, ...prev]);
+        addNotification(
+          'Annual Plan Saved Locally',
+          `"${plan.title}" could not reach the server — retry when online so it persists across sessions.`,
+          'alert',
+        );
+      });
   };
 
   const applyGpaFromGradeEntries = (studentId: string, entries: StudentGradeEntry[]) => {
@@ -882,18 +1083,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const upsertStudentGradeEntry = (
     entryData: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => {
-    void api.upsertGradeEntry({ ...entryData, teacherId: resolveTeacherId() }).then((entry) => {
-      setStudentGradeEntries((prev) => {
-        const exists = prev.some((e) => e.id === (entry as StudentGradeEntry).id);
-        const next = exists
-          ? prev.map((e) => (e.id === (entry as StudentGradeEntry).id ? (entry as StudentGradeEntry) : e))
-          : [entry as StudentGradeEntry, ...prev];
-        applyGpaFromGradeEntries(entryData.studentId, next);
-        return next;
+    const teacherId = resolveTeacherId();
+    void api
+      .upsertGradeEntry({ ...entryData, teacherId })
+      .then((entry) => {
+        setStudentGradeEntries((prev) => {
+          const exists = prev.some((e) => e.id === (entry as StudentGradeEntry).id);
+          const next = exists
+            ? prev.map((e) =>
+                e.id === (entry as StudentGradeEntry).id ? (entry as StudentGradeEntry) : e,
+              )
+            : [entry as StudentGradeEntry, ...prev];
+          applyGpaFromGradeEntries(entryData.studentId, next);
+          return next;
+        });
+        void api.recalculateGpa(entryData.studentId).then(() => void refreshFromApi());
+        addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
+      })
+      .catch(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const local: StudentGradeEntry = {
+          ...entryData,
+          id: entryData.id || `ge-${Date.now()}`,
+          teacherId,
+          recordedAt: today,
+        };
+        setStudentGradeEntries((prev) => {
+          const exists = prev.some((e) => e.id === local.id);
+          const next = exists
+            ? prev.map((e) => (e.id === local.id ? local : e))
+            : [local, ...prev];
+          applyGpaFromGradeEntries(entryData.studentId, next);
+          return next;
+        });
+        addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
       });
-      void api.recalculateGpa(entryData.studentId).then(() => void refreshFromApi());
-      addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
-    }).catch(() => void refreshFromApi());
   };
 
   const deleteStudentGradeEntry = (id: string) => {
@@ -1023,6 +1247,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         exams,
         trainingMaterials,
         teachingNotes,
+        academicCalendars,
         teacherResources,
         teacherFeedbacks,
         parentMessages,
@@ -1083,6 +1308,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         distributeLessonPlan,
         createTeachingNote,
         updateTeachingNote,
+        approveTeachingNote,
+        rejectTeachingNote,
+        createAcademicCalendar,
+        updateAcademicCalendar,
+        publishAcademicCalendar,
+        createDeptAnnualLessonPlan,
         upsertStudentGradeEntry,
         deleteStudentGradeEntry,
         recalculateStudentGpaFromGrades,

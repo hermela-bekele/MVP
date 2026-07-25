@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AnnouncementFeed } from '@/components/dashboard/announcements/AnnouncementFeed';
 import { StudentFeedbackForm } from '@/components/dashboard/student/StudentFeedbackForm';
+import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -216,27 +217,12 @@ export default function StudentPortalPage() {
         </ContentCard>
       )}
 
-      {!loading && tab === 'calendar' && (
-        <ContentCard title="Academic calendar" description="Term dates, exams, and school events">
-          {calendar.length ? (
-            <div className="space-y-2">
-              {calendar.map((e) => (
-                <div
-                  key={String(e.id)}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{String(e.title)}</p>
-                    <p className="text-xs text-muted-foreground">{String(e.description || '')}</p>
-                  </div>
-                  <Badge variant="neutral">{String(e.event_date || e.eventDate || '').slice(0, 10)}</Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No calendar events" description="School events will appear here." />
-          )}
-        </ContentCard>
+      {!loading && (tab === 'calendar' || tab === 'academic-calendar') && (
+        <PublishedAcademicCalendarPanel
+          schoolId={session?.schoolId || String(student?.schoolId || 'sch-1')}
+          title="School academic calendar"
+          description="Official term dates, exams, and school events disseminated by the school head."
+        />
       )}
 
       {!loading && tab === 'announcements' && (
