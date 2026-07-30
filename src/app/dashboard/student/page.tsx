@@ -159,11 +159,9 @@ export default function StudentPortalPage() {
 
           {activeTab === 'academic-calendar' && (
             <div className="space-y-6 animate-fade-in text-left">
-              <PublishedAcademicCalendarPanel
-                schoolId={activeStudent?.schoolId || 'sch-1'}
-                title="School academic calendar"
-                description="Official dates disseminated by your school head — exams, breaks, and MOE activities."
-              />
+          <PublishedAcademicCalendarPanel
+            schoolId={activeStudent?.schoolId || 'sch-1'}
+          />
             </div>
           )}
 

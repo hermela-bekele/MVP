@@ -177,8 +177,6 @@ export default function ParentPortalPage() {
             <div className="space-y-6 animate-fade-in text-left">
               <PublishedAcademicCalendarPanel
                 schoolId={activeChild?.schoolId || 'sch-1'}
-                title="School academic calendar"
-                description="Stay on top of exam windows, breaks, and parent gatherings disseminated by the school."
               />
             </div>
           )}

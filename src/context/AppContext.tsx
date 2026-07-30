@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { toast } from '@/components/ui/toast';
 import {
   School,
   Teacher,
@@ -24,6 +25,11 @@ import {
   AcademicCalendar,
   RegistrationApplication,
   RegistrationApplicationStatus,
+  LessonDelivery,
+  CommunityPost,
+  CommunityReply,
+  StaffMessage,
+  GraspOutcome,
   mockSchools,
   mockTeachers,
   mockStudents,
@@ -117,6 +123,10 @@ interface AppContextType {
   parentMessages: ParentMessage[];
   teacherCheckInPrompts: TeacherCheckInPrompt[];
   studentGradeEntries: StudentGradeEntry[];
+  lessonDeliveries: LessonDelivery[];
+  communityPosts: CommunityPost[];
+  communityReplies: CommunityReply[];
+  staffMessages: StaffMessage[];
   registrationApplications: RegistrationApplication[];
   hrEmployees: HrEmployee[];
   leaveRequests: LeaveRequest[];
@@ -201,7 +211,7 @@ interface AppContextType {
   rejectTeachingNote: (id: string, comments: string) => void;
   createAcademicCalendar: (
     calendar: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>
-  ) => void;
+  ) => string;
   updateAcademicCalendar: (
     id: string,
     updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>
@@ -225,6 +235,27 @@ interface AppContextType {
   addStudentFeedback: (
     feedback: Omit<TeacherFeedback, 'id' | 'teacherId' | 'direction' | 'authorName' | 'date'>
   ) => void;
+  markLessonDelivered: (payload: {
+    teachingNoteId: string;
+    lessonPlanId?: string;
+    graspOutcome: GraspOutcome;
+    challengeText?: string;
+    postTo: 'hod' | 'community' | 'both' | 'none';
+  }) => Promise<void>;
+  createCommunityPost: (payload: {
+    title: string;
+    body: string;
+    subject?: string;
+    grade?: string;
+  }) => Promise<void>;
+  replyToCommunityPost: (postId: string, body: string, parentReplyId?: string) => Promise<void>;
+  sendStaffMessage: (payload: {
+    teacherId: string;
+    body: string;
+    senderRole: 'teacher' | 'department-head';
+  }) => Promise<void>;
+  refreshStaffMessages: (params?: { teacherId?: string; departmentId?: string }) => Promise<void>;
+  markStaffMessagesRead: (teacherId: string, readerRole: 'teacher' | 'department-head') => void;
   addNotification: (title: string, description: string, type: AppNotification['type']) => void;
   markNotificationAsRead: (id: string) => void;
   markNotificationAsUnread: (id: string) => void;
@@ -271,6 +302,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     useState<TeacherCheckInPrompt[]>([]);
   const [studentGradeEntries, setStudentGradeEntries] =
     useState<StudentGradeEntry[]>([]);
+  const [lessonDeliveries, setLessonDeliveries] = useState<LessonDelivery[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
+  const [communityReplies, setCommunityReplies] = useState<CommunityReply[]>([]);
+  const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([]);
   const [registrationApplications, setRegistrationApplications] =
     useState<RegistrationApplication[]>([]);
   const [hrEmployees, setHrEmployees] = useState<HrEmployee[]>([]);
@@ -303,6 +338,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeacherFeedbacks(mockTeacherFeedbacks);
     setParentMessages(mockParentMessages);
     setTeacherCheckInPrompts(mockTeacherCheckInPrompts);
+    setLessonDeliveries([]);
+    setCommunityPosts([]);
+    setCommunityReplies([]);
+    setStaffMessages([]);
     setStudentGradeEntries(mockStudentGradeEntries);
     setRegistrationApplications(mockRegistrationApplications);
     setHrEmployees(mockHrEmployees);
@@ -352,6 +391,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setParentMessages(data.parentMessages);
       setTeacherCheckInPrompts(data.teacherCheckInPrompts);
       setStudentGradeEntries(data.studentGradeEntries);
+      setLessonDeliveries(data.lessonDeliveries ?? []);
+      setCommunityPosts(data.communityPosts ?? []);
+      setCommunityReplies(data.communityReplies ?? []);
+      setStaffMessages(data.staffMessages ?? []);
       setRegistrationApplications(mockRegistrationApplications);
       setHrEmployees(mockHrEmployees);
       setLeaveRequests(mockLeaveRequests);
@@ -932,7 +975,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createAcademicCalendar = (
     calendarData: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>,
-  ) => {
+  ): string => {
     const calendar: AcademicCalendar = {
       ...calendarData,
       id: `cal-${Date.now()}`,
@@ -956,6 +999,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       /* local + localStorage already updated */
     });
     addNotification('Calendar Draft Saved', `"${calendar.title}" is ready for review.`, 'info');
+    return calendar.id;
   };
 
   const updateAcademicCalendar = (
@@ -1171,6 +1215,134 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
+  const markLessonDelivered = async (payload: {
+    teachingNoteId: string;
+    lessonPlanId?: string;
+    graspOutcome: GraspOutcome;
+    challengeText?: string;
+    postTo: 'hod' | 'community' | 'both' | 'none';
+  }) => {
+    const teacherId = resolveTeacherId();
+    const postedToHod = payload.postTo === 'hod' || payload.postTo === 'both';
+    const postedToCommunity = payload.postTo === 'community' || payload.postTo === 'both';
+    try {
+      const result = await api.createLessonDelivery({
+        teachingNoteId: payload.teachingNoteId,
+        lessonPlanId: payload.lessonPlanId,
+        teacherId,
+        graspOutcome: payload.graspOutcome,
+        challengeText: payload.challengeText,
+        postedToHod,
+        postedToCommunity,
+      });
+      setLessonDeliveries((prev) => [result.delivery, ...prev.filter((d) => d.id !== result.delivery.id)]);
+      if (result.communityPost) {
+        setCommunityPosts((prev) => [result.communityPost!, ...prev.filter((p) => p.id !== result.communityPost!.id)]);
+      }
+      if (postedToHod) {
+        void refreshStaffMessages({ teacherId });
+      }
+      addNotification(
+        'Lesson marked delivered',
+        payload.graspOutcome === 'challenged'
+          ? 'Delivery saved and challenge shared.'
+          : 'Classroom delivery feedback recorded.',
+        'success',
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not mark delivered.';
+      addNotification('Delivery failed', message, 'alert');
+      throw err;
+    }
+  };
+
+  const createCommunityPost = async (payload: {
+    title: string;
+    body: string;
+    subject?: string;
+    grade?: string;
+  }) => {
+    const teacher = teachers.find((t) => t.id === resolveTeacherId());
+    const authorName = teacher?.name ?? currentUser?.displayName ?? 'Teacher';
+    const post = await api.createCommunityPost({
+      ...payload,
+      authorId: resolveTeacherId(),
+      authorName,
+      authorRole: 'teacher',
+      departmentId: teacher?.departmentId,
+    });
+    setCommunityPosts((prev) => [post, ...prev]);
+    addNotification('Posted to community', 'Your challenge is visible to other teachers.', 'success');
+  };
+
+  const replyToCommunityPost = async (postId: string, body: string, parentReplyId?: string) => {
+    const teacher = teachers.find((t) => t.id === resolveTeacherId());
+    const isHod = currentUser?.role === 'department-head';
+    const authorName = isHod
+      ? currentUser?.displayName ?? 'Department Head'
+      : teacher?.name ?? currentUser?.displayName ?? 'Teacher';
+    const authorId = isHod ? currentUser?.id ?? 'hod' : resolveTeacherId();
+    const reply = await api.createCommunityReply(postId, {
+      body,
+      parentReplyId,
+      authorId,
+      authorName,
+      authorRole: isHod ? 'department-head' : 'teacher',
+    });
+    setCommunityReplies((prev) => [...prev, reply]);
+  };
+
+  const refreshStaffMessages = async (params?: { teacherId?: string; departmentId?: string }) => {
+    try {
+      const messages = await api.getStaffMessages(params);
+      setStaffMessages((prev) => {
+        const byId = new Map(prev.map((m) => [m.id, m]));
+        for (const m of messages) byId.set(m.id, m);
+        return [...byId.values()].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
+    } catch {
+      /* keep existing */
+    }
+  };
+
+  const sendStaffMessage = async (payload: {
+    teacherId: string;
+    body: string;
+    senderRole: 'teacher' | 'department-head';
+  }) => {
+    const teacher = teachers.find((t) => t.id === payload.teacherId);
+    const senderName =
+      payload.senderRole === 'department-head'
+        ? currentUser?.displayName ?? 'Department Head'
+        : teacher?.name ?? currentUser?.displayName ?? 'Teacher';
+    const senderId =
+      payload.senderRole === 'department-head'
+        ? currentUser?.id ?? 'hod'
+        : resolveTeacherId();
+    const msg = await api.sendStaffMessage({
+      teacherId: payload.teacherId,
+      departmentId: teacher?.departmentId ?? currentUser?.departmentId,
+      senderId,
+      senderName,
+      senderRole: payload.senderRole,
+      body: payload.body,
+    });
+    setStaffMessages((prev) => [...prev.filter((m) => m.id !== msg.id), msg]);
+  };
+
+  const markStaffMessagesRead = (teacherId: string, readerRole: 'teacher' | 'department-head') => {
+    void api.markStaffMessagesRead(teacherId, readerRole).then(() => {
+      const opposite = readerRole === 'teacher' ? 'department-head' : 'teacher';
+      setStaffMessages((prev) =>
+        prev.map((m) =>
+          m.teacherId === teacherId && m.senderRole === opposite ? { ...m, read: true } : m,
+        ),
+      );
+    });
+  };
+
   const distributeLessonPlan = (id: string) => {
     setLessonPlans(
       lessonPlans.map((lp) => {
@@ -1184,6 +1356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addNotification = (title: string, description: string, type: AppNotification['type']) => {
+    toast({ title, description, variant: type });
     void api.createNotification(title, description, type).then((notif) => {
       setNotifications((prev) => [notif as AppNotification, ...prev]);
     }).catch(() => {
@@ -1253,6 +1426,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         parentMessages,
         teacherCheckInPrompts,
         studentGradeEntries,
+        lessonDeliveries,
+        communityPosts,
+        communityReplies,
+        staffMessages,
         registrationApplications,
         hrEmployees,
         leaveRequests,
@@ -1321,6 +1498,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         respondToTeacherCheckIn,
         sendParentMessage,
         addStudentFeedback,
+        markLessonDelivered,
+        createCommunityPost,
+        replyToCommunityPost,
+        sendStaffMessage,
+        refreshStaffMessages,
+        markStaffMessagesRead,
         addNotification,
         markNotificationAsRead,
         markNotificationAsUnread,

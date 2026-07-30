@@ -81,6 +81,16 @@ const TeacherTimetableTab = lazy(() =>
     default: m.TeacherTimetableTab,
   })),
 );
+const TeacherCommunityTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherCommunityTab").then((m) => ({
+    default: m.TeacherCommunityTab,
+  })),
+);
+const TeacherHodMessagesTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherHodMessagesTab").then((m) => ({
+    default: m.TeacherHodMessagesTab,
+  })),
+);
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -99,6 +109,14 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   "teaching-notes": {
     title: "Teaching Notes",
     subtitle: "View all notes per lesson plan and create new notes with AI.",
+  },
+  community: {
+    title: "Teacher Community",
+    subtitle: "Share classroom challenges and get threaded feedback from peers.",
+  },
+  "hod-messages": {
+    title: "HoD Messages",
+    subtitle: "Real-time conversation with your department head.",
   },
   "manage-students": {
     title: "Manage Students",
@@ -239,6 +257,8 @@ export function TeacherPortalApp() {
         {activeTab === "academic-calendar" && <TeacherAcademicCalendarTab />}
         {activeTab === "timetable" && <TeacherTimetableTab />}
         {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
+        {activeTab === "community" && <TeacherCommunityTab />}
+        {activeTab === "hod-messages" && <TeacherHodMessagesTab />}
         {activeTab === "manage-students" && <TeacherStudentsTab />}
         {activeTab === "resources" && <TeacherResourcesTab />}
         {activeTab === "assessments" && <TeacherAssessmentsTab />}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LargeMonthCalendar } from '@/components/dashboard/LargeMonthCalendar';
 import { getCalendarBounds } from '@/lib/calendarPresentation';
 import {
@@ -81,17 +81,28 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
     return getCalendarBounds(events);
   }, [events, minDate, maxDate]);
 
-  const focusIso = useMemo(() => {
+  // Stable SSR defaults; jump to "today" after mount to avoid hydration mismatch
+  const seedIso = useMemo(() => {
     if (initialDate && initialDate >= bounds.start && initialDate <= bounds.end) {
       return initialDate;
     }
-    return clampIso(todayIso(), bounds.start, bounds.end);
+    return bounds.start;
   }, [initialDate, bounds.start, bounds.end]);
 
-  const focusEth = useMemo(() => gregorianIsoToEthiopian(focusIso), [focusIso]);
-  const [year, setYear] = useState(focusEth.year);
-  const [month, setMonth] = useState(focusEth.month);
-  const [selectedDate, setSelectedDate] = useState(focusIso);
+  const seedEth = useMemo(() => gregorianIsoToEthiopian(seedIso), [seedIso]);
+  const [year, setYear] = useState(seedEth.year);
+  const [month, setMonth] = useState(seedEth.month);
+  const [selectedDate, setSelectedDate] = useState(seedIso);
+  const [today, setToday] = useState(seedIso);
+
+  useEffect(() => {
+    const iso = todayIso();
+    setToday(iso);
+    const eth = gregorianIsoToEthiopian(iso);
+    setYear(eth.year);
+    setMonth(eth.month);
+    setSelectedDate(clampIso(iso, bounds.start, bounds.end));
+  }, [bounds.start, bounds.end]);
 
   return (
     <LargeMonthCalendar
@@ -100,7 +111,7 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
       onMonthChange={(ny, nm) => {
         setYear(ny);
         setMonth(nm);
-        setSelectedDate(focusDateInEthiopianMonth(ny, nm, bounds, todayIso()));
+        setSelectedDate(focusDateInEthiopianMonth(ny, nm, bounds, today));
       }}
       events={events}
       assignments={assignments}

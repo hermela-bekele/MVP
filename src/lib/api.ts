@@ -86,6 +86,10 @@ export interface BootstrapPayload {
   teacherFeedbacks: import('@/lib/mockData').TeacherFeedback[];
   parentMessages: import('@/lib/mockData').ParentMessage[];
   teacherCheckInPrompts: import('@/lib/mockData').TeacherCheckInPrompt[];
+  lessonDeliveries: import('@/lib/mockData').LessonDelivery[];
+  communityPosts: import('@/lib/mockData').CommunityPost[];
+  communityReplies: import('@/lib/mockData').CommunityReply[];
+  staffMessages: import('@/lib/mockData').StaffMessage[];
   notifications: {
     id: string;
     title: string;
@@ -242,4 +246,48 @@ export const api = {
   markNotificationRead: (id: string) =>
     request(`/notifications/${id}/read`, { method: 'PATCH' }),
   clearNotifications: () => request('/notifications', { method: 'DELETE' }),
+  createLessonDelivery: (body: Record<string, unknown>) =>
+    request<{
+      delivery: import('@/lib/mockData').LessonDelivery;
+      communityPost: import('@/lib/mockData').CommunityPost | null;
+    }>('/lesson-deliveries', { method: 'POST', body: JSON.stringify(body) }),
+  getCommunityFeed: () =>
+    request<{
+      posts: import('@/lib/mockData').CommunityPost[];
+      replies: import('@/lib/mockData').CommunityReply[];
+    }>('/community/posts'),
+  createCommunityPost: (body: Record<string, unknown>) =>
+    request<import('@/lib/mockData').CommunityPost>('/community/posts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  createCommunityReply: (postId: string, body: Record<string, unknown>) =>
+    request<import('@/lib/mockData').CommunityReply>(`/community/posts/${postId}/replies`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getStaffMessages: (params?: {
+    teacherId?: string;
+    departmentId?: string;
+    since?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.teacherId) q.set('teacherId', params.teacherId);
+    if (params?.departmentId) q.set('departmentId', params.departmentId);
+    if (params?.since) q.set('since', params.since);
+    const qs = q.toString();
+    return request<import('@/lib/mockData').StaffMessage[]>(
+      `/staff-messages${qs ? `?${qs}` : ''}`,
+    );
+  },
+  sendStaffMessage: (body: Record<string, unknown>) =>
+    request<import('@/lib/mockData').StaffMessage>('/staff-messages', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  markStaffMessagesRead: (teacherId: string, readerRole: 'teacher' | 'department-head') =>
+    request('/staff-messages/mark-read', {
+      method: 'PATCH',
+      body: JSON.stringify({ teacherId, readerRole }),
+    }),
 };

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { ToastProvider } from "@/components/ui/toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -37,10 +38,15 @@ export default function RootLayout({
       className={`${inter.variable} h-full`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-300 font-[family-name:var(--font-inter)] antialiased">
-        <AppProvider>
-          {children}
-        </AppProvider>
+      <body
+        className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-300 font-[family-name:var(--font-inter)] antialiased"
+        suppressHydrationWarning
+      >
+        <ToastProvider>
+          <AppProvider>
+            {children}
+          </AppProvider>
+        </ToastProvider>
       </body>
     </html>
   );

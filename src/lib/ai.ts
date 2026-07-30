@@ -828,6 +828,10 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       week: string;
       date: string;
       periodsAvailable: number;
+      teachingDays?: number;
+      minutesAvailable?: number;
+      isTeachingWeek?: boolean;
+      note?: string;
     }[];
     /** Full-year calendar weeks for map-based unit/page allocation across batches */
     year_calendar_weeks?: {
@@ -837,8 +841,14 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       week: string;
       date: string;
       periodsAvailable: number;
+      teachingDays?: number;
+      minutesAvailable?: number;
+      isTeachingWeek?: boolean;
+      note?: string;
     }[];
     non_teaching_windows?: string[];
+    /** Aids the teacher actually has — plan must only use these */
+    teaching_aids?: string[];
     teacher_name?: string;
     school_name?: string;
     academic_year?: string;
@@ -858,6 +868,7 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       calendar_weeks: params.calendar_weeks ?? [],
       year_calendar_weeks: params.year_calendar_weeks ?? [],
       non_teaching_windows: params.non_teaching_windows ?? [],
+      teaching_aids: params.teaching_aids ?? [],
       teacher_name: params.teacher_name ?? '',
       school_name: params.school_name ?? '',
       academic_year: params.academic_year ?? '',
