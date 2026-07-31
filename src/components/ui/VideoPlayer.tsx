@@ -9,7 +9,7 @@ interface VideoPlayerProps {
   thumbnail?: string;
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, title, thumbnail }) => {
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, title: _title, thumbnail }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState<string>('--:--');

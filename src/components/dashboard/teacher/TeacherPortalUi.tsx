@@ -11,9 +11,7 @@ import {
   aisBtnPrimary,
   aisBtnSecondary,
   aisCard,
-  aisFormLabel,
   aisHeadlineSm,
-  aisInput,
   aisLabelCaps,
   aisPage,
   aisPanelHeader,
@@ -21,7 +19,6 @@ import {
   aisSubTabBtnActive,
   aisSubTabBtnInactive,
   aisSubTabTrack,
-  aisTextarea,
 } from '@/components/dashboard/teacher/aisStyles';
 
 export {

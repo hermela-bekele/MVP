@@ -91,16 +91,17 @@ export const DeptAnnualPlanPanel: React.FC<{
     lessonPlans,
   } = useApp();
 
+  const schoolId = currentUser?.schoolId;
   const publishedCalendar = useMemo(
     () =>
       academicCalendars.find(
         (c) =>
           c.status === 'Published' &&
-          (!currentUser?.schoolId || c.schoolId === currentUser.schoolId),
+          (!schoolId || c.schoolId === schoolId),
       ) ??
       academicCalendars.find((c) => c.status === 'Published') ??
       null,
-    [academicCalendars, currentUser?.schoolId],
+    [academicCalendars, schoolId],
   );
 
   const publishedAnnuals = useMemo(
@@ -127,16 +128,29 @@ export const DeptAnnualPlanPanel: React.FC<{
   }, [publishedAnnuals, viewingPublishedId]);
 
   const schoolName = useMemo(() => {
-    const schoolId = publishedCalendar?.schoolId ?? 'sch-1';
-    return schools.find((s) => s.id === schoolId)?.name ?? 'School';
+    const id = publishedCalendar?.schoolId ?? 'sch-1';
+    return schools.find((s) => s.id === id)?.name ?? 'School';
   }, [publishedCalendar, schools]);
 
   const [grade, setGrade] = useState('Grade 11');
   const [planSubject, setPlanSubject] = useState(subject);
+  const [subjectProp, setSubjectProp] = useState(subject);
+  if (subject !== subjectProp) {
+    setSubjectProp(subject);
+    setPlanSubject(subject);
+  }
+
   const [timeMode, setTimeMode] = useState<'default' | 'custom'>('default');
-  const [stream, setStream] = useState<SubjectStream>('natural');
-  const [periodsPerWeek, setPeriodsPerWeek] = useState(5);
-  const [minutesPerPeriod, setMinutesPerPeriod] = useState(45);
+  const inferredStream = inferSubjectStream(planSubject);
+  const [stream, setStream] = useState<SubjectStream>(inferredStream ?? 'natural');
+  const [streamSubject, setStreamSubject] = useState(planSubject);
+  if (planSubject !== streamSubject) {
+    setStreamSubject(planSubject);
+    if (inferredStream) setStream(inferredStream);
+  }
+
+  const [customPeriodsPerWeek, setCustomPeriodsPerWeek] = useState(5);
+  const [customMinutesPerPeriod, setCustomMinutesPerPeriod] = useState(45);
   const [selectedAids, setSelectedAids] = useState<string[]>([
     'Textbook',
     'Chalkboard / whiteboard',
@@ -151,10 +165,6 @@ export const DeptAnnualPlanPanel: React.FC<{
   const publishedSectionRef = React.useRef<HTMLDivElement | null>(null);
   const generatedSectionRef = React.useRef<HTMLDivElement | null>(null);
 
-  React.useEffect(() => {
-    setPlanSubject(subject);
-  }, [subject]);
-
   const defaultAllocation = useMemo(
     () => lookupDefaultTimeAllocation(grade, planSubject, stream),
     [grade, planSubject, stream],
@@ -162,25 +172,17 @@ export const DeptAnnualPlanPanel: React.FC<{
 
   const needsStream = parseGradeBand(grade) === '11-12' && !inferSubjectStream(planSubject);
 
-  React.useEffect(() => {
-    const inferred = inferSubjectStream(planSubject);
-    if (inferred) setStream(inferred);
-  }, [planSubject]);
-
-  React.useEffect(() => {
-    if (timeMode !== 'default') return;
-    setPeriodsPerWeek(defaultAllocation.periodsPerWeek);
-    setMinutesPerPeriod(defaultAllocation.minutesPerPeriod);
-  }, [timeMode, defaultAllocation]);
-
-  const effectivePeriods = timeMode === 'default' ? defaultAllocation.periodsPerWeek : periodsPerWeek;
+  const effectivePeriods =
+    timeMode === 'default' ? defaultAllocation.periodsPerWeek : customPeriodsPerWeek;
   const effectiveMinutes =
-    timeMode === 'default' ? defaultAllocation.minutesPerPeriod : minutesPerPeriod;
+    timeMode === 'default' ? defaultAllocation.minutesPerPeriod : customMinutesPerPeriod;
 
-  // Clear stale generated preview when calendar or plan inputs change
-  React.useEffect(() => {
+  const planInputKey = `${publishedCalendar?.id ?? ''}|${grade}|${planSubject}|${effectivePeriods}|${effectiveMinutes}`;
+  const [activePlanKey, setActivePlanKey] = useState(planInputKey);
+  if (activePlanKey !== planInputKey) {
+    setActivePlanKey(planInputKey);
     setAnnualPlan(null);
-  }, [publishedCalendar?.id, grade, planSubject, effectivePeriods, effectiveMinutes]);
+  }
 
   const calendarScaffold = useMemo(
     () =>
@@ -602,7 +604,7 @@ export const DeptAnnualPlanPanel: React.FC<{
               disabled={timeMode === 'default'}
               className="w-full h-10 px-3 rounded-lg border border-border text-sm disabled:bg-muted/40 disabled:text-muted-foreground"
               value={effectivePeriods}
-              onChange={(e) => setPeriodsPerWeek(Number(e.target.value))}
+              onChange={(e) => setCustomPeriodsPerWeek(Number(e.target.value))}
             />
           </div>
           <div className="space-y-1">
@@ -615,7 +617,7 @@ export const DeptAnnualPlanPanel: React.FC<{
               disabled={timeMode === 'default'}
               className="w-full h-10 px-3 rounded-lg border border-border text-sm disabled:bg-muted/40 disabled:text-muted-foreground"
               value={effectiveMinutes}
-              onChange={(e) => setMinutesPerPeriod(Number(e.target.value))}
+              onChange={(e) => setCustomMinutesPerPeriod(Number(e.target.value))}
             />
           </div>
         </div>

@@ -63,7 +63,6 @@ import {
   PerformanceReview,
   OnboardingTask,
   StaffAttendanceRecord,
-  StaffAttendanceStatus,
   mockHrEmployees,
   mockLeaveRequests,
   mockPayrollRecords,

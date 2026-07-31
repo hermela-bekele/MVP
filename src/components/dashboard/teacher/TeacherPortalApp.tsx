@@ -169,7 +169,7 @@ export function TeacherPortalApp() {
   const pathname = usePathname();
   const router = useRouter();
   const activeTab = tabFromPortalPath(pathname, "teacher");
-  const [trainingTypeFilter, setTrainingTypeFilter] = useState("All");
+  const [trainingTypeFilter] = useState("All");
 
   const setActiveTab = useCallback(
     (tab: string) => {

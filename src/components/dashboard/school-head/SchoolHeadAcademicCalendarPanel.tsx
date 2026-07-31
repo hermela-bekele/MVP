@@ -56,14 +56,18 @@ export const SchoolHeadAcademicCalendarPanel: React.FC<{
   );
   const latestDraftId = latestDraft?.id ?? null;
 
-  React.useEffect(() => {
-    if (latestDraft?.events?.length && !pendingEvents) {
-      setIsSaved(true);
-      setPhase((p) => (p === 'view-moe' ? 'generated' : p));
-      setEditingId(latestDraft.id);
-      setSchoolTitle(latestDraft.title);
-    }
-  }, [latestDraft, pendingEvents]);
+  const [hydratedDraftId, setHydratedDraftId] = useState<string | null>(null);
+  if (
+    latestDraft?.events?.length &&
+    !pendingEvents &&
+    hydratedDraftId !== latestDraft.id
+  ) {
+    setHydratedDraftId(latestDraft.id);
+    setIsSaved(true);
+    setEditingId(latestDraft.id);
+    setSchoolTitle(latestDraft.title);
+    setPhase((p) => (p === 'view-moe' ? 'generated' : p));
+  }
 
   const schoolEvents = useMemo(() => {
     if (pendingEvents?.length) return pendingEvents;

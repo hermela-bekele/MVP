@@ -14,7 +14,6 @@ import {
   weightedTermAverage,
 } from '@/lib/teacherPortal';
 import {
-  AisBtnPrimary,
   AisBtnSecondary,
   AisEmptyRow,
   AisPage,

@@ -1,4 +1,4 @@
-import { LessonPlan, Assessment, Student } from './mockData';
+import { LessonPlan, Student } from './mockData';
 import type { AnnualLessonPlanResult } from './annualLessonPlan';
 
 // Simulated latency helper
@@ -307,10 +307,10 @@ export const generateTeachingNotesAI = async (
 };
 
 export const generateAssessmentAI = async (
-  grade: string,
+  _grade: string,
   subject: string,
-  difficulty: string,
-  type: string
+  _difficulty: string,
+  _type: string
 ): Promise<AIQuestion[]> => {
   await delay(1500);
 
@@ -918,13 +918,11 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       await delay(1500);
       
       // Extract parameters
-      const titleMatch = prompt.match(/title:\s*([^\n]+)/i);
       const gradeMatch = prompt.match(/grade:\s*([^\n]+)/i);
       const subjectMatch = prompt.match(/subject:\s*(\w+)/i);
       const sessionsMatch = prompt.match(/sessions:\s*(\d+)/i);
       const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
       
-      const title = titleMatch ? titleMatch[1].trim() : 'Lesson Plan';
       const grade = gradeMatch ? gradeMatch[1].trim() : 'Grade 9';
       const subject = subjectMatch ? subjectMatch[1] : 'Biology';
       const sessions = sessionsMatch ? parseInt(sessionsMatch[1]) : 4;

@@ -6,7 +6,6 @@ import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
 // import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
@@ -95,9 +94,6 @@ export default function SchoolHeadPortalPage() {
 
   // Attendance Filters State
   const [attendanceTab, setAttendanceTab] = useState<'student' | 'employee'>('student');
-  const [attStudentGrade, setAttStudentGrade] = useState('Grade 9');
-  const [attStudentSection, setAttStudentSection] = useState('A');
-  const [attStaffSearch, setAttStaffSearch] = useState('');
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },

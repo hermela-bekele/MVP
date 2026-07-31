@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -138,9 +138,11 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
   const [draftMark, setDraftMark] = useState<SchoolDayMark>('parent-conference');
   const [draftLabel, setDraftLabel] = useState('');
   const [reassignMode, setReassignMode] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (!popoverIso) return;
@@ -156,18 +158,12 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
 
   const monthDays = daysInEthiopianMonth(year, month);
 
-  const activeIso = useMemo(() => {
-    if (selectedDate) return selectedDate;
-    if (popoverIso) return popoverIso;
-    const midDay = Math.min(15, monthDays);
-    return ethiopianToGregorianIso(year, month, midDay);
-  }, [selectedDate, popoverIso, year, month, monthDays]);
-
-  // Avoid SSR/client date mismatch — resolve "today" only after mount
-  const [headerIso, setHeaderIso] = useState<string | null>(null);
-  useEffect(() => {
-    setHeaderIso(todayIso());
-  }, []);
+  // Avoid SSR/client date mismatch — resolve "today" only on the client
+  const headerIso = useSyncExternalStore(
+    () => () => undefined,
+    () => todayIso(),
+    () => null,
+  );
 
   const headerGc = useMemo(() => {
     if (!headerIso) return '';

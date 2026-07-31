@@ -5,7 +5,7 @@ import { MapPin, Clock, CalendarDays, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { TEACHER_CLASS_ASSIGNMENTS, filterTeacherStudents } from '@/lib/teacherPortal';
 import { AisPage, AisStatusBadge } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { aisBodyMd, aisBodySm, aisCard, aisDataLg, aisHeadlineSm, aisLabelCaps } from '@/components/dashboard/teacher/aisStyles';
+import { aisBodyMd, aisBodySm, aisCard, aisDataLg, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 
 export const TeacherClassesTab: React.FC = () => {
   const { students } = useApp();

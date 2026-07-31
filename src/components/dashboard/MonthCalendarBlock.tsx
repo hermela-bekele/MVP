@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState, useSyncExternalStore } from 'react';
 import { LargeMonthCalendar } from '@/components/dashboard/LargeMonthCalendar';
 import { getCalendarBounds } from '@/lib/calendarPresentation';
 import {
@@ -81,7 +81,7 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
     return getCalendarBounds(events);
   }, [events, minDate, maxDate]);
 
-  // Stable SSR defaults; jump to "today" after mount to avoid hydration mismatch
+  // Stable SSR defaults; jump to "today" on the client to avoid hydration mismatch
   const seedIso = useMemo(() => {
     if (initialDate && initialDate >= bounds.start && initialDate <= bounds.end) {
       return initialDate;
@@ -89,20 +89,29 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
     return bounds.start;
   }, [initialDate, bounds.start, bounds.end]);
 
-  const seedEth = useMemo(() => gregorianIsoToEthiopian(seedIso), [seedIso]);
-  const [year, setYear] = useState(seedEth.year);
-  const [month, setMonth] = useState(seedEth.month);
-  const [selectedDate, setSelectedDate] = useState(seedIso);
-  const [today, setToday] = useState(seedIso);
+  const clientToday = useSyncExternalStore(
+    () => () => undefined,
+    () => todayIso(),
+    () => null as string | null,
+  );
 
-  useEffect(() => {
-    const iso = todayIso();
-    setToday(iso);
-    const eth = gregorianIsoToEthiopian(iso);
-    setYear(eth.year);
-    setMonth(eth.month);
-    setSelectedDate(clampIso(iso, bounds.start, bounds.end));
-  }, [bounds.start, bounds.end]);
+  const focusIso = useMemo(() => {
+    if (!clientToday) return seedIso;
+    return clampIso(clientToday, bounds.start, bounds.end);
+  }, [clientToday, seedIso, bounds.start, bounds.end]);
+
+  const focusEth = useMemo(() => gregorianIsoToEthiopian(focusIso), [focusIso]);
+  const [year, setYear] = useState(focusEth.year);
+  const [month, setMonth] = useState(focusEth.month);
+  const [selectedDate, setSelectedDate] = useState(focusIso);
+  const [syncedFocus, setSyncedFocus] = useState(focusIso);
+
+  if (syncedFocus !== focusIso) {
+    setSyncedFocus(focusIso);
+    setYear(focusEth.year);
+    setMonth(focusEth.month);
+    setSelectedDate(focusIso);
+  }
 
   return (
     <LargeMonthCalendar
@@ -111,7 +120,7 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
       onMonthChange={(ny, nm) => {
         setYear(ny);
         setMonth(nm);
-        setSelectedDate(focusDateInEthiopianMonth(ny, nm, bounds, today));
+        setSelectedDate(focusDateInEthiopianMonth(ny, nm, bounds, clientToday ?? focusIso));
       }}
       events={events}
       assignments={assignments}
@@ -124,7 +133,6 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
       maxDate={bounds.end}
       showLegend={showLegend}
       fill={fill}
-      size="lg"
     />
   );
 };

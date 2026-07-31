@@ -44,9 +44,9 @@ export type TeacherTimetableRow = {
   friday: string;
 };
 
-const TIMETABLE_DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
+type TimetableDayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 
-const WEEKDAY_TO_TIMETABLE_KEY: Record<string, (typeof TIMETABLE_DAY_KEYS)[number]> = {
+const WEEKDAY_TO_TIMETABLE_KEY: Record<string, TimetableDayKey> = {
   Mon: 'monday',
   Tue: 'tuesday',
   Wed: 'wednesday',
