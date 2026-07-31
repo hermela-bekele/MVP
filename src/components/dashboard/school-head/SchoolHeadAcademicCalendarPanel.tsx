@@ -295,7 +295,7 @@ export const SchoolHeadAcademicCalendarPanel: React.FC<{
       );
     } else if (
       (phase === 'view-moe' && !schoolReady) ||
-      (schoolReady && calendarSource === 'moe' && phase !== 'editing')
+      (schoolReady && calendarSource === 'moe')
     ) {
       actions = (
         <Button
