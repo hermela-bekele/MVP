@@ -77,9 +77,11 @@ const TeacherSettingsTab = lazy(() =>
   })),
 );
 const TeacherAcademicCalendarTab = lazy(() =>
-  import("@/components/dashboard/teacher/TeacherAcademicCalendarTab").then((m) => ({
-    default: m.TeacherAcademicCalendarTab,
-  })),
+  import("@/components/dashboard/teacher/TeacherAcademicCalendarTab").then(
+    (m) => ({
+      default: m.TeacherAcademicCalendarTab,
+    }),
+  ),
 );
 const TeacherTimetableTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherTimetableTab").then((m) => ({
@@ -122,7 +124,6 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   community: {
     title: "Teacher Community",
-    subtitle: "Share classroom challenges and get threaded feedback from peers.",
   },
   "hod-messages": {
     title: "HoD Messages",

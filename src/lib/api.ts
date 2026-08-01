@@ -289,6 +289,115 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  // Discord-style teacher communities
+  listCommunities: () =>
+    request<import('@/lib/communityTypes').Community[]>('/communities'),
+  createCommunity: (body: {
+    name: string;
+    description?: string;
+    type?: string;
+    departmentId?: string;
+    iconUrl?: string;
+  }) =>
+    request<import('@/lib/communityTypes').Community>('/communities', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  listCommunityChannels: (communityId: string) =>
+    request<import('@/lib/communityTypes').CommunityChannel[]>(
+      `/communities/${communityId}/channels`,
+    ),
+  createCommunityChannel: (
+    communityId: string,
+    body: { name: string; description?: string; type?: string },
+  ) =>
+    request<import('@/lib/communityTypes').CommunityChannel>(
+      `/communities/${communityId}/channels`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  listCommunityMembers: (communityId: string) =>
+    request<import('@/lib/communityTypes').CommunityMember[]>(
+      `/communities/${communityId}/members`,
+    ),
+  getChannelMessages: (channelId: string, params?: { limit?: number; before?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.before) q.set('before', params.before);
+    const qs = q.toString();
+    return request<{
+      messages: import('@/lib/communityTypes').CommunityMessage[];
+      hasMore: boolean;
+    }>(`/channels/${channelId}/messages${qs ? `?${qs}` : ''}`);
+  },
+  postChannelMessage: (
+    channelId: string,
+    body: { content: string; parentMessageId?: string },
+  ) =>
+    request<import('@/lib/communityTypes').CommunityMessage>(
+      `/channels/${channelId}/messages`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  markChannelRead: (channelId: string) =>
+    request<{ ok: boolean }>(`/channels/${channelId}/read`, { method: 'POST' }),
+  startMessageThread: (messageId: string, body?: { title?: string }) =>
+    request<import('@/lib/communityTypes').CommunityThread>(
+      `/messages/${messageId}/thread`,
+      { method: 'POST', body: JSON.stringify(body ?? {}) },
+    ),
+  getCommunityThread: (threadId: string) =>
+    request<import('@/lib/communityTypes').CommunityThread>(`/threads/${threadId}`),
+  getCommunityThreadMessages: (
+    threadId: string,
+    params?: { limit?: number; before?: string },
+  ) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.before) q.set('before', params.before);
+    const qs = q.toString();
+    return request<{
+      thread: import('@/lib/communityTypes').CommunityThread;
+      rootMessage: import('@/lib/communityTypes').CommunityMessage | null;
+      messages: import('@/lib/communityTypes').CommunityMessage[];
+      hasMore: boolean;
+    }>(`/threads/${threadId}/messages${qs ? `?${qs}` : ''}`);
+  },
+  postCommunityThreadMessage: (
+    threadId: string,
+    body: { content: string; parentMessageId?: string },
+  ) =>
+    request<import('@/lib/communityTypes').CommunityMessage>(
+      `/threads/${threadId}/messages`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  markThreadRead: (threadId: string) =>
+    request<{ ok: boolean }>(`/threads/${threadId}/read`, { method: 'POST' }),
+  toggleMessageReaction: (messageId: string, emoji: string) =>
+    request<{ toggled: 'added' | 'removed'; emoji: string }>(
+      `/messages/${messageId}/reactions`,
+      { method: 'POST', body: JSON.stringify({ emoji }) },
+    ),
+  deleteCommunityMessage: (messageId: string) =>
+    request<void>(`/messages/${messageId}`, { method: 'DELETE' }),
+  editCommunityMessage: (messageId: string, content: string) =>
+    request<import('@/lib/communityTypes').CommunityMessage>(`/messages/${messageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    }),
+  getCommunityNotifications: () =>
+    request<import('@/lib/communityTypes').MentionNotification[]>(
+      '/community/notifications',
+    ),
+  markCommunityNotificationRead: (id: string) =>
+    request<{ ok: boolean }>(`/community/notifications/${id}/read`, { method: 'POST' }),
+  markAllCommunityNotificationsRead: () =>
+    request<{ ok: boolean }>('/community/notifications/read-all', { method: 'POST' }),
+  getMentionSuggestions: (communityId: string, q: string) => {
+    const qs = new URLSearchParams({ q });
+    return request<import('@/lib/communityTypes').MentionSuggestion[]>(
+      `/communities/${communityId}/mention-suggestions?${qs}`,
+    );
+  },
   getStaffMessages: (params?: {
     teacherId?: string;
     departmentId?: string;
