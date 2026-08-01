@@ -44,9 +44,9 @@ export type TeacherTimetableRow = {
   friday: string;
 };
 
-const TIMETABLE_DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
+type TimetableDayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday';
 
-const WEEKDAY_TO_TIMETABLE_KEY: Record<string, (typeof TIMETABLE_DAY_KEYS)[number]> = {
+const WEEKDAY_TO_TIMETABLE_KEY: Record<string, TimetableDayKey> = {
   Mon: 'monday',
   Tue: 'tuesday',
   Wed: 'wednesday',
@@ -230,6 +230,25 @@ export const STUDENT_LEVEL_LABELS: Record<string, string> = {
 
 export function notesForLessonPlan(notes: TeachingNote[], lessonPlanId: string) {
   return notes.filter((n) => n.lessonPlanId === lessonPlanId);
+}
+
+/** Weekly plan has been approved by HoD (may still await school head). */
+export function isWeeklyPlanHodApproved(plan: LessonPlan | undefined | null): boolean {
+  if (!plan) return false;
+  return plan.status === 'Approved' || plan.status === 'Pending School Head';
+}
+
+export function graspOutcomeLabel(outcome: string): string {
+  switch (outcome) {
+    case 'well_grasped':
+      return 'Well grasped';
+    case 'majority_grasped':
+      return 'Majority grasped';
+    case 'challenged':
+      return 'Challenged / opportunity';
+    default:
+      return outcome;
+  }
 }
 
 export function filterTeacherGradeEntries(entries: StudentGradeEntry[], teacherId = DEMO_TEACHER_ID) {

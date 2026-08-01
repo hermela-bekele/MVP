@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
@@ -68,6 +68,11 @@ function shortActivityLabel(label: string): string {
   return `${cleaned.slice(0, 14)}…`;
 }
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function shortGcLabel(iso: string): string {
   const d = new Date(`${iso}T12:00:00`);
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -130,16 +135,22 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
   size = 'md',
 }) => {
   const [popoverIso, setPopoverIso] = useState<string | null>(null);
-  const [draftMark, setDraftMark] = useState<SchoolDayMark>('mid-exam-start');
+  const [draftMark, setDraftMark] = useState<SchoolDayMark>('parent-conference');
   const [draftLabel, setDraftLabel] = useState('');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const [reassignMode, setReassignMode] = useState(false);
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
 
   useEffect(() => {
     if (!popoverIso) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPopoverIso(null);
+      if (e.key === 'Escape') {
+        setPopoverIso(null);
+        setReassignMode(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -147,24 +158,28 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
 
   const monthDays = daysInEthiopianMonth(year, month);
 
-  const activeIso = useMemo(() => {
-    if (selectedDate) return selectedDate;
-    if (popoverIso) return popoverIso;
-    const midDay = Math.min(15, monthDays);
-    return ethiopianToGregorianIso(year, month, midDay);
-  }, [selectedDate, popoverIso, year, month, monthDays]);
+  // Avoid SSR/client date mismatch — resolve "today" only on the client
+  const headerIso = useSyncExternalStore(
+    () => () => undefined,
+    () => todayIso(),
+    () => null,
+  );
 
   const headerGc = useMemo(() => {
-    const d = new Date(`${activeIso}T12:00:00`);
+    if (!headerIso) return '';
+    const d = new Date(`${headerIso}T12:00:00`);
     return d.toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
       year: 'numeric',
     });
-  }, [activeIso]);
+  }, [headerIso]);
 
-  const headerEc = useMemo(() => formatEthiopianDate(activeIso), [activeIso]);
+  const headerEc = useMemo(
+    () => (headerIso ? formatEthiopianDate(headerIso) : ''),
+    [headerIso],
+  );
 
   const monthLabelEc = useMemo(() => formatEthiopianMonthLabel(year, month), [year, month]);
   const monthLabelGc = useMemo(
@@ -234,6 +249,7 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
     }
     const existing = assignmentForDay(assignments, iso) ?? markFromEvents(events, iso);
     setPopoverIso(iso);
+    setReassignMode(!existing);
     setDraftMark(existing?.mark ?? 'mid-exam-start');
     setDraftLabel(existing?.label ?? '');
     onSelectDate?.(iso);
@@ -247,12 +263,14 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
         : draftLabel.trim() || DAY_MARK_OPTIONS.find((o) => o.value === draftMark)?.label || '';
     onAssignDay({ date: popoverIso, mark: draftMark, label });
     setPopoverIso(null);
+    setReassignMode(false);
   };
 
   const clearAssignment = () => {
     if (!popoverIso || !onClearDay) return;
     onClearDay(popoverIso);
     setPopoverIso(null);
+    setReassignMode(false);
   };
 
   const prevMonth = addEthiopianMonths(year, month, -1);
@@ -271,6 +289,16 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
   const popoverHoliday = popoverIso ? holidayForDay(events, popoverIso) : null;
   const popoverActivity = popoverIso ? activityForDay(events, popoverIso) : null;
   const popoverHolidayWeekday = Boolean(popoverHoliday && popoverIso && isWeekdayIso(popoverIso));
+  const popoverExisting =
+    popoverIso
+      ? assignmentForDay(assignments, popoverIso) ?? markFromEvents(events, popoverIso)
+      : undefined;
+  const showUndoPanel = Boolean(popoverExisting && !reassignMode);
+
+  const closePopover = () => {
+    setPopoverIso(null);
+    setReassignMode(false);
+  };
 
   const assignModal =
     mounted &&
@@ -287,13 +315,13 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
           type="button"
           className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
           aria-label="Close"
-          onClick={() => setPopoverIso(null)}
+          onClick={closePopover}
         />
-        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-white p-4 shadow-2xl">
-          <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-white p-4 shadow-2xl max-h-[min(90vh,640px)] flex flex-col overflow-hidden">
+          <div className="flex items-start justify-between gap-3 mb-3 shrink-0">
             <div>
               <p id="assign-day-title" className="text-sm font-bold text-foreground">
-                Assign day
+                {showUndoPanel ? 'Assigned day' : 'Assign day'}
               </p>
               <p className="text-xs font-semibold text-teal-800 mt-1">
                 E.C. · {formatEthiopianDate(popoverIso)}
@@ -304,64 +332,124 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => setPopoverIso(null)}
+              onClick={closePopover}
               className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-muted text-sm font-bold"
             >
               ✕
             </button>
           </div>
 
-          {popoverHoliday && (
-            <p className="mb-2 text-[11px] font-medium text-red-700 bg-red-50 rounded-md px-2.5 py-1.5">
-              National holiday: {popoverHoliday.label}
-              {popoverHolidayWeekday ? ' (weekday — school off)' : ' (weekend)'}
-            </p>
-          )}
-          {popoverActivity && popoverActivity.type !== 'holiday' && (
-            <p className="mb-2 text-[11px] font-medium text-foreground/80 bg-muted/60 rounded-md px-2.5 py-1.5">
-              MOE: {popoverActivity.label}
-            </p>
-          )}
+          {showUndoPanel && popoverExisting ? (
+            <>
+              <div className="rounded-lg border border-border/70 bg-muted/40 px-3 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Current event
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{popoverExisting.label}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {DAY_MARK_OPTIONS.find((o) => o.value === popoverExisting.mark)?.label ??
+                    popoverExisting.mark}
+                </p>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={clearAssignment}
+                  className="w-full h-9 rounded-lg border border-red-200 bg-red-50 text-xs font-semibold text-red-800 hover:bg-red-100"
+                >
+                  Undo — remove event
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReassignMode(true)}
+                  className="w-full h-9 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted"
+                >
+                  Change assignment
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+                {popoverHoliday && (
+                  <p className="mb-2 text-[11px] font-medium text-red-700 bg-red-50 rounded-md px-2.5 py-1.5">
+                    National holiday: {popoverHoliday.label}
+                    {popoverHolidayWeekday ? ' (weekday — school off)' : ' (weekend)'}
+                  </p>
+                )}
+                {popoverActivity && popoverActivity.type !== 'holiday' && (
+                  <p className="mb-2 text-[11px] font-medium text-foreground/80 bg-muted/60 rounded-md px-2.5 py-1.5">
+                    MOE: {popoverActivity.label}
+                  </p>
+                )}
 
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Day type
-          </label>
-          <select
-            className="mt-1 w-full h-10 rounded-lg border border-border px-3 text-sm bg-white"
-            value={draftMark}
-            onChange={(e) => setDraftMark(e.target.value as SchoolDayMark)}
-          >
-            {DAY_MARK_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          {draftMark === 'other' && (
-            <input
-              className="mt-2 w-full h-10 rounded-lg border border-border px-3 text-sm"
-              placeholder="Describe this day…"
-              value={draftLabel}
-              onChange={(e) => setDraftLabel(e.target.value)}
-              autoFocus
-            />
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Day type
+                </label>
+                <div
+                  role="listbox"
+                  aria-label="Day type"
+                  className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-white divide-y divide-border/60"
+                >
+                  {DAY_MARK_OPTIONS.map((opt) => {
+                    const selected = draftMark === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => setDraftMark(opt.value)}
+                        className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
+                          selected
+                            ? 'bg-teal-50 text-teal-900 font-semibold'
+                            : 'text-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {draftMark === 'other' && (
+                  <input
+                    className="mt-2 w-full h-10 rounded-lg border border-border px-3 text-sm"
+                    placeholder="Describe this day…"
+                    value={draftLabel}
+                    onChange={(e) => setDraftLabel(e.target.value)}
+                    autoFocus
+                  />
+                )}
+              </div>
+
+              <div className="mt-4 flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={applyAssignment}
+                  className="flex-1 h-9 rounded-lg bg-teal-700 text-white text-xs font-semibold hover:bg-teal-800"
+                >
+                  Apply
+                </button>
+                {popoverExisting ? (
+                  <button
+                    type="button"
+                    onClick={() => setReassignMode(false)}
+                    className="h-9 px-3 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    Back
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={closePopover}
+                    className="h-9 px-3 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </>
           )}
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={applyAssignment}
-              className="flex-1 h-9 rounded-lg bg-teal-700 text-white text-xs font-semibold hover:bg-teal-800"
-            >
-              Apply
-            </button>
-            <button
-              type="button"
-              onClick={clearAssignment}
-              className="h-9 px-3 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:bg-muted"
-            >
-              Clear
-            </button>
-          </div>
         </div>
       </div>,
       document.body,
@@ -374,9 +462,11 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
         <div className="flex items-start justify-between gap-3 px-4 py-3 bg-white border-b border-border/50 rounded-t-2xl">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground/90 tracking-tight truncate">
-              E.C. · {headerEc}
+              {headerEc ? `E.C. · ${headerEc}` : 'E.C. · …'}
             </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">G.C. · {headerGc}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+              {headerGc ? `G.C. · ${headerGc}` : 'G.C. · …'}
+            </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -424,7 +514,7 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
           ))}
         </div>
 
-        {/* Day grid — Ethiopian month 1–30 (+ Pagume); other-month days inactive */}
+        {/* Day grid — after work start, all days are active (including adjacent-month cells) */}
         <div className="grid grid-cols-7 gap-y-1 px-2 sm:px-3 pb-4">
           {gridCells.map((cell) => {
             const assignment =
@@ -436,26 +526,26 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
             const markColors = assignment ? DAY_MARK_COLORS[assignment.mark] : null;
             const beforeWorkStart = Boolean(minDate && cell.iso < minDate);
             const afterWorkEnd = Boolean(maxDate && cell.iso > maxDate);
-            const inactive = beforeWorkStart || afterWorkEnd || !cell.inMonth;
+            const inactive = beforeWorkStart || afterWorkEnd;
             const holidayOnWeekday = Boolean(holiday && isWeekdayIso(cell.iso));
             const holidayOnWeekend = Boolean(holiday && !isWeekdayIso(cell.iso));
 
             let circleClass = 'text-foreground hover:bg-black/5';
             let subClass = 'text-muted-foreground';
 
-            if (markColors && !beforeWorkStart && cell.inMonth) {
+            if (markColors && !inactive) {
               circleClass = `${markColors.bg} ${markColors.text} ring-1 ${markColors.ring ?? 'ring-black/5'}`;
               subClass = markColors.ec ?? 'opacity-70';
-            } else if (holidayOnWeekday && cell.inMonth && !beforeWorkStart) {
+            } else if (holidayOnWeekday && !inactive) {
               circleClass = 'bg-red-100 text-red-800 ring-1 ring-red-200';
               subClass = 'text-red-700/80';
-            } else if (holidayOnWeekend && cell.inMonth && !beforeWorkStart) {
+            } else if (holidayOnWeekend && !inactive) {
               circleClass = 'bg-white text-red-700 ring-1 ring-red-300';
               subClass = 'text-red-600';
-            } else if (isSelected && !beforeWorkStart && cell.inMonth) {
+            } else if (isSelected && !inactive) {
               circleClass = 'bg-teal-100 text-teal-900 ring-1 ring-teal-300';
               subClass = 'text-teal-800/80';
-            } else if (activity && activity.type !== 'holiday' && cell.inMonth && !beforeWorkStart) {
+            } else if (activity && activity.type !== 'holiday' && !inactive) {
               const soft = ACTIVITY_SOFT[activity.type] ?? ACTIVITY_SOFT.moe;
               circleClass = soft.circle;
               subClass = soft.ec;
@@ -463,14 +553,16 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
               primary &&
               primary.type !== 'moe' &&
               primary.type !== 'holiday' &&
-              cell.inMonth &&
-              !beforeWorkStart
+              !inactive
             ) {
               circleClass = 'bg-muted/40 ring-1 ring-black/10 text-foreground';
+            } else if (!cell.inMonth && !inactive) {
+              circleClass = 'text-foreground/70 hover:bg-black/5';
+              subClass = 'text-muted-foreground/80';
             }
 
             const caption =
-              beforeWorkStart || !cell.inMonth
+              inactive
                 ? null
                 : holiday
                   ? shortHolidayLabel(holiday.label)
@@ -506,7 +598,7 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
                   title={[
                     `E.C. ${formatEthiopianDate(cell.iso)}`,
                     `G.C. ${formatGregorianDate(cell.iso)}`,
-                    !cell.inMonth ? 'Other month' : null,
+                    !cell.inMonth ? 'Adjacent month' : null,
                     beforeWorkStart ? 'Inactive — before work start (Nehase 25)' : null,
                     holiday?.label,
                     assignment?.label,
@@ -519,18 +611,17 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
                     circleSize,
                     canClick ? 'hover:scale-105 cursor-pointer' : 'cursor-default',
                     inactive ? 'opacity-30' : '',
-                    beforeWorkStart && cell.inMonth ? 'grayscale' : '',
+                    beforeWorkStart ? 'grayscale' : '',
+                    !cell.inMonth && !inactive ? 'opacity-80' : '',
                     circleClass,
                   ].join(' ')}
                 >
-                  {/* Primary: Ethiopian day number (1–30 for this month) */}
+                  {/* Primary: Ethiopian day number */}
                   <span className={`font-semibold leading-none ${dayText}`}>{cell.day}</span>
                   {/* Secondary: Gregorian date */}
-                  {cell.inMonth && (
-                    <span className={`text-[7px] sm:text-[8px] mt-0.5 leading-none ${subClass}`}>
-                      {shortGcLabel(cell.iso)}
-                    </span>
-                  )}
+                  <span className={`text-[7px] sm:text-[8px] mt-0.5 leading-none ${subClass}`}>
+                    {shortGcLabel(cell.iso)}
+                  </span>
                 </button>
 
                 {caption && (

@@ -1,4 +1,4 @@
-import { LessonPlan, Assessment, Student } from './mockData';
+import { LessonPlan, Student } from './mockData';
 import type { AnnualLessonPlanResult } from './annualLessonPlan';
 
 // Simulated latency helper
@@ -307,10 +307,10 @@ export const generateTeachingNotesAI = async (
 };
 
 export const generateAssessmentAI = async (
-  grade: string,
+  _grade: string,
   subject: string,
-  difficulty: string,
-  type: string
+  _difficulty: string,
+  _type: string
 ): Promise<AIQuestion[]> => {
   await delay(1500);
 
@@ -828,6 +828,10 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       week: string;
       date: string;
       periodsAvailable: number;
+      teachingDays?: number;
+      minutesAvailable?: number;
+      isTeachingWeek?: boolean;
+      note?: string;
     }[];
     /** Full-year calendar weeks for map-based unit/page allocation across batches */
     year_calendar_weeks?: {
@@ -837,8 +841,14 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       week: string;
       date: string;
       periodsAvailable: number;
+      teachingDays?: number;
+      minutesAvailable?: number;
+      isTeachingWeek?: boolean;
+      note?: string;
     }[];
     non_teaching_windows?: string[];
+    /** Aids the teacher actually has — plan must only use these */
+    teaching_aids?: string[];
     teacher_name?: string;
     school_name?: string;
     academic_year?: string;
@@ -858,6 +868,7 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       calendar_weeks: params.calendar_weeks ?? [],
       year_calendar_weeks: params.year_calendar_weeks ?? [],
       non_teaching_windows: params.non_teaching_windows ?? [],
+      teaching_aids: params.teaching_aids ?? [],
       teacher_name: params.teacher_name ?? '',
       school_name: params.school_name ?? '',
       academic_year: params.academic_year ?? '',
@@ -907,13 +918,11 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       await delay(1500);
       
       // Extract parameters
-      const titleMatch = prompt.match(/title:\s*([^\n]+)/i);
       const gradeMatch = prompt.match(/grade:\s*([^\n]+)/i);
       const subjectMatch = prompt.match(/subject:\s*(\w+)/i);
       const sessionsMatch = prompt.match(/sessions:\s*(\d+)/i);
       const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
       
-      const title = titleMatch ? titleMatch[1].trim() : 'Lesson Plan';
       const grade = gradeMatch ? gradeMatch[1].trim() : 'Grade 9';
       const subject = subjectMatch ? subjectMatch[1] : 'Biology';
       const sessions = sessionsMatch ? parseInt(sessionsMatch[1]) : 4;

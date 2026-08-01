@@ -6,7 +6,6 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import type { AIDetailedLessonPlanResult } from '@/lib/ai';
 import {
-  AisBtnPrimary,
   AisBtnSecondary,
   aisCallout,
   aisFormLabel,

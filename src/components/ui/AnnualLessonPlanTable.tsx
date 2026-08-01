@@ -7,6 +7,8 @@ import { computeRowSpans } from '@/lib/annualLessonPlan';
 interface AnnualLessonPlanTableProps {
   plan: AnnualLessonPlanResult;
   className?: string;
+  /** Hide the page heading when an outer chrome already titles this plan */
+  showTitle?: boolean;
 }
 
 function BulletList({
@@ -50,46 +52,69 @@ function VerticalCell({ children, rowSpan }: { children: React.ReactNode; rowSpa
 
 function MetaBox({ plan }: { plan: AnnualLessonPlanResult }) {
   const m = plan.meta;
+  const objectives = m.generalObjectives?.length ? m.generalObjectives : plan.objectives;
+  const facts = [
+    m.teacherName ? `Teacher: ${m.teacherName}` : null,
+    m.grade ? `Grade: ${m.grade}` : null,
+    m.subject ? `Subject: ${m.subject}` : null,
+    m.schoolName ? `School: ${m.schoolName}` : null,
+    m.schoolDaysPerYear ? `${m.schoolDaysPerYear} school days` : null,
+    m.periodsPerWeek ? `${m.periodsPerWeek}/wk` : null,
+    m.periodsPerYear ? `${m.periodsPerYear} periods/yr` : null,
+    m.referenceMaterials ? `Ref: ${m.referenceMaterials}` : null,
+  ].filter(Boolean) as string[];
+
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 print:grid-cols-2">
-      <div className="space-y-1 border border-foreground/80 p-3 text-xs leading-relaxed">
-        <p>
-          <span className="font-bold">Teacher&apos;s Name:</span> {m.teacherName}
-        </p>
-        <p>
-          <span className="font-bold">Grade:</span> {m.grade}
-        </p>
-        <p>
-          <span className="font-bold">Subject:</span> {m.subject}
-        </p>
-        <p>
-          <span className="font-bold">Total no of School day per year:</span> {m.schoolDaysPerYear}
-        </p>
-        <p>
-          <span className="font-bold">per week:</span> {m.periodsPerWeek}
-        </p>
-        <p>
-          <span className="font-bold">Total no of Periods per year:</span> {m.periodsPerYear}
-        </p>
-        <p>
-          <span className="font-bold">Reference Materials:</span> {m.referenceMaterials}
-        </p>
-        {m.schoolName ? (
-          <p>
-            <span className="font-bold">School:</span> {m.schoolName}
-          </p>
-        ) : null}
-      </div>
-      <div className="border border-foreground/80 p-3 text-xs">
-        <p className="mb-2 font-bold underline">General Objectives</p>
-        <ol className="m-0 list-decimal space-y-1 pl-4">
-          {(m.generalObjectives?.length ? m.generalObjectives : plan.objectives).map((obj, i) => (
-            <li key={i} className="leading-snug">
-              {obj}
-            </li>
+    <div className="space-y-2">
+      {facts.length > 0 && (
+        <p className="flex flex-wrap gap-x-1 gap-y-1 text-xs text-muted-foreground">
+          {facts.map((fact, i) => (
+            <React.Fragment key={fact}>
+              {i > 0 ? <span aria-hidden className="text-border">·</span> : null}
+              <span>{fact}</span>
+            </React.Fragment>
           ))}
-        </ol>
-      </div>
+        </p>
+      )}
+      {objectives?.length ? (
+        <details className="group rounded-lg border border-border/70 bg-muted/20">
+          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              General objectives
+              <span className="font-normal text-muted-foreground">({objectives.length})</span>
+              <span className="text-muted-foreground transition-transform group-open:rotate-180">▾</span>
+            </span>
+          </summary>
+          <ol className="m-0 list-decimal space-y-1 border-t border-border/60 px-3 py-2 pl-7 text-xs leading-snug">
+            {objectives.map((obj, i) => (
+              <li key={i}>{obj}</li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
+      {m.teachingAidsAvailable?.length ? (
+        <details className="group rounded-lg border border-border/70 bg-muted/20">
+          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold text-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              Teaching aids available
+              <span className="font-normal text-muted-foreground">
+                ({m.teachingAidsAvailable.length})
+              </span>
+              <span className="text-muted-foreground transition-transform group-open:rotate-180">▾</span>
+            </span>
+          </summary>
+          <ul className="m-0 flex flex-wrap gap-1.5 border-t border-border/60 px-3 py-2">
+            {m.teachingAidsAvailable.map((aid) => (
+              <li
+                key={aid}
+                className="rounded-md bg-background px-2 py-0.5 text-[11px] text-foreground/80 ring-1 ring-border/60"
+              >
+                {aid}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -176,6 +201,7 @@ function WeekRow({
 export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
   plan,
   className = '',
+  showTitle = true,
 }) => {
   const weeks = plan.weeks ?? [];
   const semesterSpans = useMemo(() => computeRowSpans(weeks, 'semester'), [weeks]);
@@ -184,62 +210,67 @@ export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
 
   return (
     <div className={`annual-lesson-plan-table space-y-4 ${className}`}>
-      <h2 className="text-center text-base font-bold tracking-wide uppercase">
-        Annual Lesson Plan {plan.meta.academicYear}
-      </h2>
+      {showTitle ? (
+        <h2 className="text-center text-base font-bold tracking-wide uppercase">
+          Annual Lesson Plan{plan.meta.academicYear ? ` ${plan.meta.academicYear}` : ''}
+        </h2>
+      ) : null}
 
       <MetaBox plan={plan} />
 
       <div className="w-full overflow-x-auto rounded-sm border border-foreground/80 print:max-h-none print:overflow-visible">
         <div className="max-h-[75vh] overflow-y-auto print:max-h-none">
-        <table className="w-full min-w-[1600px] border-collapse bg-background text-foreground table-fixed">
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-muted text-[10px] font-bold uppercase shadow-sm">
-              <th className="border border-foreground/80 px-1 py-2 bg-muted">
-                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-                  Semester
-                </span>
-              </th>
-              <th className="border border-foreground/80 px-1 py-2 bg-muted">
-                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Month</span>
-              </th>
-              <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Week</th>
-              <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Date</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">Unit</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">Contents</th>
-              <th className="border border-foreground/80 px-1 py-2 bg-muted">
-                <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-                  Period needed
-                </span>
-              </th>
-              <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Page</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">General Objectives</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">Teaching Methods</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">Teaching Aids</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">Evaluation Method</th>
-              <th className="border border-foreground/80 px-2 py-2 bg-muted">Comments</th>
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.length === 0 ? (
-              <tr>
-                <td colSpan={13} className="border border-foreground/80 px-4 py-8 text-center text-sm text-muted-foreground">
-                  No weekly rows in this plan yet.
-                </td>
+          <table className="w-full min-w-[1600px] border-collapse bg-background text-foreground table-fixed">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-muted text-[10px] font-bold uppercase shadow-sm">
+                <th className="border border-foreground/80 px-1 py-2 bg-muted">
+                  <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                    Semester
+                  </span>
+                </th>
+                <th className="border border-foreground/80 px-1 py-2 bg-muted">
+                  <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Month</span>
+                </th>
+                <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Week</th>
+                <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Date</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">Unit</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">Contents</th>
+                <th className="border border-foreground/80 px-1 py-2 bg-muted">
+                  <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                    Period needed
+                  </span>
+                </th>
+                <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Page</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">General Objectives</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">Teaching Methods</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">Teaching Aids</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">Evaluation Method</th>
+                <th className="border border-foreground/80 px-2 py-2 bg-muted">Comments</th>
               </tr>
-            ) : (
-              weeks.map((row, i) => (
-                <WeekRow
-                  key={`${row.month}-${row.week}-${row.date}-${i}`}
-                  row={row}
-                  semesterSpan={semesterSpans[i]}
-                  monthSpan={monthSpans[i]}
-                  unitSpan={unitSpans[i]}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {weeks.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={13}
+                    className="border border-foreground/80 px-4 py-8 text-center text-sm text-muted-foreground"
+                  >
+                    No weekly rows in this plan yet.
+                  </td>
+                </tr>
+              ) : (
+                weeks.map((row, i) => (
+                  <WeekRow
+                    key={`${row.month}-${row.week}-${row.date}-${i}`}
+                    row={row}
+                    semesterSpan={semesterSpans[i]}
+                    monthSpan={monthSpans[i]}
+                    unitSpan={unitSpans[i]}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
 // import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
 
 // Decomposed Sub-components
@@ -30,20 +31,24 @@ export default function SchoolHeadPortalPage() {
     teachers,
   } = useApp();
 
-  // Navigation state
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const pathname = usePathname();
+  const router = useRouter();
+  const activeTab = tabFromPortalPath(pathname, 'school-head');
+  const setActiveTab = (tab: string) => {
+    router.push(portalTabPath('school-head', tab));
+  };
 
   // Listen to command palette tab change events
   React.useEffect(() => {
     const handleTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
-        setActiveTab(customEvent.detail);
+        router.push(portalTabPath('school-head', customEvent.detail));
       }
     };
     window.addEventListener('change-tab', handleTabChange);
     return () => window.removeEventListener('change-tab', handleTabChange);
-  }, []);
+  }, [router]);
 
   // Compute breadcrumbs
   const getBreadcrumbs = () => {
@@ -89,9 +94,6 @@ export default function SchoolHeadPortalPage() {
 
   // Attendance Filters State
   const [attendanceTab, setAttendanceTab] = useState<'student' | 'employee'>('student');
-  const [attStudentGrade, setAttStudentGrade] = useState('Grade 9');
-  const [attStudentSection, setAttStudentSection] = useState('A');
-  const [attStaffSearch, setAttStaffSearch] = useState('');
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },
@@ -101,7 +103,7 @@ export default function SchoolHeadPortalPage() {
     },
     'academic-calendar': {
       title: 'Academic Calendar',
-      subtitle: 'Enter MOE dates, configure quarters and breaks, then disseminate to teachers.',
+      subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.',
     },
     resources: {
       title: 'School Resources',
@@ -141,10 +143,14 @@ export default function SchoolHeadPortalPage() {
     },
   };
 
+  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
+
   const meta = tabMeta[activeTab] ?? { title: 'School Head Portal' };
 
   const shellActions =
-    activeTab === 'manage-checkins' ? (
+    activeTab === 'academic-calendar'
+      ? calendarHeaderActions
+      : activeTab === 'manage-checkins' ? (
       <Button
         variant="organic"
         size="sm"
@@ -173,7 +179,9 @@ export default function SchoolHeadPortalPage() {
           {activeTab === 'reports' && <PerformanceReports />}
 
           {/* 3. Academic Calendar & AI Timetable */}
-          {activeTab === 'academic-calendar' && <SchoolHeadAcademicCalendarPanel />}
+          {activeTab === 'academic-calendar' && (
+            <SchoolHeadAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
+          )}
 
           {activeTab === 'resources' && <SchoolHeadResourcesPanel />}
 

@@ -105,6 +105,15 @@ export type AcademicCalendarEventType =
   | 'other';
 
 export type AcademicCalendarDayMark =
+  | 'parent-conference'
+  | 'teachers-development'
+  | 'student-registration'
+  | 'national-regional-exam'
+  | 'model-exam-checkpoint'
+  | 'student-orientation'
+  | 'break'
+  | 'first-day-of-school'
+  | 'end-of-school'
   | 'mid-exam-start'
   | 'mid-exam-end'
   | 'quarter-end'
@@ -1033,6 +1042,61 @@ export interface TeacherCheckInPrompt {
   dueDate: string;
   teacherResponse?: string;
   respondedAt?: string;
+}
+
+export type GraspOutcome = 'well_grasped' | 'majority_grasped' | 'challenged';
+
+export interface LessonDelivery {
+  id: string;
+  teachingNoteId: string;
+  lessonPlanId?: string;
+  teacherId: string;
+  graspOutcome: GraspOutcome;
+  challengeText?: string;
+  postedToHod: boolean;
+  postedToCommunity: boolean;
+  communityPostId?: string;
+  deliveredAt: string;
+}
+
+export interface CommunityPost {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  departmentId?: string;
+  subject?: string;
+  grade?: string;
+  title: string;
+  body: string;
+  teachingNoteId?: string;
+  lessonPlanId?: string;
+  createdAt: string;
+}
+
+export interface CommunityReply {
+  id: string;
+  postId: string;
+  parentReplyId?: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface StaffMessage {
+  id: string;
+  teacherId: string;
+  departmentId?: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'teacher' | 'department-head';
+  body: string;
+  relatedDeliveryId?: string;
+  relatedPostId?: string;
+  read: boolean;
+  createdAt: string;
 }
 
 export const mockDepartments: Department[] = [

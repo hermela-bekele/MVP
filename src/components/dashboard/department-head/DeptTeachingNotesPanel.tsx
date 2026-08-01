@@ -7,7 +7,7 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { filterBySubjectScope, filterDeptTeachingNotes, type DeptHeadScope } from '@/lib/departmentHead';
+import { filterDeptTeachingNotes, type DeptHeadScope } from '@/lib/departmentHead';
 import { TeachingNotesRenderer } from '@/components/ui/TeachingNotesRenderer';
 import type { AITeachingNotesResult } from '@/lib/ai';
 
