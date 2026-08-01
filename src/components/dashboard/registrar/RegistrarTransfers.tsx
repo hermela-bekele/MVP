@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { api } from '@/lib/api';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,31 +12,58 @@ import type { Student } from '@/lib/mockData';
 import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
 
 export const RegistrarTransfers: React.FC = () => {
-  const { students, updateStudent } = useApp();
+  const { students, updateStudent, addNotification } = useApp();
   const schoolStudents = filterSchoolStudents(students);
 
   const [statusFilter, setStatusFilter] = useState<Student['status'] | 'All'>('All');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [newStatus, setNewStatus] = useState<Student['status']>('Active');
   const [transferNotes, setTransferNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const filtered = useMemo(() => {
     if (statusFilter === 'All') return schoolStudents;
     return schoolStudents.filter((s) => s.status === statusFilter);
   }, [schoolStudents, statusFilter]);
 
-  const statusCounts = useMemo(() => ({
-    Active: schoolStudents.filter((s) => s.status === 'Active').length,
-    Suspended: schoolStudents.filter((s) => s.status === 'Suspended').length,
-    Transferred: schoolStudents.filter((s) => s.status === 'Transferred').length,
-    Graduated: schoolStudents.filter((s) => s.status === 'Graduated').length,
-  }), [schoolStudents]);
+  const statusCounts = useMemo(
+    () => ({
+      Active: schoolStudents.filter((s) => s.status === 'Active').length,
+      Suspended: schoolStudents.filter((s) => s.status === 'Suspended').length,
+      Transferred: schoolStudents.filter((s) => s.status === 'Transferred').length,
+      Graduated: schoolStudents.filter((s) => s.status === 'Graduated').length,
+    }),
+    [schoolStudents]
+  );
 
-  const handleStatusChange = () => {
+  const handleStatusChange = async () => {
     if (!selectedStudent) return;
-    updateStudent(selectedStudent.id, { status: newStatus });
-    setSelectedStudent(null);
-    setTransferNotes('');
+    setBusy(true);
+    setError('');
+    try {
+      const result = (await api.updateStudent(selectedStudent.id, {
+        status: newStatus,
+        notes: transferNotes || undefined,
+        applyProration: newStatus === 'Transferred' || newStatus === 'Graduated',
+      })) as Student & { prorationCredit?: number };
+      updateStudent(selectedStudent.id, { status: newStatus });
+      const creditNote =
+        result.prorationCredit && result.prorationCredit > 0
+          ? ` Proration credit ${result.prorationCredit.toLocaleString()} ETB applied.`
+          : '';
+      addNotification?.(
+        'Status updated',
+        `${selectedStudent.name} is now ${newStatus}.${creditNote}`,
+        'success'
+      );
+      setSelectedStudent(null);
+      setTransferNotes('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -60,7 +88,7 @@ export const RegistrarTransfers: React.FC = () => {
 
       <TablePanel
         title="Student Status Management"
-        description="Process transfers, suspensions, graduations, and reinstatements"
+        description="Transfers apply tuition proration credit to open invoices when applicable"
       >
         <table className="eskooly-table">
           <thead>
@@ -84,9 +112,13 @@ export const RegistrarTransfers: React.FC = () => {
                     </div>
                   </div>
                 </td>
-                <td className="p-3 text-xs">{student.grade} · {student.section}</td>
+                <td className="p-3 text-xs">
+                  {student.grade} · {student.section}
+                </td>
                 <td className="p-3">
-                  <Badge variant={statusBadgeVariant(student.status)} size="sm">{student.status}</Badge>
+                  <Badge variant={statusBadgeVariant(student.status)} size="sm">
+                    {student.status}
+                  </Badge>
                 </td>
                 <td className="p-3 text-xs font-semibold">{student.gpa.toFixed(2)}</td>
                 <td className="p-3">
@@ -96,6 +128,7 @@ export const RegistrarTransfers: React.FC = () => {
                     onClick={() => {
                       setSelectedStudent(student);
                       setNewStatus(student.status);
+                      setError('');
                     }}
                     className="text-[10px] h-7 px-2"
                   >
@@ -116,7 +149,8 @@ export const RegistrarTransfers: React.FC = () => {
         {selectedStudent && (
           <div className="space-y-4 pt-2">
             <p className="text-xs text-muted-foreground">
-              Updating status for <strong className="text-foreground">{selectedStudent.name}</strong> ({selectedStudent.studentId})
+              Updating status for <strong className="text-foreground">{selectedStudent.name}</strong> (
+              {selectedStudent.studentId})
             </p>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-muted-foreground uppercase">New Status</label>
@@ -127,8 +161,8 @@ export const RegistrarTransfers: React.FC = () => {
               >
                 <option value="Active">Active — Currently enrolled</option>
                 <option value="Suspended">Suspended — Temporarily removed</option>
-                <option value="Transferred">Transferred — Moved to another school</option>
-                <option value="Graduated">Graduated — Completed studies</option>
+                <option value="Transferred">Transferred — Moved to another school (proration credit)</option>
+                <option value="Graduated">Graduated — Completed studies (proration credit)</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -140,10 +174,24 @@ export const RegistrarTransfers: React.FC = () => {
                 className="w-full h-20 p-3 bg-muted/40 border border-border rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
             <DialogFooter className="border-t border-border/20 pt-4">
-              <Button variant="outline" size="sm" onClick={() => setSelectedStudent(null)} className="text-xs h-9">Cancel</Button>
-              <Button variant="organic" size="sm" onClick={handleStatusChange} className="text-xs h-9 border-none font-semibold">
-                Confirm Status Change
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedStudent(null)}
+                className="text-xs h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="organic"
+                size="sm"
+                onClick={handleStatusChange}
+                disabled={busy}
+                className="text-xs h-9 border-none font-semibold"
+              >
+                {busy ? 'Saving…' : 'Confirm Status Change'}
               </Button>
             </DialogFooter>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
 import { HrDashboard } from '@/components/dashboard/hr/HrDashboard';
@@ -12,6 +12,7 @@ import { HrRecruitment } from '@/components/dashboard/hr/HrRecruitment';
 import { HrPerformance } from '@/components/dashboard/hr/HrPerformance';
 import { HrOnboarding } from '@/components/dashboard/hr/HrOnboarding';
 import { HrReports } from '@/components/dashboard/hr/HrReports';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -53,7 +54,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 };
 
 export default function HrPortalPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { activeTab, setActiveTab } = usePortalTab('hr');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -62,7 +63,7 @@ export default function HrPortalPage() {
     };
     window.addEventListener('change-tab', handleTabChange);
     return () => window.removeEventListener('change-tab', handleTabChange);
-  }, []);
+  }, [setActiveTab]);
 
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
