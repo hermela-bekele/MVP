@@ -111,7 +111,7 @@ export function InvoiceDetailDialog({
       isOpen={open}
       onClose={onClose}
       title={invoice.invoiceNumber}
-      description={`${invoice.invoiceType} invoice · ${invoice.status.replace(/_/g, ' ')}`}
+      description={`${invoice.studentName || invoice.applicantName || 'Invoice'} · ${invoice.invoiceType} · ${invoice.status.replace(/_/g, ' ')}`}
       size="xl"
     >
       <div className="space-y-5">

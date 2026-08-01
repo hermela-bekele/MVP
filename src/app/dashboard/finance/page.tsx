@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { InvoiceDetailDialog } from '@/components/dashboard/billing/InvoiceDetailDialog';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 function deadlineVariant(color: Invoice['deadlineColor']) {
   if (color === 'green') return 'success' as const;
@@ -21,7 +22,7 @@ function deadlineVariant(color: Invoice['deadlineColor']) {
 
 export default function FinancePortalPage() {
   const session = readStoredSession();
-  const [tab, setTab] = useState('invoices');
+  const { activeTab: tab, setActiveTab: setTab } = usePortalTab('finance', 'invoices');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [amount, setAmount] = useState('');
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);

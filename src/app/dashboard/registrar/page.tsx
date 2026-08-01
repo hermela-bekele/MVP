@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
 import { RegistrarDashboard } from '@/components/dashboard/registrar/RegistrarDashboard';
@@ -13,6 +13,7 @@ import { RegistrarTransfers } from '@/components/dashboard/registrar/RegistrarTr
 import { RegistrarReports } from '@/components/dashboard/registrar/RegistrarReports';
 import { RegistrarBilling } from '@/components/dashboard/registrar/RegistrarBilling';
 import { RegistrarWaitlist } from '@/components/dashboard/registrar/RegistrarWaitlist';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -58,7 +59,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 };
 
 export default function RegistrarPortalPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { activeTab, setActiveTab } = usePortalTab('registrar');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -67,7 +68,7 @@ export default function RegistrarPortalPage() {
     };
     window.addEventListener('change-tab', handleTabChange);
     return () => window.removeEventListener('change-tab', handleTabChange);
-  }, []);
+  }, [setActiveTab]);
 
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 

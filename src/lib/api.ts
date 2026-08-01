@@ -541,6 +541,12 @@ export interface Invoice {
   balanceDue: number;
   daysRemaining: number;
   deadlineColor: 'green' | 'yellow' | 'red';
+  studentName?: string;
+  applicantName?: string;
+  schoolName?: string;
+  parentName?: string;
+  billingPeriod?: string;
+  notes?: string;
   lineItems?: { id: string; description: string; lineTotal: number; lineType: string }[];
   payments?: { id: string; amount: number; provider: string; status: string; paidAt?: string }[];
 }

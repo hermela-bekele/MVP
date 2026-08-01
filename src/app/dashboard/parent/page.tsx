@@ -20,6 +20,7 @@ import { MessageCenter } from '@/components/dashboard/messaging/MessageCenter';
 import { ParentReenrollmentInvites } from '@/components/dashboard/parent/ParentReenrollmentInvites';
 import { ParentFeedbackForm } from '@/components/dashboard/parent/ParentFeedbackForm';
 import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 type Child = {
   id: string;
@@ -42,7 +43,7 @@ function deadlineVariant(color: Invoice['deadlineColor']) {
 export default function ParentPortalPage() {
   const session = readStoredSession();
   const { attendance: appAttendance, addNotification } = useApp();
-  const [tab, setTab] = useState('dashboard');
+  const { activeTab: tab, setActiveTab: setTab } = usePortalTab('parent');
   const [children, setChildren] = useState<Child[]>([]);
   const [childId, setChildId] = useState('');
   const [grades, setGrades] = useState<Record<string, unknown>[]>([]);
@@ -61,6 +62,10 @@ export default function ParentPortalPage() {
   const [payingId, setPayingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoiceBucket, setInvoiceBucket] = useState<
+    'all' | 'upcoming' | 'partial' | 'overdue' | 'paid'
+  >('all');
+  const [invoiceChildFilter, setInvoiceChildFilter] = useState<'all' | string>('all');
 
   const child = useMemo(
     () => children.find((c) => c.id === childId) || children[0],
@@ -184,6 +189,48 @@ export default function ParentPortalPage() {
   );
 
   const openInvoices = invoices.filter((i) => i.balanceDue > 0);
+
+  const invoiceDisplayName = (inv: Invoice) =>
+    inv.studentName || inv.applicantName || 'Family / admission';
+
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      if (invoiceChildFilter !== 'all') {
+        if (inv.studentId) {
+          if (inv.studentId !== invoiceChildFilter) return false;
+        }
+        // Family/admission invoices without student_id stay visible for every child filter
+      }
+      const status = inv.status;
+      const overdue = status === 'overdue' || (inv.balanceDue > 0 && inv.daysRemaining < 0);
+      if (invoiceBucket === 'upcoming') {
+        return inv.balanceDue > 0 && status === 'sent' && !overdue;
+      }
+      if (invoiceBucket === 'partial') return status === 'partially_paid';
+      if (invoiceBucket === 'overdue') return overdue;
+      if (invoiceBucket === 'paid') return status === 'paid' || inv.balanceDue <= 0;
+      return true;
+    });
+  }, [invoices, invoiceBucket, invoiceChildFilter]);
+
+  const invoiceCounts = useMemo(() => {
+    const base =
+      invoiceChildFilter === 'all'
+        ? invoices
+        : invoices.filter(
+            (inv) => !inv.studentId || inv.studentId === invoiceChildFilter
+          );
+    return {
+      all: base.length,
+      upcoming: base.filter((i) => i.balanceDue > 0 && i.status === 'sent' && i.daysRemaining >= 0)
+        .length,
+      partial: base.filter((i) => i.status === 'partially_paid').length,
+      overdue: base.filter(
+        (i) => i.status === 'overdue' || (i.balanceDue > 0 && i.daysRemaining < 0)
+      ).length,
+      paid: base.filter((i) => i.status === 'paid' || i.balanceDue <= 0).length,
+    };
+  }, [invoices, invoiceChildFilter]);
 
   return (
     <DashboardShell
@@ -441,8 +488,45 @@ export default function ParentPortalPage() {
             </div>
           </ContentCard>
 
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-1 rounded-xl border border-border/70 bg-muted/40 p-1">
+              {(
+                [
+                  ['all', 'All'],
+                  ['upcoming', 'Upcoming'],
+                  ['partial', 'Partial'],
+                  ['overdue', 'Overdue'],
+                  ['paid', 'Paid'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setInvoiceBucket(id)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    invoiceBucket === id
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-card hover:text-foreground'
+                  }`}
+                >
+                  {label}
+                  <span className="ml-1 opacity-70">({invoiceCounts[id]})</span>
+                </button>
+              ))}
+            </div>
+            <Select
+              label="Child"
+              value={invoiceChildFilter}
+              onChange={(e) => setInvoiceChildFilter(e.target.value)}
+              options={[
+                { value: 'all', label: 'All children' },
+                ...children.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
+          </div>
+
           <div className="grid gap-4">
-            {invoices.map((inv) => (
+            {filteredInvoices.map((inv) => (
               <button
                 key={inv.id}
                 type="button"
@@ -452,7 +536,7 @@ export default function ParentPortalPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-bold text-primary underline-offset-2 group-hover:underline">
+                      <h3 className="text-sm font-bold text-primary underline-offset-2">
                         {inv.invoiceNumber}
                       </h3>
                       <Badge variant="neutral">{inv.invoiceType}</Badge>
@@ -460,9 +544,18 @@ export default function ParentPortalPage() {
                         {inv.status.replace(/_/g, ' ')}
                       </Badge>
                     </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      Issued {inv.issueDate} · Due {inv.dueDate} ({inv.daysRemaining} days) · Click for
-                      breakdown & receipt
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {invoiceDisplayName(inv)}
+                      {inv.billingPeriod ? (
+                        <span className="font-normal text-muted-foreground">
+                          {' '}
+                          · {inv.billingPeriod}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Issued {inv.issueDate} · Due {inv.dueDate} ({inv.daysRemaining} days) · Click
+                      for breakdown & receipt
                     </p>
                     <div className="mt-3 flex flex-wrap gap-4 text-xs">
                       <span>
@@ -510,8 +603,15 @@ export default function ParentPortalPage() {
                 </div>
               </button>
             ))}
-            {!invoices.length && (
-              <EmptyState title="No invoices" description="Admission and tuition invoices will show here." />
+            {!filteredInvoices.length && (
+              <EmptyState
+                title="No invoices in this view"
+                description={
+                  invoices.length
+                    ? 'Try another status tab or child filter.'
+                    : 'Admission and tuition invoices will show here.'
+                }
+              />
             )}
           </div>
 

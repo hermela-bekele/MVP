@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
+import { usePortalTab } from '@/lib/usePortalTab';
 export default function MoePortalPage() {
   const { 
     schools, 
@@ -29,7 +30,7 @@ export default function MoePortalPage() {
   const regionalPerformance = React.useMemo(() => computeRegionalPerformance(schools, teachers, students), [schools, teachers, students]);
   const subjectPerformance = React.useMemo(() => computeSubjectPerformance(studentGradeEntries), [studentGradeEntries]);
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { activeTab, setActiveTab } = usePortalTab('moe');
   const [searchSchool, setSearchSchool] = useState('');
   const [filterRegion, setFilterRegion] = useState('All');
   const [filterType, setFilterType] = useState('All');

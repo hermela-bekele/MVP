@@ -11,12 +11,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { AnnouncementFeed } from '@/components/dashboard/announcements/AnnouncementFeed';
 import { StudentFeedbackForm } from '@/components/dashboard/student/StudentFeedbackForm';
 import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function StudentPortalPage() {
   const session = readStoredSession();
-  const [tab, setTab] = useState('dashboard');
+  const { activeTab: tab, setActiveTab: setTab } = usePortalTab('student');
   const [student, setStudent] = useState<Record<string, unknown> | null>(null);
   const [grades, setGrades] = useState<Record<string, unknown>[]>([]);
   const [practice, setPractice] = useState<Record<string, unknown>[]>([]);

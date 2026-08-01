@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { usePortalTab } from '@/lib/usePortalTab';
 // import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
 
 // Decomposed Sub-components
@@ -36,8 +37,7 @@ export default function SchoolHeadPortalPage() {
     teachers,
   } = useApp();
 
-  // Navigation state
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { activeTab, setActiveTab } = usePortalTab('school-head');
 
   // Listen to command palette tab change events
   React.useEffect(() => {
@@ -49,7 +49,7 @@ export default function SchoolHeadPortalPage() {
     };
     window.addEventListener('change-tab', handleTabChange);
     return () => window.removeEventListener('change-tab', handleTabChange);
-  }, []);
+  }, [setActiveTab]);
 
   // Compute breadcrumbs
   const getBreadcrumbs = () => {
