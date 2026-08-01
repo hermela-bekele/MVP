@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Download, MoreVertical, Plus, Printer, Save, Send, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, MoreVertical, Plus, Printer, Save, Send, Sparkles, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -18,8 +18,10 @@ import {
   resolveTeacherProfile,
   primarySubjectForTeacher,
   STUDENT_LEVEL_OPTIONS,
+  isWeeklyPlanHodApproved,
+  graspOutcomeLabel,
 } from '@/lib/teacherPortal';
-import type { LessonPlan, TeachingNote } from '@/lib/mockData';
+import type { GraspOutcome, LessonPlan, TeachingNote } from '@/lib/mockData';
 import type { AnnualLessonPlanResult } from '@/lib/annualLessonPlan';
 import { AnnualLessonPlanTable } from '@/components/ui/AnnualLessonPlanTable';
 import { WeeklyLessonPlanTable } from '@/components/ui/WeeklyLessonPlanTable';
@@ -50,6 +52,7 @@ import {
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
 import { TeacherWeeklyPlanDialog } from '@/components/dashboard/teacher/TeacherWeeklyPlanDialog';
+import { NoteDeliveryDialog } from '@/components/dashboard/teacher/NoteDeliveryDialog';
 const TeachingNotesRenderer = lazy(() =>
   import('@/components/ui/TeachingNotesRenderer').then((m) => ({
     default: m.TeachingNotesRenderer,
@@ -142,6 +145,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     updateTeachingNote,
     addNotification,
     resolveTeacherId,
+    lessonDeliveries,
+    markLessonDelivered,
   } = useApp();
 
   const teacherId = resolveTeacherId();
@@ -177,6 +182,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [showNotesPreview, setShowNotesPreview] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [deliverNote, setDeliverNote] = useState<TeachingNote | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const activePlan = ownWeeklyPlans.find((p) => p.id === linkedPlanId);
@@ -210,6 +216,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
 
   const openCreateNote = (planId: string) => {
     const plan = ownWeeklyPlans.find((p) => p.id === planId);
+    if (plan && !isWeeklyPlanHodApproved(plan)) {
+      addNotification(
+        'Awaiting HoD approval',
+        'Generate teaching notes only after your weekly lesson plan is approved by the department head.',
+        'alert',
+      );
+      return;
+    }
     setEditingNoteId(null);
     setLinkedPlanId(planId);
     setNotesGrade(plan?.grade ?? defaultGrade);
@@ -243,7 +257,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       const preferred =
         detail?.lessonPlanId && ownWeeklyPlans.some((p) => p.id === detail.lessonPlanId)
           ? detail.lessonPlanId
-          : ownWeeklyPlans[0]?.id ?? '';
+          : ownWeeklyPlans.find((p) => isWeeklyPlanHodApproved(p))?.id ??
+            ownWeeklyPlans[0]?.id ??
+            '';
       openCreateNote(preferred);
     };
     window.addEventListener('open-teacher-lesson-plan', openPlan);
@@ -300,6 +316,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   };
 
   const handleGenerateNotes = async () => {
+    if (activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan)) {
+      addNotification(
+        'Awaiting HoD approval',
+        'This weekly plan must be approved by the department head before you generate teaching notes.',
+        'alert',
+      );
+      return;
+    }
     if (activePlan && !editingNoteId) {
       if (!selectedSessionScope) {
         addNotification('Session required', 'Choose a week session (or All sessions).', 'alert');
@@ -555,9 +579,29 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     }
   };
 
-  const renderNoteCard = (note: TeachingNote) => (
-    <div key={note.id} className={`${aisCard} relative flex flex-col overflow-hidden`}>
-      <div className="flex flex-1 flex-col p-4">
+  const deliveryForNote = (noteId: string) =>
+    lessonDeliveries.find((d) => d.teachingNoteId === noteId);
+
+  const handleDeliverySubmit = async (payload: {
+    graspOutcome: GraspOutcome;
+    challengeText?: string;
+    postTo: 'hod' | 'community' | 'both' | 'none';
+  }) => {
+    if (!deliverNote) return;
+    await markLessonDelivered({
+      teachingNoteId: deliverNote.id,
+      lessonPlanId: deliverNote.lessonPlanId,
+      graspOutcome: payload.graspOutcome,
+      challengeText: payload.challengeText,
+      postTo: payload.postTo,
+    });
+  };
+
+  const renderNoteCard = (note: TeachingNote) => {
+    const delivery = deliveryForNote(note.id);
+    return (
+    <div key={note.id} className={`${aisCard} relative flex overflow-hidden`}>
+      <div className="flex min-w-0 flex-1 flex-col p-4">
         {/* Status badge + three-dot menu */}
         <div className="mb-2 flex items-start justify-between gap-2">
           <AisStatusBadge variant={noteStatusVariant(note.status)}>{note.status}</AisStatusBadge>
@@ -597,8 +641,31 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           Updated {note.updatedAt ?? note.createdAt}
         </p>
       </div>
+      <div className="flex w-[7.5rem] shrink-0 flex-col items-center justify-center gap-2 border-l border-ais-card-border bg-ais-surface-container-low/40 px-2 py-3">
+        {delivery ? (
+          <>
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
+            <span className="text-center text-[11px] font-semibold leading-tight text-emerald-700">
+              Delivered
+            </span>
+            <span className="text-center text-[10px] leading-tight text-ais-on-surface-variant">
+              {graspOutcomeLabel(delivery.graspOutcome)}
+            </span>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ais-primary transition-colors hover:bg-ais-primary/10"
+            onClick={() => setDeliverNote(note)}
+          >
+            <CheckCircle2 className="h-5 w-5" aria-hidden />
+            Delivered
+          </button>
+        )}
+      </div>
     </div>
   );
+  };
 
   const goToLessonPlan = (planId: string) => {
     router.push(`/dashboard/teacher/teaching-notes/${planId}`);
@@ -683,6 +750,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {ownWeeklyPlans.map((plan) => {
                 const planNotes = notesForLessonPlan(myNotes, plan.id);
+                const hodApproved = isWeeklyPlanHodApproved(plan);
                 return (
                   <div
                     key={plan.id}
@@ -724,11 +792,19 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                         )}
                       </div>
                     </button>
-                    <div className="flex justify-end border-t border-ais-card-border px-3 py-2">
+                    <div className="flex items-center justify-between gap-2 border-t border-ais-card-border px-3 py-2">
+                      {!hodApproved ? (
+                        <p className="text-[11px] leading-snug text-ais-on-surface-variant">
+                          Notes unlock after HoD approval
+                        </p>
+                      ) : (
+                        <span className="text-[11px] text-ais-on-surface-variant">Add teaching notes</span>
+                      )}
                       <button
                         type="button"
-                        aria-label="Add note"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-ais-primary text-white shadow-md transition-all hover:bg-ais-primary-container hover:shadow-lg"
+                        aria-label={hodApproved ? 'Add note' : 'Weekly plan not yet approved by HoD'}
+                        disabled={!hodApproved}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-ais-primary text-white shadow-md transition-all hover:bg-ais-primary-container hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                         onClick={(e) => {
                           e.stopPropagation();
                           openCreateNote(plan.id);
@@ -770,7 +846,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               { value: '', label: 'No lesson plan (standalone)' },
               ...ownWeeklyPlans.map((p) => ({
                 value: p.id,
-                label: `${weeklyPlanWeekLabel(p)} · ${p.status}`,
+                label: `${weeklyPlanWeekLabel(p)} · ${p.status}${
+                  isWeeklyPlanHodApproved(p) ? '' : ' (awaiting HoD)'
+                }`,
               })),
             ]}
             value={linkedPlanId}
@@ -778,6 +856,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               setLinkedPlanId(e.target.value);
               const p = ownWeeklyPlans.find((x) => x.id === e.target.value);
               if (p) {
+                if (!editingNoteId && !isWeeklyPlanHodApproved(p)) {
+                  addNotification(
+                    'Awaiting HoD approval',
+                    'Pick an HoD-approved weekly plan to generate notes.',
+                    'alert',
+                  );
+                }
                 setNotesGrade(p.grade);
                 setNotesSubject(p.subject);
                 if (!editingNoteId) {
@@ -789,6 +874,12 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               }
             }}
           />
+          {activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan) && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+              This weekly plan is not yet approved by the department head. You can edit fields, but AI
+              generation stays locked until HoD approval.
+            </p>
+          )}
           {activePlan && (
             <p className={aisCallout}>
               Week: {weeklyPlanWeekLabel(activePlan)} — notes will follow this weekly plan’s
@@ -883,7 +974,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               disabled={
                 generatingNotes ||
                 !notesTopic.trim() ||
-                (!!activePlan && !editingNoteId && !selectedSessionScope)
+                (!!activePlan && !editingNoteId && !selectedSessionScope) ||
+                (!!activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan))
               }
             >
               <Sparkles className="h-3.5 w-3.5 animate-pulse" aria-hidden />
@@ -1108,6 +1200,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         onSubmit={handleSubmitLessonPlan}
         onNotify={addNotification}
       />
+
+      <NoteDeliveryDialog
+        open={!!deliverNote}
+        note={deliverNote}
+        onClose={() => setDeliverNote(null)}
+        onSubmit={handleDeliverySubmit}
+      />
     </AisPage>
   );
 };
@@ -1138,15 +1237,7 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
   if (annual?.weeks?.length) {
     return (
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-            Annual lesson plan
-          </span>
-          <span className={aisBodySm}>
-            {plan.grade} · {plan.subject} · {annual.meta?.schoolDaysPerYear ?? '—'} school days
-          </span>
-        </div>
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-2">
+        <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-3">
           <AnnualLessonPlanTable plan={annual} />
         </div>
       </div>
@@ -1156,10 +1247,7 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
   if (weekly?.sessions?.length) {
     return (
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-            Weekly lesson plan
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={aisBodySm}>
             {plan.grade} · {plan.subject} · {weekly.sessions.length} sessions
           </span>

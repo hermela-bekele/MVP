@@ -36,6 +36,11 @@ const TeacherResourcesTab = lazy(() =>
     default: m.TeacherResourcesTab,
   })),
 );
+const TeacherPracticeBank = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherPracticeBank").then((m) => ({
+    default: m.TeacherPracticeBank,
+  })),
+);
 const TeacherAssessmentsTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherAssessmentsTab").then((m) => ({
     default: m.TeacherAssessmentsTab,
@@ -81,9 +86,14 @@ const TeacherTimetableTab = lazy(() =>
     default: m.TeacherTimetableTab,
   })),
 );
-const TeacherPracticeBank = lazy(() =>
-  import("@/components/dashboard/teacher/TeacherPracticeBank").then((m) => ({
-    default: m.TeacherPracticeBank,
+const TeacherCommunityTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherCommunityTab").then((m) => ({
+    default: m.TeacherCommunityTab,
+  })),
+);
+const TeacherHodMessagesTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherHodMessagesTab").then((m) => ({
+    default: m.TeacherHodMessagesTab,
   })),
 );
 const MessageCenter = lazy(() =>
@@ -109,6 +119,14 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   "teaching-notes": {
     title: "Teaching Notes",
     subtitle: "View all notes per lesson plan and create new notes with AI.",
+  },
+  community: {
+    title: "Teacher Community",
+    subtitle: "Share classroom challenges and get threaded feedback from peers.",
+  },
+  "hod-messages": {
+    title: "HoD Messages",
+    subtitle: "Real-time conversation with your department head.",
   },
   "manage-students": {
     title: "Manage Students",
@@ -169,7 +187,7 @@ export function TeacherPortalApp() {
   const pathname = usePathname();
   const router = useRouter();
   const activeTab = tabFromPortalPath(pathname, "teacher");
-  const [trainingTypeFilter, setTrainingTypeFilter] = useState("All");
+  const [trainingTypeFilter] = useState("All");
 
   const setActiveTab = useCallback(
     (tab: string) => {
@@ -257,6 +275,8 @@ export function TeacherPortalApp() {
         {activeTab === "academic-calendar" && <TeacherAcademicCalendarTab />}
         {activeTab === "timetable" && <TeacherTimetableTab />}
         {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
+        {activeTab === "community" && <TeacherCommunityTab />}
+        {activeTab === "hod-messages" && <TeacherHodMessagesTab />}
         {activeTab === "manage-students" && <TeacherStudentsTab />}
         {activeTab === "resources" && <TeacherResourcesTab />}
         {activeTab === "practice-bank" && <TeacherPracticeBank />}

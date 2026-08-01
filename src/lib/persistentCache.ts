@@ -44,7 +44,7 @@ export async function getCachedData(cacheKey: string) {
     // Cache expired, delete file
     await fs.unlink(filePath).catch(() => {});
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -77,7 +77,7 @@ export async function getCacheStats(prefix?: string) {
       filtered: filtered.length,
       cacheLocation: CACHE_DIR,
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       total: 0,
       filtered: 0,

@@ -430,8 +430,6 @@ export default function ParentPortalPage() {
       {!loading && (tab === 'calendar' || tab === 'academic-calendar') && (
         <PublishedAcademicCalendarPanel
           schoolId={child?.schoolId || session?.schoolId || 'sch-1'}
-          title="School academic calendar"
-          description="Official term dates, exams, and school events disseminated by the school head."
         />
       )}
 

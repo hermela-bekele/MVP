@@ -35,6 +35,7 @@ import {
 import { DeptAnnualPlanPanel } from "@/components/dashboard/department-head/DeptAnnualPlanPanel";
 import { DeptTeachingNotesPanel } from "@/components/dashboard/department-head/DeptTeachingNotesPanel";
 import { DeptLessonPlansPanel } from "@/components/dashboard/department-head/DeptLessonPlansPanel";
+import { DeptHodMessagesPanel } from "@/components/dashboard/department-head/DeptHodMessagesPanel";
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 
@@ -343,8 +344,9 @@ export default function DeptHeadPortalApp() {
       subtitle: "Review and approve assessments.",
     },
     "annual-plans": {
-      title: "Annual Lesson Plans",
-      subtitle: "Generate and publish a curriculum map paced by difficulty and volume — objectives, teaching requirements, and mastery outcomes per unit.",
+      title: "Create Annual Lesson Plan",
+      subtitle:
+        "Generate a curriculum map aligned with academic calendar and time allocation to plan objectives, teaching requirements, and mastery outcomes.",
     },
     "lesson-plans": {
       title: "Weekly Plans Approval",
@@ -353,6 +355,10 @@ export default function DeptHeadPortalApp() {
     "teaching-notes": {
       title: "Teaching Notes Approval",
       subtitle: "Review AI-generated teaching notes from instructors.",
+    },
+    "teacher-messages": {
+      title: "Teacher Messages",
+      subtitle: "Live chat with teachers and review classroom challenges.",
     },
     training: {
       title: "Teacher Development",
@@ -537,7 +543,10 @@ export default function DeptHeadPortalApp() {
       )}
 
       {activeTab === "annual-plans" && scope && (
-        <DeptAnnualPlanPanel subject={scope.subject} />
+        <DeptAnnualPlanPanel
+          subject={scope.subject}
+          onViewCalendar={() => setActiveTab("academic-calendar")}
+        />
       )}
 
       {activeTab === "lesson-plans" && (
@@ -547,6 +556,8 @@ export default function DeptHeadPortalApp() {
       {activeTab === "teaching-notes" && (
         <DeptTeachingNotesPanel scope={scope} />
       )}
+
+      {activeTab === "teacher-messages" && <DeptHodMessagesPanel />}
 
       {activeTab === "reports" && (
         <div className="space-y-6 animate-fade-in">
@@ -1194,10 +1205,7 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "academic-calendar" && (
         <div className="space-y-6 animate-fade-in text-left">
-          <PublishedAcademicCalendarPanel
-            title="School academic calendar"
-            description="Official school calendar disseminated by the school head for department planning."
-          />
+          <PublishedAcademicCalendarPanel />
         </div>
       )}
 

@@ -1,252 +1,240 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import { readStoredSession } from '@/lib/auth';
+import React, { useState } from 'react';
+import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { ContentCard } from '@/components/dashboard/ContentCard';
 import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ContentCard } from '@/components/dashboard/ContentCard';
+import { TablePanel } from '@/components/dashboard/TablePanel';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/ui/empty-state';
-import { AnnouncementFeed } from '@/components/dashboard/announcements/AnnouncementFeed';
-import { StudentFeedbackForm } from '@/components/dashboard/student/StudentFeedbackForm';
+import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
-import { usePortalTab } from '@/lib/usePortalTab';
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function StudentPortalPage() {
-  const session = readStoredSession();
-  const { activeTab: tab, setActiveTab: setTab } = usePortalTab('student');
-  const [student, setStudent] = useState<Record<string, unknown> | null>(null);
-  const [grades, setGrades] = useState<Record<string, unknown>[]>([]);
-  const [practice, setPractice] = useState<Record<string, unknown>[]>([]);
-  const [timetable, setTimetable] = useState<Record<string, unknown>[]>([]);
-  const [announcements, setAnnouncements] = useState<Record<string, unknown>[]>([]);
-  const [calendar, setCalendar] = useState<Record<string, unknown>[]>([]);
-  const [docs, setDocs] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { students, addNotification } = useApp();
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  useEffect(() => {
-    setLoading(true);
-    api
-      .portalChildren()
-      .then(async (rows) => {
-        const me = rows[0] || null;
-        setStudent(me);
-        if (!me) return;
-        const id = String(me.id);
-        const grade = String(me.grade);
-        const section = String(me.section);
-        const schoolId = String(me.school_id || session?.schoolId || '');
-        const [g, p, t, d, a, cal] = await Promise.all([
-          api.portalGrades(id).catch(() => []),
-          api.portalPracticeSets(grade, schoolId).catch(() => []),
-          api.portalTimetable(grade, section, schoolId).catch(() => []),
-          api.portalDocuments(id).catch(() => []),
-          api.portalAnnouncements(schoolId).catch(() => []),
-          api.portalCalendar(schoolId).catch(() => []),
-        ]);
-        setGrades(g);
-        setPractice(p);
-        setTimetable(t);
-        setDocs(d);
-        setAnnouncements(a);
-        setCalendar(cal as Record<string, unknown>[]);
-      })
-      .finally(() => setLoading(false));
-  }, [session?.schoolId]);
+  // Let's retrieve Selam Abebe as our active student
+  const activeStudent = students.find(s => s.id === 'std-1') || students[0];
+
+  const homeworkList = [
+    { id: 'hw-1', subject: 'Biology', task: 'Write 200 words on Mitochondria cellular functions.', due: 'Tomorrow', status: 'Pending' },
+    { id: 'hw-2', subject: 'Mathematics', task: 'Factor equations 1-10 on page 84.', due: 'In 2 days', status: 'Completed' },
+    { id: 'hw-3', subject: 'English', task: 'Read chapter 4 grammar worksheets.', due: 'Next Monday', status: 'Pending' },
+  ];
+
+  const disseminatedResources = [
+    { id: 'res-1', name: 'Grade 9 Biology Textbook (Ethiopian MOE)', format: 'PDF', size: '14.2 MB' },
+    { id: 'res-2', name: 'Grade 9 Mathematics Syllabus Guide', format: 'PDF', size: '5.8 MB' },
+    { id: 'res-3', name: 'Continuous Chemistry Assessment Lab Sheet', format: 'DOCX', size: '2.1 MB' },
+  ];
+
+  const SYLLABUS_TARGET_PCT = 70;
+
+  const syllabusGrades = [
+    { id: 'bio', subject: 'Biology', topic: 'Genetics/Cells', score: 95, letter: 'A+' },
+    { id: 'math', subject: 'Mathematics', topic: 'Algebraic Formulas', score: 88, letter: 'A' },
+    { id: 'chem', subject: 'Chemistry', topic: 'Hybrid energy overlap', score: 72, letter: 'B' },
+  ] as const;
+
+  const syllabusBarClass = (score: number) => {
+    if (score >= 90) return 'bg-primary';
+    if (score >= 80) return 'bg-primary/75';
+    if (score >= SYLLABUS_TARGET_PCT) return 'bg-primary/55';
+    return 'bg-primary/40';
+  };
+
+  const syllabusStatusLabel = (score: number) => {
+    if (score >= 90) return 'Exceeds target';
+    if (score >= SYLLABUS_TARGET_PCT) return 'Meets target';
+    return 'Below target';
+  };
+
+  const classSchedule = [
+    { time: '08:30 - 09:15', monday: 'Grade 9 Math (Abebe K.)', tuesday: 'Grade 9 English (Tigist A.)', wednesday: 'Grade 9 Math (Abebe K.)', thursday: 'Grade 9 English (Tigist A.)', friday: 'Grade 9 Math (Abebe K.)' },
+    { time: '09:15 - 10:00', monday: 'Grade 9 Biology (Martha F.)', tuesday: 'Grade 9 Chemistry (Ato Demis)', wednesday: 'Grade 9 Biology (Martha F.)', thursday: 'Grade 9 Chemistry (Ato Demis)', friday: 'Study Hall' },
+    { time: '10:00 - 10:30', monday: 'Recess', tuesday: 'Recess', wednesday: 'Recess', thursday: 'Recess', friday: 'Recess' },
+    { time: '10:30 - 11:15', monday: 'Grade 9 Chemistry (Ato Demis)', tuesday: 'Grade 9 Math (Abebe K.)', wednesday: 'Grade 9 Chemistry (Ato Demis)', thursday: 'Grade 9 Math (Abebe K.)', friday: 'Assembly' },
+  ];
+
+  const tabTitles: Record<string, { title: string; subtitle?: string }> = {
+    dashboard: { title: 'My Performance', subtitle: 'Grades, attendance, and homework at a glance.' },
+    resources: { title: 'Books & Resources', subtitle: 'Digital textbooks and study materials.' },
+    timetable: { title: 'Class Timetable', subtitle: 'Your weekly class schedule.' },
+  };
+  const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
 
   return (
     <DashboardShell
-      title="Student hub"
-      subtitle={
-        student
-          ? `${String(student.name)} · ${String(student.grade)} ${String(student.section)}`
-          : 'Grades, materials, practice, and school life'
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      title={meta.title}
+      subtitle={meta.subtitle}
+      eyebrow="Student Portal"
+      actions={
+        <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
+          {activeStudent.name} · {activeStudent.grade} {activeStudent.section}
+        </span>
       }
-      eyebrow="Student portal"
-      activeTab={tab}
-      setActiveTab={setTab}
-      headerVariant="portal"
     >
-      {loading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
-          ))}
-        </div>
-      )}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6 text-left">
+              <KpiGrid>
+                <KpiWidget label="Cumulative GPA" value={activeStudent.gpa.toFixed(2)} hint="Excellent standing" tone="default" icon={<span>★</span>} />
+                <KpiWidget label="Attendance" value={`${activeStudent.attendanceRate}%`} hint="20 present days" tone="emphasis" icon={<span>✓</span>} />
+                <KpiWidget label="Tasks Done" value="12/15" hint="Assessments" tone="default" icon={<span>📋</span>} />
+                <KpiWidget label="Class Average" value="2.98" hint="Section A" tone="emphasis" icon={<span>📊</span>} />
+              </KpiGrid>
 
-      {!loading && tab === 'dashboard' && student && (
-        <div className="space-y-5 animate-fade-in">
-          <KpiGrid>
-            <KpiWidget label="Student" value={String(student.name)} tone="emphasis" />
-            <KpiWidget label="Class" value={`${student.grade} ${student.section}`} />
-            <KpiWidget label="GPA" value={String(Number(student.gpa ?? 0).toFixed(2))} />
-            <KpiWidget
-              label="Attendance"
-              value={`${Number(student.attendance_rate ?? 0).toFixed(1)}%`}
-            />
-          </KpiGrid>
-          <ContentCard title="This week" description="Quick look at what is coming up">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-border/60 bg-primary/[0.04] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-primary">Practice</p>
-                <p className="mt-1 text-2xl font-bold">{practice.length}</p>
-                <p className="text-xs text-muted-foreground">Published sets ready for you</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Announcements
-                </p>
-                <p className="mt-1 text-2xl font-bold">{announcements.length}</p>
-                <p className="text-xs text-muted-foreground">From school head</p>
-              </div>
-            </div>
-          </ContentCard>
-        </div>
-      )}
-
-      {!loading && tab === 'grades' && (
-        <ContentCard title="Published grades" description="Only results your teachers have released">
-          {grades.length ? (
-            <div className="overflow-hidden rounded-xl border border-border/60">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Subject</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Title</th>
-                    <th className="px-4 py-3 text-right">Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grades.map((g) => (
-                    <tr key={String(g.id)} className="border-t border-border/40 hover:bg-primary/[0.03]">
-                      <td className="px-4 py-3 font-medium">{String(g.subject)}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="neutral">{String(g.entry_type)}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{String(g.title)}</td>
-                      <td className="px-4 py-3 text-right font-semibold">
-                        {String(g.score)}/{String(g.max_score)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyState title="No grades yet" description="Published scores will appear here." />
-          )}
-        </ContentCard>
-      )}
-
-      {!loading && tab === 'resources' && (
-        <ContentCard title="Books & resources" description="Textbooks and shared documents">
-          {docs.length ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {docs.map((d) => (
-                <a
-                  key={String(d.id)}
-                  href={String(d.file_url)}
-                  className="flex items-start gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+              {/* Progress and Homework details */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <ContentCard
+                  title="My Syllabus Grades Completion"
+                  description={`Estimated score averages compared with school target level criteria (${SYLLABUS_TARGET_PCT}% minimum).`}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
+                  <div className="space-y-5">
+                    {syllabusGrades.map((row) => {
+                      const meetsTarget = row.score >= SYLLABUS_TARGET_PCT;
+                      return (
+                        <MetricProgressRow
+                          key={row.id}
+                          label={
+                            <>
+                              {row.subject}{' '}
+                              <span className="font-normal text-muted-foreground">({row.topic})</span>
+                            </>
+                          }
+                          headerExtra={
+                            <Badge variant={meetsTarget ? 'success' : 'warning'} size="sm">
+                              {syllabusStatusLabel(row.score)}
+                            </Badge>
+                          }
+                          value={row.score}
+                          valueDisplay={
+                            <>
+                              {row.score}% <span className="text-muted-foreground font-semibold mx-0.5">•</span>{' '}
+                              {row.letter}
+                            </>
+                          }
+                          barClassName={syllabusBarClass(row.score)}
+                          targetPercent={SYLLABUS_TARGET_PCT}
+                        />
+                      );
+                    })}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold">{String(d.title)}</p>
-                    <p className="text-[11px] capitalize text-muted-foreground">{String(d.doc_type)}</p>
-                  </div>
-                </a>
-              ))}
+                </ContentCard>
+
+                {/* Homework Task checklist */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-semibold">Pending Class Homework Checklist</CardTitle>
+                    <CardDescription>Assignments due for submission in your active term blocks.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-2 space-y-3">
+                    {homeworkList.map((hw) => (
+                      <div key={hw.id} className="flex justify-between items-center p-3 bg-muted/40 border border-border/40 rounded-lg">
+                        <div>
+                          <span className="text-xs font-bold text-foreground">{hw.task}</span>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{hw.subject} • Due: {hw.due}</p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          hw.status === 'Completed' 
+                            ? 'bg-primary/10 text-primary border border-primary/20' 
+                            : 'bg-muted text-muted-foreground border border-border'
+                        }`}>
+                          {hw.status}
+                        </span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+              </div>
+
             </div>
-          ) : (
-            <EmptyState title="No materials yet" description="Teachers will share textbooks and worksheets here." />
           )}
-        </ContentCard>
-      )}
 
-      {!loading && tab === 'practice' && (
-        <ContentCard title="Practice assessments" description="Teacher-authored question sets — no AI">
-          {practice.length ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {practice.map((p) => (
-                <div
-                  key={String(p.id)}
-                  className="rounded-xl border border-border/70 bg-gradient-to-br from-card to-primary/[0.04] p-4 shadow-sm"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant="primary">{String(p.subject)}</Badge>
-                    <Badge variant="neutral">Teacher-authored</Badge>
-                  </div>
-                  <p className="mt-3 text-sm font-bold">{String(p.title)}</p>
-                  <p className="text-xs text-muted-foreground">{String(p.grade)}</p>
-                </div>
-              ))}
+          {activeTab === 'academic-calendar' && (
+            <div className="space-y-6 animate-fade-in text-left">
+          <PublishedAcademicCalendarPanel
+            schoolId={activeStudent?.schoolId || 'sch-1'}
+          />
             </div>
-          ) : (
-            <EmptyState title="No practice sets" description="Your teachers will publish practice when ready." />
           )}
-        </ContentCard>
-      )}
 
-      {!loading && tab === 'timetable' && (
-        <ContentCard title="Class timetable" description="Weekly schedule">
-          {timetable.length ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {timetable.map((t) => (
-                <div key={String(t.id)} className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="primary">{DAY_NAMES[Number(t.day_of_week)] || `Day ${t.day_of_week}`}</Badge>
-                    <span className="text-[11px] text-muted-foreground">
-                      {String(t.start_time)}–{String(t.end_time)}
-                    </span>
+          {/* ==================================================== */}
+          {/* TAB 2: BOOKS & RESOURCES                             */}
+          {/* ==================================================== */}
+          {activeTab === 'resources' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold">Government Disseminated Textbook Assets</CardTitle>
+                  <CardDescription>Syllabus books and guidelines broadcast by curriculum directors ready for download.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {disseminatedResources.map((res) => (
+                      <div key={res.id} className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-3">
+                        <span className="text-2xl">📚</span>
+                        <div>
+                          <h4 className="text-xs font-bold text-foreground line-clamp-1">{res.name}</h4>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Format: {res.format} • Size: {res.size}</p>
+                        </div>
+                        <Button 
+                          onClick={() => addNotification('Asset Downloaded', `Download started for "${res.name}".`, 'info')}
+                          className="w-full text-xxs h-8 bg-card border border-border hover:bg-muted font-semibold cursor-pointer"
+                        >
+                          ⬇️ Download PDF
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                  <p className="mt-2 text-sm font-semibold">{String(t.subject)}</p>
-                  <p className="text-xs text-muted-foreground">{String(t.teacher_name || '')}</p>
-                </div>
-              ))}
+                </CardContent>
+              </Card>
             </div>
-          ) : (
-            <EmptyState title="Timetable not posted" description="Check again after class placement." />
           )}
-        </ContentCard>
-      )}
 
-      {!loading && (tab === 'calendar' || tab === 'academic-calendar') && (
-        <PublishedAcademicCalendarPanel
-          schoolId={session?.schoolId || String(student?.schoolId || 'sch-1')}
-          title="School academic calendar"
-          description="Official term dates, exams, and school events disseminated by the school head."
-        />
-      )}
+          {/* ==================================================== */}
+          {/* TAB 3: CLASS TIMETABLE                               */}
+          {/* ==================================================== */}
+          {activeTab === 'timetable' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <TablePanel
+                title="Weekly Lecture Period Scheduler"
+                description="Synced conflict-free schedule grid for Grade 9 Section A class."
+              >
+                    <table className="eskooly-table">
+                      <thead>
+                        <tr>
+                          <th className="p-3 text-muted-foreground font-semibold">Time Block</th>
+                          <th className="p-3 text-muted-foreground font-semibold">Monday</th>
+                          <th className="p-3 text-muted-foreground font-semibold">Tuesday</th>
+                          <th className="p-3 text-muted-foreground font-semibold">Wednesday</th>
+                          <th className="p-3 text-muted-foreground font-semibold">Thursday</th>
+                          <th className="p-3 text-muted-foreground font-semibold">Friday</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40 text-foreground font-semibold">
+                        {classSchedule.map((row, i) => (
+                          <tr key={i} className="hover:bg-muted/20">
+                            <td className="p-3 font-bold font-mono text-primary bg-muted/10">{row.time}</td>
+                            <td className="p-3">{row.monday}</td>
+                            <td className="p-3">{row.tuesday}</td>
+                            <td className="p-3">{row.wednesday}</td>
+                            <td className="p-3">{row.thursday}</td>
+                            <td className="p-3">{row.friday}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+              </TablePanel>
+            </div>
+          )}
 
-      {!loading && tab === 'announcements' && (
-        <AnnouncementFeed
-          schoolName="School Head"
-          items={announcements.map((a) => ({
-            id: String(a.id),
-            title: String(a.title),
-            body: String(a.body),
-            publishedAt: a.publishedAt ? String(a.publishedAt) : a.published_at ? String(a.published_at) : null,
-            audience: a.audience ? String(a.audience) : 'all',
-            authorName: 'School Head',
-            authorRole: 'Official',
-          }))}
-        />
-      )}
-
-      {!loading && tab === 'feedback' && (
-        <StudentFeedbackForm
-          studentId={student ? String(student.id) : undefined}
-          studentName={student ? String(student.name) : undefined}
-        />
-      )}
     </DashboardShell>
   );
 }

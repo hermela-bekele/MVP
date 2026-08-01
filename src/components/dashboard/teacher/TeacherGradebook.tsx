@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { api } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -93,7 +92,6 @@ export const TeacherGradebook: React.FC = () => {
     upsertStudentGradeEntry,
     deleteStudentGradeEntry,
     resolveTeacherId,
-    refreshFromApi,
   } = useApp();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(teachers, teacherId);
@@ -104,7 +102,6 @@ export const TeacherGradebook: React.FC = () => {
   const [detailEntry, setDetailEntry] = useState<StudentGradeEntry | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
-  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [entryType, setEntryType] = useState<StudentGradeEntryType>('Quiz');
@@ -516,19 +513,6 @@ export const TeacherGradebook: React.FC = () => {
             <div className="flex gap-2 border-t border-ais-card-border p-4">
               <AisBtnSecondary className="flex-1 !justify-center" onClick={() => openEdit(detailEntry)}>
                 Edit result
-              </AisBtnSecondary>
-              <AisBtnSecondary
-                className="!justify-center"
-                disabled={publishingId === detailEntry.id}
-                onClick={() => {
-                  setPublishingId(detailEntry.id);
-                  void api
-                    .publishGrade(detailEntry.id, !detailEntry.published)
-                    .then(() => refreshFromApi?.())
-                    .finally(() => setPublishingId(null));
-                }}
-              >
-                {detailEntry.published ? 'Unpublish' : 'Publish'}
               </AisBtnSecondary>
               <button
                 type="button"

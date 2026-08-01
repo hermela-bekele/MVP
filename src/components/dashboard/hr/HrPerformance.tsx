@@ -25,7 +25,7 @@ export const HrPerformance: React.FC = () => {
   const [goals, setGoals] = useState('');
   const [strengths, setStrengths] = useState('');
   const [improvements, setImprovements] = useState('');
-  const [reviewerName, setReviewerName] = useState('Sara Bekele');
+  const [reviewerName] = useState('Sara Bekele');
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();

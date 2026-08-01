@@ -2,12 +2,9 @@
 
 import React, { Suspense, lazy, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import {
-  aisBtnPrimary,
-  aisBtnSecondary,
-} from "@/components/dashboard/teacher/aisStyles";
+import { aisBtnSecondary } from "@/components/dashboard/teacher/aisStyles";
 import { portalTabPath } from "@/lib/portalPaths";
 
 function TabLoading() {

@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { usePortalTab } from '@/lib/usePortalTab';
+import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
 // import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
 
 // Decomposed Sub-components
@@ -17,14 +17,8 @@ import { StudentManagement } from '@/components/dashboard/school-head/StudentMan
 import { EmployeeManagement } from '@/components/dashboard/school-head/EmployeeManagement';
 import { WellnessCheckins } from '@/components/dashboard/school-head/WellnessCheckins';
 import { SettingsPanel } from '@/components/dashboard/school-head/SettingsPanel';
-import { SchoolHeadAnnouncements } from '@/components/dashboard/school-head/SchoolHeadAnnouncements';
-import { PermissionsAdminPanel } from '@/components/dashboard/school-head/PermissionsAdminPanel';
 import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
 import { SchoolHeadResourcesPanel } from '@/components/dashboard/school-head/SchoolHeadResourcesPanel';
-import { ApplicationFormBuilder } from '@/components/dashboard/school-head/ApplicationFormBuilder';
-import { SchoolBillingSettings } from '@/components/dashboard/school-head/SchoolBillingSettings';
-import { ReenrollmentCampaignPanel } from '@/components/dashboard/school-head/ReenrollmentCampaignPanel';
-import { MessageCenter } from '@/components/dashboard/messaging/MessageCenter';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 
 export default function SchoolHeadPortalPage() {
@@ -37,19 +31,24 @@ export default function SchoolHeadPortalPage() {
     teachers,
   } = useApp();
 
-  const { activeTab, setActiveTab } = usePortalTab('school-head');
+  const pathname = usePathname();
+  const router = useRouter();
+  const activeTab = tabFromPortalPath(pathname, 'school-head');
+  const setActiveTab = (tab: string) => {
+    router.push(portalTabPath('school-head', tab));
+  };
 
   // Listen to command palette tab change events
   React.useEffect(() => {
     const handleTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
-        setActiveTab(customEvent.detail);
+        router.push(portalTabPath('school-head', customEvent.detail));
       }
     };
     window.addEventListener('change-tab', handleTabChange);
     return () => window.removeEventListener('change-tab', handleTabChange);
-  }, [setActiveTab]);
+  }, [router]);
 
   // Compute breadcrumbs
   const getBreadcrumbs = () => {
@@ -59,7 +58,6 @@ export default function SchoolHeadPortalPage() {
       case 'reports': return [...base, { label: 'Performance Reports' }];
       case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
       case 'resources': return [...base, { label: 'School Resources' }];
-      case 'messages': return [...base, { label: 'Parent Messages' }];
       case 'manage-students': return [...base, { label: 'Student Directory' }];
       case 'manage-employees': return [...base, { label: 'Faculty Directory' }];
       case 'manage-classes': return [...base, { label: 'Classes Registry' }];
@@ -75,24 +73,6 @@ export default function SchoolHeadPortalPage() {
   // ==========================================
   // INLINE TABS LOGIC & STATES
   // ==========================================
-
-  // AI Timetable Generation State
-  const [calendarGrade, setCalendarGrade] = useState('Grade 9');
-  const [generatingTimetable, setGeneratingTimetable] = useState(false);
-  const [timetableOutput, setTimetableOutput] = useState<any | null>(null);
-
-  const handleAISelectCalendar = async () => {
-    setGeneratingTimetable(true);
-    try {
-      // TODO: Implement generateAICalendarTimetable function
-      // const response = await generateAICalendarTimetable();
-      const response = { message: 'Timetable generation not yet implemented' };
-      setTimetableOutput(response);
-    } catch {
-      // Catch silently
-    }
-    setGeneratingTimetable(false);
-  };
 
   // Professional Development Tab State
   const [devSubTab, setDevSubTab] = useState<'training' | 'progress'>('training');
@@ -114,9 +94,6 @@ export default function SchoolHeadPortalPage() {
 
   // Attendance Filters State
   const [attendanceTab, setAttendanceTab] = useState<'student' | 'employee'>('student');
-  const [attStudentGrade, setAttStudentGrade] = useState('Grade 9');
-  const [attStudentSection, setAttStudentSection] = useState('A');
-  const [attStaffSearch, setAttStaffSearch] = useState('');
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },
@@ -126,15 +103,11 @@ export default function SchoolHeadPortalPage() {
     },
     'academic-calendar': {
       title: 'Academic Calendar',
-      subtitle: 'Publish term dates, exams, and school events for parent and student portals.',
+      subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.',
     },
     resources: {
       title: 'School Resources',
-      subtitle: 'Disseminate school-wide materials and supporting documents.',
-    },
-    messages: {
-      title: 'Parent Messages',
-      subtitle: 'Direct conversations with parents about attendance, progress, and support.',
+      subtitle: 'Upload and disseminate school-wide pedagogy and policy materials.',
     },
     'manage-students': {
       title: 'Student Directory',
@@ -170,10 +143,14 @@ export default function SchoolHeadPortalPage() {
     },
   };
 
+  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
+
   const meta = tabMeta[activeTab] ?? { title: 'School Head Portal' };
 
   const shellActions =
-    activeTab === 'manage-checkins' ? (
+    activeTab === 'academic-calendar'
+      ? calendarHeaderActions
+      : activeTab === 'manage-checkins' ? (
       <Button
         variant="organic"
         size="sm"
@@ -201,14 +178,12 @@ export default function SchoolHeadPortalPage() {
           {/* 2. Performance Reports */}
           {activeTab === 'reports' && <PerformanceReports />}
 
-          {/* 3. Academic Calendar */}
-          {activeTab === 'academic-calendar' && <SchoolHeadAcademicCalendarPanel />}
+          {/* 3. Academic Calendar & AI Timetable */}
+          {activeTab === 'academic-calendar' && (
+            <SchoolHeadAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
+          )}
 
           {activeTab === 'resources' && <SchoolHeadResourcesPanel />}
-
-          {activeTab === 'messages' && (
-            <MessageCenter mode="staff" staffRoleHint="school-head" />
-          )}
 
           {/* Student Management */}
           {activeTab === 'manage-students' && <StudentManagement readOnly />}
@@ -489,16 +464,7 @@ export default function SchoolHeadPortalPage() {
           {activeTab === 'manage-checkins' && <WellnessCheckins />}
 
           {/* 13. Settings Panel */}
-          {activeTab === 'account-settings' && (
-            <div className="space-y-4">
-              <SchoolHeadAnnouncements />
-              <SchoolBillingSettings />
-              <ApplicationFormBuilder />
-              <ReenrollmentCampaignPanel />
-              <PermissionsAdminPanel />
-              <SettingsPanel />
-            </div>
-          )}
+          {activeTab === 'account-settings' && <SettingsPanel />}
 
     </DashboardShell>
   );

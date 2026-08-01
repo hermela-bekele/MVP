@@ -38,39 +38,39 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
-          h1: ({ node, ...props }) => (
+          h1: ({ node: _node, ...props }) => (
             <h1 className="text-2xl font-bold text-ais-on-surface mb-4 mt-6 pb-2 border-b border-ais-card-border" {...props} />
           ),
-          h2: ({ node, ...props }) => (
+          h2: ({ node: _node, ...props }) => (
             <h2 className="text-xl font-semibold text-ais-on-surface mb-3 mt-5 flex items-center gap-2" {...props} />
           ),
-          h3: ({ node, ...props }) => (
+          h3: ({ node: _node, ...props }) => (
             <h3 className="text-lg font-semibold text-ais-primary mb-2 mt-4" {...props} />
           ),
-          h4: ({ node, ...props }) => (
+          h4: ({ node: _node, ...props }) => (
             <h4 className="text-base font-semibold text-ais-on-surface mb-2 mt-3" {...props} />
           ),
-          p: ({ node, ...props }) => (
+          p: ({ node: _node, ...props }) => (
             <p className="text-sm text-ais-on-surface-variant leading-relaxed mb-3" {...props} />
           ),
-          ul: ({ node, ...props }) => (
+          ul: ({ node: _node, ...props }) => (
             <ul className="list-disc list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
-          ol: ({ node, ...props }) => (
+          ol: ({ node: _node, ...props }) => (
             <ol className="list-decimal list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
-          li: ({ node, children, ...props }) => (
+          li: ({ node: _node, children, ...props }) => (
             <li className="ml-2" {...props}>
               <span className="ml-2">{children}</span>
             </li>
           ),
-          strong: ({ node, ...props }) => (
+          strong: ({ node: _node, ...props }) => (
             <strong className="font-bold text-ais-on-surface" {...props} />
           ),
-          em: ({ node, ...props }) => (
+          em: ({ node: _node, ...props }) => (
             <em className="italic text-ais-on-surface" {...props} />
           ),
-          code: ({ node, inline, className, children, ...props }: any) => {
+          code: ({ node: _node, inline, className: _className, children, ...props }: any) => {
             if (inline) {
               return (
                 <code className="px-1.5 py-0.5 rounded bg-ais-surface-container-low text-ais-primary text-xs font-mono" {...props}>
@@ -84,36 +84,36 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
               </code>
             );
           },
-          pre: ({ node, ...props }) => (
+          pre: ({ node: _node, ...props }) => (
             <pre className="my-3" {...props} />
           ),
-          blockquote: ({ node, ...props }) => (
+          blockquote: ({ node: _node, ...props }) => (
             <blockquote className="border-l-4 border-ais-primary pl-4 py-2 my-4 bg-ais-primary/5 rounded-r-lg" {...props} />
           ),
-          a: ({ node, ...props }) => (
+          a: ({ node: _node, ...props }) => (
             <a className="text-ais-primary hover:text-ais-primary/80 underline" {...props} />
           ),
-          table: ({ node, ...props }) => (
+          table: ({ node: _node, ...props }) => (
             <div className="overflow-x-auto my-6">
               <table className="min-w-full border-collapse rounded-lg overflow-hidden shadow-sm" {...props} />
             </div>
           ),
-          thead: ({ node, ...props }) => (
+          thead: ({ node: _node, ...props }) => (
             <thead className="bg-ais-primary/10" {...props} />
           ),
-          th: ({ node, ...props }) => (
+          th: ({ node: _node, ...props }) => (
             <th className="px-6 py-4 text-left text-sm font-bold text-ais-primary border-b-2 border-ais-primary/20" {...props} />
           ),
-          tbody: ({ node, ...props }) => (
+          tbody: ({ node: _node, ...props }) => (
             <tbody className="bg-white" {...props} />
           ),
-          tr: ({ node, ...props }) => (
+          tr: ({ node: _node, ...props }) => (
             <tr className="border-b border-ais-card-border hover:bg-ais-surface-container-low/50 transition-colors" {...props} />
           ),
-          td: ({ node, ...props }) => (
+          td: ({ node: _node, ...props }) => (
             <td className="px-6 py-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
-          hr: ({ node, ...props }) => (
+          hr: ({ node: _node, ...props }) => (
             <hr className="my-6 border-t border-ais-card-border" {...props} />
           ),
         }}
