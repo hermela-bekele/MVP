@@ -13,6 +13,7 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { computeSubjectPerformance } from '@/lib/analytics';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 export default function CurriculumHeadPortalPage() {
   const {
@@ -22,7 +23,7 @@ export default function CurriculumHeadPortalPage() {
     disseminateTrainingMaterial,
     addNotification,
   } = useApp();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { activeTab, setActiveTab } = usePortalTab('curriculum-head');
 
   const [isResourceUploadOpen, setIsResourceUploadOpen] = useState(false);
   const [resourceTitle, setResourceTitle] = useState('');

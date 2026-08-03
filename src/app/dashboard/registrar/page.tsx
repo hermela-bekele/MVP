@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
 import { RegistrarDashboard } from '@/components/dashboard/registrar/RegistrarDashboard';
@@ -11,6 +11,9 @@ import { RegistrarGradeManagement } from '@/components/dashboard/registrar/Regis
 import { RegistrarClassPlacement } from '@/components/dashboard/registrar/RegistrarClassPlacement';
 import { RegistrarTransfers } from '@/components/dashboard/registrar/RegistrarTransfers';
 import { RegistrarReports } from '@/components/dashboard/registrar/RegistrarReports';
+import { RegistrarBilling } from '@/components/dashboard/registrar/RegistrarBilling';
+import { RegistrarWaitlist } from '@/components/dashboard/registrar/RegistrarWaitlist';
+import { usePortalTab } from '@/lib/usePortalTab';
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -19,7 +22,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   applications: {
     title: 'Applications Queue',
-    subtitle: 'Review, approve, reject, and enroll incoming student registration applications.',
+    subtitle: 'Score, waitlist, accept (seat + invoice), or reject applications.',
   },
   'enroll-student': {
     title: 'New Enrollment',
@@ -41,6 +44,14 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'Transfers & Status',
     subtitle: 'Process student transfers, suspensions, graduations, and reinstatements.',
   },
+  billing: {
+    title: 'Invoices & Fees',
+    subtitle: 'Admission and tuition invoices with deadline colors and partial payments.',
+  },
+  waitlist: {
+    title: 'Waitlist & Capacity',
+    subtitle: 'Priority waitlist board and grade/section seat capacity.',
+  },
   reports: {
     title: 'Enrollment Reports',
     subtitle: 'Enrollment statistics, grade distribution, and attendance alerts.',
@@ -48,7 +59,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 };
 
 export default function RegistrarPortalPage() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { activeTab, setActiveTab } = usePortalTab('registrar');
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -57,7 +68,7 @@ export default function RegistrarPortalPage() {
     };
     window.addEventListener('change-tab', handleTabChange);
     return () => window.removeEventListener('change-tab', handleTabChange);
-  }, []);
+  }, [setActiveTab]);
 
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
@@ -107,6 +118,8 @@ export default function RegistrarPortalPage() {
       {activeTab === 'grade-management' && <RegistrarGradeManagement />}
       {activeTab === 'class-placement' && <RegistrarClassPlacement />}
       {activeTab === 'transfers' && <RegistrarTransfers />}
+      {activeTab === 'billing' && <RegistrarBilling />}
+      {activeTab === 'waitlist' && <RegistrarWaitlist />}
       {activeTab === 'reports' && <RegistrarReports />}
     </DashboardShell>
   );

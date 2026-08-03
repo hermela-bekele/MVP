@@ -1,138 +1,135 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useApp } from '@/context/AppContext';
+import React, { useCallback, useEffect, useState } from 'react';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
-import type { RegistrationApplication } from '@/lib/mockData';
-import { statusBadgeVariant } from '@/lib/registrarPortal';
+import { api, type AdmissionApplication, type Invoice } from '@/lib/api';
+import { readStoredSession } from '@/lib/auth';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
+function statusVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' | 'info' {
+  if (['enrolled', 'accepted_pending_payment'].includes(status)) return 'success';
+  if (['submitted', 'under_review', 'info_requested', 'waitlisted'].includes(status)) return 'warning';
+  if (['rejected', 'expired_unpaid'].includes(status)) return 'danger';
+  return 'neutral';
+}
+
+function deadlineBadge(color?: string) {
+  if (color === 'green') return 'success' as const;
+  if (color === 'yellow') return 'warning' as const;
+  if (color === 'red') return 'danger' as const;
+  return 'neutral' as const;
+}
+
 export const RegistrarApplications: React.FC = () => {
-  const {
-    registrationApplications,
-    reviewRegistrationApplication,
-    enrollFromApplication,
-    submitRegistrationApplication,
-  } = useApp();
+  const session = readStoredSession();
+  const schoolId = session?.schoolId || 'sch-1';
+  const [apps, setApps] = useState<AdmissionApplication[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [selected, setSelected] = useState<AdmissionApplication | null>(null);
+  const [notes, setNotes] = useState('');
+  const [score, setScore] = useState('70');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const [selectedApp, setSelectedApp] = useState<RegistrationApplication | null>(null);
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [isNewAppOpen, setIsNewAppOpen] = useState(false);
-
-  const [applicantName, setApplicantName] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [gradeApplied, setGradeApplied] = useState('Grade 9');
-  const [sectionRequested, setSectionRequested] = useState('A');
-  const [parentName, setParentName] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
-  const [parentEmail, setParentEmail] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState('');
-  const [medicalInfo, setMedicalInfo] = useState('');
-  const [previousSchool, setPreviousSchool] = useState('');
+  const refresh = useCallback(async () => {
+    try {
+      const [a, inv] = await Promise.all([
+        api.listApplications(schoolId),
+        api.listInvoices({ schoolId }),
+      ]);
+      setApps(a);
+      setInvoices(inv);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load');
+    }
+  }, [schoolId]);
 
   useEffect(() => {
-    const handleOpen = () => setIsNewAppOpen(true);
-    window.addEventListener('open-registrar-application', handleOpen);
-    return () => window.removeEventListener('open-registrar-application', handleOpen);
-  }, []);
+    refresh();
+  }, [refresh]);
 
-  const handleSubmitApplication = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!applicantName || !parentName || !parentPhone) return;
-
-    submitRegistrationApplication({
-      applicantName,
-      dateOfBirth: dateOfBirth || undefined,
-      gradeApplied,
-      sectionRequested,
-      parentName,
-      parentPhone,
-      parentEmail,
-      emergencyContact,
-      medicalInfo: medicalInfo || undefined,
-      previousSchool: previousSchool || undefined,
-    });
-
-    setApplicantName('');
-    setDateOfBirth('');
-    setParentName('');
-    setParentPhone('');
-    setParentEmail('');
-    setEmergencyContact('');
-    setMedicalInfo('');
-    setPreviousSchool('');
-    setIsNewAppOpen(false);
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setError('');
+    try {
+      await fn();
+      await refresh();
+      setSelected(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const columns: DataTableColumn<RegistrationApplication>[] = [
+  const columns: DataTableColumn<AdmissionApplication>[] = [
     {
       key: 'applicantName',
       header: 'Applicant',
       sortable: true,
       render: (row) => (
         <div>
-          <p className="text-xs font-semibold text-foreground">{row.applicantName}</p>
-          {row.previousSchool && (
-            <p className="text-[9px] text-muted-foreground">From: {row.previousSchool}</p>
-          )}
+          <div className="font-medium text-sm">{row.applicantName}</div>
+          <div className="text-[11px] text-muted-foreground">{row.referenceCode}</div>
         </div>
       ),
     },
+    { key: 'gradeApplied', header: 'Grade', sortable: true },
     {
-      key: 'gradeApplied',
-      header: 'Grade / Section',
-      render: (row) => (
-        <Badge variant="neutral" size="sm">
-          {row.gradeApplied} · {row.sectionRequested}
-        </Badge>
-      ),
-    },
-    {
-      key: 'parentName',
-      header: 'Parent Contact',
-      render: (row) => (
-        <div>
-          <p className="text-[11px] font-medium">{row.parentName}</p>
-          <p className="text-[9px] text-muted-foreground">{row.parentPhone}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'submittedAt',
-      header: 'Submitted',
+      key: 'priorityScore',
+      header: 'Score',
       sortable: true,
-      render: (row) => <span className="text-xs text-muted-foreground">{row.submittedAt}</span>,
+      render: (row) => <span className="font-semibold">{row.priorityScore}</span>,
     },
     {
       key: 'status',
       header: 'Status',
-      sortable: true,
+      render: (row) => <Badge variant={statusVariant(row.status)}>{row.status.replace(/_/g, ' ')}</Badge>,
+    },
+    {
+      key: 'parentName',
+      header: 'Parent',
       render: (row) => (
-        <Badge variant={statusBadgeVariant(row.status)} size="sm">
-          {row.status}
-        </Badge>
+        <div className="text-xs">
+          <div>{row.parentName}</div>
+          <div className="text-muted-foreground">{row.parentEmail}</div>
+        </div>
       ),
     },
     {
+      key: 'invoice',
+      header: 'Invoice deadline',
+      render: (row) => {
+        const inv = invoices.find((i) => i.id === row.invoiceId);
+        if (!inv) return <span className="text-muted-foreground text-xs">—</span>;
+        return (
+          <Badge variant={deadlineBadge(inv.deadlineColor)}>
+            {inv.dueDate} · {inv.balanceDue} {inv.currency}
+          </Badge>
+        );
+      },
+    },
+    {
       key: 'actions',
-      header: 'Actions',
+      header: '',
       render: (row) => (
         <Button
-          type="button"
-          variant="outline"
           size="sm"
-          onClick={() => {
-            setSelectedApp(row);
-            setReviewNotes(row.reviewerNotes ?? '');
+          variant="outline"
+          className="text-xs h-8"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelected(row);
+            setNotes(row.reviewerNotes || '');
+            setScore(String(row.priorityScore || 70));
           }}
-          className="text-[10px] h-7 px-2"
         >
           Review
         </Button>
@@ -141,259 +138,67 @@ export const RegistrarApplications: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4">
+      {error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </div>
+      )}
       <TablePanel
-        title="Registration Applications Queue"
-        description="Review, approve, reject, and enroll incoming student applications"
+        title="Applications queue"
+        description="Score/priority waitlist, accept (reserves seat + admission invoice), reject, or waitlist."
+        actions={
+          <Button size="sm" variant="outline" onClick={() => refresh()}>
+            Refresh
+          </Button>
+        }
       >
-        <DataTable<RegistrationApplication>
-          columns={columns}
-          data={registrationApplications}
-          searchable
-          searchKeys={['applicantName', 'parentName', 'previousSchool']}
-          pageSize={10}
-        />
+        <DataTable columns={columns} data={apps} />
       </TablePanel>
 
       <Dialog
-        isOpen={!!selectedApp}
-        onClose={() => setSelectedApp(null)}
-        title="Application Review"
-        size="lg"
+        isOpen={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected?.applicantName || 'Application'}
       >
-        {selectedApp && (
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-left">
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Applicant</p>
-                <p className="text-xs font-medium">{selectedApp.applicantName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Date of Birth</p>
-                <p className="text-xs font-medium">{selectedApp.dateOfBirth ?? '—'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Grade / Section</p>
-                <p className="text-xs font-medium">
-                  {selectedApp.gradeApplied} · Section {selectedApp.sectionRequested}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Parent</p>
-                <p className="text-xs font-medium">{selectedApp.parentName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Phone</p>
-                <p className="text-xs font-medium">{selectedApp.parentPhone}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase">Previous School</p>
-                <p className="text-xs font-medium">{selectedApp.previousSchool ?? '—'}</p>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Reviewer Notes</label>
-              <textarea
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                placeholder="Document verification notes, missing items, etc."
-                className="w-full h-20 p-3 bg-muted/40 border border-border rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                disabled={selectedApp.status === 'Enrolled' || selectedApp.status === 'Rejected'}
-              />
-            </div>
-
-            <DialogFooter className="flex flex-wrap gap-2 justify-end border-t border-border/20 pt-4">
-              <Button variant="outline" size="sm" onClick={() => setSelectedApp(null)} className="text-xs h-9">
-                Close
+        {selected && (
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-muted-foreground">
+              {selected.referenceCode} · {selected.gradeApplied} · {selected.sourceChannel}
+            </p>
+            <p>
+              Parent: {selected.parentName} ({selected.parentPhone})
+            </p>
+            <label className="block text-xs space-y-1">
+              Priority score
+              <input className={inputClass} value={score} onChange={(e) => setScore(e.target.value)} />
+            </label>
+            <label className="block text-xs space-y-1">
+              Notes / reason
+              <textarea className={`${inputClass} h-20 py-2`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </label>
+            <DialogFooter className="flex-wrap gap-2">
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.scoreApplication(selected.id, Number(score), notes))}>
+                Save score
               </Button>
-              {selectedApp.status === 'Submitted' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    reviewRegistrationApplication(selectedApp.id, 'Under Review', reviewNotes);
-                    setSelectedApp({ ...selectedApp, status: 'Under Review' });
-                  }}
-                  className="text-xs h-9"
-                >
-                  Mark Under Review
-                </Button>
-              )}
-              {!['Enrolled', 'Rejected', 'Approved'].includes(selectedApp.status) && (
-                <>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      reviewRegistrationApplication(selectedApp.id, 'Rejected', reviewNotes);
-                      setSelectedApp(null);
-                    }}
-                    className="text-xs h-9 border-none"
-                  >
-                    Reject
-                  </Button>
-                  <Button
-                    variant="organic"
-                    size="sm"
-                    onClick={() => {
-                      reviewRegistrationApplication(selectedApp.id, 'Approved', reviewNotes);
-                      setSelectedApp({ ...selectedApp, status: 'Approved' });
-                    }}
-                    className="text-xs h-9 border-none"
-                  >
-                    Approve
-                  </Button>
-                </>
-              )}
-              {selectedApp.status === 'Approved' && (
-                <Button
-                  variant="organic"
-                  size="sm"
-                  onClick={() => {
-                    enrollFromApplication(selectedApp.id);
-                    setSelectedApp(null);
-                  }}
-                  className="text-xs h-9 border-none font-bold"
-                >
-                  Enroll Student
-                </Button>
-              )}
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.requestInfoApplication(selected.id, notes || 'Please provide more information'))}>
+                Request info
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.waitlistApplication(selected.id, notes))}>
+                Waitlist
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.rejectApplication(selected.id, notes || 'Not selected'))}>
+                Reject
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.withdrawApplication(selected.id, notes || 'Withdrawn'))}>
+                Withdraw
+              </Button>
+              <Button size="sm" disabled={busy} onClick={() => run(() => api.acceptApplication(selected.id, { section: selected.sectionRequested, notes }))}>
+                Accept + invoice
+              </Button>
             </DialogFooter>
           </div>
         )}
-      </Dialog>
-
-      <Dialog
-        isOpen={isNewAppOpen}
-        onClose={() => setIsNewAppOpen(false)}
-        title="New Registration Application"
-        size="lg"
-      >
-        <form onSubmit={handleSubmitApplication} className="space-y-4 pt-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Applicant Name</label>
-              <input
-                type="text"
-                required
-                value={applicantName}
-                onChange={(e) => setApplicantName(e.target.value)}
-                className={inputClass}
-                placeholder="Full legal name"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Date of Birth</label>
-              <input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Previous School</label>
-              <input
-                type="text"
-                value={previousSchool}
-                onChange={(e) => setPreviousSchool(e.target.value)}
-                className={inputClass}
-                placeholder="Transfer school name"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Grade Applied</label>
-              <select
-                value={gradeApplied}
-                onChange={(e) => setGradeApplied(e.target.value)}
-                className={inputClass}
-              >
-                {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Section Requested</label>
-              <select
-                value={sectionRequested}
-                onChange={(e) => setSectionRequested(e.target.value)}
-                className={inputClass}
-              >
-                {['A', 'B', 'C', 'D'].map((s) => (
-                  <option key={s} value={s}>Section {s}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Parent / Guardian</label>
-              <input
-                type="text"
-                required
-                value={parentName}
-                onChange={(e) => setParentName(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Phone</label>
-              <input
-                type="tel"
-                required
-                value={parentPhone}
-                onChange={(e) => setParentPhone(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Email</label>
-              <input
-                type="email"
-                value={parentEmail}
-                onChange={(e) => setParentEmail(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Emergency Contact</label>
-              <input
-                type="text"
-                value={emergencyContact}
-                onChange={(e) => setEmergencyContact(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Medical Info</label>
-              <input
-                type="text"
-                value={medicalInfo}
-                onChange={(e) => setMedicalInfo(e.target.value)}
-                className={inputClass}
-                placeholder="Allergies, conditions, etc."
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="border-t border-border/20 pt-4">
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsNewAppOpen(false)} className="text-xs h-9">
-              Cancel
-            </Button>
-            <Button type="submit" variant="organic" size="sm" className="text-xs h-9 border-none font-semibold">
-              Submit Application
-            </Button>
-          </DialogFooter>
-        </form>
       </Dialog>
     </div>
   );

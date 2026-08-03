@@ -36,6 +36,11 @@ const TeacherResourcesTab = lazy(() =>
     default: m.TeacherResourcesTab,
   })),
 );
+const TeacherPracticeBank = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherPracticeBank").then((m) => ({
+    default: m.TeacherPracticeBank,
+  })),
+);
 const TeacherAssessmentsTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherAssessmentsTab").then((m) => ({
     default: m.TeacherAssessmentsTab,
@@ -72,9 +77,11 @@ const TeacherSettingsTab = lazy(() =>
   })),
 );
 const TeacherAcademicCalendarTab = lazy(() =>
-  import("@/components/dashboard/teacher/TeacherAcademicCalendarTab").then((m) => ({
-    default: m.TeacherAcademicCalendarTab,
-  })),
+  import("@/components/dashboard/teacher/TeacherAcademicCalendarTab").then(
+    (m) => ({
+      default: m.TeacherAcademicCalendarTab,
+    }),
+  ),
 );
 const TeacherTimetableTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherTimetableTab").then((m) => ({
@@ -89,6 +96,11 @@ const TeacherCommunityTab = lazy(() =>
 const TeacherHodMessagesTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherHodMessagesTab").then((m) => ({
     default: m.TeacherHodMessagesTab,
+  })),
+);
+const MessageCenter = lazy(() =>
+  import("@/components/dashboard/messaging/MessageCenter").then((m) => ({
+    default: m.MessageCenter,
   })),
 );
 
@@ -112,7 +124,6 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   community: {
     title: "Teacher Community",
-    subtitle: "Share classroom challenges and get threaded feedback from peers.",
   },
   "hod-messages": {
     title: "HoD Messages",
@@ -126,6 +137,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   resources: {
     title: "Resources",
     subtitle: "Upload and disseminate worksheets, slides, and lab guides.",
+  },
+  "practice-bank": {
+    title: "Practice Bank",
+    subtitle: "Author questions and publish practice sets for students.",
   },
   assessments: {
     title: "Manage Assessments",
@@ -158,6 +173,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   feedback: {
     title: "Feedback",
     subtitle: "View feedback received and provide comments to students.",
+  },
+  messages: {
+    title: "Parent Messages",
+    subtitle: "One-to-one conversations with parents about your students.",
   },
   settings: {
     title: "Settings",
@@ -261,6 +280,7 @@ export function TeacherPortalApp() {
         {activeTab === "hod-messages" && <TeacherHodMessagesTab />}
         {activeTab === "manage-students" && <TeacherStudentsTab />}
         {activeTab === "resources" && <TeacherResourcesTab />}
+        {activeTab === "practice-bank" && <TeacherPracticeBank />}
         {activeTab === "assessments" && <TeacherAssessmentsTab />}
         {activeTab === "checkins" && <TeacherCheckinsTab />}
         {activeTab === "manage-classes" && <TeacherClassesTab />}
@@ -274,6 +294,9 @@ export function TeacherPortalApp() {
           />
         )}
         {activeTab === "feedback" && <TeacherFeedbackTab />}
+        {activeTab === "messages" && (
+          <MessageCenter mode="staff" staffRoleHint="teacher" />
+        )}
         {activeTab === "settings" && <TeacherSettingsTab />}
       </Suspense>
     </DashboardShell>
