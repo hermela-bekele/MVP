@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Check, Plus, X } from 'lucide-react';
+import { Check, Plus, Send, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -18,6 +18,13 @@ import {
   resolveTeacherProfile,
   weightedTermAverage,
 } from '@/lib/teacherPortal';
+import {
+  buildTeacherSuggestion,
+  computeQuestionMissStats,
+  formatGradeMissReport,
+  GRADE_MISS_THRESHOLD,
+  highMissQuestions,
+} from '@/lib/gradeMissAnalytics';
 import type {
   GradeQuestionResult,
   StudentGradeEntry,
@@ -92,6 +99,8 @@ export const TeacherGradebook: React.FC = () => {
     upsertStudentGradeEntry,
     deleteStudentGradeEntry,
     resolveTeacherId,
+    sendStaffMessage,
+    addNotification,
   } = useApp();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(teachers, teacherId);
@@ -114,6 +123,7 @@ export const TeacherGradebook: React.FC = () => {
   const [questionCount, setQuestionCount] = useState(10);
   const [questionMarks, setQuestionMarks] = useState<GradeQuestionResult[]>([]);
   const [useQuestionMarks, setUseQuestionMarks] = useState(true);
+  const [reportingHod, setReportingHod] = useState(false);
 
   const roster = useMemo(
     () => filterTeacherStudents(students, classGrade, classSection),
@@ -127,6 +137,65 @@ export const TeacherGradebook: React.FC = () => {
       ),
     [studentGradeEntries, classGrade, classSection, teacherId],
   );
+
+  const missStats = useMemo(
+    () => computeQuestionMissStats(classEntries, { minAttempts: 2 }),
+    [classEntries],
+  );
+  const flaggedMisses = useMemo(() => highMissQuestions(missStats), [missStats]);
+  const teacherSuggestion = useMemo(
+    () => buildTeacherSuggestion(missStats),
+    [missStats],
+  );
+
+  const reportMissesToHod = async () => {
+    if (flaggedMisses.length === 0) return;
+    setReportingHod(true);
+    try {
+      const byAssessment = new Map<string, typeof flaggedMisses>();
+      for (const s of flaggedMisses) {
+        const list = byAssessment.get(s.assessmentTitle) ?? [];
+        list.push(s);
+        byAssessment.set(s.assessmentTitle, list);
+      }
+      for (const [assessmentTitle, questions] of byAssessment) {
+        const body = formatGradeMissReport({
+          teacherName: teacherProfile.name,
+          subject: questions[0]?.subject || defaultSubject,
+          gradeLevel: classGrade,
+          section: classSection,
+          assessmentTitle,
+          questions: questions.slice(0, 5).map((q) => ({
+            questionNumber: q.questionNumber,
+            prompt: q.prompt,
+            missRate: q.missRate,
+            missed: q.missed,
+            attempted: q.attempted,
+            topicHint: q.topicHint,
+          })),
+          suggestion: buildTeacherSuggestion(questions),
+        });
+        await sendStaffMessage({
+          teacherId,
+          body,
+          senderRole: 'teacher',
+        });
+      }
+      addNotification(
+        'Reported to HoD',
+        'High-miss question analytics were sent. Your department head can generate a training module.',
+        'success',
+      );
+    } catch {
+      addNotification(
+        'Report failed',
+        'Could not send miss-rate report to the department head.',
+        'alert',
+      );
+    } finally {
+      setReportingHod(false);
+    }
+  };
 
   const columns = useMemo(() => {
     const map = new Map<string, ColumnDef & { sortDate: string }>();
@@ -300,6 +369,59 @@ export const TeacherGradebook: React.FC = () => {
         <p className={aisBodySm}>
           Click a score cell to see which questions were correct or incorrect.
         </p>
+      </div>
+
+      <div className={`${aisCard} space-y-3 p-4`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className={aisLabelCaps}>Question miss analytics</p>
+            <h3 className={`${aisHeadlineSm} mt-1`}>Where the class struggles</h3>
+            <p className={`${aisBodySm} mt-1`}>
+              Questions missed by ≥{GRADE_MISS_THRESHOLD}% of students (need at least 2 marked papers).
+            </p>
+          </div>
+          {flaggedMisses.length > 0 && (
+            <AisBtnSecondary
+              type="button"
+              className="!text-xs"
+              disabled={reportingHod}
+              onClick={() => void reportMissesToHod()}
+            >
+              <Send className="h-3.5 w-3.5" aria-hidden />
+              {reportingHod ? 'Reporting…' : 'Report to HoD'}
+            </AisBtnSecondary>
+          )}
+        </div>
+        <p className={`${aisBodyMd} rounded-lg bg-ais-surface-container-low/60 p-3`}>
+          <span className="font-semibold text-ais-on-surface">Suggestion: </span>
+          {teacherSuggestion}
+        </p>
+        {flaggedMisses.length === 0 ? (
+          <p className={aisBodySm}>
+            {missStats.length === 0
+              ? 'Mark quizzes/tests question-by-question to see which items most students miss.'
+              : 'No questions currently above the miss threshold — nice work.'}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {flaggedMisses.slice(0, 6).map((q) => (
+              <li
+                key={q.key}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ais-card-border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-ais-on-surface">
+                    Q{q.questionNumber} · {q.assessmentTitle}
+                  </p>
+                  <p className={`${aisBodySm} line-clamp-2`}>{q.topicHint}</p>
+                </div>
+                <AisStatusBadge variant={q.missRate >= 60 ? 'error' : 'warning'}>
+                  {q.missRate}% miss ({q.missed}/{q.attempted})
+                </AisStatusBadge>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <AisPanel

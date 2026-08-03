@@ -160,6 +160,23 @@ export const api = {
     body: { title: string; objectives: string[]; sessions: number; homework: string }
   ) =>
     request(`/lesson-plans/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteLessonPlan: (id: string) =>
+    request(`/lesson-plans/${id}`, { method: 'DELETE' }),
+  updateDeptAnnualLessonPlan: (
+    id: string,
+    body: {
+      title: string;
+      grade: string;
+      subject: string;
+      sessions: number;
+      objectives: string[];
+      activities: { session: number; activity: string; duration: string }[];
+      assessments: string[];
+      homework: string;
+      planDetail: string;
+    },
+  ) =>
+    request(`/lesson-plans/${id}/annual`, { method: 'PATCH', body: JSON.stringify(body) }),
   createAssessment: (body: Record<string, unknown>) =>
     request('/assessments', { method: 'POST', body: JSON.stringify(body) }),
   updateAssessment: (id: string, body: { questions: unknown[] }) =>
@@ -217,6 +234,8 @@ export const api = {
     request('/teaching-notes', { method: 'POST', body: JSON.stringify(body) }),
   updateTeachingNote: (id: string, body: Record<string, unknown>) =>
     request(`/teaching-notes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteTeachingNote: (id: string) =>
+    request(`/teaching-notes/${id}`, { method: 'DELETE' }),
   createAcademicCalendar: (body: Record<string, unknown>) =>
     request('/academic-calendars', { method: 'POST', body: JSON.stringify(body) }),
   publishAcademicCalendar: (id: string) =>

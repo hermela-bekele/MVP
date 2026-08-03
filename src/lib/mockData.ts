@@ -943,6 +943,8 @@ export interface TrainingMaterial {
   subject?: string;
   disseminated?: boolean;
   uploadedAt: string;
+  /** Optional inline module body (AI-generated PD). Also encoded in resourceUrl when prefixed inline-md: */
+  contentBody?: string;
 }
 
 export interface TeachingNote {

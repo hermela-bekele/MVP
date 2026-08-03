@@ -176,6 +176,26 @@ export function filterTeacherLessonPlans(
   });
 }
 
+/** Keep only the newest lesson plan per grade + subject (by createdAt, then id). */
+export function keepLatestLessonPlansByGradeSubject(plans: LessonPlan[]): LessonPlan[] {
+  const best = new Map<string, LessonPlan>();
+  for (const p of plans) {
+    const key = `${(p.grade || '').trim().toLowerCase()}|${(p.subject || '').trim().toLowerCase()}`;
+    const cur = best.get(key);
+    if (!cur) {
+      best.set(key, p);
+      continue;
+    }
+    const newer =
+      String(p.createdAt).localeCompare(String(cur.createdAt)) > 0 ||
+      (p.createdAt === cur.createdAt && p.id > cur.id);
+    if (newer) best.set(key, p);
+  }
+  return Array.from(best.values()).sort((a, b) =>
+    String(b.createdAt).localeCompare(String(a.createdAt)),
+  );
+}
+
 export function filterTeacherAssessments(assessments: Assessment[], teacherId = DEMO_TEACHER_ID) {
   return assessments.filter((a) => a.teacherId === teacherId);
 }

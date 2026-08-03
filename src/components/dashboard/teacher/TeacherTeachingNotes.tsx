@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Download, MoreVertical, Plus, Printer, Save, Send, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, Eye, MoreVertical, Pencil, Plus, Printer, Save, Send, Sparkles, Trash2, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import type { AITeachingNotesResult, AIDetailedLessonPlanResult } from '@/lib/ai';
 import {
   getWeeklyPlanSessionTopicOptions,
@@ -20,6 +22,7 @@ import {
   STUDENT_LEVEL_OPTIONS,
   isWeeklyPlanHodApproved,
   graspOutcomeLabel,
+  keepLatestLessonPlansByGradeSubject,
 } from '@/lib/teacherPortal';
 import type { GraspOutcome, LessonPlan, TeachingNote } from '@/lib/mockData';
 import type { AnnualLessonPlanResult } from '@/lib/annualLessonPlan';
@@ -143,6 +146,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     createLessonPlan,
     createTeachingNote,
     updateTeachingNote,
+    deleteTeachingNote,
+    deleteLessonPlan,
+    updateLessonPlan,
     addNotification,
     resolveTeacherId,
     lessonDeliveries,
@@ -157,11 +163,12 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     subjects: teacherProfile.subjects,
   });
   const ownWeeklyPlans = teacherPlans.filter((p) => p.planType !== 'yearly');
-  const publishedAnnualPlans = teacherPlans.filter(
-    (p) => p.planType === 'yearly' && p.createdByRole === 'department-head',
+  const publishedAnnualPlans = keepLatestLessonPlansByGradeSubject(
+    teacherPlans.filter(
+      (p) => p.planType === 'yearly' && p.createdByRole === 'department-head',
+    ),
   );
   const myNotes = teachingNotes.filter((n) => n.teacherId === teacherId);
-  const unlinkedNotes = myNotes.filter((n) => !n.lessonPlanId);
 
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [notesStudentLevel, setNotesStudentLevel] = useState<string>('differentiated');
@@ -180,10 +187,15 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [noteContentText, setNoteContentText] = useState('');
   const [showNoteContentPreview, setShowNoteContentPreview] = useState(false);
   const [showNotesPreview, setShowNotesPreview] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [deliverNote, setDeliverNote] = useState<TeachingNote | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [weeklyPlanDialog, setWeeklyPlanDialog] = useState<{
+    plan: LessonPlan;
+    mode: 'view' | 'edit';
+  } | null>(null);
+  const [editWeeklyTitle, setEditWeeklyTitle] = useState('');
+  const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
+  const [notePendingDelete, setNotePendingDelete] = useState<TeachingNote | null>(null);
 
   const activePlan = ownWeeklyPlans.find((p) => p.id === linkedPlanId);
   const sessionTopicOptions = activePlan
@@ -270,17 +282,10 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     };
   }, [ownWeeklyPlans]); // openCreateNote closes over latest weekly plans via rebind each render
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!openMenuId) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openMenuId]);
+  const openWeeklyPlanDialog = (plan: LessonPlan, mode: 'view' | 'edit') => {
+    setWeeklyPlanDialog({ plan, mode });
+    setEditWeeklyTitle(plan.title);
+  };
 
   const closeNoteModal = () => {
     setNoteModalOpen(false);
@@ -602,37 +607,42 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     return (
     <div key={note.id} className={`${aisCard} relative flex overflow-hidden`}>
       <div className="flex min-w-0 flex-1 flex-col p-4">
-        {/* Status badge + three-dot menu */}
         <div className="mb-2 flex items-start justify-between gap-2">
           <AisStatusBadge variant={noteStatusVariant(note.status)}>{note.status}</AisStatusBadge>
-          <div className="relative" ref={openMenuId === note.id ? menuRef : undefined}>
-            <button
-              type="button"
-              aria-label="Note actions"
-              className="flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover"
-              onClick={() => setOpenMenuId(openMenuId === note.id ? null : note.id)}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-            {openMenuId === note.id && (
-              <div className="absolute right-0 top-8 z-50 min-w-[130px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  type="button"
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => { setOpenMenuId(null); setViewNote(note); }}
-                >
-                  View
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => { setOpenMenuId(null); openEditNote(note); }}
-                >
-                  Edit
-                </button>
-              </div>
-            )}
-          </div>
+          <DropdownMenu
+            align="right"
+            trigger={
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover">
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Note actions</span>
+              </span>
+            }
+            sections={[
+              {
+                items: [
+                  {
+                    id: 'view',
+                    label: 'View',
+                    icon: <Eye className="h-4 w-4" />,
+                    onClick: () => setViewNote(note),
+                  },
+                  {
+                    id: 'edit',
+                    label: 'Edit',
+                    icon: <Pencil className="h-4 w-4" />,
+                    onClick: () => openEditNote(note),
+                  },
+                  {
+                    id: 'delete',
+                    label: 'Delete',
+                    icon: <Trash2 className="h-4 w-4" />,
+                    danger: true,
+                    onClick: () => setNotePendingDelete(note),
+                  },
+                ],
+              },
+            ]}
+          />
         </div>
         <p className={`${aisDataMd} font-semibold line-clamp-2`}>{note.title}</p>
         <p className={`${aisBodySm} mt-1`}>{note.topic}</p>
@@ -704,13 +714,17 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </div>
         )
       ) : (
-        <div className="space-y-4">
-          {publishedAnnualPlans.length > 0 && (
-            <div className="space-y-3">
-              <p className={aisLabelCaps}>Published annual lesson plans</p>
-              <p className={aisBodySm}>
-                From your department head — paced on the school calendar and teaching textbook.
+        <div className="space-y-8">
+          <section className="space-y-3">
+            <p className={aisLabelCaps}>Published annual lesson plans</p>
+            <p className={aisBodySm}>
+              From your department head — paced on the school calendar and teaching textbook.
+            </p>
+            {publishedAnnualPlans.length === 0 ? (
+              <p className={aisBodyMd}>
+                No published annual plans yet. Wait for your department head to publish one.
               </p>
+            ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {publishedAnnualPlans.map((plan) => (
                   <div
@@ -738,98 +752,265 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </section>
 
-          <p className={aisLabelCaps}>Weekly lesson plans</p>
-          {ownWeeklyPlans.length === 0 && publishedAnnualPlans.length === 0 ? (
-            <p className={aisBodyMd}>Create a weekly lesson plan from a published annual plan, or wait for your department head to publish an annual plan.</p>
-          ) : ownWeeklyPlans.length === 0 ? (
-            <p className={aisBodyMd}>No weekly plans yet — create one from the annual plan above (Create lesson plan).</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ownWeeklyPlans.map((plan) => {
-                const planNotes = notesForLessonPlan(myNotes, plan.id);
-                const hodApproved = isWeeklyPlanHodApproved(plan);
-                return (
-                  <div
-                    key={plan.id}
-                    className={`${aisCard} flex min-h-[180px] flex-col overflow-hidden transition-shadow hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]`}
-                  >
-                    <button
-                      type="button"
-                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-ais-row-hover"
-                      onClick={() => goToLessonPlan(plan.id)}
+          <section className="space-y-3">
+            <p className={aisLabelCaps}>Weekly lesson plans</p>
+            <p className={aisBodySm}>
+              Create from a published annual plan, then generate teaching notes after HoD approval.
+            </p>
+            {ownWeeklyPlans.length === 0 ? (
+              <p className={aisBodyMd}>
+                {publishedAnnualPlans.length === 0
+                  ? 'Create a weekly lesson plan once an annual plan is published, or wait for your department head.'
+                  : 'No weekly plans yet — create one from the annual plan above (Create lesson plan).'}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {ownWeeklyPlans.map((plan) => {
+                  const planNotes = notesForLessonPlan(myNotes, plan.id);
+                  const hodApproved = isWeeklyPlanHodApproved(plan);
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`${aisCard} flex min-h-[180px] flex-col overflow-hidden transition-shadow hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)]`}
                     >
-                      {/* Title with note count in top right */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <h3 className={`${aisHeadlineSm} line-clamp-2 flex-1`}>{weeklyPlanWeekLabel(plan)}</h3>
-                        <span className="inline-flex items-center justify-center min-w-[2rem] h-7 rounded-full bg-ais-primary/10 px-2.5 text-xs font-bold tabular-nums text-ais-primary shrink-0">
-                          {planNotes.length}
-                        </span>
+                      <div className="flex items-start justify-between gap-2 px-4 pt-4">
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => openWeeklyPlanDialog(plan, 'view')}
+                        >
+                          <h3 className={`${aisHeadlineSm} line-clamp-2`}>{weeklyPlanWeekLabel(plan)}</h3>
+                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-ais-primary/10 px-2.5 text-xs font-bold tabular-nums text-ais-primary">
+                            {planNotes.length}
+                          </span>
+                          <DropdownMenu
+                            align="right"
+                            trigger={
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover">
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">Weekly plan actions</span>
+                              </span>
+                            }
+                            sections={[
+                              {
+                                items: [
+                                  {
+                                    id: 'view',
+                                    label: 'View',
+                                    icon: <Eye className="h-4 w-4" />,
+                                    onClick: () => openWeeklyPlanDialog(plan, 'view'),
+                                  },
+                                  {
+                                    id: 'edit',
+                                    label: 'Edit',
+                                    icon: <Pencil className="h-4 w-4" />,
+                                    onClick: () => openWeeklyPlanDialog(plan, 'edit'),
+                                  },
+                                  {
+                                    id: 'delete',
+                                    label: 'Delete',
+                                    icon: <Trash2 className="h-4 w-4" />,
+                                    danger: true,
+                                    onClick: () => setPlanPendingDelete(plan),
+                                  },
+                                ],
+                              },
+                            ]}
+                          />
+                        </div>
                       </div>
-                      
-                      <p className={`${aisBodySm} text-ais-on-surface-variant mb-1 line-clamp-1`}>
-                        {plan.title}
-                      </p>
-                      <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
-                        {plan.subject} · {plan.sessions} {plan.sessions === 1 ? 'session' : 'sessions'}
-                      </p>
-                      
-                      {/* Status badge with icon for pending */}
-                      <div className="mt-auto">
-                        {plan.status === 'Pending Dept Head' || plan.status === 'Pending School Head' ? (
-                          <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 dark:bg-orange-900/30 px-3 py-1 text-xs font-medium text-orange-700 dark:text-orange-300">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {plan.status.replace('Pending ', '')}
-                          </div>
-                        ) : (
-                          <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>
-                            {plan.status}
-                          </AisStatusBadge>
-                        )}
-                      </div>
-                    </button>
-                    <div className="flex items-center justify-between gap-2 border-t border-ais-card-border px-3 py-2">
-                      {!hodApproved ? (
-                        <p className="text-[11px] leading-snug text-ais-on-surface-variant">
-                          Notes unlock after HoD approval
-                        </p>
-                      ) : (
-                        <span className="text-[11px] text-ais-on-surface-variant">Add teaching notes</span>
-                      )}
                       <button
                         type="button"
-                        aria-label={hodApproved ? 'Add note' : 'Weekly plan not yet approved by HoD'}
-                        disabled={!hodApproved}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-ais-primary text-white shadow-md transition-all hover:bg-ais-primary-container hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openCreateNote(plan.id);
-                        }}
+                        className="flex flex-1 flex-col px-4 pb-4 pt-2 text-left transition-colors hover:bg-ais-row-hover"
+                        onClick={() => goToLessonPlan(plan.id)}
                       >
-                        <Plus className="h-4 w-4" aria-hidden />
+                        <p className={`${aisBodySm} text-ais-on-surface-variant mb-1 line-clamp-1`}>
+                          {plan.title}
+                        </p>
+                        <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
+                          {plan.subject} · {plan.sessions} {plan.sessions === 1 ? 'session' : 'sessions'}
+                        </p>
+                        <div className="mt-auto">
+                          {plan.status === 'Pending Dept Head' || plan.status === 'Pending School Head' ? (
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {plan.status.replace('Pending ', '')}
+                            </div>
+                          ) : (
+                            <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>
+                              {plan.status}
+                            </AisStatusBadge>
+                          )}
+                        </div>
                       </button>
+                      <div className="flex items-center justify-between gap-2 border-t border-ais-card-border px-3 py-2">
+                        {!hodApproved ? (
+                          <p className="text-[11px] leading-snug text-ais-on-surface-variant">
+                            Notes unlock after HoD approval
+                          </p>
+                        ) : (
+                          <span className="text-[11px] text-ais-on-surface-variant">Add teaching notes</span>
+                        )}
+                        <button
+                          type="button"
+                          aria-label={hodApproved ? 'Add note' : 'Weekly plan not yet approved by HoD'}
+                          disabled={!hodApproved}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-ais-primary text-white shadow-md transition-all hover:bg-ais-primary-container hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCreateNote(plan.id);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" aria-hidden />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <p className={aisLabelCaps}>Teaching notes</p>
+            <p className={aisBodySm}>
+              Generated from weekly lesson plans after HoD approval.
+            </p>
+            {myNotes.length === 0 ? (
+              <p className={aisBodyMd}>
+                No teaching notes yet. Approve a weekly plan with your HoD, then add notes from the card above.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {myNotes.map(renderNoteCard)}
+              </div>
+            )}
+          </section>
         </div>
       )}
 
-      {!lessonPlanId && unlinkedNotes.length > 0 && (
-        <div className={`${aisCard} p-4`}>
-          <div className="mb-3 border-b border-ais-card-border pb-3">
-            <h3 className={aisHeadlineSm}>Notes without lesson plan</h3>
-            <p className={`${aisBodyMd} mt-0.5`}>Standalone teaching materials not linked to a syllabus plan.</p>
+      <Dialog
+        isOpen={Boolean(weeklyPlanDialog)}
+        onClose={() => setWeeklyPlanDialog(null)}
+        title={
+          weeklyPlanDialog?.mode === 'edit'
+            ? 'Edit weekly lesson plan'
+            : 'Weekly lesson plan'
+        }
+        size="2xl"
+        largeTitle
+      >
+        {weeklyPlanDialog && (
+          <div className="space-y-4 pt-1">
+            {weeklyPlanDialog.mode === 'edit' ? (
+              <div>
+                <label className={aisFormLabel} htmlFor="edit-weekly-title">
+                  Title
+                </label>
+                <input
+                  id="edit-weekly-title"
+                  className={aisInput}
+                  value={editWeeklyTitle}
+                  onChange={(e) => setEditWeeklyTitle(e.target.value)}
+                />
+              </div>
+            ) : (
+              <p className={aisBodySm}>
+                {weeklyPlanDialog.plan.grade} · {weeklyPlanDialog.plan.subject} ·{' '}
+                {weeklyPlanDialog.plan.status}
+              </p>
+            )}
+            <PlanSummary plan={weeklyPlanDialog.plan} />
+            <DialogFooter className="pt-2 -mb-1">
+              <AisBtnSecondary onClick={() => setWeeklyPlanDialog(null)}>Close</AisBtnSecondary>
+              {weeklyPlanDialog.mode === 'edit' && (
+                <AisBtnPrimary
+                  onClick={() => {
+                    const p = weeklyPlanDialog.plan;
+                    const title = editWeeklyTitle.trim() || p.title;
+                    updateLessonPlan(p.id, title, p.objectives, p.sessions, p.homework);
+                    addNotification('Weekly plan updated', `"${title}" saved.`, 'success');
+                    setWeeklyPlanDialog(null);
+                  }}
+                >
+                  <Save className="h-3.5 w-3.5" aria-hidden />
+                  Save
+                </AisBtnPrimary>
+              )}
+            </DialogFooter>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{unlinkedNotes.map(renderNoteCard)}</div>
-        </div>
-      )}
+        )}
+      </Dialog>
+
+      <Dialog
+        isOpen={Boolean(planPendingDelete)}
+        onClose={() => setPlanPendingDelete(null)}
+        title="Delete weekly lesson plan?"
+        description="This cannot be undone."
+        size="sm"
+      >
+        <p className="text-sm text-ais-on-surface">
+          Delete{' '}
+          <span className="font-semibold">
+            {planPendingDelete ? weeklyPlanWeekLabel(planPendingDelete) : 'this weekly plan'}
+          </span>
+          ?
+        </p>
+        <DialogFooter className="mt-5 -mx-5 sm:-mx-6 -mb-5 sm:-mb-6">
+          <Button variant="outline" onClick={() => setPlanPendingDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (planPendingDelete) {
+                deleteLessonPlan(planPendingDelete.id);
+                if (lessonPlanId === planPendingDelete.id) goBackToList();
+              }
+              setPlanPendingDelete(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      <Dialog
+        isOpen={Boolean(notePendingDelete)}
+        onClose={() => setNotePendingDelete(null)}
+        title="Delete teaching note?"
+        description="This cannot be undone."
+        size="sm"
+      >
+        <p className="text-sm text-ais-on-surface">
+          Delete{' '}
+          <span className="font-semibold">{notePendingDelete?.title ?? 'this teaching note'}</span>?
+        </p>
+        <DialogFooter className="mt-5 -mx-5 sm:-mx-6 -mb-5 sm:-mb-6">
+          <Button variant="outline" onClick={() => setNotePendingDelete(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (notePendingDelete) {
+                deleteTeachingNote(notePendingDelete.id);
+                if (viewNote?.id === notePendingDelete.id) setViewNote(null);
+              }
+              setNotePendingDelete(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       <Dialog
         isOpen={noteModalOpen}

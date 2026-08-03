@@ -36,6 +36,7 @@ import { DeptAnnualPlanPanel } from "@/components/dashboard/department-head/Dept
 import { DeptTeachingNotesPanel } from "@/components/dashboard/department-head/DeptTeachingNotesPanel";
 import { DeptLessonPlansPanel } from "@/components/dashboard/department-head/DeptLessonPlansPanel";
 import { DeptHodMessagesPanel } from "@/components/dashboard/department-head/DeptHodMessagesPanel";
+import { DeptGradeMissTrainingPanel } from "@/components/dashboard/department-head/DeptGradeMissTrainingPanel";
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 
@@ -827,6 +828,8 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "training" && (
         <div className="space-y-6 animate-fade-in">
+          <DeptGradeMissTrainingPanel />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold">

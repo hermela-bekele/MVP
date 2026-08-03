@@ -206,6 +206,7 @@ interface AppContextType {
     status?: TeachingNote['status']
   ) => string;
   updateTeachingNote: (id: string, updates: Partial<TeachingNote>) => void;
+  deleteTeachingNote: (id: string) => void;
   approveTeachingNote: (id: string, comments: string) => void;
   rejectTeachingNote: (id: string, comments: string) => void;
   createAcademicCalendar: (
@@ -219,6 +220,11 @@ interface AppContextType {
   createDeptAnnualLessonPlan: (
     plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
   ) => void;
+  updateDeptAnnualLessonPlan: (
+    id: string,
+    plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
+  ) => void;
+  deleteLessonPlan: (id: string) => void;
   upsertStudentGradeEntry: (
     entry: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => void;
@@ -956,6 +962,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const deleteTeachingNote = (id: string) => {
+    const note = teachingNotes.find((n) => n.id === id);
+    setTeachingNotes((prev) => prev.filter((n) => n.id !== id));
+    void api.deleteTeachingNote(id).then(() => {
+      if (note) {
+        addNotification('Teaching note deleted', `"${note.title}" was removed.`, 'info');
+      }
+    }).catch(() => {
+      if (note) setTeachingNotes((prev) => [...prev, note]);
+      addNotification('Delete failed', 'Could not delete teaching note. Please try again.', 'alert');
+    });
+  };
+
   const approveTeachingNote = (id: string, comments: string) => {
     const note = teachingNotes.find((n) => n.id === id);
     updateTeachingNote(id, { status: 'Approved', deptComments: comments });
@@ -1106,6 +1125,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           'alert',
         );
       });
+  };
+
+  const updateDeptAnnualLessonPlan = (
+    id: string,
+    planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>,
+  ) => {
+    const payload = {
+      title: planData.title,
+      grade: planData.grade,
+      subject: planData.subject,
+      sessions: planData.sessions,
+      objectives: planData.objectives,
+      activities: planData.activities,
+      assessments: planData.assessments,
+      homework: planData.homework,
+      planDetail: planData.planDetail ?? '',
+    };
+
+    setLessonPlans((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              ...planData,
+              status: 'Approved' as const,
+              planType: 'yearly' as const,
+              createdByRole: 'department-head' as const,
+              version: (p.version ?? 1) + 1,
+            }
+          : p,
+      ),
+    );
+
+    void api
+      .updateDeptAnnualLessonPlan(id, payload)
+      .then((lp) => {
+        setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
+        addNotification(
+          'Annual Plan Updated',
+          `"${(lp as LessonPlan).title}" changes were saved.`,
+          'success',
+        );
+      })
+      .catch(() => {
+        addNotification(
+          'Annual Plan Updated Locally',
+          `"${planData.title}" saved on this device — sync when the server is available.`,
+          'alert',
+        );
+      });
+  };
+
+  const deleteLessonPlan = (id: string) => {
+    const existing = lessonPlans.find((p) => p.id === id);
+    setLessonPlans((prev) => prev.filter((p) => p.id !== id));
+    void api.deleteLessonPlan(id).then(() => {
+      addNotification(
+        'Lesson plan deleted',
+        existing ? `"${existing.title}" was removed.` : 'Lesson plan deleted.',
+        'success',
+      );
+    }).catch(() => {
+      addNotification(
+        'Deleted Locally',
+        existing
+          ? `"${existing.title}" removed here — confirm server sync when online.`
+          : 'Lesson plan removed locally.',
+        'alert',
+      );
+    });
   };
 
   const applyGpaFromGradeEntries = (studentId: string, entries: StudentGradeEntry[]) => {
@@ -1484,12 +1573,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         distributeLessonPlan,
         createTeachingNote,
         updateTeachingNote,
+        deleteTeachingNote,
         approveTeachingNote,
         rejectTeachingNote,
         createAcademicCalendar,
         updateAcademicCalendar,
         publishAcademicCalendar,
         createDeptAnnualLessonPlan,
+        updateDeptAnnualLessonPlan,
+        deleteLessonPlan,
         upsertStudentGradeEntry,
         deleteStudentGradeEntry,
         recalculateStudentGpaFromGrades,

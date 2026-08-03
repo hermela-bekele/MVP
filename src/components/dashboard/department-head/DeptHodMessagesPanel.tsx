@@ -149,12 +149,12 @@ export function DeptHodMessagesPanel() {
                   <li key={c.id}>
                     <button
                       type="button"
-                      className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-ais-row-hover"
+                      className="w-full rounded-lg px-2 py-1.5 text-left text-sm hover:bg-ais-row-hover"
                       onClick={() => setSelectedTeacherId(c.teacherId)}
                     >
                       <span className="font-semibold">{t?.name ?? 'Teacher'}</span>
-                      <span className="mt-0.5 block text-ais-on-surface-variant line-clamp-2">
-                        {c.challengeText}
+                      <span className="block text-xs text-ais-on-surface-variant line-clamp-2">
+                        {c.challengeText || 'Classroom challenge after delivery'}
                       </span>
                     </button>
                   </li>
