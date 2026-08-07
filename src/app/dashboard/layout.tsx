@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { OfflineBanner } from '@/components/offline/OfflineBanner';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { CommandPalette, CommandItem } from '@/components/ui/command-palette';
 import { useApp } from '@/context/AppContext';
@@ -122,7 +123,8 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <RoleGuard>
-        <div className="flex flex-1 min-h-screen bg-[hsl(var(--dashboard-bg))]">
+        <div className="flex flex-1 min-h-screen flex-col bg-[hsl(var(--dashboard-bg))]">
+          <OfflineBanner />
           <div className="flex flex-1 w-full relative">
             {children}
             <DashboardCommandPalette />

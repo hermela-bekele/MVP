@@ -300,7 +300,7 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
       <form onSubmit={handleSubmit} className="space-y-4 pt-2">
         <p className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200">
           Pick a week from the published annual plan, edit the content if needed, set sessions and
-          minutes, then generate the weekly template and submit for department approval.
+          minutes, then generate the weekly template and submit for department head approval (final).
         </p>
 
         {annualPlans.length === 0 ? (

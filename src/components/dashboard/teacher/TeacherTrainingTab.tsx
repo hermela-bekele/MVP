@@ -10,6 +10,7 @@ import {
   Download,
   ChevronRight,
   ChevronLeft,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   CONTINUOUS_DEVELOPMENT_MODULES,
@@ -19,6 +20,10 @@ import {
   calculateModuleProgress,
 } from "@/lib/continuousDevelopmentModules";
 import { TRAINING_MODULES } from "@/lib/trainingModules";
+import { TIP_MODULES } from "@/lib/inductionModules";
+import { ELEP_MODULES } from "@/lib/leadershipModules";
+import { useApp } from "@/context/AppContext";
+import { getDemoTeacher } from "@/lib/teacherPortal";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
 import { ModuleAssessmentPanel } from "@/components/dashboard/teacher/ModuleAssessmentPanel";
 import { AisPage } from "@/components/dashboard/teacher/TeacherPortalUi";
@@ -63,11 +68,25 @@ export const TeacherTrainingTab: React.FC<{
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const { teachers, currentUser, teacherTrainingAssignments } = useApp();
+  const teacher = getDemoTeacher(teachers, currentUser?.email, currentUser?.displayName);
+
   // Select the appropriate modules based on active tab
   const ALL_MODULES =
     activeTabType === "training-subject-matter"
       ? TRAINING_MODULES
-      : CONTINUOUS_DEVELOPMENT_MODULES;
+      : activeTabType === "training-induction"
+        ? TIP_MODULES
+        : activeTabType === "leadership-development"
+          ? ELEP_MODULES
+          : CONTINUOUS_DEVELOPMENT_MODULES;
+
+  const program: "TIP" | "STEP" | null =
+    activeTabType === "training-induction" ? "TIP" : activeTabType === "training-continuous" ? "STEP" : null;
+
+  const assignedModules = program
+    ? teacherTrainingAssignments.filter((a) => a.teacherId === teacher.id && a.program === program)
+    : [];
 
   // Calculate pagination
   const totalPages = Math.ceil(ALL_MODULES.length / CARDS_PER_PAGE);
@@ -150,6 +169,31 @@ export const TeacherTrainingTab: React.FC<{
   if (!selectedModule) {
     return (
       <AisPage>
+        {assignedModules.length > 0 && (
+          <div className="rounded-2xl border border-ais-primary/30 bg-ais-primary/5 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ais-primary">
+              <ClipboardCheck className="h-4 w-4" />
+              Assigned to you by your HoD
+            </div>
+            <div className="space-y-2">
+              {assignedModules.map((a) => {
+                const mod = ALL_MODULES.find((m) => m.id === a.moduleId);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => mod && setSelectedModule(mod)}
+                    disabled={!mod}
+                    className="flex w-full flex-col gap-0.5 rounded-lg border border-ais-card-border bg-white px-3 py-2 text-left text-sm hover:border-ais-primary/40 disabled:cursor-default disabled:opacity-70 dark:bg-ais-surface"
+                  >
+                    <span className="font-semibold text-ais-on-surface">{a.moduleTitle}</span>
+                    {a.reason && <span className="text-xs text-ais-on-surface-variant">{a.reason}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Module Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentModules.map((module) => {

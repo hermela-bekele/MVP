@@ -173,6 +173,7 @@ export function DeptGradeMissTrainingPanel() {
       'AI module saved',
       `"${preview.title}" is in Resources — disseminate to share with teachers.`,
       'success',
+      '/dashboard/department-head/training',
     );
     setPreview(null);
     setSelectedKey(null);
@@ -198,8 +199,8 @@ export function DeptGradeMissTrainingPanel() {
             Grade miss alerts (≥{GRADE_MISS_THRESHOLD}%)
           </CardTitle>
           <CardDescription>
-            Questions most students miss across {scope?.subject ?? 'department'} classes. Generate an
-            AI training module on the weak topic for the teacher.
+            Student-result gaps for {scope?.subject ?? 'department'} classes. Use AI to generate a
+            training module on the weak topic, then disseminate it to the teacher.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 pt-2">

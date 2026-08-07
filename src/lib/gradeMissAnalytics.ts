@@ -137,6 +137,281 @@ export function highMissQuestions(
   return stats.filter((s) => s.missRate >= threshold);
 }
 
+/** Distinct assessments the teacher already recorded results for (prefers question-level). */
+export function listAssessmentsWithQuestionResults(entries: StudentGradeEntry[]): Array<{
+  key: string;
+  assessmentId?: string;
+  title: string;
+  entryType: string;
+  subject: string;
+  studentCount: number;
+  hasQuestionResults: boolean;
+}> {
+  const map = new Map<
+    string,
+    {
+      assessmentId?: string;
+      title: string;
+      entryType: string;
+      subject: string;
+      students: Set<string>;
+      hasQuestionResults: boolean;
+    }
+  >();
+  for (const e of entries) {
+    const hasQr = !!e.questionResults?.length;
+    // Include any recorded result that is linked to an assessment, or has per-question marks
+    if (!hasQr && !e.assessmentId) continue;
+    const key = e.assessmentId
+      ? `id:${e.assessmentId}`
+      : `title:${e.entryType}::${e.title}`;
+    const cur = map.get(key);
+    if (!cur) {
+      map.set(key, {
+        assessmentId: e.assessmentId,
+        title: e.title,
+        entryType: e.entryType,
+        subject: e.subject,
+        students: new Set([e.studentId]),
+        hasQuestionResults: hasQr,
+      });
+    } else {
+      cur.students.add(e.studentId);
+      if (!cur.assessmentId && e.assessmentId) cur.assessmentId = e.assessmentId;
+      if (hasQr) cur.hasQuestionResults = true;
+    }
+  }
+  return [...map.entries()]
+    .map(([key, v]) => ({
+      key,
+      assessmentId: v.assessmentId,
+      title: v.title,
+      entryType: v.entryType,
+      subject: v.subject,
+      studentCount: v.students.size,
+      hasQuestionResults: v.hasQuestionResults,
+    }))
+    .sort((a, b) => {
+      if (a.hasQuestionResults !== b.hasQuestionResults) {
+        return a.hasQuestionResults ? -1 : 1;
+      }
+      return a.title.localeCompare(b.title);
+    });
+}
+
+export function filterEntriesForAssessment(
+  entries: StudentGradeEntry[],
+  selection: { assessmentId?: string; title: string; entryType: string },
+): StudentGradeEntry[] {
+  return entries.filter((e) => {
+    if (selection.assessmentId) {
+      return e.assessmentId === selection.assessmentId || e.title === selection.title;
+    }
+    return e.entryType === selection.entryType && e.title === selection.title;
+  });
+}
+
+/** Overall correct vs missed answers for pie chart. */
+export function buildAnswerPieData(entries: StudentGradeEntry[]): Array<{
+  name: string;
+  value: number;
+  fill: string;
+}> {
+  let correct = 0;
+  let missed = 0;
+  for (const e of entries) {
+    for (const q of e.questionResults ?? []) {
+      if (q.correct) correct += 1;
+      else missed += 1;
+    }
+  }
+  return [
+    { name: 'Correct', value: correct, fill: 'hsl(152 45% 36%)' },
+    { name: 'Missed', value: missed, fill: 'hsl(25 85% 48%)' },
+  ].filter((d) => d.value > 0);
+}
+
+const PIE_COLORS = [
+  'hsl(25 85% 48%)',
+  'hsl(12 70% 42%)',
+  'hsl(38 80% 45%)',
+  'hsl(152 40% 32%)',
+  'hsl(200 45% 38%)',
+  'hsl(220 25% 42%)',
+  'hsl(340 45% 42%)',
+  'hsl(80 35% 38%)',
+];
+
+/** Pie slices: one per question, value = students who missed it. */
+export function buildMissByQuestionPieData(
+  stats: QuestionMissStat[],
+): Array<{ name: string; value: number; fill: string; questionNumber: number; topic: string }> {
+  return stats
+    .filter((s) => s.missed > 0)
+    .sort((a, b) => b.missed - a.missed || b.missRate - a.missRate)
+    .map((s, i) => ({
+      name: `Q${s.questionNumber}`,
+      value: s.missed,
+      fill: PIE_COLORS[i % PIE_COLORS.length],
+      questionNumber: s.questionNumber,
+      topic: s.topicHint,
+    }));
+}
+
+export type AssessmentQuestionDetail = {
+  questionNumber: number;
+  /** Full (or truncated) question text from the assessment */
+  questionText: string;
+  /** Curriculum / skill topic for teaching */
+  topic: string;
+  answer?: string;
+  options?: string[];
+};
+
+/**
+ * Pull question text + topic from a linked assessment (structured bank or generated markdown blob).
+ */
+export function extractAssessmentQuestionDetails(
+  assessment?: {
+    questions?: {
+      id: number;
+      question: string;
+      type?: string;
+      answer?: string;
+      options?: string[];
+    }[];
+  } | null,
+): Map<number, AssessmentQuestionDetail> {
+  const map = new Map<number, AssessmentQuestionDetail>();
+  if (!assessment?.questions?.length) return map;
+
+  const qs = assessment.questions;
+  const isBlob =
+    qs.length === 1 &&
+    (qs[0].answer === 'See assessment content' || (qs[0].question?.length ?? 0) > 800);
+
+  if (isBlob) {
+    const content = qs[0].question || '';
+    // Q1: / Question 1: / **Question 1** / 1. patterns
+    const blocks = content.split(
+      /(?=(?:^|\n)\s*(?:\*{0,2}(?:Question|Q)\s*\d+\*{0,2}\s*[:.)]|^\s*\d+\s*[.)]\s))/gim,
+    );
+    for (const block of blocks) {
+      const qMatch = block.match(
+        /^\s*(?:\*{0,2}(?:Question|Q)\s*(\d+)\*{0,2}\s*[:.)]|\s*(\d+)\s*[.)])\s*([\s\S]*)$/i,
+      );
+      if (!qMatch) continue;
+      const n = parseInt(qMatch[1] || qMatch[2], 10);
+      if (!Number.isFinite(n)) continue;
+      let body = (qMatch[3] || '').trim();
+      const beforeIdx = content.search(
+        new RegExp(`(?:^|\\n)\\s*(?:\\*{0,2}(?:Question|Q)\\s*${n}\\*{0,2}\\s*[:.)]|\\s*${n}\\s*[.)])`, 'i'),
+      );
+      const before = beforeIdx > 0 ? content.slice(Math.max(0, beforeIdx - 280), beforeIdx) : '';
+      const skill =
+        before.match(/\*\*Skill Area:\*\*\s*([^\n*]+)/i)?.[1]?.trim() ||
+        before.match(/Skill Area:\s*([^\n*]+)/i)?.[1]?.trim() ||
+        before.match(/\*\*Topic:\*\*\s*([^\n*]+)/i)?.[1]?.trim() ||
+        body.match(/\*\*Skill Area:\*\*\s*([^\n*]+)/i)?.[1]?.trim();
+
+      const answerMatch = body.match(/\*\*Answer[:\s]*\*\*\s*([^\n]+)/i) || body.match(/Answer:\s*([^\n]+)/i);
+      const answer = answerMatch?.[1]?.trim();
+
+      body = body
+        .replace(/\*\*Answer[\s\S]*$/i, '')
+        .replace(/(?:^|\n)\s*(?:\*{0,2}(?:Question|Q)\s*\d+)/i, (m, offset) =>
+          offset > 40 ? '' : m,
+        )
+        .trim()
+        .slice(0, 900);
+
+      // Strip trailing next-question headers if still present
+      body = body
+        .split(/(?=(?:^|\n)\s*(?:\*{0,2}(?:Question|Q)\s*\d+|\d+\s*[.)]))/i)[0]
+        .trim()
+        .slice(0, 900);
+
+      const topic = skill || inferTopicLabel(body, n);
+
+      map.set(n, {
+        questionNumber: n,
+        questionText: body || `Question ${n} from ${assessment ? 'linked assessment' : 'assessment'}`,
+        topic,
+        answer,
+      });
+    }
+
+    // If no markers found but we have miss numbers later, keep full blob keyed as 0 for fallback
+    if (map.size === 0 && content.trim()) {
+      map.set(0, {
+        questionNumber: 0,
+        questionText: content.slice(0, 4000),
+        topic: 'Assessment content',
+      });
+    }
+    return map;
+  }
+
+  qs.forEach((q, i) => {
+    const n = q.id || i + 1;
+    const text = (q.question || '').trim().slice(0, 900);
+    const optionLine =
+      q.options && q.options.length
+        ? `\nOptions: ${q.options.map((o, idx) => `${String.fromCharCode(65 + idx)}) ${o}`).join('; ')}`
+        : '';
+    map.set(n, {
+      questionNumber: n,
+      questionText: (text + optionLine).trim() || `Question ${n}`,
+      topic: inferTopicLabel(text, n),
+      answer: q.answer,
+      options: q.options,
+    });
+  });
+  return map;
+}
+
+function inferTopicLabel(text: string, questionNumber: number): string {
+  const raw = (text || '').trim();
+  if (!raw) return `Question ${questionNumber}`;
+  // Prefer a short noun-phrase style topic: first clause / sentence
+  const cleaned = raw
+    .replace(/^Q\d+\s*:\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[*_`#]/g, '')
+    .trim();
+  // If it looks like a full question, take a compact topic cue from keywords
+  const topicCue = cleaned.match(
+    /(?:about|on|of|regarding|involving)\s+([A-Za-z0-9\u1200-\u137F][\w\s\u1200-\u137F-]{2,48})/i,
+  );
+  if (topicCue?.[1]) return topicCue[1].trim();
+  if (cleaned.length <= 72) return cleaned;
+  // First ~10 words as topic label
+  const words = cleaned.split(/\s+/).slice(0, 10).join(' ');
+  return words.length < cleaned.length ? `${words}…` : words;
+}
+
+/** Enrich topic hints from the linked assessment question bank when prompts are thin. */
+export function enrichMissStatsFromAssessment<
+  T extends { questionNumber: number; prompt?: string; topicHint: string },
+>(
+  stats: T[],
+  assessment?: {
+    questions?: { id: number; question: string; type?: string; answer?: string }[];
+  } | null,
+): T[] {
+  const details = extractAssessmentQuestionDetails(assessment);
+  if (details.size === 0) return stats;
+  return stats.map((s) => {
+    const d = details.get(s.questionNumber);
+    if (!d) return s;
+    return {
+      ...s,
+      prompt: d.questionText || s.prompt,
+      topicHint: d.topic || s.topicHint,
+    };
+  });
+}
+
 export function buildTeacherSuggestion(stats: QuestionMissStat[]): string {
   const flagged = highMissQuestions(stats);
   if (flagged.length === 0) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Download, Eye, MoreVertical, Pencil, Plus, Printer, Save, Send, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, Eye, HelpCircle, MoreVertical, Pencil, Plus, Printer, Save, Send, Sparkles, Trash2, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -21,6 +21,7 @@ import {
   primarySubjectForTeacher,
   STUDENT_LEVEL_OPTIONS,
   isWeeklyPlanHodApproved,
+  weeklyPlanStatusLabel,
   graspOutcomeLabel,
   keepLatestLessonPlansByGradeSubject,
 } from '@/lib/teacherPortal';
@@ -35,6 +36,10 @@ import {
   slugifyFilename,
   teachingNotesToMarkdown,
 } from '@/lib/pdfUtils';
+import {
+  isTruncatedMarkdownPrefix,
+  stripDuplicatedMarkdownPrefix,
+} from '@/lib/teachingNotesMarkdown';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -94,14 +99,18 @@ function notesResultToEditableText(
   fallback = '',
 ): string {
   if (!result) return fallback;
-  const mainContent = result.explanations?.[0]?.content ?? '';
+  const mainContent = stripDuplicatedMarkdownPrefix(result.explanations?.[0]?.content ?? '');
   const isMarkdownBlob =
     result.explanations?.length === 1 &&
     mainContent &&
     (mainContent.includes('#') || mainContent.includes('**'));
   if (isMarkdownBlob) {
     const parts: string[] = [];
-    if (result.introduction?.trim()) parts.push(result.introduction.trim());
+    const intro = (result.introduction || '').trim();
+    // Never paste a truncated markdown intro above the full body (causes duplicate sections).
+    if (intro && !isTruncatedMarkdownPrefix(intro, mainContent)) {
+      parts.push(intro);
+    }
     parts.push(mainContent);
     if (result.visualAids?.length) {
       parts.push('\n## Visual Aids\n');
@@ -120,11 +129,13 @@ function editableTextToNotesResult(
   text: string,
   meta: { title: string; language: string },
 ): AITeachingNotesResult {
-  const trimmed = text.trim();
+  const trimmed = stripDuplicatedMarkdownPrefix(text);
   return {
     title: meta.title,
     language: meta.language,
-    introduction: trimmed.slice(0, 280),
+    // Keep introduction empty when body is full markdown so the renderer
+    // does not show a truncated raw-markdown duplicate above the note.
+    introduction: '',
     explanations: [{ subtitle: 'Content', content: trimmed, examples: [] }],
     visualAids: [],
     exercises: [],
@@ -163,6 +174,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     subjects: teacherProfile.subjects,
   });
   const ownWeeklyPlans = teacherPlans.filter((p) => p.planType !== 'yearly');
+  const approvedWeeklyPlans = ownWeeklyPlans.filter((p) => isWeeklyPlanHodApproved(p));
   const publishedAnnualPlans = keepLatestLessonPlansByGradeSubject(
     teacherPlans.filter(
       (p) => p.planType === 'yearly' && p.createdByRole === 'department-head',
@@ -196,8 +208,48 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [editWeeklyTitle, setEditWeeklyTitle] = useState('');
   const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
   const [notePendingDelete, setNotePendingDelete] = useState<TeachingNote | null>(null);
+  const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>('annual');
+  const [presetTopics, setPresetTopics] = useState<string[]>([]);
+  const [explainingMore, setExplainingMore] = useState(false);
+  const [explainMoreUsed, setExplainMoreUsed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/ai/topics')
+      .then((r) => r.json())
+      .then((data: { topics?: string[] }) => {
+        if (!cancelled && Array.isArray(data.topics)) {
+          setPresetTopics(
+            data.topics.map((t) =>
+              t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPresetTopics([
+            'Functions',
+            'Trigonometry',
+            'Algebra',
+            'Probability',
+            'Statistics',
+            'Calculus',
+          ]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activePlan = ownWeeklyPlans.find((p) => p.id === linkedPlanId);
+  const noteWeekPlanChoices = (() => {
+    if (activePlan && !approvedWeeklyPlans.some((p) => p.id === activePlan.id)) {
+      return [...approvedWeeklyPlans, activePlan];
+    }
+    return approvedWeeklyPlans;
+  })();
   const sessionTopicOptions = activePlan
     ? getWeeklyPlanSessionTopicOptions(activePlan)
     : [];
@@ -231,7 +283,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     if (plan && !isWeeklyPlanHodApproved(plan)) {
       addNotification(
         'Awaiting HoD approval',
-        'Generate teaching notes only after your weekly lesson plan is approved by the department head.',
+        'Generate lesson notes only after your weekly lesson plan is approved by the department head.',
         'alert',
       );
       return;
@@ -245,6 +297,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     setAiNotesResult(null);
     setNoteContentText('');
     setShowNoteContentPreview(false);
+    setExplainMoreUsed(false);
     if (plan) {
       applySessionTopic(plan, 'all');
     } else {
@@ -294,6 +347,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     setAiNotesResult(null);
     setShowNoteContentPreview(false);
     setShowNotesPreview(false);
+    setExplainMoreUsed(false);
   };
 
   const openEditNote = (note: TeachingNote) => {
@@ -305,6 +359,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     setNotesLanguage(note.language);
     setNoteTitle(note.title);
     setShowNoteContentPreview(false);
+    setExplainMoreUsed(false);
     let parsed: AITeachingNotesResult | null = null;
     if (note.contentBody) {
       try {
@@ -371,8 +426,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             ? `Lesson plan objectives to cover:\n${uniqueObjectives.map((o) => `- ${o}`).join('\n')}`
             : '',
           selectedSessionScope === 'all'
-            ? 'Generate teaching notes that cover every session in this weekly plan, organized by session, while honouring the lesson plan objectives.'
-            : `Generate teaching notes focused on this session while honouring the weekly lesson plan objectives.`,
+            ? 'Generate lesson notes that cover every session in this weekly plan, organized by session, while honouring the lesson plan objectives.'
+            : `Generate lesson notes focused on this session while honouring the weekly lesson plan objectives.`,
         ]
           .filter(Boolean)
           .join('\n\n');
@@ -422,7 +477,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             result = {
               title: `Teaching Notes: ${notesGrade} ${notesSubject} - ${notesTopic}`,
               language: notesLanguage,
-              introduction: response.content.substring(0, 300) + '...',
+              introduction: '',
               explanations: [{
                 subtitle: 'Content',
                 content: response.content,
@@ -446,13 +501,67 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       
       setAiNotesResult(result);
       setNoteContentText(notesResultToEditableText(result));
-      setShowNoteContentPreview(false);
+      setShowNoteContentPreview(true);
+      setExplainMoreUsed(false);
       if (!noteTitle) setNoteTitle(result.title || `${notesTopic} Notes`);
     } catch (error) {
-      console.error('❌ Failed to generate teaching notes:', error);
-      addNotification('Generation Failed', 'Could not generate teaching notes. Please try again.', 'alert');
+      console.error('❌ Failed to generate lesson notes:', error);
+      addNotification('Generation Failed', 'Could not generate lesson notes. Please try again.', 'alert');
     } finally {
       setGeneratingNotes(false);
+    }
+  };
+
+  const handleExplainMore = async () => {
+    if (explainMoreUsed) return;
+    const current = noteContentText.trim();
+    if (!current) {
+      addNotification('Nothing to expand', 'Generate or write notes first, then use Explain more.', 'alert');
+      return;
+    }
+    setExplainingMore(true);
+    try {
+      const { aiService } = await import('@/lib/ai');
+      const response = await aiService.generateTeachingNotes({
+        topic: notesTopic.trim() || noteTitle || 'Lesson topic',
+        subtopic: 'Deeper explanation',
+        grade: notesGrade,
+        subject: notesSubject,
+        language: notesLanguage,
+        studentLevel: notesStudentLevel,
+        sessionContext: [
+          'EXPLAIN MORE REQUEST: Expand the following lesson notes with clearer explanations,',
+          'worked examples, common misconceptions, and step-by-step reasoning suitable for classroom delivery.',
+          'Keep useful existing content; deepen explanations rather than replacing everything.',
+          '',
+          'EXISTING NOTES:',
+          current.slice(0, 6000),
+        ].join('\n'),
+      });
+      let expanded = '';
+      if (typeof response.content === 'string') {
+        try {
+          const parsed = JSON.parse(response.content) as AITeachingNotesResult;
+          expanded = notesResultToEditableText(parsed);
+          setAiNotesResult(parsed);
+        } catch {
+          expanded = response.content;
+        }
+      } else if (response.content && typeof response.content === 'object') {
+        const parsed = response.content as AITeachingNotesResult;
+        expanded = notesResultToEditableText(parsed);
+        setAiNotesResult(parsed);
+      }
+      if (expanded.trim()) {
+        setNoteContentText(expanded);
+        setShowNoteContentPreview(true);
+        setExplainMoreUsed(true);
+        addNotification('Notes expanded', 'AI added clearer explanations to your lesson notes.', 'success');
+      }
+    } catch {
+      addNotification('Explain more failed', 'Could not expand the notes. Try again.', 'alert');
+    } finally {
+      setExplainingMore(false);
     }
   };
 
@@ -521,9 +630,16 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
 
   const parsedViewContent = useMemo(() => {
     if (!viewNote?.contentBody) return null;
+    const raw = viewNote.contentBody.trim();
     try {
-      return JSON.parse(viewNote.contentBody) as AITeachingNotesResult;
+      return JSON.parse(raw) as AITeachingNotesResult;
     } catch {
+      if (raw.length > 20) {
+        return editableTextToNotesResult(raw, {
+          title: viewNote.title,
+          language: viewNote.language || 'English',
+        });
+      }
       return null;
     }
   }, [viewNote]);
@@ -591,6 +707,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     graspOutcome: GraspOutcome;
     challengeText?: string;
     postTo: 'hod' | 'community' | 'both' | 'none';
+    communityId?: string;
+    channelId?: string;
   }) => {
     if (!deliverNote) return;
     await markLessonDelivered({
@@ -599,6 +717,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       graspOutcome: payload.graspOutcome,
       challengeText: payload.challengeText,
       postTo: payload.postTo,
+      communityId: payload.communityId,
+      channelId: payload.channelId,
     });
   };
 
@@ -662,15 +782,21 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               {graspOutcomeLabel(delivery.graspOutcome)}
             </span>
           </>
-        ) : (
+        ) : note.status === 'Approved' ? (
           <button
             type="button"
             className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ais-primary transition-colors hover:bg-ais-primary/10"
             onClick={() => setDeliverNote(note)}
           >
-            <CheckCircle2 className="h-5 w-5" aria-hidden />
-            Delivered
+            <HelpCircle className="h-5 w-5" aria-hidden />
+            Delivered?
           </button>
+        ) : (
+          <span className="text-center text-[10px] leading-tight text-ais-on-surface-variant px-1">
+            {note.status === 'Pending Dept Head'
+              ? 'Awaiting HoD approval'
+              : 'Approve first'}
+          </span>
         )}
       </div>
     </div>
@@ -715,6 +841,30 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         )
       ) : (
         <div className="space-y-8">
+          <div className="flex flex-wrap gap-2 rounded-xl border border-ais-card-border bg-white p-1 dark:bg-ais-surface">
+            {(
+              [
+                { id: 'annual' as const, label: 'Annual plans' },
+                { id: 'weekly' as const, label: 'Weekly plans' },
+                { id: 'notes' as const, label: 'Lesson notes' },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setListTab(tab.id)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  listTab === tab.id
+                    ? 'bg-ais-primary text-white'
+                    : 'text-ais-on-surface-variant hover:bg-ais-row-hover'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {listTab === 'annual' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Published annual lesson plans</p>
             <p className={aisBodySm}>
@@ -754,11 +904,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </div>
             )}
           </section>
+          )}
 
+          {listTab === 'weekly' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Weekly lesson plans</p>
             <p className={aisBodySm}>
-              Create from a published annual plan, then generate teaching notes after HoD approval.
+              Create from a published annual plan, then generate lesson notes after HoD approval.
             </p>
             {ownWeeklyPlans.length === 0 ? (
               <p className={aisBodyMd}>
@@ -836,16 +988,20 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           {plan.subject} · {plan.sessions} {plan.sessions === 1 ? 'session' : 'sessions'}
                         </p>
                         <div className="mt-auto">
-                          {plan.status === 'Pending Dept Head' || plan.status === 'Pending School Head' ? (
+                          {plan.status === 'Pending Dept Head' ? (
                             <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
                               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              {plan.status.replace('Pending ', '')}
+                              Awaiting HoD
                             </div>
                           ) : (
-                            <AisStatusBadge variant={approvalBadgeVariant(plan.status)}>
-                              {plan.status}
+                            <AisStatusBadge
+                              variant={approvalBadgeVariant(
+                                isWeeklyPlanHodApproved(plan) ? 'Approved' : plan.status,
+                              )}
+                            >
+                              {weeklyPlanStatusLabel(plan.status)}
                             </AisStatusBadge>
                           )}
                         </div>
@@ -856,7 +1012,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                             Notes unlock after HoD approval
                           </p>
                         ) : (
-                          <span className="text-[11px] text-ais-on-surface-variant">Add teaching notes</span>
+                          <span className="text-[11px] text-ais-on-surface-variant">Add lesson notes</span>
                         )}
                         <button
                           type="button"
@@ -877,15 +1033,17 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </div>
             )}
           </section>
+          )}
 
+          {listTab === 'notes' && (
           <section className="space-y-3">
-            <p className={aisLabelCaps}>Teaching notes</p>
+            <p className={aisLabelCaps}>Lesson notes</p>
             <p className={aisBodySm}>
               Generated from weekly lesson plans after HoD approval.
             </p>
             {myNotes.length === 0 ? (
               <p className={aisBodyMd}>
-                No teaching notes yet. Approve a weekly plan with your HoD, then add notes from the card above.
+                No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Weekly plans tab.
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -893,6 +1051,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </div>
             )}
           </section>
+          )}
         </div>
       )}
 
@@ -924,7 +1083,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             ) : (
               <p className={aisBodySm}>
                 {weeklyPlanDialog.plan.grade} · {weeklyPlanDialog.plan.subject} ·{' '}
-                {weeklyPlanDialog.plan.status}
+                {weeklyPlanStatusLabel(weeklyPlanDialog.plan.status)}
               </p>
             )}
             <PlanSummary plan={weeklyPlanDialog.plan} />
@@ -1025,11 +1184,12 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             label="Week (weekly lesson plan)"
             options={[
               { value: '', label: 'No lesson plan (standalone)' },
-              ...ownWeeklyPlans.map((p) => ({
+              ...noteWeekPlanChoices.map((p) => ({
                 value: p.id,
-                label: `${weeklyPlanWeekLabel(p)} · ${p.status}${
-                  isWeeklyPlanHodApproved(p) ? '' : ' (awaiting HoD)'
-                }`,
+                title: weeklyPlanWeekLabel(p),
+                label: isWeeklyPlanHodApproved(p)
+                  ? weeklyPlanWeekLabel(p)
+                  : `${weeklyPlanWeekLabel(p)} · ${p.status} (awaiting HoD)`,
               })),
             ]}
             value={linkedPlanId}
@@ -1037,13 +1197,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               setLinkedPlanId(e.target.value);
               const p = ownWeeklyPlans.find((x) => x.id === e.target.value);
               if (p) {
-                if (!editingNoteId && !isWeeklyPlanHodApproved(p)) {
-                  addNotification(
-                    'Awaiting HoD approval',
-                    'Pick an HoD-approved weekly plan to generate notes.',
-                    'alert',
-                  );
-                }
                 setNotesGrade(p.grade);
                 setNotesSubject(p.subject);
                 if (!editingNoteId) {
@@ -1093,14 +1246,36 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             ) : null}
             <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
               <label className={`${aisFormLabel} block min-h-[14px] leading-[14px]`}>
-                Topic {activePlan && !editingNoteId ? '(editable)' : ''}
+                Topic {activePlan && !editingNoteId ? '(preset or custom)' : ''}
               </label>
+              {presetTopics.length > 0 ? (
+                <Select
+                  variant="ais"
+                  options={[
+                    { value: '', label: 'Choose a preset topic…' },
+                    ...presetTopics.map((t) => ({ value: t, label: t })),
+                    ...(notesTopic && !presetTopics.includes(notesTopic)
+                      ? [{ value: notesTopic, label: `${notesTopic} (custom)` }]
+                      : []),
+                  ]}
+                  value={presetTopics.includes(notesTopic) ? notesTopic : notesTopic ? notesTopic : ''}
+                  onChange={(e) => {
+                    if (e.target.value) setNotesTopic(e.target.value);
+                  }}
+                />
+              ) : null}
               <input
                 className={`${aisInput} min-w-0`}
                 value={notesTopic}
                 onChange={(e) => setNotesTopic(e.target.value)}
-                placeholder="Session topic — edit if you want to refine before generating"
+                placeholder="Or type a custom topic"
+                list="lesson-note-preset-topics"
               />
+              <datalist id="lesson-note-preset-topics">
+                {presetTopics.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </div>
           </div>
           {activePlan && !editingNoteId && (
@@ -1148,12 +1323,31 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <AisBtnSecondary
+              type="button"
+              onClick={() => void handleExplainMore()}
+              disabled={
+                explainMoreUsed ||
+                explainingMore ||
+                generatingNotes ||
+                !noteContentText.trim()
+              }
+              title={
+                explainMoreUsed
+                  ? 'Explain more can only be used once per generation. Generate again to unlock.'
+                  : undefined
+              }
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              {explainingMore ? 'Expanding…' : explainMoreUsed ? 'Explained' : 'Explain more'}
+            </AisBtnSecondary>
             <AisBtnPrimary
               type="button"
               onClick={handleGenerateNotes}
               disabled={
                 generatingNotes ||
+                explainingMore ||
                 !notesTopic.trim() ||
                 (!!activePlan && !editingNoteId && !selectedSessionScope) ||
                 (!!activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan))
@@ -1231,7 +1425,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400" />
                   <span className="text-sm font-bold text-green-900 dark:text-green-200">
-                    AI Generated Teaching Notes Ready
+                    AI Generated Lesson Notes Ready
                   </span>
                 </div>
                 <button
@@ -1241,6 +1435,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     setNoteContentText('');
                     setShowNotesPreview(false);
                     setShowNoteContentPreview(false);
+                    setExplainMoreUsed(false);
                   }}
                   className="text-xs text-ais-error hover:underline flex items-center gap-1"
                 >

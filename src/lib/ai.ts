@@ -445,6 +445,12 @@ class AIService {
       }
     }
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new Error(
+        'Offline — AI generation needs a connection (cached responses for the same request still work).',
+      );
+    }
+
     try {
       // Call local Next.js API route (has server-side cache)
       const localEndpoint = `${this.apiUrl}${endpoint}`;
@@ -1045,6 +1051,41 @@ export function getAnnualMonthOptions(annual: AnnualLessonPlanResult): string[] 
   return months;
 }
 
+/** Unique topic options from a published annual lesson plan (units + weekly contents). */
+export function getAnnualPlanTopicOptions(plan: LessonPlan): {
+  value: string;
+  label: string;
+  topic: string;
+}[] {
+  const annual = parseAnnualPlanDetail(plan);
+  if (!annual?.weeks?.length) return [];
+
+  const seen = new Set<string>();
+  const options: { value: string; label: string; topic: string }[] = [];
+
+  const push = (raw: string, kind: 'unit' | 'content') => {
+    const topic = raw.replace(/\s+/g, ' ').trim();
+    if (!topic || topic === '—' || topic === '-') return;
+    const key = topic.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    options.push({
+      value: `${kind}:${key}`,
+      label: kind === 'unit' ? `Unit: ${topic}` : topic,
+      topic,
+    });
+  };
+
+  for (const week of annual.weeks) {
+    if (week.unit) push(week.unit, 'unit');
+    for (const content of week.contents || []) {
+      push(content, 'content');
+    }
+  }
+
+  return options;
+}
+
 export function getAnnualWeeksForMonth(annual: AnnualLessonPlanResult, month: string) {
   return (annual.weeks || []).filter((w) => w.month === month);
 }
@@ -1068,6 +1109,7 @@ export function getWeeklyPlanSessionTopicOptions(plan: LessonPlan) {
         `Weekly lesson plan: ${plan.title}`,
         `Focus: Session ${s.sessionNumber} — ${s.subTopic || s.mainTopic}`,
         s.textbookPages ? `Textbook pages: ${s.textbookPages}` : '',
+        `Assessment topic (use ONLY this): ${s.subTopic || s.mainTopic || plan.title}`,
         allObjectives.length
           ? `Lesson plan objectives:\n${allObjectives.map((o) => `- ${o}`).join('\n')}`
           : '',
@@ -1087,11 +1129,19 @@ export function getWeeklyPlanSessionTopicOptions(plan: LessonPlan) {
       weekly.sessions.map((s) => s.subTopic || s.mainTopic).filter(Boolean).join('; ') ||
       plan.title;
 
+    const allPages = [
+      ...new Set(
+        weekly.sessions.map((s) => s.textbookPages).filter((p): p is string => Boolean(p?.trim())),
+      ),
+    ].join('; ');
+
     const allSessionsContext = [
       `Weekly lesson plan: ${plan.title}`,
       `Focus: ALL ${weekly.sessions.length} sessions this week`,
       weekly.mainTopic ? `Main topic: ${weekly.mainTopic}` : '',
       weekly.subTopic ? `Subtopic: ${weekly.subTopic}` : '',
+      allPages ? `Textbook pages: ${allPages}` : '',
+      `Assessment topic (use ONLY this): ${allSessionsTopic}`,
       allObjectives.length
         ? `Lesson plan objectives:\n${allObjectives.map((o) => `- ${o}`).join('\n')}`
         : '',
@@ -1112,7 +1162,7 @@ export function getWeeklyPlanSessionTopicOptions(plan: LessonPlan) {
         value: 'all',
         label: `All sessions (${weekly.sessions.length})`,
         topic: allSessionsTopic,
-        subtopic: weekly.subTopic || '',
+        subtopic: allPages || weekly.subTopic || '',
         context: allSessionsContext,
       },
       ...sessionOptions,
@@ -1217,6 +1267,33 @@ export function buildLessonPlanContext(plan: LessonPlan): string {
   return lines.join('\n');
 }
 
+export type AssessmentQuestionLimits = {
+  min: number;
+  max: number;
+  default: number;
+};
+
+/** Sensible question counts by assessment type (aligned with Prime AI caps). */
+export function questionLimitsForAssessmentType(
+  type: string,
+): AssessmentQuestionLimits {
+  switch (type) {
+    case 'Final Exam':
+      return { min: 15, max: 50, default: 40 };
+    case 'Mid Exam':
+      return { min: 10, max: 40, default: 25 };
+    case 'Quiz':
+      return { min: 3, max: 15, default: 10 };
+    case 'Baseline':
+      return { min: 5, max: 40, default: 15 };
+    case 'Assignment':
+    case 'Practical':
+      return { min: 5, max: 25, default: 10 };
+    default:
+      return { min: 5, max: 40, default: 15 };
+  }
+}
+
 export const generateAssessmentWithAI = async (
   type: string,
   topic: string,
@@ -1232,7 +1309,8 @@ export const generateAssessmentWithAI = async (
     const payload: Record<string, unknown> = {
       topic,
       difficulty: difficulty.toLowerCase(),
-      num_questions: numQuestions,
+      // Up to 60 for mid/final; Prime AI batches large sets server-side
+      num_questions: Math.min(60, Math.max(3, Number(numQuestions) || 10)),
       question_type: normalizeQuestionFormat(questionFormat),
       student_level: studentLevel,
     };
@@ -1339,7 +1417,7 @@ export const generateBaselineAssessmentWithAI = async (
       semester_timing: semesterTiming,
       focus_topic: focusTopic.trim(),
       difficulty: difficulty.toLowerCase(),
-      num_questions: numQuestions,
+      num_questions: Math.min(40, Math.max(5, Number(numQuestions) || 10)),
       question_type: normalizeQuestionFormat(questionFormat),
       student_level: studentLevel,
     };

@@ -16,20 +16,21 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 const STORAGE_KEY = 'prime-sidebar-collapsed';
 
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  // Load persisted state
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored !== null) {
-        setIsCollapsed(JSON.parse(stored));
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Load persisted state on initial render
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored !== null) {
+          return JSON.parse(stored);
+        }
+      } catch {
+        // Ignore storage errors
       }
-    } catch {
-      // Ignore storage errors
     }
-  }, []);
+    return false;
+  });
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Persist collapsed state
   useEffect(() => {
@@ -45,7 +46,7 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault();
-        setIsCollapsed(prev => !prev);
+        setIsCollapsed((prev: boolean) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -64,7 +65,7 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const toggleCollapsed = useCallback(() => {
-    setIsCollapsed(prev => !prev);
+    setIsCollapsed((prev: boolean) => !prev);
   }, []);
 
   const setCollapsed = useCallback((value: boolean) => {
@@ -72,7 +73,7 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const toggleMobile = useCallback(() => {
-    setIsMobileOpen(prev => !prev);
+    setIsMobileOpen((prev: boolean) => !prev);
   }, []);
 
   const closeMobile = useCallback(() => {

@@ -7,7 +7,7 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { TeacherGradebook } from '@/components/dashboard/teacher/TeacherGradebook';
 import {
   GRADE_OPTIONS,
-  SECTION_OPTIONS,
+  SECTION_FILTER_OPTIONS,
   filterTeacherStudents,
   gradesForStudent,
   filterTeacherGradeEntries,
@@ -43,11 +43,14 @@ export const TeacherStudentsTab: React.FC = () => {
   }, []);
 
   const [grade, setGrade] = useState('Grade 9');
-  const [section, setSection] = useState('A');
+  const [section, setSection] = useState('All');
   const [messageStudentId, setMessageStudentId] = useState<string | null>(null);
   const [parentMsg, setParentMsg] = useState('');
 
-  const roster = useMemo(() => filterTeacherStudents(students, grade, section), [students, grade, section]);
+  const roster = useMemo(
+    () => filterTeacherStudents(students, grade, section),
+    [students, grade, section],
+  );
   const myMessages = parentMessages.filter((m) => m.teacherId === teacherId);
   const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries, teacherId);
   const selectedStudent = roster.find((s) => s.id === messageStudentId);
@@ -83,28 +86,44 @@ export const TeacherStudentsTab: React.FC = () => {
         <>
           {(subTab === 'roster' || subTab === 'parents') && (
             <div className="grid max-w-md grid-cols-1 gap-4 sm:grid-cols-2">
-              <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
-              <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={section} onChange={(e) => setSection(e.target.value)} />
+              <Select
+                variant="ais"
+                label="Class grade"
+                options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))}
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+              />
+              <Select
+                variant="ais"
+                label="Section"
+                options={SECTION_FILTER_OPTIONS.map((s) => ({
+                  value: s,
+                  label: s === 'All' ? 'All sections' : `Section ${s}`,
+                }))}
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+              />
             </div>
           )}
 
           {subTab === 'roster' && (
-            <AisPanel title="My students" description="Roster with term averages from quiz, test, project, mid & final exam entries" flush>
+            <AisPanel title="My students" flush>
               <AisTable>
                 <thead>
                   <tr className="bg-ais-surface-container-low">
                     <AisTh>Student</AisTh>
+                    <AisTh>Section</AisTh>
                     <AisTh>ID</AisTh>
                     <AisTh>Term avg</AisTh>
-                    <AisTh>GPA (synced)</AisTh>
+                    <AisTh>GPA</AisTh>
                     <AisTh>Attendance</AisTh>
-                    <AisTh>Grade entries</AisTh>
+                    <AisTh>Results</AisTh>
                     <AisTh>Actions</AisTh>
                   </tr>
                 </thead>
                 <tbody>
                   {roster.length === 0 ? (
-                    <AisEmptyRow colSpan={7} message="No students in this section." />
+                    <AisEmptyRow colSpan={8} message="No students for this grade." />
                   ) : (
                     roster.map((std) => {
                       const entries = gradesForStudent(allGradeEntries, std.id);
@@ -115,6 +134,7 @@ export const TeacherStudentsTab: React.FC = () => {
                             <p className="font-semibold">{std.name}</p>
                             <p className={aisBodySm}>{std.parentName}</p>
                           </AisTd>
+                          <AisTd>{std.section}</AisTd>
                           <AisTd className={`font-mono ${aisBodySm}`}>{std.studentId}</AisTd>
                           <AisTd>
                             <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
@@ -123,7 +143,7 @@ export const TeacherStudentsTab: React.FC = () => {
                           </AisTd>
                           <AisTd className="font-mono font-bold tabular-nums">{std.gpa.toFixed(2)}</AisTd>
                           <AisTd className="tabular-nums">{std.attendanceRate}%</AisTd>
-                          <AisTd className="text-xs">{entries.length} recorded</AisTd>
+                          <AisTd className="text-xs">{entries.length}</AisTd>
                           <AisTd>
                             <AisBtnSecondary className="!px-2.5 !py-1" onClick={() => setMessageStudentId(std.id)}>
                               Message parent
@@ -139,7 +159,7 @@ export const TeacherStudentsTab: React.FC = () => {
           )}
 
           {subTab === 'parents' && (
-            <AisPanel title="Parent communication log" description="Messages sent to guardians" flush>
+            <AisPanel title="Parent messages" flush>
               <AisTable>
                 <thead>
                   <tr className="bg-ais-surface-container-low">

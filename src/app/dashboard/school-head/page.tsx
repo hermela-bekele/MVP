@@ -20,6 +20,10 @@ import { SettingsPanel } from '@/components/dashboard/school-head/SettingsPanel'
 import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
 import { SchoolHeadResourcesPanel } from '@/components/dashboard/school-head/SchoolHeadResourcesPanel';
 import { TablePanel } from '@/components/dashboard/TablePanel';
+import { CommunicationModule } from '@/components/dashboard/communication/CommunicationModule';
+import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
+import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
 export default function SchoolHeadPortalPage() {
   const {
@@ -64,8 +68,11 @@ export default function SchoolHeadPortalPage() {
       case 'manage-departments': return [...base, { label: 'Department Registry' }];
       case 'manage-attendance': return [...base, { label: 'Attendance Ledger' }];
       case 'teachers-development': return [...base, { label: 'Professional Development' }];
+      case 'communication': return [...base, { label: 'Communication' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
       case 'account-settings': return [...base, { label: 'Portal Settings' }];
+      case 'leadership-development': return [...base, { label: 'ELEP Leadership Development' }];
+      case 'profile': return [...base, { label: 'My Profile' }];
       default: return base;
     }
   };
@@ -94,6 +101,9 @@ export default function SchoolHeadPortalPage() {
 
   // Attendance Filters State
   const [attendanceTab, setAttendanceTab] = useState<'student' | 'employee'>('student');
+
+  // Communication Tab State (school head only ever browses channels — no Feedback sub-tab)
+  const [commMainTab] = useState<CommunicationMainTab>('channels');
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },
@@ -133,6 +143,10 @@ export default function SchoolHeadPortalPage() {
       title: 'Professional Development',
       subtitle: 'Monitor MOE training participation rates and upload pedagogy instructional guidelines.',
     },
+    communication: {
+      title: 'Communication',
+      subtitle: 'Post school-wide announcements and coordinate directly with heads of department.',
+    },
     'manage-checkins': {
       title: 'Wellness Check-ins',
       subtitle: 'Monitor environmental satisfaction index, review teacher burnout variables, and capture parent feedback loops.',
@@ -140,6 +154,14 @@ export default function SchoolHeadPortalPage() {
     'account-settings': {
       title: 'Portal Settings',
       subtitle: 'Adjust school coordinates visible on regional reports and update administrative password credentials.',
+    },
+    'leadership-development': {
+      title: 'ELEP · Leadership Development',
+      subtitle: 'Education Leadership Excellence Program modules for school heads.',
+    },
+    profile: {
+      title: 'My Profile',
+      subtitle: 'Your school head account information.',
     },
   };
 
@@ -184,6 +206,11 @@ export default function SchoolHeadPortalPage() {
           )}
 
           {activeTab === 'resources' && <SchoolHeadResourcesPanel />}
+
+          {/* Communication */}
+          {activeTab === 'communication' && (
+            <CommunicationModule mode="school-head" mainTab={commMainTab} onMainTabChange={() => {}} />
+          )}
 
           {/* Student Management */}
           {activeTab === 'manage-students' && <StudentManagement readOnly />}
@@ -465,6 +492,27 @@ export default function SchoolHeadPortalPage() {
 
           {/* 13. Settings Panel */}
           {activeTab === 'account-settings' && <SettingsPanel />}
+
+          {/* 14. ELEP Leadership Development */}
+          {activeTab === 'leadership-development' && (
+            <div className="animate-fade-in text-left">
+              <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
+            </div>
+          )}
+
+          {/* 15. Profile */}
+          {activeTab === 'profile' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <PortalProfileCard
+                roleLabel="School Head"
+                fields={[
+                  { label: 'School', value: 'Bole Community School' },
+                  { label: 'Leadership track', value: 'ELEP' },
+                  { label: 'Departments overseen', value: departments.length },
+                ]}
+              />
+            </div>
+          )}
 
     </DashboardShell>
   );
