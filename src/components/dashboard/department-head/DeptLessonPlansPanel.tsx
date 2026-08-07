@@ -2,12 +2,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { ContentCard } from '@/components/dashboard/ContentCard';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterBySubjectScope, type DeptHeadScope } from '@/lib/departmentHead';
+import { weeklyPlanStatusLabel } from '@/lib/teacherPortal';
 import { DetailedLessonPlanRenderer } from '@/components/ui/DetailedLessonPlanRenderer';
 import type { AIDetailedLessonPlanResult } from '@/lib/ai';
 
@@ -49,16 +49,10 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
 
   return (
     <div className="space-y-6">
-      <ContentCard
-        title="Weekly lesson plan approval"
-        description="Review weekly detailed lesson plans submitted by teachers. Approved plans stay visible here and for the teacher."
+      <TablePanel
+        title="Pending weekly plans"
+        description={`${pending.length} plan${pending.length === 1 ? '' : 's'} awaiting review. Your approval is final — no school head step.`}
       >
-        <p className="text-sm text-muted-foreground">
-          {pending.length} plan{pending.length === 1 ? '' : 's'} awaiting your review.
-        </p>
-      </ContentCard>
-
-      <TablePanel title="Pending weekly plans" description="Approve or return plans to teachers.">
         <table className="eskooly-table w-full">
           <thead>
             <tr>
@@ -127,14 +121,14 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
                   <td>
                     <Badge
                       variant={
-                        plan.status === 'Approved'
+                        plan.status === 'Approved' || plan.status === 'Pending School Head'
                           ? 'success'
                           : plan.status === 'Rejected'
                             ? 'danger'
                             : 'neutral'
                       }
                     >
-                      {plan.status}
+                      {weeklyPlanStatusLabel(plan.status)}
                     </Badge>
                   </td>
                   <td className="text-right">

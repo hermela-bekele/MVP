@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
 export interface DropdownSelectOption {
@@ -8,6 +9,8 @@ export interface DropdownSelectOption {
   label: string;
   disabled?: boolean;
   description?: string;
+  /** Native tooltip / hover text (defaults to label) */
+  title?: string;
 }
 
 export interface DropdownSelectProps {
@@ -41,6 +44,13 @@ function createSelectChangeEvent(value: string, name?: string): React.ChangeEven
 
 const ITEM_HEIGHT = 36;
 
+type PanelCoords = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
 export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   label,
   options,
@@ -68,6 +78,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const isControlled = value !== undefined;
@@ -77,6 +88,13 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [panelCoords, setPanelCoords] = useState<PanelCoords | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPortalReady(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const isAis = variant === 'ais';
   const selectedOption = options.find((opt) => opt.value === selectedValue);
@@ -105,8 +123,32 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
       setIsOpen(false);
       setClosing(false);
       setActiveIndex(-1);
+      setPanelCoords(null);
     }, 150);
   }, [isOpen]);
+
+  const updatePanelPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const preferredHeight = Math.min(maxVisibleItems, Math.max(options.length, 1)) * ITEM_HEIGHT + 8;
+    const gap = 6;
+    const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+    const spaceAbove = rect.top - gap - 8;
+    const placeBottom = spaceBelow >= Math.min(preferredHeight, 120) || spaceBelow >= spaceAbove;
+    const maxHeight = Math.max(
+      ITEM_HEIGHT * 6,
+      Math.min(preferredHeight, placeBottom ? spaceBelow : spaceAbove),
+    );
+
+    setPanelCoords({
+      top: placeBottom ? rect.bottom + gap : Math.max(8, rect.top - gap - maxHeight),
+      left: rect.left,
+      width: rect.width,
+      maxHeight,
+    });
+  }, [maxVisibleItems, options.length]);
 
   const open = useCallback(() => {
     if (disabled) return;
@@ -116,10 +158,11 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
     const initial = selectedIdx >= 0 ? selectedIdx : selectableIndices[0] ?? -1;
     setActiveIndex(initial);
     window.requestAnimationFrame(() => {
+      updatePanelPosition();
       itemRefs.current[initial]?.focus();
       itemRefs.current[initial]?.scrollIntoView({ block: 'nearest' });
     });
-  }, [disabled, options, selectableIndices, selectedValue]);
+  }, [disabled, options, selectableIndices, selectedValue, updatePanelPosition]);
 
   const toggle = useCallback(() => {
     if (isOpen) close();
@@ -136,12 +179,29 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
     [close, emitChange],
   );
 
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updatePanelPosition();
+  }, [isOpen, options, updatePanelPosition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onReposition = () => updatePanelPosition();
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [isOpen, updatePanelPosition]);
+
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        close();
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -235,65 +295,27 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
     : 'text-xs font-semibold text-muted-foreground uppercase tracking-wider';
 
   const panelClasses = isAis
-    ? 'absolute z-50 mt-1.5 w-full overflow-hidden rounded-lg border border-ais-card-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]'
-    : 'absolute z-50 mt-1.5 w-full overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg';
+    ? 'overflow-hidden rounded-lg border border-ais-card-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]'
+    : 'overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg';
 
-  const maxListHeight = maxVisibleItems * ITEM_HEIGHT;
-
-  return (
-    <div className={`flex w-full flex-col space-y-1 text-left ${wrapperClassName}`} ref={containerRef}>
-      {label && (
-        <label htmlFor={selectId} className={labelClasses}>
-          {label}
-          {required && <span className="ml-0.5 text-ais-error">*</span>}
-        </label>
-      )}
-
-      <div className="relative">
-        <button
-          ref={triggerRef}
-          id={selectId}
-          type="button"
-          role="combobox"
-          aria-controls={listboxId}
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-invalid={!!error}
-          aria-describedby={error || helperText ? helperId : undefined}
-          disabled={disabled}
-          onClick={toggle}
-          onKeyDown={handleTriggerKeyDown}
-          className={triggerClasses}
-        >
-          <span
-            title={displayLabel}
-            className={`block min-w-0 truncate ${hasSelection ? '' : isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
-          >
-            {displayLabel}
-          </span>
-        </button>
-
-        <span
-          className={`pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 transition-transform duration-200 ${
-            isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'
-          } ${isOpen ? 'rotate-180' : ''}`}
-          aria-hidden
-        >
-          <ChevronDown className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2} />
-        </span>
-
-        {isOpen && (
+  const listbox =
+    isOpen && panelCoords && portalReady
+      ? createPortal(
           <div
+            ref={panelRef}
             id={listboxId}
             role="listbox"
             aria-labelledby={label ? selectId : undefined}
-            className={`${panelClasses} ${closing ? 'animate-dropdown-exit' : 'animate-dropdown-enter'}`}
-            style={{ animationDuration: '150ms', animationFillMode: 'forwards' }}
+            className={`fixed z-[120] ${panelClasses} ${closing ? 'animate-dropdown-exit' : 'animate-dropdown-enter'}`}
+            style={{
+              top: panelCoords.top,
+              left: panelCoords.left,
+              width: panelCoords.width,
+              animationDuration: '150ms',
+              animationFillMode: 'forwards',
+            }}
           >
-            <div
-              className="overflow-y-auto py-1 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              style={{ maxHeight: maxListHeight }}
-            >
+            <div className="overflow-y-auto py-1" style={{ maxHeight: panelCoords.maxHeight }}>
               {options.length === 0 ? (
                 <p
                   className={`px-3 py-2 text-sm ${isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
@@ -342,12 +364,15 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
                         {isSelected && <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate" title={opt.label}>{opt.label}</span>
+                        <span className="block truncate" title={opt.title || opt.label}>
+                          {opt.label}
+                        </span>
                         {opt.description && (
                           <span
                             className={`mt-0.5 block truncate text-[11px] ${
                               isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'
                             }`}
+                            title={opt.description}
                           >
                             {opt.description}
                           </span>
@@ -358,9 +383,55 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
                 })
               )}
             </div>
-          </div>
-        )}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <div className={`flex w-full flex-col space-y-1 text-left ${wrapperClassName}`} ref={containerRef}>
+      {label && (
+        <label htmlFor={selectId} className={labelClasses}>
+          {label}
+          {required && <span className="ml-0.5 text-ais-error">*</span>}
+        </label>
+      )}
+
+      <div className="relative">
+        <button
+          ref={triggerRef}
+          id={selectId}
+          type="button"
+          role="combobox"
+          aria-controls={listboxId}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-invalid={!!error}
+          aria-describedby={error || helperText ? helperId : undefined}
+          disabled={disabled}
+          onClick={toggle}
+          onKeyDown={handleTriggerKeyDown}
+          className={triggerClasses}
+        >
+          <span
+            title={selectedOption?.title || displayLabel}
+            className={`block min-w-0 truncate ${hasSelection ? '' : isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
+          >
+            {displayLabel}
+          </span>
+        </button>
+
+        <span
+          className={`pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 transition-transform duration-200 ${
+            isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'
+          } ${isOpen ? 'rotate-180' : ''}`}
+          aria-hidden
+        >
+          <ChevronDown className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2} />
+        </span>
       </div>
+
+      {listbox}
 
       {name && <input type="hidden" name={name} value={selectedValue} required={required} />}
 

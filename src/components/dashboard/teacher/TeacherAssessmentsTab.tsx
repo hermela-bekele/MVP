@@ -1,14 +1,28 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { FilePlus, Upload, Sparkles, Printer, Download } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS } from '@/lib/teacherPortal';
-import { generateAssessmentWithAI, generateBaselineAssessmentWithAI, buildLessonPlanContext, baselineScopeLabel, baselineTimingLabel, derivePreviousGrade, type BaselineSemesterTiming } from '@/lib/ai';
+import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS, resolveTeacherProfile } from '@/lib/teacherPortal';
+import {
+  generateAssessmentWithAI,
+  generateBaselineAssessmentWithAI,
+  getWeeklyPlanSessionTopicOptions,
+  baselineScopeLabel,
+  baselineTimingLabel,
+  derivePreviousGrade,
+  questionLimitsForAssessmentType,
+  type BaselineSemesterTiming,
+} from '@/lib/ai';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
+import {
+  countQuestionsInAssessmentMarkdown,
+  isGeneratedAssessmentBlob,
+  wrapAssessmentMarkdown,
+} from '@/lib/assessmentMarkdown';
 import type { Assessment } from '@/lib/mockData';
 import {
   generatePDFFromMarkdown,
@@ -43,10 +57,13 @@ type QuestionFormat = (typeof QUESTION_FORMAT_OPTIONS)[number];
 
 export const TeacherAssessmentsTab: React.FC = () => {
   const router = useRouter();
-  const { assessments, createAssessment, lessonPlans } = useApp();
-  const myAssessments = filterTeacherAssessments(assessments);
-  const teacherPlans = filterTeacherLessonPlans(lessonPlans);
-
+  const { assessments, createAssessment, lessonPlans, teachers, resolveTeacherId } = useApp();
+  const teacherId = resolveTeacherId();
+  const teacherProfile = resolveTeacherProfile(teachers, teacherId);
+  const myAssessments = filterTeacherAssessments(assessments, teacherId, {
+    subjects: teacherProfile.subjects,
+  });
+  const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<Assessment['type']>('Quiz');
@@ -56,8 +73,11 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [uploadMode, setUploadMode] = useState<'create' | 'upload'>('create');
   const [sourceType, setSourceType] = useState<'topic' | 'lesson_plan'>('topic');
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState('');
+  const [selectedSessionScope, setSelectedSessionScope] = useState('');
   const [topic, setTopic] = useState('');
-  const [numQuestions, setNumQuestions] = useState(10);
+  const [numQuestions, setNumQuestions] = useState(
+    () => questionLimitsForAssessmentType('Quiz').default,
+  );
   const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('Mixed');
   const [assessmentStudentLevel, setAssessmentStudentLevel] = useState('differentiated');
   const [baselineTiming, setBaselineTiming] = useState<BaselineSemesterTiming>('semester_1_start');
@@ -66,6 +86,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
+  const questionLimits = questionLimitsForAssessmentType(type);
   useEffect(() => {
     const open = () => {
       setUploadMode('create');
@@ -76,14 +97,30 @@ export const TeacherAssessmentsTab: React.FC = () => {
   }, []);
 
   const selectedPlan = teacherPlans.find((p) => p.id === selectedLessonPlanId);
+  const sessionOptions = useMemo(
+    () => (selectedPlan ? getWeeklyPlanSessionTopicOptions(selectedPlan) : []),
+    [selectedPlan],
+  );
+  const selectedSession = sessionOptions.find((o) => o.value === selectedSessionScope);
 
   useEffect(() => {
+    setSelectedSessionScope('');
     if (sourceType === 'lesson_plan' && selectedPlan) {
       setGrade(selectedPlan.grade);
       setSubject(selectedPlan.subject);
-      setTopic(selectedPlan.title);
+      const options = getWeeklyPlanSessionTopicOptions(selectedPlan);
+      const firstSession = options.find((o) => o.value !== 'all') ?? options[0];
+      if (firstSession) {
+        setSelectedSessionScope(firstSession.value);
+        setTopic(firstSession.topic);
+      }
     }
   }, [sourceType, selectedPlan]);
+
+  useEffect(() => {
+    if (sourceType !== 'lesson_plan' || !selectedSession) return;
+    setTopic(selectedSession.topic);
+  }, [sourceType, selectedSession]);
 
   const isBaseline = type === 'Baseline';
 
@@ -93,12 +130,14 @@ export const TeacherAssessmentsTab: React.FC = () => {
       setTitle(`Baseline — ${grade} ${subject} (${baselineTimingLabel(baselineTiming, grade)})`);
       return;
     }
-    if (sourceType === 'lesson_plan' && selectedPlan && type) {
-      setTitle(`${type} — ${selectedPlan.title}`);
+    if (sourceType === 'lesson_plan' && selectedPlan && selectedSession && type) {
+      const pages = selectedSession.subtopic?.trim();
+      const pageSuffix = pages && /p\.|pp\.|\d/.test(pages) ? ` (${pages})` : '';
+      setTitle(`${type} — ${selectedSession.topic}${pageSuffix}`);
     } else if (topic && type) {
       setTitle(`${type} on ${topic}`);
     }
-  }, [topic, type, sourceType, selectedPlan, isBaseline, grade, subject, baselineTiming]);
+  }, [topic, type, sourceType, selectedPlan, selectedSession, isBaseline, grade, subject, baselineTiming]);
 
   const handleGenerateWithAI = async () => {
     if (isBaseline) {
@@ -133,27 +172,43 @@ export const TeacherAssessmentsTab: React.FC = () => {
       alert('Please select a lesson plan first');
       return;
     }
+    if (sourceType === 'lesson_plan' && !selectedSession) {
+      alert('Please select a session from the lesson plan');
+      return;
+    }
 
-    const effectiveTopic = sourceType === 'lesson_plan' && selectedPlan
-      ? selectedPlan.title
-      : topic.trim();
-    const lessonPlanContext = sourceType === 'lesson_plan' && selectedPlan
-      ? buildLessonPlanContext(selectedPlan)
-      : undefined;
+    const pages = selectedSession?.subtopic?.trim() || '';
+    const pageHint = pages && /p\.|pp\.|\d/.test(pages) ? ` (textbook ${pages})` : '';
+    const effectiveTopic =
+      sourceType === 'lesson_plan' && selectedSession
+        ? `${selectedSession.topic}${pageHint}`
+        : topic.trim();
+    const lessonPlanContext =
+      sourceType === 'lesson_plan' && selectedSession
+        ? selectedSession.context
+        : undefined;
     
     setIsGenerating(true);
     try {
-      const content = await generateAssessmentWithAI(
-        type,
-        effectiveTopic,
+      const content = wrapAssessmentMarkdown({
+        body: await generateAssessmentWithAI(
+          type,
+          effectiveTopic,
+          grade,
+          subject,
+          difficulty,
+          numQuestions,
+          questionFormat,
+          lessonPlanContext,
+          assessmentStudentLevel,
+        ),
+        assessmentType: type,
+        questionFormat,
+        numQuestions,
+        topic: effectiveTopic,
         grade,
         subject,
-        difficulty,
-        numQuestions,
-        questionFormat,
-        lessonPlanContext,
-        assessmentStudentLevel,
-      );
+      });
       setGeneratedContent(content);
       setShowPreview(true);
     } catch (error) {
@@ -191,7 +246,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setTopic('');
     setSourceType('topic');
     setSelectedLessonPlanId('');
-    setNumQuestions(10);
+    setSelectedSessionScope('');
+    setNumQuestions(questionLimitsForAssessmentType('Quiz').default);
     setQuestionFormat('Mixed');
     setAssessmentStudentLevel('differentiated');
     setBaselineTiming('semester_1_start');
@@ -207,7 +263,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setTopic('');
     setSourceType('topic');
     setSelectedLessonPlanId('');
-    setNumQuestions(10);
+    setSelectedSessionScope('');
+    setNumQuestions(questionLimitsForAssessmentType('Quiz').default);
     setQuestionFormat('Mixed');
     setAssessmentStudentLevel('differentiated');
     setBaselineTiming('semester_1_start');
@@ -217,7 +274,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     ? true
     : sourceType === 'topic'
       ? !!topic.trim()
-      : !!selectedLessonPlanId;
+      : !!selectedLessonPlanId && !!selectedSessionScope;
 
   const canSubmit =
     uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
@@ -250,17 +307,17 @@ export const TeacherAssessmentsTab: React.FC = () => {
     <AisPage>
       <AisPanel
         title="My assessments"
-        description="Quizzes, baseline diagnostics, tests, and exams — submitted to department head for approval"
+        description="Quizzes and baselines are ready immediately. Mid/final exams are generated by your HoD and appear once published."
         flush
         actions={
           <>
             <AisBtnPrimary onClick={() => { setUploadMode('create'); setIsOpen(true); }}>
               <FilePlus className="h-3.5 w-3.5" aria-hidden />
-              Create assessment
+              Create quiz
             </AisBtnPrimary>
             <AisBtnSecondary onClick={() => { setUploadMode('upload'); setIsOpen(true); }}>
               <Upload className="h-3.5 w-3.5" aria-hidden />
-              Upload test file
+              Upload quiz file
             </AisBtnSecondary>
           </>
         }
@@ -286,11 +343,22 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   className="cursor-pointer"
                   onClick={() => router.push(`/dashboard/teacher/assessments/${a.id}`)}
                 >
-                  <AisTd className="font-semibold text-primary hover:underline">{a.title}</AisTd>
+                  <AisTd className="font-semibold text-primary hover:underline">
+                    {a.title}
+                    {a.createdByRole === 'department-head' ? (
+                      <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-ais-primary">
+                        HoD
+                      </span>
+                    ) : null}
+                  </AisTd>
                   <AisTd>{a.type}</AisTd>
                   <AisTd>{a.grade} · {a.subject}</AisTd>
                   <AisTd>{a.difficulty}</AisTd>
-                  <AisTd className="tabular-nums">{a.questions.length}</AisTd>
+                  <AisTd className="tabular-nums">
+                    {isGeneratedAssessmentBlob(a.questions)
+                      ? countQuestionsInAssessmentMarkdown(a.questions[0].question)
+                      : a.questions.length}
+                  </AisTd>
                   <AisTd>
                     <AisStatusBadge variant={approvalBadgeVariant(a.status)}>{a.status}</AisStatusBadge>
                   </AisTd>
@@ -324,6 +392,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 setSourceType(next);
                 if (next === 'topic') {
                   setSelectedLessonPlanId('');
+                  setSelectedSessionScope('');
                 } else {
                   setTopic('');
                 }
@@ -390,21 +459,52 @@ export const TeacherAssessmentsTab: React.FC = () => {
                       }))
                 }
                 value={selectedLessonPlanId}
-                onChange={(e) => setSelectedLessonPlanId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedLessonPlanId(e.target.value);
+                  setSelectedSessionScope('');
+                }}
               />
               {selectedPlan && (
-                <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-3 text-xs text-ais-on-surface-variant space-y-2">
-                  <p className="font-semibold text-ais-on-surface">{selectedPlan.title}</p>
-                  <p>{selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions} sessions</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    {selectedPlan.objectives.slice(0, 3).map((obj) => (
-                      <li key={obj}>{obj}</li>
-                    ))}
-                    {selectedPlan.objectives.length > 3 && (
-                      <li>+{selectedPlan.objectives.length - 3} more objectives</li>
+                <>
+                  <Select
+                    variant="ais"
+                    label="Session"
+                    options={
+                      sessionOptions.length === 0
+                        ? [{ value: '', label: 'No sessions in this plan' }]
+                        : sessionOptions.map((o) => ({
+                            value: o.value,
+                            label: o.label,
+                          }))
+                    }
+                    value={selectedSessionScope}
+                    onChange={(e) => setSelectedSessionScope(e.target.value)}
+                  />
+                  <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-3 text-xs text-ais-on-surface-variant space-y-2">
+                    <p className="font-semibold text-ais-on-surface">{selectedPlan.title}</p>
+                    <p>
+                      {selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions} sessions
+                    </p>
+                    {selectedSession && (
+                      <div className="space-y-1 rounded-lg bg-white/60 p-2 dark:bg-black/20">
+                        <p className="font-semibold text-ais-on-surface">
+                          Quiz topic: {selectedSession.topic}
+                        </p>
+                        {selectedSession.subtopic?.trim() && (
+                          <p>Textbook: {selectedSession.subtopic}</p>
+                        )}
+                      </div>
                     )}
-                  </ul>
-                </div>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {selectedPlan.objectives.slice(0, 3).map((obj) => (
+                        <li key={obj}>{obj}</li>
+                      ))}
+                      {selectedPlan.objectives.length > 3 && (
+                        <li>+{selectedPlan.objectives.length - 3} more objectives</li>
+                      )}
+                    </ul>
+                  </div>
+                </>
               )}
             </div>
           ) : !isBaseline ? (
@@ -426,14 +526,16 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <Select
                 variant="ais"
                 label="Assessment type"
-                options={['Baseline', 'Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+                options={['Baseline', 'Quiz', 'Assignment'].map((t) => ({ value: t, label: t }))}
                 value={type}
                 onChange={(e) => {
                   const next = e.target.value as Assessment['type'];
                   setType(next);
+                  setNumQuestions(questionLimitsForAssessmentType(next).default);
                   if (next === 'Baseline') {
                     setSourceType('topic');
                     setSelectedLessonPlanId('');
+                    setSelectedSessionScope('');
                   }
                 }}
               />
@@ -451,16 +553,26 @@ export const TeacherAssessmentsTab: React.FC = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
-                  Number of questions
+                  Number of questions ({questionLimits.min}–{questionLimits.max})
                 </label>
                 <input
                   type="number"
                   className={aisInput}
                   required
-                  min={1}
-                  max={50}
+                  min={questionLimits.min}
+                  max={questionLimits.max}
                   value={numQuestions}
-                  onChange={(e) => setNumQuestions(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                  onChange={(e) =>
+                    setNumQuestions(
+                      Math.max(
+                        questionLimits.min,
+                        Math.min(
+                          questionLimits.max,
+                          Number(e.target.value) || questionLimits.default,
+                        ),
+                      ),
+                    )
+                  }
                 />
               </div>
               <Select
@@ -491,7 +603,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <Select
                 variant="ais"
                 label="Assessment type"
-                options={['Baseline', 'Quiz', 'Mid Exam', 'Final Exam', 'Assignment', 'Practical'].map((t) => ({ value: t, label: t }))}
+                options={['Baseline', 'Quiz', 'Assignment'].map((t) => ({ value: t, label: t }))}
                 value={type}
                 onChange={(e) => setType(e.target.value as Assessment['type'])}
               />
@@ -577,7 +689,10 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <AssessmentContentRenderer content={generatedContent} />
+              <AssessmentContentRenderer
+                content={generatedContent}
+                categoryLabel={`${type} · ${questionFormat}`}
+              />
             </div>
           )}
 
@@ -592,7 +707,9 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 type="submit"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
               >
-                Submit for dept head approval
+                {type === 'Quiz' || type === 'Baseline'
+                  ? 'Save & make available for grades'
+                  : 'Submit for dept head approval'}
               </button>
             )}
           </DialogFooter>

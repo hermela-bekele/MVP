@@ -35,10 +35,14 @@ function authHeaders(): Record<string, string> {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): Promise<T> {
   const res = await fetch(`${API_BASE}/api${path}`, {
     ...init,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
@@ -107,6 +111,8 @@ export interface BootstrapPayload {
   communityPosts: import('@/lib/mockData').CommunityPost[];
   communityReplies: import('@/lib/mockData').CommunityReply[];
   staffMessages: import('@/lib/mockData').StaffMessage[];
+  teacherSelfAssessments: import('@/lib/mockData').TeacherSelfAssessment[];
+  teacherTrainingAssignments: import('@/lib/mockData').TeacherTrainingAssignment[];
   notifications: {
     id: string;
     title: string;
@@ -140,7 +146,7 @@ export interface RegisterPayload {
 
 export const api = {
   health: () => request<{ ok: boolean }>('/health'),
-  bootstrap: () => request<BootstrapPayload>('/bootstrap'),
+  bootstrap: () => request<BootstrapPayload>('/bootstrap', undefined, 45_000),
   login: (email: string, password: string) =>
     request<LoginResult>('/auth/login', {
       method: 'POST',
@@ -182,6 +188,10 @@ export const api = {
     body: { title: string; objectives: string[]; sessions: number; homework: string }
   ) =>
     request(`/lesson-plans/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteLessonPlan: (id: string) =>
+    request(`/lesson-plans/${id}`, { method: 'DELETE' }),
+  updateDeptAnnualLessonPlan: (id: string, body: Record<string, unknown>) =>
+    request(`/lesson-plans/${id}/annual`, { method: 'PATCH', body: JSON.stringify(body) }),
   createAssessment: (body: Record<string, unknown>) =>
     request('/assessments', { method: 'POST', body: JSON.stringify(body) }),
   updateAssessment: (id: string, body: { questions: unknown[] }) =>
@@ -235,10 +245,18 @@ export const api = {
     request(`/training-materials/${id}/disseminate`, { method: 'PATCH' }),
   createCheckIn: (body: Record<string, unknown>) =>
     request('/check-ins', { method: 'POST', body: JSON.stringify(body) }),
+  submitSelfAssessment: (body: Record<string, unknown>) =>
+    request('/teacher-self-assessments', { method: 'POST', body: JSON.stringify(body) }),
+  assignTrainingModule: (body: Record<string, unknown>) =>
+    request('/teacher-training-assignments', { method: 'POST', body: JSON.stringify(body) }),
+  updateTrainingAssignmentStatus: (id: string, status: string) =>
+    request(`/teacher-training-assignments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   createTeachingNote: (body: Record<string, unknown>) =>
     request('/teaching-notes', { method: 'POST', body: JSON.stringify(body) }),
   updateTeachingNote: (id: string, body: Record<string, unknown>) =>
     request(`/teaching-notes/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteTeachingNote: (id: string) =>
+    request<void>(`/teaching-notes/${id}`, { method: 'DELETE' }),
   createAcademicCalendar: (body: Record<string, unknown>) =>
     request('/academic-calendars', { method: 'POST', body: JSON.stringify(body) }),
   publishAcademicCalendar: (id: string) =>
@@ -260,10 +278,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ response }),
     }),
-  createNotification: (title: string, description: string, type: string) =>
+  createNotification: (title: string, description: string, type: string, linkPath?: string) =>
     request('/notifications', {
       method: 'POST',
-      body: JSON.stringify({ title, description, type }),
+      body: JSON.stringify({ title, description, type, linkPath }),
     }),
   markNotificationRead: (id: string) =>
     request(`/notifications/${id}/read`, { method: 'PATCH' }),
@@ -273,6 +291,7 @@ export const api = {
     request<{
       delivery: import('@/lib/mockData').LessonDelivery;
       communityPost: import('@/lib/mockData').CommunityPost | null;
+      communityMessage: import('@/lib/communityTypes').CommunityMessage | null;
     }>('/lesson-deliveries', { method: 'POST', body: JSON.stringify(body) }),
   getCommunityFeed: () =>
     request<{

@@ -8,6 +8,9 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import { aisCard } from '@/components/dashboard/teacher/aisStyles';
+import { normalizeMarkdownMath } from '@/lib/markdownMath';
+
+export { normalizeMarkdownMath } from '@/lib/markdownMath';
 
 interface MarkdownRendererProps {
   content: string;
@@ -15,22 +18,7 @@ interface MarkdownRendererProps {
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
-  // Pre-process content to fix common issues
-  const processedContent = content
-    // Fix LaTeX delimiters - convert single $ to inline math
-    .replace(/\$([^\$\n]+?)\$/g, (match, p1) => {
-      // Don't process if it's already escaped or part of $$
-      if (match.startsWith('$$') || match.endsWith('$$')) return match;
-      return `$${p1}$`;
-    })
-    // Fix caret notation for powers (x^2 -> x²)
-    .replace(/\^(\d+)/g, (match, p1) => {
-      const superscripts: Record<string, string> = {
-        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
-      };
-      return superscripts[p1] || match;
-    });
+  const processedContent = normalizeMarkdownMath(content);
 
   return (
     <div className={`markdown-content prose prose-sm md:prose-base max-w-none ${className}`}>
@@ -42,7 +30,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             <h1 className="text-2xl font-bold text-ais-on-surface mb-4 mt-6 pb-2 border-b border-ais-card-border" {...props} />
           ),
           h2: ({ node: _node, ...props }) => (
-            <h2 className="text-xl font-semibold text-ais-on-surface mb-3 mt-5 flex items-center gap-2" {...props} />
+            <h2 className="text-xl font-semibold text-ais-on-surface mb-3 mt-6 first:mt-0 pb-1 border-b border-ais-card-border/60" {...props} />
           ),
           h3: ({ node: _node, ...props }) => (
             <h3 className="text-lg font-semibold text-ais-primary mb-2 mt-4" {...props} />
@@ -54,15 +42,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             <p className="text-sm text-ais-on-surface-variant leading-relaxed mb-3" {...props} />
           ),
           ul: ({ node: _node, ...props }) => (
-            <ul className="list-disc list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant" {...props} />
+            <ul className="list-disc list-outside ml-5 space-y-1.5 mb-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
           ol: ({ node: _node, ...props }) => (
-            <ol className="list-decimal list-inside space-y-2 mb-4 text-sm text-ais-on-surface-variant" {...props} />
+            <ol className="list-decimal list-outside ml-5 space-y-1.5 mb-4 text-sm text-ais-on-surface-variant" {...props} />
           ),
-          li: ({ node: _node, children, ...props }) => (
-            <li className="ml-2" {...props}>
-              <span className="ml-2">{children}</span>
-            </li>
+          li: ({ node: _node, ...props }) => (
+            <li className="leading-relaxed pl-1" {...props} />
           ),
           strong: ({ node: _node, ...props }) => (
             <strong className="font-bold text-ais-on-surface" {...props} />

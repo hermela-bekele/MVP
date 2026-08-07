@@ -14,6 +14,7 @@ import { RegistrarReports } from '@/components/dashboard/registrar/RegistrarRepo
 import { RegistrarBilling } from '@/components/dashboard/registrar/RegistrarBilling';
 import { RegistrarWaitlist } from '@/components/dashboard/registrar/RegistrarWaitlist';
 import { usePortalTab } from '@/lib/usePortalTab';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -55,6 +56,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   reports: {
     title: 'Enrollment Reports',
     subtitle: 'Enrollment statistics, grade distribution, and attendance alerts.',
+  },
+  profile: {
+    title: 'My Profile',
+    subtitle: 'Your registrar account information.',
   },
 };
 
@@ -121,6 +126,17 @@ export default function RegistrarPortalPage() {
       {activeTab === 'billing' && <RegistrarBilling />}
       {activeTab === 'waitlist' && <RegistrarWaitlist />}
       {activeTab === 'reports' && <RegistrarReports />}
+      {activeTab === 'profile' && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <PortalProfileCard
+            roleLabel="Registrar Officer"
+            fields={[
+              { label: 'Department', value: 'Registrar Office' },
+              { label: 'Scope', value: 'Enrollment, records & class placement' },
+            ]}
+          />
+        </div>
+      )}
     </DashboardShell>
   );
 }

@@ -49,7 +49,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const isOpenRef = useRef(isOpen);
-  isOpenRef.current = isOpen;
+  
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const triggerClose = useCallback(() => {
     setClosing(true);

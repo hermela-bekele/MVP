@@ -9,12 +9,12 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { LessonPlan } from '@/lib/mockData';
+import { weeklyPlanStatusLabel } from '@/lib/teacherPortal';
 
 export const LessonPlanReview: React.FC = () => {
-  const { lessonPlans, approveLessonPlan, rejectLessonPlan } = useApp();
+  const { lessonPlans } = useApp();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [principalComments, setPrincipalComments] = useState('');
 
   // Find the selected plan details
   const selectedPlan = React.useMemo(() => {
@@ -23,20 +23,7 @@ export const LessonPlanReview: React.FC = () => {
 
   const handleOpenReview = (id: string) => {
     setSelectedPlanId(id);
-    setPrincipalComments('');
     setIsModalOpen(true);
-  };
-
-  const handleApprove = () => {
-    if (!selectedPlanId) return;
-    approveLessonPlan(selectedPlanId, 'school', principalComments || 'Lesson plan satisfies all regional curriculum guidelines.');
-    setIsModalOpen(false);
-  };
-
-  const handleReject = () => {
-    if (!selectedPlanId) return;
-    rejectLessonPlan(selectedPlanId, 'school', principalComments || 'Please refine lesson objectives and expand student homework exercises.');
-    setIsModalOpen(false);
   };
 
   const planColumns: DataTableColumn<LessonPlan>[] = [
@@ -89,7 +76,7 @@ export const LessonPlanReview: React.FC = () => {
       render: (row) => (
         <Badge
           variant={
-            row.status === 'Approved'
+            row.status === 'Approved' || row.status === 'Pending School Head'
               ? 'success'
               : row.status === 'Rejected'
                 ? 'danger'
@@ -100,7 +87,7 @@ export const LessonPlanReview: React.FC = () => {
           size="sm"
           className="font-semibold"
         >
-          {row.status}
+          {weeklyPlanStatusLabel(row.status)}
         </Badge>
       ),
     },
@@ -108,15 +95,14 @@ export const LessonPlanReview: React.FC = () => {
       key: 'actions',
       header: 'Operation',
       render: (row) => {
-        const canAction = row.status === 'Pending School Head';
         return (
           <Button
-            variant={canAction ? 'primary' : 'outline'}
+            variant="outline"
             size="sm"
             onClick={() => handleOpenReview(row.id)}
             className="text-[10px] h-7 font-bold border-none"
           >
-            {canAction ? 'Review Draft' : 'Inspect Rulings'}
+            Inspect
           </Button>
         );
       },
@@ -127,7 +113,7 @@ export const LessonPlanReview: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <TablePanel
         title="Instructional Syllabus Filings"
-        description="Examine lesson plan compliance and curriculum distributions"
+        description="Weekly lesson plans are approved only by the department head. School head approval is not part of this workflow."
       >
           <DataTable<LessonPlan>
             columns={planColumns}
@@ -200,60 +186,21 @@ export const LessonPlanReview: React.FC = () => {
               </div>
             )}
 
-            {/* Action panel if pending */}
-            {selectedPlan.status === 'Pending School Head' ? (
-              <div className="space-y-2 text-left pt-2">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Audit Comment / Correction Directives</label>
-                <textarea
-                  placeholder="e.g. Approved. Solid plan. Expand on laboratory segments."
-                  value={principalComments}
-                  onChange={(e) => setPrincipalComments(e.target.value)}
-                  className="w-full h-20 p-3 bg-muted/40 border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+            <div className="rounded-xl border border-border/40 bg-muted/30 p-3 text-left text-xs text-muted-foreground">
+              Weekly lesson plans are approved by the department head. No school head approval is required.
+            </div>
 
-                <DialogFooter className="mt-4 border-t border-border/20 pt-3 flex gap-2 justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsModalOpen(false)}
-                    className="text-xs h-9"
-                  >
-                    Close Rulings
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleReject}
-                    className="text-xs h-9 border-none font-bold"
-                  >
-                    Reject Blueprint
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="organic"
-                    size="sm"
-                    onClick={handleApprove}
-                    className="text-xs h-9 border-none font-bold"
-                  >
-                    Approve Syllabus
-                  </Button>
-                </DialogFooter>
-              </div>
-            ) : (
-              <DialogFooter className="mt-4 border-t border-border/20 pt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-xs h-9"
-                >
-                  Close Inspection
-                </Button>
-              </DialogFooter>
-            )}
+            <DialogFooter className="mt-4 border-t border-border/20 pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsModalOpen(false)}
+                className="text-xs h-9"
+              >
+                Close Inspection
+              </Button>
+            </DialogFooter>
 
           </div>
         )}

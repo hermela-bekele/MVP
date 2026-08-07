@@ -1,8 +1,27 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '@/lib/api';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
+import { api, type BootstrapPayload } from '@/lib/api';
 import { toast } from '@/components/ui/toast';
+import {
+  type DataSource,
+  countOutbox,
+  emptyBootstrapPayload,
+  enqueueOutbox,
+  isBrowserOnline,
+  loadOfflineSnapshot,
+  readOfflineMeta,
+  saveOfflineSnapshot,
+  writeOfflineMeta,
+} from '@/lib/offlineStore';
+import { flushOfflineOutbox } from '@/lib/offlineSync';
 import {
   School,
   Teacher,
@@ -30,6 +49,8 @@ import {
   CommunityReply,
   StaffMessage,
   GraspOutcome,
+  TeacherSelfAssessment,
+  TeacherTrainingAssignment,
   mockSchools,
   mockTeachers,
   mockStudents,
@@ -43,6 +64,7 @@ import {
   mockExams,
   mockTrainingMaterials,
   mockTeachingNotes,
+  mockLessonDeliveries,
   mockAcademicCalendars,
   mockTeacherResources,
   mockTeacherFeedbacks,
@@ -89,6 +111,8 @@ export interface AppNotification {
   timestamp: string;
   read: boolean;
   type: 'info' | 'alert' | 'success' | 'request';
+  /** Absolute or portal path for deep-link navigation, e.g. /dashboard/teacher/communication */
+  linkPath?: string;
 }
 
 interface AppContextType {
@@ -126,6 +150,8 @@ interface AppContextType {
   communityPosts: CommunityPost[];
   communityReplies: CommunityReply[];
   staffMessages: StaffMessage[];
+  teacherSelfAssessments: TeacherSelfAssessment[];
+  teacherTrainingAssignments: TeacherTrainingAssignment[];
   registrationApplications: RegistrationApplication[];
   hrEmployees: HrEmployee[];
   leaveRequests: LeaveRequest[];
@@ -145,7 +171,13 @@ interface AppContextType {
   approveAssessment: (id: string, comments: string) => void;
   rejectAssessment: (id: string, comments: string) => void;
   createLessonPlan: (plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => void;
-  createAssessment: (asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'>) => void;
+  createAssessment: (
+    asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
+      createdByRole?: Assessment['createdByRole'];
+      teacherName?: string;
+      teacherId?: string;
+    }
+  ) => void;
   updateAssessmentQuestions: (id: string, questions: Assessment['questions']) => void;
   saveAttendance: (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => void;
   enrollStudent: (student: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => void;
@@ -184,6 +216,13 @@ interface AppContextType {
   addTeacher: (teacher: Omit<Teacher, 'id' | 'status' | 'trainingProgress'>) => void;
   updateTeacher: (id: string, updates: Partial<Teacher>) => void;
   toggleTeacherStatus: (id: string) => void;
+  submitSelfAssessment: (
+    data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>
+  ) => void;
+  assignTrainingModule: (
+    data: Omit<TeacherTrainingAssignment, 'id' | 'createdAt' | 'status'>
+  ) => void;
+  updateTrainingAssignmentStatus: (id: string, status: TeacherTrainingAssignment['status']) => void;
   addDepartment: (name: string, headName: string) => void;
   addClass: (name: string, grade: string, section: string, homeroomTeacher: string) => void;
   approveExam: (id: string, comments: string) => void;
@@ -206,6 +245,7 @@ interface AppContextType {
     status?: TeachingNote['status']
   ) => string;
   updateTeachingNote: (id: string, updates: Partial<TeachingNote>) => void;
+  deleteTeachingNote: (id: string) => void;
   approveTeachingNote: (id: string, comments: string) => void;
   rejectTeachingNote: (id: string, comments: string) => void;
   createAcademicCalendar: (
@@ -219,6 +259,11 @@ interface AppContextType {
   createDeptAnnualLessonPlan: (
     plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
   ) => void;
+  updateDeptAnnualLessonPlan: (
+    id: string,
+    plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
+  ) => void;
+  deleteLessonPlan: (id: string) => void;
   upsertStudentGradeEntry: (
     entry: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => void;
@@ -240,6 +285,8 @@ interface AppContextType {
     graspOutcome: GraspOutcome;
     challengeText?: string;
     postTo: 'hod' | 'community' | 'both' | 'none';
+    communityId?: string;
+    channelId?: string;
   }) => Promise<void>;
   createCommunityPost: (payload: {
     title: string;
@@ -255,7 +302,12 @@ interface AppContextType {
   }) => Promise<void>;
   refreshStaffMessages: (params?: { teacherId?: string; departmentId?: string }) => Promise<void>;
   markStaffMessagesRead: (teacherId: string, readerRole: 'teacher' | 'department-head') => void;
-  addNotification: (title: string, description: string, type: AppNotification['type']) => void;
+  addNotification: (
+    title: string,
+    description: string,
+    type: AppNotification['type'],
+    linkPath?: string
+  ) => void;
   markNotificationAsRead: (id: string) => void;
   markNotificationAsUnread: (id: string) => void;
   dismissNotification: (id: string) => void;
@@ -263,19 +315,55 @@ interface AppContextType {
 
   isDataLoading: boolean;
   dataError: string | null;
+  /** Browser network status */
+  isOnline: boolean;
+  /** Where the current in-memory portal data came from */
+  dataSource: DataSource;
+  /** ISO timestamp of last successful API bootstrap (also stored offline) */
+  lastSyncedAt: string | null;
+  /** Queued local mutations waiting to sync */
+  pendingSyncCount: number;
   refreshFromApi: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    if (typeof window !== 'undefined') {
+      return readStoredSession();
+    }
+    return null;
+  });
   const [authReady, setAuthReady] = useState(false);
-  const [activeRole, setActiveRoleState] = useState<string>('login');
+  const [activeRole, setActiveRoleState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = readStoredSession();
+      if (savedUser) return savedUser.role;
+    }
+    return 'login';
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return navigator.onLine;
+    }
+    return true;
+  });
+  const [dataSource, setDataSource] = useState<DataSource>(() => readOfflineMeta().dataSource);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(
+    () => readOfflineMeta().lastSyncedAt,
+  );
+  const [pendingSyncCount, setPendingSyncCount] = useState(
+    () => readOfflineMeta().pendingCount,
+  );
+  const dataSourceRef = useRef<DataSource>(dataSource);
+  useEffect(() => {
+    dataSourceRef.current = dataSource;
+  }, [dataSource]);
 
   // Collections state (loaded from PostgreSQL API)
   const [schools, setSchools] = useState<School[]>([]);
@@ -305,6 +393,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [communityReplies, setCommunityReplies] = useState<CommunityReply[]>([]);
   const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([]);
+  const [teacherSelfAssessments, setTeacherSelfAssessments] =
+    useState<TeacherSelfAssessment[]>([]);
+  const [teacherTrainingAssignments, setTeacherTrainingAssignments] =
+    useState<TeacherTrainingAssignment[]>([]);
   const [registrationApplications, setRegistrationApplications] =
     useState<RegistrationApplication[]>([]);
   const [hrEmployees, setHrEmployees] = useState<HrEmployee[]>([]);
@@ -337,11 +429,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeacherFeedbacks(mockTeacherFeedbacks);
     setParentMessages(mockParentMessages);
     setTeacherCheckInPrompts(mockTeacherCheckInPrompts);
-    setLessonDeliveries([]);
+    setLessonDeliveries(mockLessonDeliveries);
     setCommunityPosts([]);
     setCommunityReplies([]);
     setStaffMessages([]);
     setStudentGradeEntries(mockStudentGradeEntries);
+    setTeacherSelfAssessments([]);
+    setTeacherTrainingAssignments([]);
     setRegistrationApplications(mockRegistrationApplications);
     setHrEmployees(mockHrEmployees);
     setLeaveRequests(mockLeaveRequests);
@@ -356,66 +450,265 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       { id: 'not-2', title: 'National Exam Schedule', description: 'MOE published Grade 12 National Exam timelines for June.', timestamp: '1 hour ago', read: false, type: 'info' },
       { id: 'not-3', title: 'Low Attendance Alert', description: 'Student Yonas Kassa attendance has dropped below 86%.', timestamp: '2 hours ago', read: false, type: 'alert' },
     ]);
+    setDataSource('mock');
+    writeOfflineMeta({ dataSource: 'mock' });
+  }, []);
+
+  const applyBootstrapPayload = useCallback((data: BootstrapPayload, source: DataSource) => {
+    setSchools(data.schools ?? []);
+    setTeachers(data.teachers ?? []);
+    setStudents(data.students ?? []);
+    setLessonPlans(data.lessonPlans ?? []);
+    setAssessments(data.assessments ?? []);
+    setAttendance(data.attendance ?? []);
+    setTrainings(data.trainings ?? []);
+    setCheckIns(data.checkIns ?? []);
+    setDepartments(data.departments ?? []);
+    setClasses(data.classes ?? []);
+    setExams(data.exams ?? []);
+    setTrainingMaterials(data.trainingMaterials ?? []);
+    setTeachingNotes(data.teachingNotes ?? []);
+    const apiCalendars = data.academicCalendars ?? [];
+    const storedCalendars = readStoredCalendars();
+    const mergedCalendars =
+      apiCalendars.length > 0
+        ? apiCalendars
+        : storedCalendars.length > 0
+          ? storedCalendars
+          : mockAcademicCalendars;
+    setAcademicCalendars(mergedCalendars);
+    writeStoredCalendars(mergedCalendars);
+    setTeacherResources(data.teacherResources ?? []);
+    setTeacherFeedbacks(data.teacherFeedbacks ?? []);
+    setParentMessages(data.parentMessages ?? []);
+    setTeacherCheckInPrompts(data.teacherCheckInPrompts ?? []);
+    setStudentGradeEntries(data.studentGradeEntries ?? []);
+    setLessonDeliveries(data.lessonDeliveries ?? []);
+    setCommunityPosts(data.communityPosts ?? []);
+    setCommunityReplies(data.communityReplies ?? []);
+    setStaffMessages(data.staffMessages ?? []);
+    setTeacherSelfAssessments(data.teacherSelfAssessments ?? []);
+    setTeacherTrainingAssignments(data.teacherTrainingAssignments ?? []);
+    setNotifications((data.notifications ?? []) as AppNotification[]);
+    setRegistrationApplications(mockRegistrationApplications);
+    setHrEmployees(mockHrEmployees);
+    setLeaveRequests(mockLeaveRequests);
+    setPayrollRecords(mockPayrollRecords);
+    setJobPostings(mockJobPostings);
+    setJobApplications(mockJobApplications);
+    setPerformanceReviews(mockPerformanceReviews);
+    setOnboardingTasks(mockOnboardingTasks);
+    setStaffAttendance(mockStaffAttendance);
+    setDataSource(source);
+    writeOfflineMeta({ dataSource: source });
+  }, []);
+
+  const snapshotUserKey = useCallback(() => {
+    return currentUser?.email?.toLowerCase() || readStoredSession()?.email?.toLowerCase() || 'anon';
+  }, [currentUser]);
+
+  const buildSnapshotPayload = useCallback((): BootstrapPayload => {
+    return {
+      ...emptyBootstrapPayload(),
+      schools,
+      departments,
+      teachers,
+      students,
+      classes,
+      lessonPlans,
+      assessments,
+      attendance,
+      trainings,
+      checkIns,
+      exams,
+      trainingMaterials,
+      teachingNotes,
+      academicCalendars,
+      studentGradeEntries,
+      teacherResources,
+      teacherFeedbacks,
+      parentMessages,
+      teacherCheckInPrompts,
+      lessonDeliveries,
+      communityPosts,
+      communityReplies,
+      staffMessages,
+      teacherSelfAssessments,
+      teacherTrainingAssignments,
+      notifications: notifications.map(({ id, title, description, timestamp, read, type }) => ({
+        id,
+        title,
+        description,
+        timestamp,
+        read,
+        type,
+      })),
+    };
+  }, [
+    schools,
+    departments,
+    teachers,
+    students,
+    classes,
+    lessonPlans,
+    assessments,
+    attendance,
+    trainings,
+    checkIns,
+    exams,
+    trainingMaterials,
+    teachingNotes,
+    academicCalendars,
+    studentGradeEntries,
+    teacherResources,
+    teacherFeedbacks,
+    parentMessages,
+    teacherCheckInPrompts,
+    lessonDeliveries,
+    communityPosts,
+    communityReplies,
+    staffMessages,
+    teacherSelfAssessments,
+    teacherTrainingAssignments,
+    notifications,
+  ]);
+
+  const buildSnapshotPayloadRef = useRef(buildSnapshotPayload);
+  const snapshotUserKeyRef = useRef(snapshotUserKey);
+  
+  useEffect(() => {
+    buildSnapshotPayloadRef.current = buildSnapshotPayload;
+    snapshotUserKeyRef.current = snapshotUserKey;
+  }, [buildSnapshotPayload, snapshotUserKey]);
+
+  const persistPortalSnapshot = useCallback(
+    async (payload?: BootstrapPayload, syncedAt?: string) => {
+      if (dataSourceRef.current === 'mock') return;
+      const savedAt = syncedAt ?? new Date().toISOString();
+      await saveOfflineSnapshot(
+        {
+          version: 1,
+          savedAt,
+          userKey: snapshotUserKeyRef.current(),
+          payload: payload ?? buildSnapshotPayloadRef.current(),
+        },
+        { markSynced: Boolean(syncedAt) },
+      );
+      if (syncedAt) {
+        setLastSyncedAt(syncedAt);
+        writeOfflineMeta({ lastSyncedAt: syncedAt });
+      }
+    },
+    [],
+  );
+
+  const refreshPendingCount = useCallback(async () => {
+    const n = await countOutbox();
+    setPendingSyncCount(n);
+    writeOfflineMeta({ pendingCount: n });
   }, []);
 
   const refreshFromApi = useCallback(async () => {
     setIsDataLoading(true);
+    const online = isBrowserOnline();
+    setIsOnline(online);
+
+    const hydrateFromCache = async (reason: string) => {
+      const snap = await loadOfflineSnapshot(snapshotUserKeyRef.current());
+      if (snap?.payload) {
+        applyBootstrapPayload(snap.payload, 'offline-cache');
+        setLastSyncedAt(snap.savedAt);
+        writeOfflineMeta({ lastSyncedAt: snap.savedAt, dataSource: 'offline-cache' });
+        setDataError(reason);
+        await refreshPendingCount();
+        return true;
+      }
+      return false;
+    };
+
     try {
+      if (!online) {
+        const ok = await hydrateFromCache(
+          'Offline — showing the last portal data saved on this device.',
+        );
+        if (!ok) {
+          applyMockFallback();
+          setDataError(
+            'Offline and no saved portal data on this device. Connect once to download your school data.',
+          );
+        }
+        return;
+      }
+
       const data = await api.bootstrap();
-      setSchools(data.schools);
-      setTeachers(data.teachers);
-      setStudents(data.students);
-      setLessonPlans(data.lessonPlans);
-      setAssessments(data.assessments);
-      setAttendance(data.attendance);
-      setTrainings(data.trainings);
-      setCheckIns(data.checkIns);
-      setDepartments(data.departments);
-      setClasses(data.classes);
-      setExams(data.exams);
-      setTrainingMaterials(data.trainingMaterials);
-      setTeachingNotes(data.teachingNotes);
-      const apiCalendars = data.academicCalendars ?? [];
-      const storedCalendars = readStoredCalendars();
-      const mergedCalendars =
-        apiCalendars.length > 0
-          ? apiCalendars
-          : storedCalendars.length > 0
-            ? storedCalendars
-            : mockAcademicCalendars;
-      setAcademicCalendars(mergedCalendars);
-      writeStoredCalendars(mergedCalendars);
-      setTeacherResources(data.teacherResources);
-      setTeacherFeedbacks(data.teacherFeedbacks);
-      setParentMessages(data.parentMessages);
-      setTeacherCheckInPrompts(data.teacherCheckInPrompts);
-      setStudentGradeEntries(data.studentGradeEntries);
-      setLessonDeliveries(data.lessonDeliveries ?? []);
-      setCommunityPosts(data.communityPosts ?? []);
-      setCommunityReplies(data.communityReplies ?? []);
-      setStaffMessages(data.staffMessages ?? []);
-      setRegistrationApplications(mockRegistrationApplications);
-      setHrEmployees(mockHrEmployees);
-      setLeaveRequests(mockLeaveRequests);
-      setPayrollRecords(mockPayrollRecords);
-      setJobPostings(mockJobPostings);
-      setJobApplications(mockJobApplications);
-      setPerformanceReviews(mockPerformanceReviews);
-      setOnboardingTasks(mockOnboardingTasks);
-      setStaffAttendance(mockStaffAttendance);
-      setNotifications(data.notifications);
+      const syncedAt = new Date().toISOString();
+      applyBootstrapPayload(data, 'api');
+      setLastSyncedAt(syncedAt);
       setDataError(null);
+      await persistPortalSnapshot(data, syncedAt);
+
+      const { flushed, remaining } = await flushOfflineOutbox();
+      setPendingSyncCount(remaining);
+      if (flushed > 0) {
+        try {
+          const fresh = await api.bootstrap();
+          applyBootstrapPayload(fresh, 'api');
+          await persistPortalSnapshot(fresh, new Date().toISOString());
+        } catch {
+          /* keep post-flush state */
+        }
+      }
     } catch {
-      applyMockFallback();
-      setDataError('API unavailable — live data could not be loaded. Start the server on port 3004.');
+      const ok = await hydrateFromCache(
+        'Server unreachable — showing saved portal data from this device.',
+      );
+      if (!ok) {
+        applyMockFallback();
+        setDataError(
+          'API unavailable — live data could not be loaded. Start the server on port 3004.',
+        );
+      }
     } finally {
       setIsDataLoading(false);
     }
-  }, [applyMockFallback]);
+  }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount]);
 
   useEffect(() => {
     void refreshFromApi();
   }, [refreshFromApi]);
+
+  // Track browser online/offline and sync when connectivity returns
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const onOnline = () => {
+      setIsOnline(true);
+      void refreshFromApi();
+    };
+    const onOffline = () => {
+      setIsOnline(false);
+      if (dataSourceRef.current !== 'mock') {
+        void persistPortalSnapshot();
+      }
+    };
+
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [persistPortalSnapshot, refreshFromApi]);
+
+  // Keep IndexedDB snapshot fresh while browsing (skip demo mock data)
+  useEffect(() => {
+    if (isDataLoading) return;
+    if (dataSource === 'mock') return;
+    const timer = window.setTimeout(() => {
+      void persistPortalSnapshot();
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [buildSnapshotPayload, dataSource, isDataLoading, persistPortalSnapshot]);
 
   // Handle active role sync (legacy — prefer login/logout)
   const setActiveRole = (role: string) => {
@@ -436,6 +729,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const resolveTeacherId = useCallback(() => {
+    if (currentUser?.id && teachers.some((t) => t.id === currentUser.id)) {
+      return currentUser.id;
+    }
     if (!currentUser?.email) return DEMO_TEACHER_ID;
     const match = teachers.find(
       (t) => t.email.toLowerCase() === currentUser.email.toLowerCase()
@@ -444,13 +740,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [currentUser, teachers]);
 
   useEffect(() => {
-    const savedUser = readStoredSession();
-    if (savedUser) {
-      setCurrentUser(savedUser);
-      setActiveRoleState(savedUser.role);
-    }
     // Always force light mode — dark mode has been removed
-    setTheme('light');
     if (typeof window !== 'undefined') {
       window.document.documentElement.classList.remove('dark');
       localStorage.removeItem('pts-active-theme');
@@ -482,43 +772,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const approveLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
     void api.approveLessonPlan(id, role, comments).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Updated', `Lesson plan "${(lp as LessonPlan).title}" was approved.`, 'success');
+      addNotification('Lesson Plan Updated', `Lesson plan "${(lp as LessonPlan).title}" was approved.`, 'success', '/dashboard/teacher/teaching-notes');
     }).catch(() => void refreshFromApi());
   };
 
   const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
     void api.rejectLessonPlan(id, role, comments).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert');
+      addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert', '/dashboard/teacher/teaching-notes');
     }).catch(() => void refreshFromApi());
   };
 
   const approveAssessment = (id: string, comments: string) => {
     void api.approveAssessment(id, comments).then((asm) => {
       setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
-      addNotification('Assessment Approved', `Assessment "${(asm as Assessment).title}" approved.`, 'success');
+      addNotification('Assessment Approved', `Assessment "${(asm as Assessment).title}" approved.`, 'success', '/dashboard/teacher/manage-students');
     }).catch(() => void refreshFromApi());
   };
 
   const rejectAssessment = (id: string, comments: string) => {
     void api.rejectAssessment(id, comments).then((asm) => {
       setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
-      addNotification('Assessment Draft Rejected', `Assessment "${(asm as Assessment).title}" sent back.`, 'alert');
+      addNotification('Assessment Draft Rejected', `Assessment "${(asm as Assessment).title}" sent back.`, 'alert', '/dashboard/teacher/assessments');
     }).catch(() => void refreshFromApi());
   };
 
   const createLessonPlan = (planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => {
     void api.createLessonPlan({ ...planData, teacherId: resolveTeacherId() }).then((lp) => {
       setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
-      addNotification('Lesson Plan Submitted', `Lesson plan "${(lp as LessonPlan).title}" submitted.`, 'info');
+      addNotification('Lesson Plan Submitted', `Lesson plan "${(lp as LessonPlan).title}" submitted.`, 'info', '/dashboard/department-head/lesson-plans');
     }).catch(() => void refreshFromApi());
   };
 
-  const createAssessment = (asmData: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'>) => {
-    void api.createAssessment({ ...asmData, teacherId: resolveTeacherId() }).then((asm) => {
-      setAssessments((prev) => [asm as Assessment, ...prev]);
-      addNotification('Assessment Submitted', `Assessment "${(asm as Assessment).title}" submitted.`, 'info');
-    }).catch(() => void refreshFromApi());
+  const createAssessment = (
+    asmData: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
+      createdByRole?: Assessment['createdByRole'];
+      teacherName?: string;
+      teacherId?: string;
+    }
+  ) => {
+    const createdByRole = asmData.createdByRole ?? 'teacher';
+    void api
+      .createAssessment({
+        ...asmData,
+        teacherId: asmData.teacherId ?? resolveTeacherId(),
+        createdByRole,
+        teacherName: asmData.teacherName,
+      })
+      .then((asm) => {
+        setAssessments((prev) => [asm as Assessment, ...prev]);
+        const ready = (asm as Assessment).status === 'Approved';
+        const isDeptExam = createdByRole === 'department-head';
+        addNotification(
+          ready
+            ? isDeptExam
+              ? 'Exam published to teachers'
+              : 'Assessment ready'
+            : 'Assessment Submitted',
+          ready
+            ? isDeptExam
+              ? `"${(asm as Assessment).title}" is live for subject teachers. They can open it under Assessments and record results in the Gradebook.`
+              : `"${(asm as Assessment).title}" is ready to link when recording grades.`
+            : `Assessment "${(asm as Assessment).title}" submitted for HoD review.`,
+          ready ? 'success' : 'info',
+          ready
+            ? isDeptExam
+              ? '/dashboard/teacher/assessments'
+              : '/dashboard/teacher/manage-students'
+            : '/dashboard/department-head/assessments',
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updateAssessmentQuestions = (id: string, questions: Assessment['questions']) => {
@@ -542,10 +866,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveAttendance = (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => {
+    const applyLocal = () => {
+      const today = new Date().toISOString().slice(0, 10);
+      setAttendance((prev) => {
+        const ids = new Set(records.map((r) => r.studentId));
+        const without = prev.filter((a) => !(a.date === today && ids.has(a.studentId)));
+        const nextRows: Attendance[] = records.map((r, i) => {
+          const std = students.find((s) => s.id === r.studentId);
+          return {
+            id: `att-local-${Date.now()}-${i}`,
+            studentId: r.studentId,
+            studentName: std?.name ?? 'Student',
+            grade: std?.grade ?? '',
+            section: std?.section ?? '',
+            date: today,
+            status: r.status,
+            remarks: r.remarks,
+          };
+        });
+        return [...nextRows, ...without];
+      });
+    };
+
+    if (!isBrowserOnline()) {
+      applyLocal();
+      void enqueueOutbox('saveAttendance', { records });
+      void refreshPendingCount();
+      addNotification('Attendance saved offline', `Recorded for ${records.length} students — will sync when online.`, 'info');
+      return;
+    }
+
     void api.saveAttendance(records).then(() => {
       void refreshFromApi();
       addNotification('Attendance Logs Recorded', `Attendance recorded for ${records.length} students.`, 'success');
-    }).catch(() => void refreshFromApi());
+    }).catch(() => {
+      applyLocal();
+      void enqueueOutbox('saveAttendance', { records });
+      void refreshPendingCount();
+      addNotification('Attendance saved offline', `Saved on this device — will sync when online.`, 'alert');
+    });
   };
 
   const enrollStudent = (studentData: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => {
@@ -558,9 +917,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const submitRegistrationApplication = (
     appData: Omit<RegistrationApplication, 'id' | 'status' | 'submittedAt'>
   ) => {
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
     const app: RegistrationApplication = {
       ...appData,
-      id: `reg-app-${Date.now()}`,
+      id: `reg-app-${timestamp}`,
       status: 'Submitted',
       submittedAt: new Date().toISOString().slice(0, 10),
     };
@@ -648,9 +1009,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addHrEmployee = (employeeData: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>): string => {
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
     const employee: HrEmployee = {
       ...employeeData,
-      id: `emp-${Date.now()}`,
+      id: `emp-${timestamp}`,
       employeeId: generateEmployeeId(hrEmployees),
       schoolId: 'sch-1',
     };
@@ -675,9 +1038,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const submitLeaveRequest = (requestData: Omit<LeaveRequest, 'id' | 'status' | 'submittedAt'>) => {
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
     const request: LeaveRequest = {
       ...requestData,
-      id: `leave-${Date.now()}`,
+      id: `leave-${timestamp}`,
       status: 'Pending',
       submittedAt: new Date().toISOString().slice(0, 10),
     };
@@ -710,10 +1075,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const existing = payrollRecords.find((p) => p.employeeId === employeeId && p.month === month);
     if (existing) return;
 
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
     const allowances = Math.round(employee.salary * 0.12);
     const deductions = Math.round(employee.salary * 0.17);
     const record: PayrollRecord = {
-      id: `pay-${Date.now()}`,
+      id: `pay-${timestamp}`,
       employeeId,
       employeeName: employee.name,
       month,
@@ -733,9 +1100,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addJobPosting = (postingData: Omit<JobPosting, 'id' | 'postedAt' | 'applicantCount'>) => {
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
     const posting: JobPosting = {
       ...postingData,
-      id: `job-${Date.now()}`,
+      id: `job-${timestamp}`,
       postedAt: new Date().toISOString().slice(0, 10),
       applicantCount: 0,
     };
@@ -850,6 +1219,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
+  const submitSelfAssessment = (data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>) => {
+    void api.submitSelfAssessment(data as unknown as Record<string, unknown>).then((sa) => {
+      setTeacherSelfAssessments((prev) => [sa as TeacherSelfAssessment, ...prev]);
+      addNotification('Self-Assessment Submitted', 'Your STEP self-assessment has been recorded and shared with your HoD.', 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const assignTrainingModule = (data: Omit<TeacherTrainingAssignment, 'id' | 'createdAt' | 'status'>) => {
+    void api.assignTrainingModule(data as unknown as Record<string, unknown>).then((a) => {
+      setTeacherTrainingAssignments((prev) => [a as TeacherTrainingAssignment, ...prev]);
+      addNotification('Module Assigned', `${data.moduleTitle} assigned.`, 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const updateTrainingAssignmentStatus = (id: string, status: TeacherTrainingAssignment['status']) => {
+    setTeacherTrainingAssignments((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status } : t)),
+    );
+
+    if (!isBrowserOnline()) {
+      void enqueueOutbox('updateTrainingAssignmentStatus', { id, status });
+      void refreshPendingCount();
+      return;
+    }
+
+    void api.updateTrainingAssignmentStatus(id, status).then((a) => {
+      setTeacherTrainingAssignments((prev) => prev.map((t) => (t.id === id ? (a as TeacherTrainingAssignment) : t)));
+    }).catch(() => {
+      void enqueueOutbox('updateTrainingAssignmentStatus', { id, status });
+      void refreshPendingCount();
+    });
+  };
+
   const addDepartment = (name: string, headName: string) => {
     void api.createDepartment(name, headName).then((dept) => {
       setDepartments((prev) => [...prev, dept as Department]);
@@ -936,10 +1338,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: today,
     };
     setTeachingNotes((prev) => [localNote, ...prev]);
-    void api.createTeachingNote({ ...noteData, id, teacherId, status }).then((note) => {
+
+    const body = { ...noteData, id, teacherId, status };
+    if (!isBrowserOnline()) {
+      void enqueueOutbox('createTeachingNote', body as unknown as Record<string, unknown>);
+      void refreshPendingCount();
+      return id;
+    }
+
+    void api.createTeachingNote(body).then((note) => {
       setTeachingNotes((prev) => [note as TeachingNote, ...prev.filter((n) => n.id !== id)]);
     }).catch(() => {
-      /* keep optimistic local note */
+      void enqueueOutbox('createTeachingNote', body as unknown as Record<string, unknown>);
+      void refreshPendingCount();
     });
     return id;
   };
@@ -949,10 +1360,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeachingNotes((prev) =>
       prev.map((n) => (n.id === id ? { ...n, ...updates, updatedAt: today } : n)),
     );
+
+    if (!isBrowserOnline()) {
+      void enqueueOutbox('updateTeachingNote', { id, updates });
+      void refreshPendingCount();
+      return;
+    }
+
     void api.updateTeachingNote(id, updates as Record<string, unknown>).then((note) => {
       setTeachingNotes((prev) => prev.map((n) => (n.id === id ? (note as TeachingNote) : n)));
     }).catch(() => {
-      /* keep optimistic update */
+      void enqueueOutbox('updateTeachingNote', { id, updates });
+      void refreshPendingCount();
+    });
+  };
+
+  const deleteTeachingNote = (id: string) => {
+    const note = teachingNotes.find((n) => n.id === id);
+    setTeachingNotes((prev) => prev.filter((n) => n.id !== id));
+
+    if (!isBrowserOnline()) {
+      void enqueueOutbox('deleteTeachingNote', { id });
+      void refreshPendingCount();
+      if (note) {
+        addNotification('Teaching note deleted', `"${note.title}" removed on this device.`, 'info');
+      }
+      return;
+    }
+
+    void api.deleteTeachingNote(id).then(() => {
+      if (note) {
+        addNotification('Teaching note deleted', `"${note.title}" was removed.`, 'info');
+      }
+    }).catch(() => {
+      void enqueueOutbox('deleteTeachingNote', { id });
+      void refreshPendingCount();
+      if (note) {
+        addNotification('Deleted offline', `"${note.title}" removed here — will sync when online.`, 'alert');
+      }
     });
   };
 
@@ -960,7 +1405,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const note = teachingNotes.find((n) => n.id === id);
     updateTeachingNote(id, { status: 'Approved', deptComments: comments });
     if (note) {
-      addNotification('Teaching Note Approved', `"${note.title}" approved for classroom use.`, 'success');
+      addNotification('Lesson Note Approved', `"${note.title}" approved for classroom use.`, 'success', '/dashboard/teacher/teaching-notes');
     }
   };
 
@@ -975,9 +1420,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createAcademicCalendar = (
     calendarData: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>,
   ): string => {
+    // eslint-disable-next-line react-hooks/purity
+    const timestamp = Date.now();
     const calendar: AcademicCalendar = {
       ...calendarData,
-      id: `cal-${Date.now()}`,
+      id: `cal-${timestamp}`,
       schoolId: 'sch-1',
       status: 'Draft',
       createdAt: new Date().toISOString().slice(0, 10),
@@ -1108,6 +1555,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   };
 
+  const updateDeptAnnualLessonPlan = (
+    id: string,
+    planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>,
+  ) => {
+    const payload = {
+      title: planData.title,
+      grade: planData.grade,
+      subject: planData.subject,
+      sessions: planData.sessions,
+      objectives: planData.objectives,
+      activities: planData.activities,
+      assessments: planData.assessments,
+      homework: planData.homework,
+      planDetail: planData.planDetail ?? '',
+    };
+
+    setLessonPlans((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              ...planData,
+              status: 'Approved' as const,
+              planType: 'yearly' as const,
+              createdByRole: 'department-head' as const,
+              version: (p.version ?? 1) + 1,
+            }
+          : p,
+      ),
+    );
+
+    void api
+      .updateDeptAnnualLessonPlan(id, payload)
+      .then((lp) => {
+        setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
+        addNotification(
+          'Annual Plan Updated',
+          `"${(lp as LessonPlan).title}" changes were saved.`,
+          'success',
+        );
+      })
+      .catch(() => {
+        addNotification(
+          'Annual Plan Updated Locally',
+          `"${planData.title}" saved on this device — sync when the server is available.`,
+          'alert',
+        );
+      });
+  };
+
+  const deleteLessonPlan = (id: string) => {
+    const existing = lessonPlans.find((p) => p.id === id);
+    setLessonPlans((prev) => prev.filter((p) => p.id !== id));
+    void api.deleteLessonPlan(id).then(() => {
+      addNotification(
+        'Lesson plan deleted',
+        existing ? `"${existing.title}" was removed.` : 'Lesson plan deleted.',
+        'success',
+      );
+    }).catch(() => {
+      addNotification(
+        'Deleted Locally',
+        existing
+          ? `"${existing.title}" removed here — confirm server sync when online.`
+          : 'Lesson plan removed locally.',
+        'alert',
+      );
+    });
+  };
+
   const applyGpaFromGradeEntries = (studentId: string, entries: StudentGradeEntry[]) => {
     const studentEntries = entries.filter((e) => e.studentId === studentId);
     if (studentEntries.length === 0) return;
@@ -1127,6 +1644,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     entryData: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
   ) => {
     const teacherId = resolveTeacherId();
+    const applyLocal = () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const local: StudentGradeEntry = {
+        ...entryData,
+        id: entryData.id || `ge-${Date.now()}`,
+        teacherId,
+        recordedAt: today,
+      };
+      setStudentGradeEntries((prev) => {
+        const exists = prev.some((e) => e.id === local.id);
+        const next = exists
+          ? prev.map((e) => (e.id === local.id ? local : e))
+          : [local, ...prev];
+        applyGpaFromGradeEntries(entryData.studentId, next);
+        return next;
+      });
+      void enqueueOutbox('upsertGradeEntry', { ...local } as unknown as Record<string, unknown>);
+      void refreshPendingCount();
+      addNotification(
+        entryData.id ? 'Grade Updated' : 'Grade Recorded',
+        `${entryData.title} (saved on this device)`,
+        isBrowserOnline() ? 'alert' : 'info',
+      );
+    };
+
+    if (!isBrowserOnline()) {
+      applyLocal();
+      return;
+    }
+
     void api
       .upsertGradeEntry({ ...entryData, teacherId })
       .then((entry) => {
@@ -1144,27 +1691,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
       })
       .catch(() => {
-        const today = new Date().toISOString().slice(0, 10);
-        const local: StudentGradeEntry = {
-          ...entryData,
-          id: entryData.id || `ge-${Date.now()}`,
-          teacherId,
-          recordedAt: today,
-        };
-        setStudentGradeEntries((prev) => {
-          const exists = prev.some((e) => e.id === local.id);
-          const next = exists
-            ? prev.map((e) => (e.id === local.id ? local : e))
-            : [local, ...prev];
-          applyGpaFromGradeEntries(entryData.studentId, next);
-          return next;
-        });
-        addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
+        applyLocal();
       });
   };
 
   const deleteStudentGradeEntry = (id: string) => {
     const entry = studentGradeEntries.find((e) => e.id === id);
+    const applyLocal = () => {
+      setStudentGradeEntries((prev) => {
+        const next = prev.filter((e) => e.id !== id);
+        if (entry) applyGpaFromGradeEntries(entry.studentId, next);
+        return next;
+      });
+      void enqueueOutbox('deleteGradeEntry', { id });
+      void refreshPendingCount();
+      addNotification('Grade Removed', 'Removed on this device — will sync when online.', 'info');
+    };
+
+    if (!isBrowserOnline()) {
+      applyLocal();
+      return;
+    }
+
     void api.deleteGradeEntry(id).then(() => {
       setStudentGradeEntries((prev) => {
         const next = prev.filter((e) => e.id !== id);
@@ -1173,7 +1721,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (entry) void api.recalculateGpa(entry.studentId);
       addNotification('Grade Removed', 'Assessment result deleted.', 'info');
-    }).catch(() => void refreshFromApi());
+    }).catch(() => {
+      applyLocal();
+    });
   };
 
   const recalculateStudentGpaFromGrades = (studentId: string) => {
@@ -1220,6 +1770,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     graspOutcome: GraspOutcome;
     challengeText?: string;
     postTo: 'hod' | 'community' | 'both' | 'none';
+    communityId?: string;
+    channelId?: string;
   }) => {
     const teacherId = resolveTeacherId();
     const postedToHod = payload.postTo === 'hod' || payload.postTo === 'both';
@@ -1233,10 +1785,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         challengeText: payload.challengeText,
         postedToHod,
         postedToCommunity,
+        communityId: payload.communityId,
+        channelId: payload.channelId,
       });
       setLessonDeliveries((prev) => [result.delivery, ...prev.filter((d) => d.id !== result.delivery.id)]);
       if (result.communityPost) {
         setCommunityPosts((prev) => [result.communityPost!, ...prev.filter((p) => p.id !== result.communityPost!.id)]);
+      }
+      if (result.communityMessage) {
+        window.dispatchEvent(
+          new CustomEvent('community:channel-message', { detail: result.communityMessage }),
+        );
       }
       if (postedToHod) {
         void refreshStaffMessages({ teacherId });
@@ -1244,9 +1803,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addNotification(
         'Lesson marked delivered',
         payload.graspOutcome === 'challenged'
-          ? 'Delivery saved and challenge shared.'
+          ? postedToCommunity
+            ? 'Delivery saved and challenge posted to your community.'
+            : 'Delivery saved and challenge shared.'
           : 'Classroom delivery feedback recorded.',
         'success',
+        postedToCommunity ? '/dashboard/teacher/communication' : undefined,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not mark delivered.';
@@ -1332,14 +1894,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const markStaffMessagesRead = (teacherId: string, readerRole: 'teacher' | 'department-head') => {
-    void api.markStaffMessagesRead(teacherId, readerRole).then(() => {
-      const opposite = readerRole === 'teacher' ? 'department-head' : 'teacher';
-      setStaffMessages((prev) =>
-        prev.map((m) =>
-          m.teacherId === teacherId && m.senderRole === opposite ? { ...m, read: true } : m,
-        ),
-      );
-    });
+    void api
+      .markStaffMessagesRead(teacherId, readerRole)
+      .then(() => {
+        const opposite = readerRole === 'teacher' ? 'department-head' : 'teacher';
+        setStaffMessages((prev) =>
+          prev.map((m) =>
+            m.teacherId === teacherId && m.senderRole === opposite ? { ...m, read: true } : m,
+          ),
+        );
+      })
+      .catch(() => {
+        /* API unreachable — keep local unread state; avoid crashing the messages tab */
+      });
   };
 
   const distributeLessonPlan = (id: string) => {
@@ -1354,9 +1921,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const addNotification = (title: string, description: string, type: AppNotification['type']) => {
+  const addNotification = (
+    title: string,
+    description: string,
+    type: AppNotification['type'],
+    linkPath?: string
+  ) => {
     toast({ title, description, variant: type });
-    void api.createNotification(title, description, type).then((notif) => {
+    void api.createNotification(title, description, type, linkPath).then((notif) => {
       setNotifications((prev) => [notif as AppNotification, ...prev]);
     }).catch(() => {
       const newNotif: AppNotification = {
@@ -1366,6 +1938,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: 'Just now',
         read: false,
         type,
+        linkPath,
       };
       setNotifications((prev) => [newNotif, ...prev]);
     });
@@ -1429,6 +2002,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         communityPosts,
         communityReplies,
         staffMessages,
+        teacherSelfAssessments,
+        teacherTrainingAssignments,
         registrationApplications,
         hrEmployees,
         leaveRequests,
@@ -1473,6 +2048,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTeacher,
         updateTeacher,
         toggleTeacherStatus,
+        submitSelfAssessment,
+        assignTrainingModule,
+        updateTrainingAssignmentStatus,
         addDepartment,
         addClass,
         approveExam,
@@ -1484,12 +2062,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         distributeLessonPlan,
         createTeachingNote,
         updateTeachingNote,
+        deleteTeachingNote,
         approveTeachingNote,
         rejectTeachingNote,
         createAcademicCalendar,
         updateAcademicCalendar,
         publishAcademicCalendar,
         createDeptAnnualLessonPlan,
+        updateDeptAnnualLessonPlan,
+        deleteLessonPlan,
         upsertStudentGradeEntry,
         deleteStudentGradeEntry,
         recalculateStudentGpaFromGrades,
@@ -1510,6 +2091,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         clearNotifications,
         isDataLoading,
         dataError,
+        isOnline,
+        dataSource,
+        lastSyncedAt,
+        pendingSyncCount,
         refreshFromApi,
       }}
     >

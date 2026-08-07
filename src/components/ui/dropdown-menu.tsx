@@ -23,6 +23,8 @@ export interface DropdownMenuProps {
   trigger: React.ReactNode;
   sections: DropdownMenuSection[];
   align?: 'left' | 'right';
+  /** Force menu direction. Default `auto` opens upward when near the bottom of the viewport. */
+  side?: 'auto' | 'top' | 'bottom';
   className?: string;
 }
 
@@ -32,11 +34,13 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
   trigger,
   sections,
   align = 'left',
+  side = 'auto',
   className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [closing, setClosing] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -48,12 +52,34 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     .map((item, i) => (!item.disabled ? i : -1))
     .filter((i) => i !== -1);
 
+  const resolvePlacement = useCallback(() => {
+    if (side === 'top') {
+      setOpenUp(true);
+      return;
+    }
+    if (side === 'bottom') {
+      setOpenUp(false);
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) {
+      setOpenUp(false);
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const estimatedMenuHeight = Math.max(120, flatItems.length * 40 + 16);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setOpenUp(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow);
+  }, [side, flatItems.length]);
+
   /* ── Open / Close helpers ── */
   const open = useCallback(() => {
+    resolvePlacement();
     setClosing(false);
     setIsOpen(true);
     setActiveIndex(-1);
-  }, []);
+  }, [resolvePlacement]);
 
   const close = useCallback(() => {
     setClosing(true);
@@ -81,6 +107,18 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen, close]);
+
+  /* ── Recompute placement on resize/scroll while open ── */
+  useEffect(() => {
+    if (!isOpen || side !== 'auto') return;
+    const onMove = () => resolvePlacement();
+    window.addEventListener('resize', onMove);
+    window.addEventListener('scroll', onMove, true);
+    return () => {
+      window.removeEventListener('resize', onMove);
+      window.removeEventListener('scroll', onMove, true);
+    };
+  }, [isOpen, side, resolvePlacement]);
 
   /* ── Keyboard navigation ── */
   const handleKeyDown = useCallback(
@@ -156,9 +194,10 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
           role="menu"
           aria-orientation="vertical"
           className={`
-            absolute z-50 mt-1.5 min-w-[200px] rounded-lg border border-border bg-popover text-popover-foreground shadow-lg
+            absolute z-50 min-w-[200px] rounded-lg border border-border bg-popover text-popover-foreground shadow-lg
             ${align === 'right' ? 'right-0' : 'left-0'}
-            ${closing ? 'animate-dropdown-exit' : 'animate-dropdown-enter'}
+            ${openUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}
+            ${closing ? 'animate-dropdown-exit' : openUp ? 'animate-dropdown-enter-up' : 'animate-dropdown-enter'}
           `}
           style={{
             animationDuration: '150ms',
@@ -235,11 +274,16 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
           from { opacity: 0; transform: translateY(-4px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes dropdown-enter-up {
+          from { opacity: 0; transform: translateY(4px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
         @keyframes dropdown-exit {
           from { opacity: 1; transform: translateY(0) scale(1); }
           to   { opacity: 0; transform: translateY(-4px) scale(0.97); }
         }
         .animate-dropdown-enter { animation-name: dropdown-enter; animation-timing-function: cubic-bezier(0.16,1,0.3,1); }
+        .animate-dropdown-enter-up { animation-name: dropdown-enter-up; animation-timing-function: cubic-bezier(0.16,1,0.3,1); }
         .animate-dropdown-exit  { animation-name: dropdown-exit;  animation-timing-function: cubic-bezier(0.16,1,0.3,1); }
       `}</style>
     </div>

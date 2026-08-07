@@ -10,7 +10,6 @@ import {
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import {
   aisBodySm,
-  aisCard,
   aisHeadlineSm,
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
@@ -38,12 +37,14 @@ export function DeptHodMessagesPanel() {
     sendStaffMessage,
     refreshStaffMessages,
     markStaffMessagesRead,
-    lessonDeliveries,
   } = useApp();
 
   const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
   const deptTeachers = useMemo(
-    () => (scope ? teachers.filter((t) => isSubjectTeacher(t, scope)) : []),
+    () =>
+      (scope ? teachers.filter((t) => isSubjectTeacher(t, scope)) : []).filter(
+        (t) => t.status === 'Active',
+      ),
     [teachers, scope],
   );
 
@@ -86,17 +87,6 @@ export function DeptHodMessagesPanel() {
     return map;
   }, [staffMessages]);
 
-  const challenges = useMemo(
-    () =>
-      lessonDeliveries.filter(
-        (d) =>
-          d.graspOutcome === 'challenged' &&
-          d.postedToHod &&
-          deptTeachers.some((t) => t.id === d.teacherId),
-      ),
-    [lessonDeliveries, deptTeachers],
-  );
-
   useEffect(() => {
     if (selectedTeacherId) {
       markStaffMessagesRead(selectedTeacherId, 'department-head');
@@ -135,42 +125,22 @@ export function DeptHodMessagesPanel() {
           <p className={aisLabelCaps}>Teacher messaging</p>
           <h2 className={`${aisHeadlineSm} mt-1`}>Live chat with teachers</h2>
           <p className={`${aisBodySm} mt-1`}>
-            Challenges from delivered lessons land here. Reply in the teacher thread.
+            Select an active teacher to message. Conversations refresh every few seconds.
           </p>
         </div>
-
-        {challenges.length > 0 && (
-          <div className={`${aisCard} p-4`}>
-            <p className={`${aisLabelCaps} mb-2`}>Recent challenges</p>
-            <ul className="space-y-2">
-              {challenges.slice(0, 5).map((c) => {
-                const t = deptTeachers.find((x) => x.id === c.teacherId);
-                return (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-ais-row-hover"
-                      onClick={() => setSelectedTeacherId(c.teacherId)}
-                    >
-                      <span className="font-semibold">{t?.name ?? 'Teacher'}</span>
-                      <span className="mt-0.5 block text-ais-on-surface-variant line-clamp-2">
-                        {c.challengeText}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
 
         <div className="grid min-h-[480px] grid-cols-1 overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface md:grid-cols-[220px_1fr]">
           <aside className="border-b border-ais-card-border md:border-b-0 md:border-r">
             <p className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
-              Teachers
+              Active teachers
             </p>
             <div className="max-h-[200px] overflow-y-auto md:max-h-none">
-              {deptTeachers.map((t) => {
+              {deptTeachers.length === 0 ? (
+                <p className="px-3 py-4 text-xs text-ais-on-surface-variant">
+                  No active teachers in this department.
+                </p>
+              ) : (
+                deptTeachers.map((t) => {
                 const unread = unreadByTeacher.get(t.id) ?? 0;
                 const active = t.id === selectedTeacherId;
                 return (
@@ -190,7 +160,8 @@ export function DeptHodMessagesPanel() {
                     )}
                   </button>
                 );
-              })}
+              })
+              )}
             </div>
           </aside>
 
@@ -211,30 +182,28 @@ export function DeptHodMessagesPanel() {
                 </p>
               ) : (
                 thread.map((msg) => {
-                  const mine = msg.senderRole === 'department-head';
+                  const mine =
+                    msg.senderRole === 'department-head' ||
+                    msg.senderId === currentUser?.id;
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
+                      className={`flex w-full ${mine ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
+                        className={`max-w-[85%] px-3.5 py-2.5 text-sm shadow-sm ${
                           mine
-                            ? 'bg-ais-primary text-white'
-                            : 'bg-ais-surface-container-low text-ais-on-surface'
+                            ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
+                            : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
                         }`}
                       >
                         {!mine && (
-                          <p className="mb-0.5 text-[11px] font-semibold opacity-80">
+                          <p className="mb-0.5 text-[11px] font-semibold text-ais-on-surface-variant">
                             {msg.senderName}
                           </p>
                         )}
                         <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-                        <p
-                          className={`mt-1 text-[10px] ${
-                            mine ? 'text-white/70' : 'text-ais-on-surface-variant'
-                          }`}
-                        >
+                        <p className="mt-1 text-right text-[10px] text-ais-on-surface-variant/80">
                           {timeLabel(msg.createdAt)}
                         </p>
                       </div>
