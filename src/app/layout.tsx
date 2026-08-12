@@ -12,12 +12,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Prime Teaching System",
-    template: "%s | Prime Teaching System",
+    default: "PRIME EduAI",
+    template: "%s | PRIME EduAI",
   },
   description: "AI-Powered Education Management Ecosystem for the Ethiopian Education Sector — Empowering schools, teachers, and students through intelligent analytics and streamlined administration.",
   keywords: ["education", "Ethiopia", "school management", "AI", "teaching", "analytics"],
-  authors: [{ name: "Prime Teaching System" }],
+  authors: [{ name: "PRIME EduAI" }],
 };
 
 export const viewport: Viewport = {

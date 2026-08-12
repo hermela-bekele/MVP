@@ -70,10 +70,10 @@ export default function LoginPage() {
         <div>
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-[hsl(var(--sidebar-fg))] text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg shadow-md">
-              PR
+              PE
             </div>
             <div>
-              <p className="font-bold text-lg leading-tight">Prime Teaching System</p>
+              <p className="font-bold text-lg leading-tight">PRIME EduAI</p>
               <p className="text-xs text-[hsl(var(--sidebar-muted))]">Ethiopian Education Management</p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-[hsl(var(--sidebar-muted))]">
-          © 2026 Ministry of Education, Ethiopia · Prime Teaching System v1.0
+          © 2026 Ministry of Education, Ethiopia · PRIME EduAI v1.0
         </p>
       </div>
 
@@ -96,9 +96,9 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
             <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              PR
+              PE
             </div>
-            <span className="font-bold text-lg text-foreground">Prime Teaching System</span>
+            <span className="font-bold text-lg text-foreground">PRIME EduAI</span>
           </div>
 
           <div className="bg-card rounded-xl border border-border/80 shadow-lg p-6 sm:p-8">
