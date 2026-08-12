@@ -78,9 +78,12 @@ import { readStoredCalendars, writeStoredCalendars } from '@/lib/calendarStorage
 import {
   type AuthUser,
   clearSession,
+  persistEngine,
   persistSession,
+  readStoredEngine,
   readStoredSession,
 } from '@/lib/auth';
+import { type EngineId, defaultEngineForRole, enginesForRole, isEngineId } from '@/lib/engines';
 
 export interface AppNotification {
   id: string;
@@ -98,6 +101,8 @@ interface AppContextType {
   logout: () => void;
   activeRole: string;
   setActiveRole: (role: string) => void;
+  activeEngine: EngineId | null;
+  setEngine: (engine: EngineId) => void;
   resolveTeacherId: () => string;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -272,6 +277,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [activeRole, setActiveRoleState] = useState<string>('login');
+  const [activeEngine, setActiveEngineState] = useState<EngineId | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -425,6 +431,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = useCallback((user: AuthUser, remember = true) => {
     setCurrentUser(user);
     setActiveRoleState(user.role);
+    setActiveEngineState(defaultEngineForRole(user.role));
     persistSession(user, remember);
     void refreshFromApi();
   }, [refreshFromApi]);
@@ -432,7 +439,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(() => {
     setCurrentUser(null);
     setActiveRoleState('login');
+    setActiveEngineState(null);
     clearSession();
+  }, []);
+
+  const setEngine = useCallback((engine: EngineId) => {
+    setActiveEngineState(engine);
+    persistEngine(engine);
   }, []);
 
   const resolveTeacherId = useCallback(() => {
@@ -448,6 +461,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (savedUser) {
       setCurrentUser(savedUser);
       setActiveRoleState(savedUser.role);
+
+      const allowedEngines = enginesForRole(savedUser.role);
+      const storedEngine = readStoredEngine();
+      if (storedEngine && isEngineId(storedEngine) && allowedEngines.includes(storedEngine)) {
+        setActiveEngineState(storedEngine);
+      } else {
+        setActiveEngineState(defaultEngineForRole(savedUser.role));
+      }
     }
     // Always force light mode — dark mode has been removed
     setTheme('light');
@@ -1402,6 +1423,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logout,
         activeRole,
         setActiveRole,
+        activeEngine,
+        setEngine,
         resolveTeacherId,
         theme,
         toggleTheme,

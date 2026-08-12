@@ -3,6 +3,7 @@
 import React from 'react';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { RoleGuard } from '@/components/auth/RoleGuard';
+import { EngineGuard } from '@/components/auth/EngineGuard';
 import { CommandPalette, CommandItem } from '@/components/ui/command-palette';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
@@ -122,12 +123,14 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <RoleGuard>
-        <div className="flex flex-1 min-h-screen bg-[hsl(var(--dashboard-bg))]">
-          <div className="flex flex-1 w-full relative">
-            {children}
-            <DashboardCommandPalette />
+        <EngineGuard>
+          <div className="flex flex-1 min-h-screen bg-[hsl(var(--dashboard-bg))]">
+            <div className="flex flex-1 w-full relative">
+              {children}
+              <DashboardCommandPalette />
+            </div>
           </div>
-        </div>
+        </EngineGuard>
       </RoleGuard>
     </SidebarProvider>
   );

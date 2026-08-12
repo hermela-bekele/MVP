@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api, ApiError } from '@/lib/api';
 import { dashboardPathForRole } from '@/lib/auth';
+import { requiresEngineSelection } from '@/lib/engines';
 
 export default function LoginPage() {
-  const { login, currentUser, authReady } = useApp();
+  const { login, currentUser, authReady, activeEngine } = useApp();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,10 +21,13 @@ export default function LoginPage() {
   const [registeredSuccess, setRegisteredSuccess] = useState(false);
 
   useEffect(() => {
-    if (authReady && currentUser) {
+    if (!authReady || !currentUser) return;
+    if (requiresEngineSelection(currentUser.role) && !activeEngine) {
+      router.replace('/select-engine');
+    } else {
       router.replace(dashboardPathForRole(currentUser.role));
     }
-  }, [authReady, currentUser, router]);
+  }, [authReady, currentUser, activeEngine, router]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -50,7 +54,7 @@ export default function LoginPage() {
     try {
       const user = await api.login(email.trim(), password);
       login(user, remember);
-      router.replace(dashboardPathForRole(user.role));
+      router.replace(requiresEngineSelection(user.role) ? '/select-engine' : dashboardPathForRole(user.role));
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Invalid email or password.');

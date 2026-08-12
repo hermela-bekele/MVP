@@ -31,6 +31,7 @@ export type PortalRole = (typeof PORTAL_ROLES)[number];
 export const SELF_REGISTER_ROLES: PortalRole[] = ['parent', 'student'];
 
 export const SESSION_STORAGE_KEY = 'pts-session';
+export const ENGINE_STORAGE_KEY = 'pts-engine';
 
 export function isPortalRole(value: string): value is PortalRole {
   return (PORTAL_ROLES as readonly string[]).includes(value);
@@ -95,6 +96,20 @@ export function clearSession(): void {
   localStorage.removeItem(SESSION_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_STORAGE_KEY);
   localStorage.removeItem('pts-active-role');
+  clearEngine();
+}
+
+export function readStoredEngine(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ENGINE_STORAGE_KEY);
+}
+
+export function persistEngine(engine: string): void {
+  localStorage.setItem(ENGINE_STORAGE_KEY, engine);
+}
+
+export function clearEngine(): void {
+  localStorage.removeItem(ENGINE_STORAGE_KEY);
 }
 
 export function hasPermission(user: AuthUser | null | undefined, code: string): boolean {
