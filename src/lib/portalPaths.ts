@@ -6,6 +6,8 @@ export function portalBasePath(role: string | null | undefined): string {
       return '/dashboard/teacher';
     case 'department-head':
       return '/dashboard/department-head';
+    case 'vice-principal':
+      return '/dashboard/vice-principal';
     case 'school-head':
       return '/dashboard/school-head';
     case 'student':

@@ -6,6 +6,8 @@ export const ENGINES = [
   'curriculum',
   'training',
   'academic',
+  'teaching',
+  'management',
 ] as const;
 
 export type EngineId = (typeof ENGINES)[number];
@@ -20,6 +22,8 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
   curriculum: 'Curriculum Engine',
   training: 'Training Engine',
   academic: 'Academic Engine',
+  teaching: 'Teaching Engine',
+  management: 'Management Engine',
 };
 
 export const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
@@ -28,6 +32,8 @@ export const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
   curriculum: 'Curriculum planning and instructional resources.',
   training: 'Professional development and training programs.',
   academic: 'Classes, students, grading, and day-to-day instruction.',
+  teaching: 'Lesson delivery, teaching notes, assessments, and resources.',
+  management: 'Classroom, student, and attendance administration.',
 };
 
 /** Which engines each role may choose between. Empty = no engine selection for that role. */
@@ -38,7 +44,8 @@ export const ROLE_ENGINES: Record<PortalRole, EngineId[]> = {
   hr: ['administrative', 'training'],
   'curriculum-head': ['curriculum'],
   'department-head': ['administrative', 'academic', 'training'],
-  teacher: ['academic', 'training'],
+  'vice-principal': ['administrative', 'academic'],
+  teacher: ['teaching', 'management', 'training'],
   student: [],
   parent: [],
   finance: [],

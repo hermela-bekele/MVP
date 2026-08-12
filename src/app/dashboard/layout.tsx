@@ -125,7 +125,8 @@ export default function DashboardLayout({
     <SidebarProvider>
       <RoleGuard>
         <EngineGuard>
-          <div className="flex flex-1 min-h-screen bg-[hsl(var(--dashboard-bg))]">
+          <div className="flex flex-1 min-h-screen flex-col bg-[hsl(var(--dashboard-bg))]">
+            <OfflineBanner />
             <div className="flex flex-1 w-full relative">
               {children}
               <DashboardCommandPalette />

@@ -314,35 +314,20 @@ export async function printMarkdown(content: string, title?: string): Promise<vo
   });
 }
 
-export async function generatePDFFromMarkdown(
-  content: string,
+/**
+ * Appends an off-screen-positioned container to the document, screenshots it with html2canvas,
+ * and paginates the screenshot into a multi-page A4 jsPDF document. Shared by any PDF export
+ * that renders a DOM node (markdown documents, structured report/transcript documents, etc.)
+ * so the pagination math only lives in one place.
+ */
+export async function renderNodeToPDF(
+  container: HTMLElement,
   filename: string,
-  title?: string,
+  options?: { beforeCapture?: (container: HTMLElement) => Promise<void> | void },
 ): Promise<void> {
   try {
-    const bodyHtml = await convertContentToHTML(content);
-
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.width = '210mm';
-    container.style.padding = '20mm';
-    container.style.backgroundColor = 'white';
-    container.style.fontFamily = 'Arial, sans-serif';
-    container.style.fontSize = '12px';
-    container.style.lineHeight = '1.6';
-    container.style.color = '#000';
-
-    container.innerHTML = `
-      <style>${PDF_CONTENT_STYLES}</style>
-      <div class="pdf-content">
-        ${title ? `<h1>${escapeHtml(title)}</h1><hr/>` : ''}
-        ${bodyHtml}
-      </div>
-    `;
-
     document.body.appendChild(container);
-    await ensureKatexStyles(container);
+    if (options?.beforeCapture) await options.beforeCapture(container);
     await new Promise((resolve) => window.setTimeout(resolve, 150));
 
     const canvas = await html2canvas(container, {
@@ -375,9 +360,41 @@ export async function generatePDFFromMarkdown(
 
     pdf.save(filename);
   } catch (error) {
+    if (container.parentNode) document.body.removeChild(container);
     console.error('Error generating PDF:', error);
     throw new Error('Failed to generate PDF');
   }
+}
+
+export async function generatePDFFromMarkdown(
+  content: string,
+  filename: string,
+  title?: string,
+): Promise<void> {
+  const bodyHtml = await convertContentToHTML(content);
+
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.left = '-9999px';
+  container.style.width = '210mm';
+  container.style.padding = '20mm';
+  container.style.backgroundColor = 'white';
+  container.style.fontFamily = 'Arial, sans-serif';
+  container.style.fontSize = '12px';
+  container.style.lineHeight = '1.6';
+  container.style.color = '#000';
+
+  container.innerHTML = `
+    <style>${PDF_CONTENT_STYLES}</style>
+    <div class="pdf-content">
+      ${title ? `<h1>${escapeHtml(title)}</h1><hr/>` : ''}
+      ${bodyHtml}
+    </div>
+  `;
+
+  await renderNodeToPDF(container, filename, {
+    beforeCapture: (node) => ensureKatexStyles(node),
+  });
 }
 
 export async function downloadAsHTML(content: string, filename: string, title?: string): Promise<void> {
