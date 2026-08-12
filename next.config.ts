@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Avoid EPERM on locked `.next/dev/trace` (Desktop/OneDrive/antivirus on Windows)
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+
   // Keep builds stable on constrained/WSL environments
   experimental: {
     workerThreads: false,
@@ -15,6 +18,16 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   webpack: (config, { dev, isServer }) => {
+    // WSL2 + DrvFs (/mnt/c) mounts don't reliably deliver inotify events, so
+    // native fs.watch misses edits made from the Windows side. Poll instead
+    // so dev-server hot reload actually picks up file changes.
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
     // Dev-only client overlay tweaks (used with `next dev --webpack`)
     if (dev && !isServer) {
       config.devServer = {

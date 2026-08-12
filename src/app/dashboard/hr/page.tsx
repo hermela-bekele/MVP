@@ -13,6 +13,7 @@ import { HrPerformance } from '@/components/dashboard/hr/HrPerformance';
 import { HrOnboarding } from '@/components/dashboard/hr/HrOnboarding';
 import { HrReports } from '@/components/dashboard/hr/HrReports';
 import { usePortalTab } from '@/lib/usePortalTab';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
 const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   dashboard: {
@@ -50,6 +51,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   reports: {
     title: 'HR Reports',
     subtitle: 'Headcount, payroll, leave, recruitment, and workforce analytics.',
+  },
+  profile: {
+    title: 'My Profile',
+    subtitle: 'Your HR account information.',
   },
 };
 
@@ -120,6 +125,17 @@ export default function HrPortalPage() {
       {activeTab === 'performance' && <HrPerformance />}
       {activeTab === 'onboarding' && <HrOnboarding />}
       {activeTab === 'reports' && <HrReports />}
+      {activeTab === 'profile' && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <PortalProfileCard
+            roleLabel="HR Officer"
+            fields={[
+              { label: 'Department', value: 'Human Resources' },
+              { label: 'Scope', value: 'Bole Community School — all staff' },
+            ]}
+          />
+        </div>
+      )}
     </DashboardShell>
   );
 }

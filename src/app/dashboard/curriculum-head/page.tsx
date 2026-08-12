@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { computeSubjectPerformance } from '@/lib/analytics';
 import { usePortalTab } from '@/lib/usePortalTab';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
 export default function CurriculumHeadPortalPage() {
   const {
@@ -96,6 +97,7 @@ export default function CurriculumHeadPortalPage() {
   const tabTitles: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Curriculum Dashboard', subtitle: 'Syllabus coverage and subject performance.' },
     resources: { title: 'Resource Dissemination', subtitle: 'Upload and publish curriculum materials to teacher and student portals.' },
+    profile: { title: 'My Profile', subtitle: 'Your curriculum office account information.' },
   };
   const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
 
@@ -390,6 +392,18 @@ export default function CurriculumHeadPortalPage() {
                   </DialogFooter>
                 </form>
               </Dialog>
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <PortalProfileCard
+                roleLabel="Curriculum Head"
+                fields={[
+                  { label: 'Scope', value: 'National curriculum & resource dissemination' },
+                  { label: 'Resources published', value: disseminatedCount },
+                ]}
+              />
             </div>
           )}
 

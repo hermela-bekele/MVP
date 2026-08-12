@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Select } from '@/components/ui/select';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -12,6 +13,8 @@ import {
 import { aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 import type { GraspOutcome, TeachingNote } from '@/lib/mockData';
 import { graspOutcomeLabel } from '@/lib/teacherPortal';
+import { api } from '@/lib/api';
+import type { Community, CommunityChannel } from '@/lib/communityTypes';
 
 const OUTCOMES: { value: GraspOutcome; hint: string }[] = [
   { value: 'well_grasped', hint: 'Class understood the lesson clearly' },
@@ -29,6 +32,8 @@ interface NoteDeliveryDialogProps {
     graspOutcome: GraspOutcome;
     challengeText?: string;
     postTo: PostTarget | 'none';
+    communityId?: string;
+    channelId?: string;
   }) => Promise<void>;
 }
 
@@ -40,12 +45,24 @@ export function NoteDeliveryDialog({
 }: NoteDeliveryDialogProps) {
   const [outcome, setOutcome] = useState<GraspOutcome | null>(null);
   const [challengeText, setChallengeText] = useState('');
+  const [postTarget, setPostTarget] = useState<PostTarget>('both');
   const [submitting, setSubmitting] = useState(false);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [channels, setChannels] = useState<CommunityChannel[]>([]);
+  const [communityId, setCommunityId] = useState('');
+  const [channelId, setChannelId] = useState('');
+  const [loadingCommunities, setLoadingCommunities] = useState(false);
+
+  const needsCommunity = postTarget === 'community' || postTarget === 'both';
 
   const reset = () => {
     setOutcome(null);
     setChallengeText('');
+    setPostTarget('both');
     setSubmitting(false);
+    setCommunityId('');
+    setChannelId('');
+    setChannels([]);
   };
 
   const handleClose = () => {
@@ -53,6 +70,70 @@ export function NoteDeliveryDialog({
     reset();
     onClose();
   };
+
+  useEffect(() => {
+    if (!open || outcome !== 'challenged') return;
+    let cancelled = false;
+    setLoadingCommunities(true);
+    void api
+      .listCommunities()
+      .then((rows) => {
+        if (cancelled) return;
+        setCommunities(rows);
+        if (rows[0] && !communityId) setCommunityId(rows[0].id);
+      })
+      .catch(() => {
+        if (!cancelled) setCommunities([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCommunities(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only reload when the challenged step opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, outcome]);
+
+  useEffect(() => {
+    if (!communityId) {
+      setChannels([]);
+      setChannelId('');
+      return;
+    }
+    let cancelled = false;
+    void api.listCommunityChannels(communityId).then((rows) => {
+      if (cancelled) return;
+      const textPreferred =
+        rows.find((c) => c.name.toLowerCase() === 'general') ??
+        rows.find((c) => c.type === 'text') ??
+        rows[0];
+      setChannels(rows);
+      setChannelId(textPreferred?.id ?? '');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId]);
+
+  const communityOptions = useMemo(
+    () =>
+      communities.length
+        ? communities.map((c) => ({ value: c.id, label: c.name }))
+        : [{ value: '', label: 'No communities available' }],
+    [communities],
+  );
+
+  const channelOptions = useMemo(
+    () =>
+      channels.length
+        ? channels.map((c) => ({
+            value: c.id,
+            label: `#${c.name}${c.type === 'announcement' ? ' (announcements)' : ''}`,
+          }))
+        : [{ value: '', label: 'No channels' }],
+    [channels],
+  );
 
   const handleOutcomeSelect = async (value: GraspOutcome) => {
     setOutcome(value);
@@ -68,14 +149,20 @@ export function NoteDeliveryDialog({
     }
   };
 
-  const handleChallengePost = async (postTo: PostTarget) => {
-    if (!challengeText.trim()) return;
+  const canSubmitChallenge =
+    Boolean(challengeText.trim()) &&
+    (!needsCommunity || (Boolean(communityId) && Boolean(channelId)));
+
+  const handleChallengeSubmit = async () => {
+    if (!canSubmitChallenge) return;
     setSubmitting(true);
     try {
       await onSubmit({
         graspOutcome: 'challenged',
         challengeText: challengeText.trim(),
-        postTo,
+        postTo: postTarget,
+        communityId: needsCommunity ? communityId : undefined,
+        channelId: needsCommunity ? channelId : undefined,
       });
       reset();
       onClose();
@@ -95,7 +182,8 @@ export function NoteDeliveryDialog({
       <div className="space-y-4 pt-1">
         {note && (
           <p className={aisBodySm}>
-            How did the class respond to <span className="font-semibold text-ais-on-surface">{note.title}</span>?
+            How did the class respond to{' '}
+            <span className="font-semibold text-ais-on-surface">{note.title}</span>?
           </p>
         )}
 
@@ -142,37 +230,82 @@ export function NoteDeliveryDialog({
               placeholder="What was difficult, or what opportunity did you notice?"
               disabled={submitting}
             />
-            <p className="text-xs text-ais-on-surface-variant">Share this with:</p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <AisBtnSecondary
-                type="button"
-                disabled={submitting || !challengeText.trim()}
-                onClick={() => void handleChallengePost('hod')}
-                className="flex-1 justify-center"
-              >
-                Post to HoD
-              </AisBtnSecondary>
-              <AisBtnSecondary
-                type="button"
-                disabled={submitting || !challengeText.trim()}
-                onClick={() => void handleChallengePost('community')}
-                className="flex-1 justify-center"
-              >
-                Post to community
-              </AisBtnSecondary>
-              <AisBtnPrimary
-                type="button"
-                disabled={submitting || !challengeText.trim()}
-                onClick={() => void handleChallengePost('both')}
-                className="flex-1 justify-center"
-              >
-                Post to both
-              </AisBtnPrimary>
+
+            <div className="space-y-2">
+              <p className="text-xs text-ais-on-surface-variant">Share this with:</p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['hod', 'HoD only'],
+                    ['community', 'Community only'],
+                    ['both', 'HoD + community'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => setPostTarget(value)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      postTarget === value
+                        ? 'border-ais-primary bg-ais-primary/10 text-ais-primary'
+                        : 'border-ais-card-border text-ais-on-surface hover:bg-ais-row-hover'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {needsCommunity && (
+              <div className="space-y-3 rounded-lg border border-ais-card-border bg-white p-3 dark:bg-ais-surface">
+                <p className="text-xs font-semibold text-ais-on-surface">
+                  Choose a community you belong to
+                </p>
+                {loadingCommunities ? (
+                  <p className="flex items-center gap-2 text-xs text-ais-on-surface-variant">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading your communities…
+                  </p>
+                ) : communities.length === 0 ? (
+                  <p className="text-xs text-ais-on-surface-variant">
+                    You are not a member of any community yet. Post to HoD only, or join a community
+                    first.
+                  </p>
+                ) : (
+                  <>
+                    <Select
+                      variant="ais"
+                      label="Community"
+                      options={communityOptions}
+                      value={communityId}
+                      onChange={(e) => setCommunityId(e.target.value)}
+                    />
+                    <Select
+                      variant="ais"
+                      label="Channel"
+                      options={channelOptions}
+                      value={channelId}
+                      onChange={(e) => setChannelId(e.target.value)}
+                    />
+                  </>
+                )}
+              </div>
+            )}
+
+            <AisBtnPrimary
+              type="button"
+              disabled={submitting || !canSubmitChallenge}
+              onClick={() => void handleChallengeSubmit()}
+              className="w-full justify-center"
+            >
+              {submitting ? 'Posting…' : 'Save & share challenge'}
+            </AisBtnPrimary>
           </div>
         )}
 
-        {submitting && (
+        {submitting && outcome !== 'challenged' && (
           <div className="flex items-center gap-2 text-sm text-ais-on-surface-variant">
             <Loader2 className="h-4 w-4 animate-spin" />
             Saving delivery feedback…

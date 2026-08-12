@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
+import { ParentCommunicationModule } from '@/components/dashboard/parent/ParentCommunicationModule';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
 export default function StudentPortalPage() {
   const { students, addNotification } = useApp();
@@ -63,6 +65,8 @@ export default function StudentPortalPage() {
     dashboard: { title: 'My Performance', subtitle: 'Grades, attendance, and homework at a glance.' },
     resources: { title: 'Books & Resources', subtitle: 'Digital textbooks and study materials.' },
     timetable: { title: 'Class Timetable', subtitle: 'Your weekly class schedule.' },
+    communication: { title: 'Communication' },
+    profile: { title: 'My Profile', subtitle: 'Your student account information.' },
   };
   const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
 
@@ -165,6 +169,17 @@ export default function StudentPortalPage() {
             </div>
           )}
 
+          {activeTab === 'communication' && (
+            <ParentCommunicationModule
+              mode="student"
+              childrenOptions={
+                activeStudent
+                  ? [{ id: activeStudent.id, name: activeStudent.name }]
+                  : []
+              }
+            />
+          )}
+
           {/* ==================================================== */}
           {/* TAB 2: BOOKS & RESOURCES                             */}
           {/* ==================================================== */}
@@ -232,6 +247,20 @@ export default function StudentPortalPage() {
                       </tbody>
                     </table>
               </TablePanel>
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <PortalProfileCard
+                roleLabel="Student"
+                fields={[
+                  { label: 'Grade / Section', value: `${activeStudent.grade} · Section ${activeStudent.section}` },
+                  { label: 'Student ID', value: activeStudent.studentId },
+                  { label: 'Cumulative GPA', value: activeStudent.gpa.toFixed(2) },
+                  { label: 'Attendance rate', value: `${activeStudent.attendanceRate}%` },
+                ]}
+              />
             </div>
           )}
 

@@ -1,20 +1,27 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Briefcase,
   CalendarDays,
   ClipboardList,
   Download,
+  Eye,
   Info,
+  MoreVertical,
+  Pencil,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu } from '@/components/ui/dropdown-menu';
 import { ContentCard } from '@/components/dashboard/ContentCard';
-import { GRADE_OPTIONS } from '@/lib/teacherPortal';
+import { GRADE_OPTIONS, keepLatestLessonPlansByGradeSubject } from '@/lib/teacherPortal';
 import type { AIDetailedLessonPlanResult } from '@/lib/ai';
+import type { LessonPlan } from '@/lib/mockData';
 import {
   buildTeachingWeeksFromCalendar,
   mergeAiWeeksOntoCalendar,
@@ -84,6 +91,8 @@ export const DeptAnnualPlanPanel: React.FC<{
 }> = ({ subject, onViewCalendar }) => {
   const {
     createDeptAnnualLessonPlan,
+    updateDeptAnnualLessonPlan,
+    deleteLessonPlan,
     addNotification,
     academicCalendars,
     currentUser,
@@ -104,7 +113,7 @@ export const DeptAnnualPlanPanel: React.FC<{
     [academicCalendars, schoolId],
   );
 
-  const publishedAnnuals = useMemo(
+  const allSubjectAnnuals = useMemo(
     () =>
       lessonPlans.filter(
         (p) =>
@@ -115,7 +124,31 @@ export const DeptAnnualPlanPanel: React.FC<{
     [lessonPlans, subject],
   );
 
+  const publishedAnnuals = useMemo(
+    () => keepLatestLessonPlansByGradeSubject(allSubjectAnnuals),
+    [allSubjectAnnuals],
+  );
+
+  const cleanedAnnualsRef = useRef<string>('');
+  useEffect(() => {
+    if (allSubjectAnnuals.length <= publishedAnnuals.length) return;
+    const keepIds = new Set(publishedAnnuals.map((p) => p.id));
+    const stale = allSubjectAnnuals.filter((p) => !keepIds.has(p.id));
+    if (stale.length === 0) return;
+    const signature = stale
+      .map((p) => p.id)
+      .sort()
+      .join(',');
+    if (cleanedAnnualsRef.current === signature) return;
+    cleanedAnnualsRef.current = signature;
+    for (const plan of stale) {
+      deleteLessonPlan(plan.id);
+    }
+  }, [allSubjectAnnuals, publishedAnnuals, deleteLessonPlan]);
+
   const [viewingPublishedId, setViewingPublishedId] = useState<string | null>(null);
+  const [editingPublishedId, setEditingPublishedId] = useState<string | null>(null);
+  const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
 
   const viewingPublished = useMemo(() => {
     const plan = publishedAnnuals.find((p) => p.id === viewingPublishedId);
@@ -454,44 +487,69 @@ export const DeptAnnualPlanPanel: React.FC<{
     }, 80);
   };
 
-  const handleDownload = async () => {
-    if (!annualPlan) return;
-    setDownloading(true);
+  const parsePublishedPlan = (plan: LessonPlan): AnnualLessonPlanResult | null => {
+    if (!plan.planDetail) return null;
     try {
-      await downloadAnnualLessonPlanDocx(annualPlan);
+      return JSON.parse(plan.planDetail) as AnnualLessonPlanResult;
     } catch {
-      addNotification('Download failed', 'Could not create Word document.', 'alert');
-    } finally {
-      setDownloading(false);
+      return null;
     }
   };
 
-  const handlePublish = () => {
-    if (!annualPlan) return;
+  const handleViewPublished = (plan: LessonPlan) => {
+    setViewingPublishedId((prev) => (prev === plan.id ? null : plan.id));
+    window.setTimeout(() => {
+      publishedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
 
-    if (alreadyPublishedForSelection) {
-      addNotification(
-        'Already published',
-        `${grade} ${planSubject} annual lesson plan is already published. Opening it below.`,
-        'info',
-      );
-      scrollToPublished(alreadyPublishedForSelection.id);
+  const handleEditPublished = (plan: LessonPlan) => {
+    const detail = parsePublishedPlan(plan);
+    if (!detail) {
+      addNotification('Cannot edit', 'This plan has no editable detail data.', 'alert');
       return;
     }
+    setGrade(plan.grade || detail.meta.grade || 'Grade 11');
+    setPlanSubject(plan.subject || detail.meta.subject || subject);
+    setAnnualPlan(detail);
+    setEditingPublishedId(plan.id);
+    setViewingPublishedId(null);
+    addNotification(
+      'Editing annual plan',
+      `"${plan.title}" loaded — save changes when ready.`,
+      'info',
+    );
+    window.setTimeout(() => {
+      generatedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
 
-    const weeks = annualPlan.weeks ?? [];
+  const handleDeletePublished = (plan: LessonPlan) => {
+    setPlanPendingDelete(plan);
+  };
+
+  const confirmDeletePublished = () => {
+    const plan = planPendingDelete;
+    if (!plan) return;
+    deleteLessonPlan(plan.id);
+    if (viewingPublishedId === plan.id) setViewingPublishedId(null);
+    if (editingPublishedId === plan.id) {
+      setEditingPublishedId(null);
+      setAnnualPlan(null);
+    }
+    setPlanPendingDelete(null);
+  };
+
+  const buildPublishPayload = (plan: AnnualLessonPlanResult) => {
+    const weeks = plan.weeks ?? [];
     const objectives =
-      annualPlan.meta.generalObjectives?.length
-        ? annualPlan.meta.generalObjectives
-        : annualPlan.objectives;
-
+      plan.meta.generalObjectives?.length ? plan.meta.generalObjectives : plan.objectives;
     const activities = weeks.slice(0, 40).map((w, idx) => ({
       session: idx + 1,
       activity: `${w.month} ${w.week}: ${w.unit || 'Unit'} — ${(w.contents || []).join('; ')} (pp. ${w.page || '?'})`,
       duration: `${w.periodsNeeded} periods`,
     }));
-
-    createDeptAnnualLessonPlan({
+    return {
       title: `${grade} ${planSubject} — Annual Lesson Plan`,
       grade,
       subject: planSubject,
@@ -508,8 +566,44 @@ export const DeptAnnualPlanPanel: React.FC<{
           .slice(0, 6)
           .join('; ') ||
         'See weekly homework (Exercise + page) in the annual lesson plan table',
-      planDetail: JSON.stringify(annualPlan),
-    });
+      planDetail: JSON.stringify(plan),
+    };
+  };
+
+  const handleDownload = async () => {
+    if (!annualPlan) return;
+    setDownloading(true);
+    try {
+      await downloadAnnualLessonPlanDocx(annualPlan);
+    } catch {
+      addNotification('Download failed', 'Could not create Word document.', 'alert');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePublish = () => {
+    if (!annualPlan) return;
+
+    if (editingPublishedId) {
+      const id = editingPublishedId;
+      updateDeptAnnualLessonPlan(id, buildPublishPayload(annualPlan));
+      setEditingPublishedId(null);
+      window.setTimeout(() => scrollToPublished(id), 200);
+      return;
+    }
+
+    if (alreadyPublishedForSelection) {
+      addNotification(
+        'Already published',
+        `${grade} ${planSubject} annual lesson plan is already published. Opening it below.`,
+        'info',
+      );
+      scrollToPublished(alreadyPublishedForSelection.id);
+      return;
+    }
+
+    createDeptAnnualLessonPlan(buildPublishPayload(annualPlan));
     window.setTimeout(() => scrollToPublished(), 200);
   };
 
@@ -834,7 +928,11 @@ export const DeptAnnualPlanPanel: React.FC<{
               Download Word
             </Button>
             <Button variant="organic" onClick={handlePublish} className="whitespace-nowrap">
-              {alreadyPublishedForSelection ? 'View published plan' : 'Publish to teachers'}
+              {editingPublishedId
+                ? 'Save changes'
+                : alreadyPublishedForSelection
+                  ? 'View published plan'
+                  : 'Publish to teachers'}
             </Button>
           </>
         )}
@@ -848,11 +946,17 @@ export const DeptAnnualPlanPanel: React.FC<{
         <div ref={generatedSectionRef}>
           <ContentCard
             title={
-              annualPlan.meta.academicYear
-                ? `Annual Lesson Plan ${annualPlan.meta.academicYear}`
-                : 'Annual Lesson Plan'
+              editingPublishedId
+                ? 'Editing annual lesson plan'
+                : annualPlan.meta.academicYear
+                  ? `Annual Lesson Plan ${annualPlan.meta.academicYear}`
+                  : 'Annual Lesson Plan'
             }
-            description="Table layout matches the school annual lesson plan template. Scroll horizontally on smaller screens."
+            description={
+              editingPublishedId
+                ? 'Update the plan below, then click Save changes.'
+                : 'Table layout matches the school annual lesson plan template. Scroll horizontally on smaller screens.'
+            }
           >
             <AnnualLessonPlanTable plan={annualPlan} showTitle={false} />
           </ContentCard>
@@ -873,21 +977,48 @@ export const DeptAnnualPlanPanel: React.FC<{
                   key={p.id}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm"
                 >
-                  <div>
-                    <p className="font-semibold text-foreground">{p.title}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{p.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {p.grade} · {p.subject} · {p.status} · {p.createdAt}
+                      {editingPublishedId === p.id ? ' · Editing' : ''}
+                      {viewingPublishedId === p.id ? ' · Viewing' : ''}
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setViewingPublishedId(viewingPublishedId === p.id ? null : p.id)
+                  <DropdownMenu
+                    align="right"
+                    trigger={
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground hover:bg-muted hover:text-foreground">
+                        <MoreVertical className="h-4 w-4" />
+                        <span className="sr-only">Plan actions</span>
+                      </span>
                     }
-                  >
-                    {viewingPublishedId === p.id ? 'Hide' : 'View'}
-                  </Button>
+                    sections={[
+                      {
+                        items: [
+                          {
+                            id: 'view',
+                            label: viewingPublishedId === p.id ? 'Hide' : 'View',
+                            icon: <Eye className="h-4 w-4" />,
+                            onClick: () => handleViewPublished(p),
+                          },
+                          {
+                            id: 'edit',
+                            label: 'Edit',
+                            icon: <Pencil className="h-4 w-4" />,
+                            onClick: () => handleEditPublished(p),
+                          },
+                          {
+                            id: 'delete',
+                            label: 'Delete',
+                            icon: <Trash2 className="h-4 w-4" />,
+                            danger: true,
+                            onClick: () => handleDeletePublished(p),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
                 </li>
               ))}
             </ul>
@@ -899,6 +1030,30 @@ export const DeptAnnualPlanPanel: React.FC<{
           ) : null}
         </ContentCard>
       </div>
+
+      <Dialog
+        isOpen={Boolean(planPendingDelete)}
+        onClose={() => setPlanPendingDelete(null)}
+        title="Delete annual plan?"
+        description="This cannot be undone."
+        size="sm"
+      >
+        <p className="text-sm text-ais-on-surface">
+          Delete{' '}
+          <span className="font-semibold">
+            {planPendingDelete?.title ?? 'this annual lesson plan'}
+          </span>
+          ? Teachers will no longer see it.
+        </p>
+        <DialogFooter className="mt-5 -mx-5 sm:-mx-6 -mb-5 sm:-mb-6">
+          <Button variant="outline" onClick={() => setPlanPendingDelete(null)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={confirmDeletePublished}>
+            Delete
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   );
 };

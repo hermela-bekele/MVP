@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Send } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { MentionSuggestion } from '@/lib/communityTypes';
-import { aisBodySm, aisInput } from '@/components/dashboard/teacher/aisStyles';
+import { aisInput } from '@/components/dashboard/teacher/aisStyles';
 
 type Props = {
   communityId: string | null;
@@ -137,9 +137,6 @@ export function MessageComposer({
           <Send className="h-4 w-4" />
         </button>
       </div>
-      <p className={`${aisBodySm} mt-1.5 text-ais-outline`}>
-        Enter to send · Shift+Enter for newline · @ to mention
-      </p>
     </div>
   );
 }

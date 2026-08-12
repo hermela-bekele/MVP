@@ -66,9 +66,9 @@ const TeacherTrainingTab = lazy(() =>
     default: m.TeacherTrainingTab,
   })),
 );
-const TeacherFeedbackTab = lazy(() =>
-  import("@/components/dashboard/teacher/TeacherFeedbackTab").then((m) => ({
-    default: m.TeacherFeedbackTab,
+const StepSelfAssessment = lazy(() =>
+  import("@/components/dashboard/teacher/StepSelfAssessment").then((m) => ({
+    default: m.StepSelfAssessment,
   })),
 );
 const TeacherSettingsTab = lazy(() =>
@@ -98,6 +98,11 @@ const TeacherHodMessagesTab = lazy(() =>
     default: m.TeacherHodMessagesTab,
   })),
 );
+const CommunicationModule = lazy(() =>
+  import("@/components/dashboard/communication/CommunicationModule").then((m) => ({
+    default: m.CommunicationModule,
+  })),
+);
 const MessageCenter = lazy(() =>
   import("@/components/dashboard/messaging/MessageCenter").then((m) => ({
     default: m.MessageCenter,
@@ -119,8 +124,11 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Official school calendar disseminated by the school head.",
   },
   "teaching-notes": {
-    title: "Teaching Notes",
-    subtitle: "View all notes per lesson plan and create new notes with AI.",
+    title: "Lesson Notes",
+    subtitle: "Weekly plans, AI lesson notes, drafts, and classroom delivery — organized by section.",
+  },
+  communication: {
+    title: "Communication",
   },
   community: {
     title: "Teacher Community",
@@ -131,8 +139,6 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   "manage-students": {
     title: "Manage Students",
-    subtitle:
-      "Roster, gradebook (quiz, test, project, mid & final exam), and parent messaging.",
   },
   resources: {
     title: "Resources",
@@ -167,12 +173,16 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Professional development in your teaching subject area.",
   },
   "training-continuous": {
-    title: "Continuous Development",
-    subtitle: "Ongoing professional development and pedagogical skills.",
+    title: "STEP · Professional Growth",
+    subtitle: "School-Based Teaching Excellence Program: ongoing professional development.",
   },
-  feedback: {
-    title: "Feedback",
-    subtitle: "View feedback received and provide comments to students.",
+  "training-induction": {
+    title: "TIP · Induction",
+    subtitle: "Teacher Induction Program: foundations for your first two years.",
+  },
+  "training-self-assessment": {
+    title: "STEP Self-Assessment",
+    subtitle: "Rate yourself against the STEP rubric — shared with your HoD.",
   },
   messages: {
     title: "Parent Messages",
@@ -244,7 +254,7 @@ export function TeacherPortalApp() {
             window.dispatchEvent(new Event("open-teacher-create-note"))
           }
         >
-          + New teaching note
+          + New lesson note
         </button>
       </div>
     ) : activeTab === "manage-students" ? (
@@ -276,6 +286,13 @@ export function TeacherPortalApp() {
         {activeTab === "academic-calendar" && <TeacherAcademicCalendarTab />}
         {activeTab === "timetable" && <TeacherTimetableTab />}
         {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
+        {activeTab === "communication" && (
+          <CommunicationModule
+            mode="teacher"
+            mainTab="channels"
+            onMainTabChange={() => {}}
+          />
+        )}
         {activeTab === "community" && <TeacherCommunityTab />}
         {activeTab === "hod-messages" && <TeacherHodMessagesTab />}
         {activeTab === "manage-students" && <TeacherStudentsTab />}
@@ -287,13 +304,14 @@ export function TeacherPortalApp() {
         {activeTab === "attendance" && <TeacherAttendanceTab />}
         {(activeTab === "training" ||
           activeTab === "training-subject-matter" ||
-          activeTab === "training-continuous") && (
+          activeTab === "training-continuous" ||
+          activeTab === "training-induction") && (
           <TeacherTrainingTab
             typeFilter={trainingTypeFilter}
             activeTabType={activeTab}
           />
         )}
-        {activeTab === "feedback" && <TeacherFeedbackTab />}
+        {activeTab === "training-self-assessment" && <StepSelfAssessment />}
         {activeTab === "messages" && (
           <MessageCenter mode="staff" staffRoleHint="teacher" />
         )}

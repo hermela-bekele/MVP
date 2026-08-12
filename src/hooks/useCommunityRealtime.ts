@@ -28,9 +28,12 @@ export function useCommunityRealtime({
   const communityIdRef = useRef(communityId);
   const channelIdRef = useRef(channelId);
   const threadIdRef = useRef(threadId);
-  communityIdRef.current = communityId;
-  channelIdRef.current = channelId;
-  threadIdRef.current = threadId;
+  
+  useEffect(() => {
+    communityIdRef.current = communityId;
+    channelIdRef.current = channelId;
+    threadIdRef.current = threadId;
+  }, [communityId, channelId, threadId]);
 
   useEffect(() => {
     if (!enabled) return;
