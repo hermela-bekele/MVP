@@ -4,6 +4,7 @@ import React from 'react';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { OfflineBanner } from '@/components/offline/OfflineBanner';
 import { RoleGuard } from '@/components/auth/RoleGuard';
+import { EngineGuard } from '@/components/auth/EngineGuard';
 import { CommandPalette, CommandItem } from '@/components/ui/command-palette';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
@@ -27,15 +28,6 @@ function DashboardCommandPalette() {
         label: 'Toggle Dark/Light Mode',
         group: 'System Preferences',
         action: () => toggleTheme(),
-      },
-      {
-        id: 'logout',
-        label: 'Sign Out Session',
-        group: 'Account',
-        action: () => {
-          logout();
-          router.push('/login');
-        }
       }
     ];
 
@@ -87,13 +79,16 @@ function DashboardCommandPalette() {
     if (activeRole === 'school-head') {
       const schoolHeadTabs = [
         { id: 'dashboard', label: 'Overview Dashboard' },
-        { id: 'reports', label: 'Performance Reports' },
-        { id: 'academic-calendar', label: 'Academic Calendar' },
         { id: 'manage-students', label: 'View Students' },
         { id: 'manage-employees', label: 'View Employees' },
         { id: 'manage-classes', label: 'View Classes' },
         { id: 'manage-departments', label: 'View Departments' },
         { id: 'manage-attendance', label: 'View Attendance' },
+        { id: 'hr-overview', label: 'HR Overview' },
+        { id: 'registrar-overview', label: 'Registrar Overview' },
+        { id: 'finance-overview', label: 'Finance Overview' },
+        { id: 'moe-updates', label: 'MOE Updates & Compliance' },
+        { id: 'moe-messages', label: 'Message MOE' },
         { id: 'teachers-development', label: 'Teacher Development' },
         { id: 'manage-checkins', label: 'Wellness Check-ins' },
         { id: 'account-settings', label: 'Portal Settings' },
@@ -123,13 +118,15 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <RoleGuard>
-        <div className="flex flex-1 min-h-screen flex-col bg-[hsl(var(--dashboard-bg))]">
-          <OfflineBanner />
-          <div className="flex flex-1 w-full relative">
-            {children}
-            <DashboardCommandPalette />
+        <EngineGuard>
+          <div className="flex flex-1 min-h-screen flex-col bg-[hsl(var(--dashboard-bg))]">
+            <OfflineBanner />
+            <div className="flex flex-1 w-full relative">
+              {children}
+              <DashboardCommandPalette />
+            </div>
           </div>
-        </div>
+        </EngineGuard>
       </RoleGuard>
     </SidebarProvider>
   );

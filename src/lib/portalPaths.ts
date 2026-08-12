@@ -18,8 +18,8 @@ export function portalBasePath(role: string | null | undefined): string {
       return '/dashboard/hr';
     case 'registrar':
       return '/dashboard/registrar';
-    case 'curriculum-head':
-      return '/dashboard/curriculum-head';
+    case 'head-of-academics':
+      return '/dashboard/head-of-academics';
     case 'finance':
       return '/dashboard/finance';
     default:

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-const ROLES = ['registrar', 'teacher', 'parent', 'student', 'finance', 'school-head'];
+const ROLES = ['registrar', 'teacher', 'parent', 'student', 'finance', 'school-head', 'department-head', 'head-of-academics'];
 
 export function PermissionsAdminPanel() {
   const session = readStoredSession();

@@ -48,7 +48,7 @@ function canCreateCommunities(role?: string) {
   return (
     role === "school-head" ||
     role === "moe" ||
-    role === "curriculum-head" ||
+    role === "head-of-academics" ||
     role === "department-head"
   );
 }

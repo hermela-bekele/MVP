@@ -100,9 +100,12 @@ import { readStoredCalendars, writeStoredCalendars } from '@/lib/calendarStorage
 import {
   type AuthUser,
   clearSession,
+  persistEngine,
   persistSession,
+  readStoredEngine,
   readStoredSession,
 } from '@/lib/auth';
+import { type EngineId, defaultEngineForRole, enginesForRole, isEngineId } from '@/lib/engines';
 
 export interface AppNotification {
   id: string;
@@ -122,6 +125,8 @@ interface AppContextType {
   logout: () => void;
   activeRole: string;
   setActiveRole: (role: string) => void;
+  activeEngine: EngineId | null;
+  setEngine: (engine: EngineId) => void;
   resolveTeacherId: () => string;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
@@ -279,6 +284,13 @@ interface AppContextType {
   addStudentFeedback: (
     feedback: Omit<TeacherFeedback, 'id' | 'teacherId' | 'direction' | 'authorName' | 'date'>
   ) => void;
+  giveTeacherFeedback: (input: {
+    teacherId: string;
+    authorRole: 'peer' | 'department-head';
+    subject: string;
+    comment: string;
+    rating?: number;
+  }) => void;
   markLessonDelivered: (payload: {
     teachingNoteId: string;
     lessonPlanId?: string;
@@ -342,6 +354,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedUser) return savedUser.role;
     }
     return 'login';
+  });
+  const [activeEngine, setActiveEngineState] = useState<EngineId | null>(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = readStoredSession();
+      if (savedUser) {
+        const allowedEngines = enginesForRole(savedUser.role);
+        const storedEngine = readStoredEngine();
+        if (storedEngine && isEngineId(storedEngine) && allowedEngines.includes(storedEngine)) {
+          return storedEngine;
+        }
+        return defaultEngineForRole(savedUser.role);
+      }
+    }
+    return null;
   });
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
@@ -718,6 +744,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = useCallback((user: AuthUser, remember = true) => {
     setCurrentUser(user);
     setActiveRoleState(user.role);
+    setActiveEngineState(defaultEngineForRole(user.role));
     persistSession(user, remember);
     void refreshFromApi();
   }, [refreshFromApi]);
@@ -725,7 +752,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(() => {
     setCurrentUser(null);
     setActiveRoleState('login');
+    setActiveEngineState(null);
     clearSession();
+  }, []);
+
+  const setEngine = useCallback((engine: EngineId) => {
+    setActiveEngineState(engine);
+    persistEngine(engine);
   }, []);
 
   const resolveTeacherId = useCallback(() => {
@@ -1764,6 +1797,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
+  const giveTeacherFeedback = (input: {
+    teacherId: string;
+    authorRole: 'peer' | 'department-head';
+    subject: string;
+    comment: string;
+    rating?: number;
+  }) => {
+    const authorName =
+      currentUser?.displayName ?? (input.authorRole === 'department-head' ? 'Department Head' : 'Colleague');
+    const record: TeacherFeedback = {
+      id: `local-fb-${Date.now()}`,
+      teacherId: input.teacherId,
+      direction: 'to_teacher',
+      authorRole: input.authorRole,
+      authorName,
+      subject: input.subject,
+      comment: input.comment,
+      rating: input.rating,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    setTeacherFeedbacks((prev) => [record, ...prev]);
+    addNotification('Feedback Sent', `Your feedback was recorded for the teacher.`, 'success');
+    void api
+      .sendPortalFeedback({ ...input, authorName, direction: 'to_teacher' })
+      .catch(() => {
+        /* recorded locally; will sync once the server accepts this feedback type */
+      });
+  };
+
   const markLessonDelivered = async (payload: {
     teachingNoteId: string;
     lessonPlanId?: string;
@@ -1975,6 +2037,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logout,
         activeRole,
         setActiveRole,
+        activeEngine,
+        setEngine,
         resolveTeacherId,
         theme,
         toggleTheme,
@@ -2078,6 +2142,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         respondToTeacherCheckIn,
         sendParentMessage,
         addStudentFeedback,
+        giveTeacherFeedback,
         markLessonDelivered,
         createCommunityPost,
         replyToCommunityPost,

@@ -49,6 +49,7 @@ export function StudentFeedbackForm({ studentId, studentName }: Props) {
         studentId,
         studentName,
         direction: 'to_teacher',
+        authorRole: 'student',
         subject: subject || 'Student feedback',
         comment: comment.trim(),
       });

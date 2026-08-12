@@ -51,6 +51,11 @@ const TeacherCheckinsTab = lazy(() =>
     default: m.TeacherCheckinsTab,
   })),
 );
+const TeacherFeedbackPanel = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherFeedbackPanel").then((m) => ({
+    default: m.TeacherFeedbackPanel,
+  })),
+);
 const TeacherClassesTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherClassesTab").then((m) => ({
     default: m.TeacherClassesTab,
@@ -155,6 +160,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   checkins: {
     title: "Check-ins",
     subtitle: "Respond to wellness and instructional surveys.",
+  },
+  feedback: {
+    title: "Feedback",
+    subtitle: "Give peer feedback and review feedback from your head of department, parents, and students.",
   },
   "manage-classes": {
     title: "Manage Classes",
@@ -300,6 +309,7 @@ export function TeacherPortalApp() {
         {activeTab === "practice-bank" && <TeacherPracticeBank />}
         {activeTab === "assessments" && <TeacherAssessmentsTab />}
         {activeTab === "checkins" && <TeacherCheckinsTab />}
+        {activeTab === "feedback" && <TeacherFeedbackPanel />}
         {activeTab === "manage-classes" && <TeacherClassesTab />}
         {activeTab === "attendance" && <TeacherAttendanceTab />}
         {(activeTab === "training" ||

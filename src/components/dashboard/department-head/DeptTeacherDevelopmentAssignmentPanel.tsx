@@ -374,7 +374,8 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
             <Select
               label="Assignment type"
               options={[
-                { value: 'preset', label: 'Assign preset TIP / STEP module' },
+                { value: 'preset', label: 'Assign preset Induction module' },
+                { value: 'Continuous', label: 'Assign Continuous Development module'},
                 { value: 'ai', label: 'Module from missed-question suggestion' },
               ]}
               value={mode}
