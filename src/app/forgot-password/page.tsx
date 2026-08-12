@@ -52,10 +52,10 @@ export default function ForgotPasswordPage() {
       <div className="hidden lg:flex lg:w-[42%] flex-col justify-between bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-fg))] p-10 xl:p-14">
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-xl bg-[hsl(var(--sidebar-fg))] text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg shadow-md">
-            PR
+            PE
           </div>
           <div>
-            <p className="font-bold text-lg">Prime Teaching System</p>
+            <p className="font-bold text-lg">PRIME EduAI</p>
             <p className="text-xs text-[hsl(var(--sidebar-muted))]">Account recovery</p>
           </div>
         </div>
@@ -70,9 +70,9 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
             <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              PR
+              PE
             </div>
-            <span className="font-bold text-lg">Prime Teaching System</span>
+            <span className="font-bold text-lg">PRIME EduAI</span>
           </div>
 
           <div className="bg-card rounded-xl border border-border/80 shadow-lg p-6 sm:p-8">
