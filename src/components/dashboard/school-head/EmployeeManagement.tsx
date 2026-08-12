@@ -99,6 +99,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
       certification: employeeCert,
       schoolId: 'sch-1',
       departmentId: deptId,
+      yearsOfExperience: 0,
     });
 
     // Reset Form

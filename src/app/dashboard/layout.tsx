@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import { OfflineBanner } from '@/components/offline/OfflineBanner';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { EngineGuard } from '@/components/auth/EngineGuard';
 import { CommandPalette, CommandItem } from '@/components/ui/command-palette';

@@ -11,18 +11,48 @@ import { preprocessAssessmentMarkdown } from '@/lib/assessmentMarkdown';
 interface AssessmentContentRendererProps {
   content: string;
   className?: string;
+  /** Optional chip shown above the document (e.g. Mid Exam · Multiple Choice). */
+  categoryLabel?: string;
 }
 
 function isFillBlankLine(text: string): boolean {
-  return /^_{3,}\s*$/.test(text.trim());
+  return /^_{3,}\s*$/.test(text.trim()) || /_{5,}/.test(text);
 }
 
 function isSkillAreaLine(text: string): boolean {
   return /skill area:/i.test(text);
 }
 
+function isMetaBadgeLine(text: string): boolean {
+  return /^(assessment type|question format|number of questions|scope):/i.test(
+    text.trim(),
+  );
+}
+
 function isSectionHeading(text: string): boolean {
-  return /^section [abc]:/i.test(text.trim());
+  return (
+    /^section [abc]:/i.test(text.trim()) ||
+    /^for\s+(multiple choice|true\/false|fill in the blank|matching|writing)/i.test(
+      text.trim(),
+    )
+  );
+}
+
+function isAnswerKeyHeading(text: string): boolean {
+  return /^(answer key|marking guide|combined note)/i.test(text.trim());
+}
+
+function isQuestionLead(text: string): boolean {
+  return /^q(?:uestion)?\s*\d+\s*:/i.test(text.trim());
+}
+
+function isOptionLine(text: string): boolean {
+  return /^[A-D]\)\s+/.test(text.trim());
+}
+
+function isCorrectLine(text: string): boolean {
+  return /^[✓✔]\s*(correct|expected|marking|sample)/i.test(text.trim()) ||
+    /^correct\s*(answer|matches)?:/i.test(text.trim());
 }
 
 function extractText(node: React.ReactNode): string {
@@ -38,6 +68,7 @@ function extractText(node: React.ReactNode): string {
 export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps> = ({
   content,
   className = '',
+  categoryLabel,
 }) => {
   const processedContent = useMemo(
     () => preprocessAssessmentMarkdown(content),
@@ -48,6 +79,18 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
     <div
       className={`assessment-markdown prose prose-sm md:prose-base max-w-none dark:prose-invert ${className}`}
     >
+      {categoryLabel ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {categoryLabel.split('·').map((part) => (
+            <span
+              key={part}
+              className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-0.5 text-xs font-semibold text-ais-primary"
+            >
+              {part.trim()}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
@@ -58,12 +101,22 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
               {...props}
             />
           ),
-          h2: ({ ...props }) => (
-            <h2
-              className="mb-3 mt-8 flex items-center gap-2 border-b border-ais-card-border/60 pb-2 text-xl font-bold text-ais-on-surface first:mt-0"
-              {...props}
-            />
-          ),
+          h2: ({ children, ...props }) => {
+            const text = extractText(children);
+            const answerKey = isAnswerKeyHeading(text);
+            return (
+              <h2
+                className={`mb-3 mt-8 flex items-center gap-2 border-b pb-2 text-xl font-bold first:mt-0 ${
+                  answerKey
+                    ? 'border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
+                    : 'border-ais-card-border/60 text-ais-on-surface'
+                }`}
+                {...props}
+              >
+                {children}
+              </h2>
+            );
+          },
           h3: ({ children, ...props }) => {
             const text = extractText(children);
             const isSection = isSectionHeading(text);
@@ -90,12 +143,42 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
                 />
               );
             }
-            if (isSkillAreaLine(text)) {
+            if (isSkillAreaLine(text) || isMetaBadgeLine(text)) {
               return (
                 <p className="mb-1 mt-2" {...props}>
                   <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                     {children}
                   </span>
+                </p>
+              );
+            }
+            if (isQuestionLead(text)) {
+              return (
+                <p
+                  className="mb-2 mt-5 rounded-lg border border-ais-card-border/70 bg-ais-surface-container-low/40 px-3 py-2.5 text-sm font-medium leading-relaxed text-ais-on-surface"
+                  {...props}
+                >
+                  {children}
+                </p>
+              );
+            }
+            if (isOptionLine(text)) {
+              return (
+                <p
+                  className="mb-1 ml-3 rounded-md border border-transparent px-2 py-1 text-sm text-ais-on-surface-variant hover:border-ais-card-border/50"
+                  {...props}
+                >
+                  {children}
+                </p>
+              );
+            }
+            if (isCorrectLine(text)) {
+              return (
+                <p
+                  className="mb-3 ml-1 rounded-md border border-emerald-500/20 bg-emerald-50/80 px-2.5 py-1.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+                  {...props}
+                >
+                  {children}
                 </p>
               );
             }
@@ -118,11 +201,18 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
           ),
           strong: ({ children, ...props }) => {
             const text = extractText(children);
-            if (isSkillAreaLine(text)) {
+            if (isSkillAreaLine(text) || isMetaBadgeLine(text)) {
               return (
                 <span className="mr-2 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
                   {children}
                 </span>
+              );
+            }
+            if (/^q(?:uestion)?\s*\d+$/i.test(text.trim())) {
+              return (
+                <strong className="mr-1 font-bold text-ais-primary" {...props}>
+                  {children}
+                </strong>
               );
             }
             return (
@@ -140,6 +230,49 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
               {...props}
             />
           ),
+          table: ({ ...props }) => (
+            <div className="my-2 overflow-x-auto">
+              <table
+                className="mcq-choice-grid mb-3 w-full border-collapse text-sm"
+                {...props}
+              />
+            </div>
+          ),
+          thead: ({ ...props }) => <thead {...props} />,
+          tbody: ({ ...props }) => <tbody {...props} />,
+          tr: ({ ...props }) => <tr className="align-top" {...props} />,
+          th: ({ children, ...props }) => {
+            const text = extractText(children).trim();
+            const isOpt = /^[A-D]\)/.test(text);
+            return (
+              <th
+                className={`w-1/2 px-1 py-1.5 text-left font-normal ${
+                  isOpt
+                    ? 'rounded-md border border-ais-card-border/60 bg-ais-surface-container-low/50 px-2.5 py-2 text-sm text-ais-on-surface-variant'
+                    : 'text-ais-on-surface-variant'
+                }`}
+                {...props}
+              >
+                {children}
+              </th>
+            );
+          },
+          td: ({ children, ...props }) => {
+            const text = extractText(children).trim();
+            const isOpt = /^[A-D]\)/.test(text);
+            return (
+              <td
+                className={`w-1/2 px-1 py-1.5 ${
+                  isOpt
+                    ? 'rounded-md border border-ais-card-border/60 bg-ais-surface-container-low/50 px-2.5 py-2 text-ais-on-surface-variant'
+                    : 'text-ais-on-surface-variant'
+                }`}
+                {...props}
+              >
+                {children}
+              </td>
+            );
+          },
         }}
       >
         {processedContent}

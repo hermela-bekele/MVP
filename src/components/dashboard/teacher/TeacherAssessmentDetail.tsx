@@ -8,7 +8,7 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
-import { filterTeacherAssessments } from '@/lib/teacherPortal';
+import { filterTeacherAssessments, resolveTeacherProfile } from '@/lib/teacherPortal';
 import type { Assessment } from '@/lib/mockData';
 import {
   assessmentToMarkdown,
@@ -55,12 +55,19 @@ interface TeacherAssessmentDetailProps {
 export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = ({
   assessmentId,
 }) => {
-  const { assessments, updateAssessmentQuestions, resolveTeacherId } = useApp();
+  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers } = useApp();
   const teacherId = resolveTeacherId();
+  const teacherProfile = resolveTeacherProfile(
+    teachers,
+    teacherId,
+  );
 
   const assessment = useMemo(
-    () => filterTeacherAssessments(assessments, teacherId).find((a) => a.id === assessmentId),
-    [assessments, assessmentId, teacherId],
+    () =>
+      filterTeacherAssessments(assessments, teacherId, {
+        subjects: teacherProfile.subjects,
+      }).find((a) => a.id === assessmentId),
+    [assessments, assessmentId, teacherId, teacherProfile.subjects],
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -209,7 +216,16 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
           </p>
         ) : isAiDocument ? (
           <div className="rounded-xl border border-ais-card-border bg-white p-6 dark:bg-gray-900/40">
-            <AssessmentContentRenderer content={assessment.questions[0].question} />
+            <AssessmentContentRenderer
+              content={assessment.questions[0].question}
+              categoryLabel={`${assessment.type} · ${assessment.questions[0].type || 'Mixed'}`}
+            />
+            {assessment.createdByRole === 'department-head' && (
+              <p className="mt-4 text-xs text-muted-foreground">
+                Published by department head — record student results in Manage students → Gradebook
+                by linking this assessment.
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">

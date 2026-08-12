@@ -9,16 +9,25 @@ import {
   CURRENT_TERM,
   GRADE_ENTRY_TYPES,
   GRADE_OPTIONS,
-  SECTION_OPTIONS,
+  SECTION_FILTER_OPTIONS,
+  assessmentMatchesGrade,
   entryPercent,
+  filterGradebookAssessments,
   filterTeacherGradeEntries,
   filterTeacherStudents,
   gradesForStudent,
+  normalizeGradeLabel,
   primarySubjectForTeacher,
   resolveTeacherProfile,
   weightedTermAverage,
 } from '@/lib/teacherPortal';
+import {
+  countQuestionsInAssessmentMarkdown,
+  extractAssessmentQuestionPrompts,
+  isGeneratedAssessmentBlob,
+} from '@/lib/assessmentMarkdown';
 import type {
+  Assessment,
   GradeQuestionResult,
   StudentGradeEntry,
   StudentGradeEntryType,
@@ -36,6 +45,7 @@ import {
   aisFormLabel,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
+import { GradeGapAnalysisPanel } from '@/components/dashboard/teacher/GradeGapAnalysisPanel';
 import {
   aisBodyMd,
   aisBodySm,
@@ -63,8 +73,39 @@ const TYPE_ORDER: StudentGradeEntryType[] = [
   'Practical',
 ];
 
+/** Assessment types that must be linked when recording results. */
+const LINKED_ENTRY_TYPES: StudentGradeEntryType[] = [
+  'Quiz',
+  'Test',
+  'Mid Exam',
+  'Final Exam',
+  'Assignment',
+  'Practical',
+];
+
 function columnKey(entryType: string, title: string) {
   return `${entryType}::${title}`;
+}
+
+function assessmentToEntryType(type: Assessment['type']): StudentGradeEntryType {
+  if (type === 'Baseline') return 'Quiz';
+  return type;
+}
+
+function countAssessmentQuestions(asm: Assessment): number {
+  if (!asm.questions?.length) return 10;
+  if (isGeneratedAssessmentBlob(asm.questions)) {
+    return countQuestionsInAssessmentMarkdown(asm.questions[0].question);
+  }
+  return asm.questions.length;
+}
+
+function assessmentQuestionPrompts(asm: Assessment, count: number): string[] {
+  if (!asm.questions?.length) return [];
+  if (isGeneratedAssessmentBlob(asm.questions)) {
+    return extractAssessmentQuestionPrompts(asm.questions[0].question, count);
+  }
+  return asm.questions.slice(0, count).map((q, i) => `Q${i + 1}: ${q.question.slice(0, 120)}`);
 }
 
 function buildQuestionMarks(
@@ -92,13 +133,21 @@ export const TeacherGradebook: React.FC = () => {
     upsertStudentGradeEntry,
     deleteStudentGradeEntry,
     resolveTeacherId,
+    addNotification,
+    refreshFromApi,
   } = useApp();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(teachers, teacherId);
   const defaultSubject = primarySubjectForTeacher(teacherProfile);
+  const classGradeOptions = useMemo(() => {
+    const fromTeacher = teacherProfile.grades?.length
+      ? teacherProfile.grades
+      : GRADE_OPTIONS;
+    return fromTeacher.length ? fromTeacher : GRADE_OPTIONS;
+  }, [teacherProfile.grades]);
 
-  const [classGrade, setClassGrade] = useState('Grade 9');
-  const [classSection, setClassSection] = useState('A');
+  const [classGrade, setClassGrade] = useState(() => classGradeOptions[0] ?? 'Grade 9');
+  const [classSection, setClassSection] = useState('All');
   const [detailEntry, setDetailEntry] = useState<StudentGradeEntry | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
@@ -122,9 +171,13 @@ export const TeacherGradebook: React.FC = () => {
 
   const classEntries = useMemo(
     () =>
-      filterTeacherGradeEntries(studentGradeEntries, teacherId).filter(
-        (e) => e.gradeLevel === classGrade && e.section === classSection,
-      ),
+      filterTeacherGradeEntries(studentGradeEntries, teacherId).filter((e) => {
+        if (normalizeGradeLabel(e.gradeLevel) !== normalizeGradeLabel(classGrade)) {
+          return false;
+        }
+        if (classSection !== 'All' && e.section !== classSection) return false;
+        return true;
+      }),
     [studentGradeEntries, classGrade, classSection, teacherId],
   );
 
@@ -152,26 +205,67 @@ export const TeacherGradebook: React.FC = () => {
     });
   }, [classEntries]);
 
-  const myAssessments = useMemo(
-    () => assessments.filter((a) => a.teacherId === teacherId && a.grade === classGrade),
-    [assessments, classGrade, teacherId],
-  );
+  const myAssessments = useMemo(() => {
+    const filtered = filterGradebookAssessments(assessments, {
+      teacherId,
+      subjects: teacherProfile.subjects,
+      classGrade,
+    });
+    // Safety net: never drop this teacher's own ready quizzes/exams even if subject metadata is odd.
+    const byId = new Map(filtered.map((a) => [a.id, a]));
+    for (const a of assessments) {
+      if (String(a.teacherId) !== String(teacherId)) continue;
+      if (a.status === 'Rejected') continue;
+      if (
+        a.status === 'Approved' ||
+        a.type === 'Quiz' ||
+        a.type === 'Baseline' ||
+        a.createdByRole === 'department-head'
+      ) {
+        byId.set(a.id, a);
+      }
+    }
+    return [...byId.values()].sort((a, b) => {
+      const aMatch = assessmentMatchesGrade(a.grade, classGrade) ? 0 : 1;
+      const bMatch = assessmentMatchesGrade(b.grade, classGrade) ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      return String(b.createdAt).localeCompare(String(a.createdAt));
+    });
+  }, [assessments, classGrade, teacherId, teacherProfile.subjects]);
+
+  const requiresLinkedAssessment = LINKED_ENTRY_TYPES.includes(entryType);
+
+  /** Approved assessments available to link when recording results. */
+  const selectableAssessments = myAssessments;
 
   const linkedAsm = myAssessments.find((a) => a.id === linkedAssessment);
 
-  const handleLinkedAssessmentChange = (assessmentId: string) => {
+  const applyAssessmentLink = (assessmentId: string) => {
     setLinkedAssessment(assessmentId);
-    if (!useQuestionMarks) return;
     const asm = myAssessments.find((a) => a.id === assessmentId);
-    const prompts = asm?.questions?.map((q) => q.question) ?? [];
-    const count = asm?.questions?.length ? asm.questions.length : Math.max(1, questionCount);
-    if (asm?.questions?.length) setQuestionCount(asm.questions.length);
-    setQuestionMarks((prev) => buildQuestionMarks(count, prompts, prev));
-    if (asm?.questions?.length) {
-      const marks = buildQuestionMarks(asm.questions.length, prompts);
-      setScore(String(marks.filter((q) => q.correct).length));
-      setMaxScore(String(marks.length));
+    if (!asm) return;
+
+    if (!assessmentMatchesGrade(asm.grade, classGrade)) {
+      setClassGrade(asm.grade);
     }
+    setEntryType(assessmentToEntryType(asm.type));
+    setTitle(asm.title);
+    const count = countAssessmentQuestions(asm);
+    const prompts = assessmentQuestionPrompts(asm, count);
+    setQuestionCount(count);
+    const marks = buildQuestionMarks(count, prompts);
+    setQuestionMarks(marks);
+    setUseQuestionMarks(true);
+    setScore(String(marks.filter((q) => q.correct).length));
+    setMaxScore(String(marks.length));
+  };
+
+  const handleLinkedAssessmentChange = (assessmentId: string) => {
+    if (!assessmentId) {
+      setLinkedAssessment('');
+      return;
+    }
+    applyAssessmentLink(assessmentId);
   };
 
   const toggleQuestion = (n: number) => {
@@ -196,9 +290,11 @@ export const TeacherGradebook: React.FC = () => {
     );
 
   const openAdd = (studentId?: string, col?: ColumnDef) => {
+    void refreshFromApi();
     setEditingId(undefined);
     setSelectedStudentId(studentId || roster[0]?.id || '');
-    setEntryType(col?.entryType ?? 'Quiz');
+    const nextType = col?.entryType ?? 'Quiz';
+    setEntryType(nextType);
     setTitle(col?.title ?? '');
     setScore('');
     setMaxScore(String(col?.maxScore ?? 10));
@@ -207,7 +303,7 @@ export const TeacherGradebook: React.FC = () => {
     setLinkedAssessment('');
     setQuestionCount(col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10);
     setQuestionMarks(buildQuestionMarks(col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10));
-    setUseQuestionMarks(true);
+    setUseQuestionMarks(LINKED_ENTRY_TYPES.includes(nextType));
     setIsFormOpen(true);
   };
 
@@ -222,7 +318,7 @@ export const TeacherGradebook: React.FC = () => {
     setRemarks(entry.remarks ?? '');
     setLinkedAssessment(entry.assessmentId ?? '');
     const hasQ = (entry.questionResults?.length ?? 0) > 0;
-    setUseQuestionMarks(hasQ || entry.entryType === 'Quiz' || entry.entryType === 'Test');
+    setUseQuestionMarks(hasQ || LINKED_ENTRY_TYPES.includes(entry.entryType));
     setQuestionCount(entry.questionResults?.length || Math.round(entry.maxScore) || 10);
     setQuestionMarks(
       entry.questionResults?.length
@@ -236,6 +332,10 @@ export const TeacherGradebook: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentId || !title.trim()) return;
+    if (requiresLinkedAssessment && !linkedAssessment) {
+      alert('Please select the assessment this result belongs to.');
+      return;
+    }
     const student = students.find((s) => s.id === selectedStudentId);
     if (!student) return;
 
@@ -250,7 +350,7 @@ export const TeacherGradebook: React.FC = () => {
     upsertStudentGradeEntry({
       id: editingId,
       studentId: selectedStudentId,
-      subject: defaultSubject,
+      subject: linkedAsm?.subject || defaultSubject,
       gradeLevel: student.grade,
       section: student.section,
       entryType,
@@ -276,7 +376,7 @@ export const TeacherGradebook: React.FC = () => {
         <Select
           variant="ais"
           label="Class grade"
-          options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({
+          options={classGradeOptions.map((g) => ({
             value: g,
             label: g,
           }))}
@@ -286,7 +386,10 @@ export const TeacherGradebook: React.FC = () => {
         <Select
           variant="ais"
           label="Section"
-          options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))}
+          options={SECTION_FILTER_OPTIONS.map((s) => ({
+            value: s,
+            label: s === 'All' ? 'All sections' : `Section ${s}`,
+          }))}
           value={classSection}
           onChange={(e) => setClassSection(e.target.value)}
         />
@@ -295,18 +398,20 @@ export const TeacherGradebook: React.FC = () => {
       <div className="flex flex-wrap items-center gap-2">
         <AisBtnPrimary type="button" className="!text-xs" onClick={() => openAdd()} disabled={roster.length === 0}>
           <Plus className="h-3.5 w-3.5" aria-hidden />
-          Add quiz / test result
+          Add result
         </AisBtnPrimary>
-        <p className={aisBodySm}>
-          Click a score cell to see which questions were correct or incorrect.
-        </p>
       </div>
 
-      <AisPanel
-        title="Class results"
-        description="All students × assessments taken this term. Click a result for question-level detail."
-        flush
-      >
+      <GradeGapAnalysisPanel
+        classEntries={classEntries}
+        assessments={assessments}
+        teacherId={teacherId}
+        classGrade={classGrade}
+        classSection={classSection}
+        defaultSubject={defaultSubject}
+      />
+
+      <AisPanel title="Class results" flush>
         <div className="overflow-x-auto">
           <AisTable>
             <thead>
@@ -335,7 +440,7 @@ export const TeacherGradebook: React.FC = () => {
               {roster.length === 0 ? (
                 <AisEmptyRow
                   colSpan={Math.max(3, columns.length + 3)}
-                  message="No students in this section."
+                  message="No students for this grade."
                 />
               ) : (
                 roster.map((std) => {
@@ -344,7 +449,12 @@ export const TeacherGradebook: React.FC = () => {
                   return (
                     <AisTr key={std.id}>
                       <AisTd className="sticky left-0 z-10 bg-white dark:bg-ais-surface font-semibold">
-                        <p>{std.name}</p>
+                        <p>
+                          {std.name}
+                          {classSection === 'All' ? (
+                            <span className={`${aisBodySm} font-normal`}> · {std.section}</span>
+                          ) : null}
+                        </p>
                         <p className={`${aisBodySm} font-normal`}>{std.studentId}</p>
                       </AisTd>
                       {columns.map((col) => {
@@ -406,9 +516,7 @@ export const TeacherGradebook: React.FC = () => {
           </AisTable>
         </div>
         {roster.length > 0 && columns.length === 0 && (
-          <p className={`${aisBodyMd} p-4`}>
-            No assessments recorded yet. Use <strong>Add quiz / test result</strong> to enter scores.
-          </p>
+          <p className={`${aisBodyMd} p-4`}>No results recorded yet.</p>
         )}
       </AisPanel>
 
@@ -464,10 +572,7 @@ export const TeacherGradebook: React.FC = () => {
                   Question results
                 </p>
                 {(detailEntry.questionResults?.length ?? 0) === 0 ? (
-                  <p className={aisBodySm}>
-                    No question-level marks yet. Edit this result to mark each question correct or
-                    incorrect.
-                  </p>
+                  <p className={aisBodySm}>No question marks recorded.</p>
                 ) : (
                   <ul className="space-y-2">
                     {detailEntry.questionResults!.map((q) => (
@@ -541,30 +646,64 @@ export const TeacherGradebook: React.FC = () => {
             <Select
               variant="ais"
               label="Student"
-              options={roster.map((s) => ({ value: s.id, label: s.name }))}
+              options={roster.map((s) => ({
+                value: s.id,
+                label: classSection === 'All' ? `${s.name} · ${s.section}` : s.name,
+              }))}
               value={selectedStudentId}
               onChange={(e) => setSelectedStudentId(e.target.value)}
             />
-            <Select
-              variant="ais"
-              label="Assessment type"
-              options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))}
-              value={entryType}
-              onChange={(e) => setEntryType(e.target.value as StudentGradeEntryType)}
-            />
+            {requiresLinkedAssessment ? (
+              <Select
+                variant="ais"
+                label="Assessment"
+                maxVisibleItems={16}
+                options={
+                  selectableAssessments.length === 0
+                    ? [{ value: '', label: 'No assessments available' }]
+                    : [
+                        { value: '', label: 'Select assessment…' },
+                        ...selectableAssessments.map((a) => ({
+                          value: a.id,
+                          label: `${a.grade} · ${a.type}: ${a.title}`,
+                        })),
+                      ]
+                }
+                value={linkedAssessment}
+                onChange={(e) => handleLinkedAssessmentChange(e.target.value)}
+              />
+            ) : (
+              <Select
+                variant="ais"
+                label="Assessment type"
+                options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))}
+                value={entryType}
+                onChange={(e) => {
+                  const next = e.target.value as StudentGradeEntryType;
+                  setEntryType(next);
+                  setLinkedAssessment('');
+                  setUseQuestionMarks(LINKED_ENTRY_TYPES.includes(next));
+                }}
+              />
+            )}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label className={aisFormLabel}>Title (column name)</label>
-              <input
-                className={aisInput}
-                required
-                placeholder="e.g. Quiz 1, Mid Exam, Unit Test 2"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
+          {requiresLinkedAssessment ? (
+            <Select
+              variant="ais"
+              label="Result type"
+              options={GRADE_ENTRY_TYPES.map((t) => ({ value: t, label: t }))}
+              value={entryType}
+              onChange={(e) => {
+                const next = e.target.value as StudentGradeEntryType;
+                setEntryType(next);
+                if (!LINKED_ENTRY_TYPES.includes(next)) {
+                  setLinkedAssessment('');
+                }
+                setUseQuestionMarks(LINKED_ENTRY_TYPES.includes(next));
+              }}
+            />
+          ) : (
             <Select
               variant="ais"
               label="Link to assessment (optional)"
@@ -572,11 +711,23 @@ export const TeacherGradebook: React.FC = () => {
                 { value: '', label: 'None' },
                 ...myAssessments.map((a) => ({
                   value: a.id,
-                  label: `${a.type}: ${a.title}${a.questions?.length ? ` (${a.questions.length} Q)` : ''}`,
+                  label: `${a.type}: ${a.title}`,
                 })),
               ]}
               value={linkedAssessment}
               onChange={(e) => handleLinkedAssessmentChange(e.target.value)}
+            />
+          )}
+
+          <div className="space-y-1">
+            <label className={aisFormLabel}>Title</label>
+            <input
+              className={aisInput}
+              required
+              placeholder="e.g. Quiz 1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              readOnly={requiresLinkedAssessment && !!linkedAssessment}
             />
           </div>
 
@@ -599,7 +750,7 @@ export const TeacherGradebook: React.FC = () => {
 
           {useQuestionMarks ? (
             <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
-              {!linkedAsm?.questions?.length && (
+              {!linkedAsm && (
                 <div className="space-y-1 max-w-[140px]">
                   <label className={aisFormLabel}>Number of questions</label>
                   <input
@@ -611,7 +762,9 @@ export const TeacherGradebook: React.FC = () => {
                     onChange={(e) => {
                       const n = Math.max(1, Number(e.target.value) || 1);
                       setQuestionCount(n);
-                      const prompts = linkedAsm?.questions?.map((q) => q.question) ?? [];
+                      const prompts = linkedAsm
+                        ? assessmentQuestionPrompts(linkedAsm, n)
+                        : [];
                       const marks = buildQuestionMarks(n, prompts, questionMarks);
                       setQuestionMarks(marks);
                       setScore(String(marks.filter((q) => q.correct).length));
@@ -620,15 +773,12 @@ export const TeacherGradebook: React.FC = () => {
                   />
                 </div>
               )}
-              <p className={aisBodySm}>
-                Score auto-fills from correct marks ({questionMarks.filter((q) => q.correct).length}/
-                {questionMarks.length}). Tap a question to toggle.
-              </p>
               <div className="grid max-h-[240px] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
                 {questionMarks.map((q) => (
                   <button
                     key={q.questionNumber}
                     type="button"
+                    title={q.prompt}
                     onClick={() => toggleQuestion(q.questionNumber)}
                     className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors ${
                       q.correct
@@ -700,7 +850,12 @@ export const TeacherGradebook: React.FC = () => {
             <AisBtnSecondary type="button" onClick={() => setIsFormOpen(false)}>
               Cancel
             </AisBtnSecondary>
-            <AisBtnPrimary type="submit">Save result</AisBtnPrimary>
+            <AisBtnPrimary
+              type="submit"
+              disabled={requiresLinkedAssessment && !linkedAssessment}
+            >
+              Save result
+            </AisBtnPrimary>
           </DialogFooter>
         </form>
       </Dialog>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { Breadcrumb, BreadcrumbItem } from '@/components/ui/breadcrumb';
@@ -46,6 +47,7 @@ import {
 } from '@/components/dashboard/teacher/aisStyles';
 import type { AppNotification } from '@/context/AppContext';
 import { roleLabel, isPortalRole } from '@/lib/auth';
+import { portalTabPath } from '@/lib/portalPaths';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -54,11 +56,57 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/** Resolve deep-link path or fall back to role-aware tab heuristics. */
+function resolveNotifDestination(
+  not: AppNotification,
+  role: string | null | undefined,
+): { path?: string; tab?: string; label: string } {
+  if (not.linkPath) {
+    return { path: not.linkPath, label: 'Open' };
+  }
+  const title = not.title.toLowerCase();
+  if (not.type === 'alert' && title.includes('attendance')) {
+    return { tab: 'attendance', label: 'Take attendance' };
+  }
+  if (title.includes('lesson plan')) {
+    return {
+      tab: role === 'department-head' ? 'lesson-plans' : 'teaching-notes',
+      label: 'Review plan',
+    };
+  }
+  if (title.includes('teaching note') || title.includes('lesson note')) {
+    return {
+      tab: role === 'department-head' ? 'teaching-notes' : 'teaching-notes',
+      label: 'Open lesson notes',
+    };
+  }
+  if (title.includes('assessment') || title.includes('quiz') || title.includes('exam')) {
+    return {
+      tab: role === 'department-head' ? 'assessments' : 'assessments',
+      label: 'Open assessments',
+    };
+  }
+  if (title.includes('grade gap') || title.includes('training') || title.includes('miss')) {
+    return {
+      tab: role === 'department-head' ? 'training' : 'training',
+      label: 'Open training',
+    };
+  }
+  if (title.includes('message') || title.includes('challenge') || title.includes('communication')) {
+    return { tab: 'communication', label: 'Open messages' };
+  }
+  if (not.type === 'request') {
+    return { tab: 'dashboard', label: 'Open queue' };
+  }
+  return { tab: 'dashboard', label: 'View details' };
+}
+
 interface NavbarProps {
   breadcrumbs?: BreadcrumbItem[];
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
+  const router = useRouter();
   const {
     activeRole,
     currentUser,
@@ -68,11 +116,14 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
     markNotificationAsUnread,
     dismissNotification,
     clearNotifications,
+    logout,
   } = useApp();
   const { toggleMobile } = useSidebar();
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all');
+
+  const role = currentUser?.role ?? activeRole;
 
   const unreadNotifications = useMemo(
     () => notifications.filter((n) => !n.read),
@@ -133,25 +184,22 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
   };
 
   const getNotifActions = (not: AppNotification) => {
-    if (not.type === 'alert' && not.title.toLowerCase().includes('attendance')) {
-      return [
-        { label: 'View student', tab: 'manage-students' },
-        { label: 'Take attendance', tab: 'attendance' },
-      ];
-    }
-    if (not.type === 'request' && not.title.toLowerCase().includes('lesson plan')) {
-      return [{ label: 'Review plan', tab: 'teaching-notes' }];
-    }
-    if (not.type === 'request') {
-      return [{ label: 'Open queue', tab: 'dashboard' }];
-    }
-    return [{ label: 'View details', tab: 'dashboard' }];
+    const dest = resolveNotifDestination(not, role);
+    return [dest];
   };
 
-  const handleNotifNavigate = (not: AppNotification, tab: string) => {
+  const handleNotifNavigate = (not: AppNotification, dest: { path?: string; tab?: string }) => {
     markNotificationAsRead(not.id);
     setShowNotif(false);
-    window.dispatchEvent(new CustomEvent('dashboard-navigate', { detail: { tab } }));
+    if (dest.path) {
+      router.push(dest.path);
+      return;
+    }
+    if (dest.tab) {
+      const path = portalTabPath(role, dest.tab);
+      router.push(path);
+      window.dispatchEvent(new CustomEvent('dashboard-navigate', { detail: { tab: dest.tab } }));
+    }
   };
 
   const renderNotification = (not: AppNotification) => {
@@ -216,7 +264,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                   className={aisNavbarNotifActionBtn}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleNotifNavigate(not, footerActions[0]?.tab ?? 'dashboard');
+                    handleNotifNavigate(not, footerActions[0] ?? { tab: 'dashboard' });
                   }}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -243,7 +291,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
             <button
               type="button"
               className="w-full text-left cursor-pointer"
-              onClick={() => markNotificationAsRead(not.id)}
+              onClick={() => handleNotifNavigate(not, footerActions[0] ?? { tab: 'dashboard' })}
             >
               <p className="text-base font-bold leading-snug text-ais-on-surface">{not.title}</p>
               <p className={`${aisBodyMd} mt-1.5 leading-relaxed`}>{not.description}</p>
@@ -258,7 +306,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                     className={aisNavbarNotifFooterBtn}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleNotifNavigate(not, action.tab);
+                      handleNotifNavigate(not, action);
                     }}
                   >
                     {action.label}
@@ -464,7 +512,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                 onClick={() => setShowProfile(false)}
                 aria-hidden
               />
-              <div className={`${aisNavbarDropdown} right-0 mt-2 w-48 p-2`}>
+              <div className={`${aisNavbarDropdown} right-0 mt-2 w-52 p-2`}>
                 <div className="px-3 py-2 border-b border-ais-card-border">
                   <p className="text-xs font-bold text-ais-on-surface truncate">
                     {primarySchool?.name ?? profileName}
@@ -474,16 +522,29 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowProfile(false)}
+                  type="button"
+                  onClick={() => {
+                    setShowProfile(false);
+                    const path = portalTabPath(role, 'profile');
+                    router.push(path);
+                    window.dispatchEvent(
+                      new CustomEvent('dashboard-navigate', { detail: { tab: 'profile' } }),
+                    );
+                  }}
                   className={`${aisNavbarDropdownItem} mt-1.5`}
                 >
                   My Profile Settings
                 </button>
                 <button
-                  onClick={() => setShowProfile(false)}
-                  className={aisNavbarDropdownItem}
+                  type="button"
+                  onClick={() => {
+                    setShowProfile(false);
+                    logout();
+                    router.push('/login');
+                  }}
+                  className="w-full rounded-md px-3 py-2 text-left text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 cursor-pointer"
                 >
-                  System Preferences
+                  Sign Out
                 </button>
               </div>
             </>

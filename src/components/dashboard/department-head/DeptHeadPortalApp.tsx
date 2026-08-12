@@ -20,6 +20,7 @@ import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { MetricProgressRow } from "@/components/ui/metric-progress-row";
+import { BarChart3, ClipboardList, Users, AlertTriangle } from "lucide-react";
 import { computeSubjectPerformance } from "@/lib/analytics";
 import {
   classSectionKey,
@@ -32,12 +33,18 @@ import {
   subjectStatusLabel,
   type SubjectPerformanceStatus,
 } from "@/lib/departmentHead";
+import { assessmentNeedsApproval } from "@/lib/teacherPortal";
 import { DeptAnnualPlanPanel } from "@/components/dashboard/department-head/DeptAnnualPlanPanel";
 import { DeptTeachingNotesPanel } from "@/components/dashboard/department-head/DeptTeachingNotesPanel";
 import { DeptLessonPlansPanel } from "@/components/dashboard/department-head/DeptLessonPlansPanel";
-import { DeptHodMessagesPanel } from "@/components/dashboard/department-head/DeptHodMessagesPanel";
+import { DeptGapAnalysisPanel } from "@/components/dashboard/department-head/DeptGapAnalysisPanel";
+import { DeptTeacherDevelopmentAssignmentPanel } from "@/components/dashboard/department-head/DeptTeacherDevelopmentAssignmentPanel";
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
+import { CommunicationModule } from "@/components/dashboard/communication/CommunicationModule";
+import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-head/DeptAssessmentCreatePanel";
+import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
+import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
 
 export default function DeptHeadPortalApp() {
   const pathname = usePathname();
@@ -58,7 +65,6 @@ export default function DeptHeadPortalApp() {
     attendance,
     classes,
     departments,
-    trainings,
     trainingMaterials,
     studentGradeEntries,
     approveAssessment,
@@ -164,7 +170,9 @@ export default function DeptHeadPortalApp() {
   );
 
   const pendingAssessments = departmentAssessments.filter(
-    (asm) => asm.status === "Pending Dept Head",
+    (asm) =>
+      asm.status === "Pending Dept Head" &&
+      assessmentNeedsApproval(asm.type, asm.createdByRole),
   );
   const pendingTeachingNotes = useMemo(() => {
     if (!scope) return [];
@@ -215,12 +223,6 @@ export default function DeptHeadPortalApp() {
         : [],
     [trainingMaterials, scope],
   );
-
-  const departmentTrainings = useMemo(() => {
-    if (!scope) return [];
-    const subjectKey = scope.subject.toLowerCase();
-    return trainings.filter((tr) => tr.title.toLowerCase().includes(subjectKey));
-  }, [trainings, scope]);
 
   const handleUploadResource = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +295,7 @@ export default function DeptHeadPortalApp() {
       certification: newTeacherCert || "Professional License A",
       schoolId: scope.schoolId,
       departmentId: scope.departmentId,
+      yearsOfExperience: 0,
     });
 
     // Reset fields
@@ -341,7 +344,7 @@ export default function DeptHeadPortalApp() {
     },
     assessments: {
       title: "Manage Assessments",
-      subtitle: "Review and approve assessments.",
+      subtitle: "Generate department exams and review any teacher submissions that still need approval.",
     },
     "annual-plans": {
       title: "Create Annual Lesson Plan",
@@ -350,11 +353,14 @@ export default function DeptHeadPortalApp() {
     },
     "lesson-plans": {
       title: "Weekly Plans Approval",
-      subtitle: "Review and approve weekly detailed lesson plans from teachers.",
+      subtitle: "Review and approve weekly detailed lesson plans. Your approval is final.",
     },
     "teaching-notes": {
-      title: "Teaching Notes Approval",
-      subtitle: "Review AI-generated teaching notes from instructors.",
+      title: "Lesson Notes Approval",
+      subtitle: "Review AI-generated lesson notes from instructors.",
+    },
+    communication: {
+      title: "Communication",
     },
     "teacher-messages": {
       title: "Teacher Messages",
@@ -362,21 +368,22 @@ export default function DeptHeadPortalApp() {
     },
     training: {
       title: "Teacher Development",
-      subtitle: "Professional growth resources.",
+      subtitle: "Gap analysis from student results → AI training modules for your department.",
     },
     resources: {
       title: "Study Resources",
       subtitle: "Shared learning materials.",
-    },
-    feedbacks: {
-      title: "Feedback Loops",
-      subtitle: "Teacher and student feedback.",
     },
     checkins: {
       title: "Wellness Check-ins",
       subtitle: "Staff wellness surveys.",
     },
     settings: { title: "Portal Settings", subtitle: "Department preferences." },
+    "leadership-development": {
+      title: "ELEP · Leadership Development",
+      subtitle: "Education Leadership Excellence Program modules for department heads.",
+    },
+    profile: { title: "My Profile", subtitle: "Your department head account information." },
   };
   const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
 
@@ -400,28 +407,28 @@ export default function DeptHeadPortalApp() {
               label="Avg Dept Grade"
               value={`${avgDeptGrade}%`}
               hint="Target: 70%"
-              icon={<span>📊</span>}
+              icon={<BarChart3 className="h-5 w-5" strokeWidth={1.75} />}
             />
             <KpiWidget
               label="Pending Reviews"
               value={pendingAssessments.length + pendingTeachingNotes.length}
               hint={`${pendingAssessments.length} tests · ${pendingTeachingNotes.length} notes`}
               tone="emphasis"
-              icon={<span>📝</span>}
+              icon={<ClipboardList className="h-5 w-5" strokeWidth={1.75} />}
             />
             <KpiWidget
               label="Active Instructors"
               value={activeInstructors}
               hint={`${departmentTeachers.length} on roster`}
               tone="default"
-              icon={<span>👩‍🏫</span>}
+              icon={<Users className="h-5 w-5" strokeWidth={1.75} />}
             />
             <KpiWidget
               label="Subject Alerts"
               value={subjectAlerts}
               hint="Critical & warning"
               tone="emphasis"
-              icon={<span>⚠</span>}
+              icon={<AlertTriangle className="h-5 w-5" strokeWidth={1.75} />}
             />
           </KpiGrid>
 
@@ -557,7 +564,20 @@ export default function DeptHeadPortalApp() {
         <DeptTeachingNotesPanel scope={scope} />
       )}
 
-      {activeTab === "teacher-messages" && <DeptHodMessagesPanel />}
+      {activeTab === "teacher-messages" && (
+        <CommunicationModule
+          mode="department-head"
+          mainTab="channels"
+          onMainTabChange={() => {}}
+        />
+      )}
+      {activeTab === "communication" && (
+        <CommunicationModule
+          mode="department-head"
+          mainTab="channels"
+          onMainTabChange={() => {}}
+        />
+      )}
 
       {activeTab === "reports" && (
         <div className="space-y-6 animate-fade-in">
@@ -704,13 +724,11 @@ export default function DeptHeadPortalApp() {
               <tbody>
                 {departmentLessonPlans.map((lp) => {
                   const progress =
-                    lp.status === "Approved"
+                    lp.status === "Approved" || lp.status === "Pending School Head"
                       ? 100
-                      : lp.status === "Pending School Head"
-                        ? 85
-                        : lp.status === "Pending Dept Head"
-                          ? 55
-                          : 30;
+                      : lp.status === "Pending Dept Head"
+                        ? 55
+                        : 30;
                   return (
                     <tr key={lp.id} className="hover:bg-muted/20">
                       <td className="p-3 font-semibold text-foreground">
@@ -827,50 +845,8 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "training" && (
         <div className="space-y-6 animate-fade-in">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                MOE professional development catalog
-              </CardTitle>
-              <CardDescription>
-                Programs relevant to {scope?.subject ?? "your"} instructors at your school
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-2">
-              {departmentTrainings.length === 0 ? (
-                <p className="text-center py-8 text-sm text-muted-foreground">
-                  No professional development programs tagged for {scope?.subject ?? "this subject"} yet.
-                </p>
-              ) : (
-                departmentTrainings.map((tr) => (
-                <div
-                  key={tr.id}
-                  className="p-4 bg-muted/40 border border-border/40 rounded-xl flex flex-col sm:flex-row sm:justify-between gap-3"
-                >
-                  <div className="space-y-1 text-left">
-                    <p className="text-xs font-bold text-foreground">
-                      {tr.title}
-                    </p>
-                    <p className="text-xxs text-muted-foreground">
-                      {tr.instructor} · {tr.duration} · Starts {tr.startDate}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <Badge
-                      variant={tr.status === "Active" ? "success" : "warning"}
-                      size="sm"
-                    >
-                      {tr.status}
-                    </Badge>
-                    <p className="text-xxs font-mono font-bold text-foreground mt-2">
-                      {tr.completedCount}/{tr.totalCount} enrolled
-                    </p>
-                  </div>
-                </div>
-              ))
-              )}
-            </CardContent>
-          </Card>
+          <DeptGapAnalysisPanel />
+          <DeptTeacherDevelopmentAssignmentPanel />
         </div>
       )}
 
@@ -1157,6 +1133,25 @@ export default function DeptHeadPortalApp() {
         </div>
       )}
 
+      {activeTab === "leadership-development" && (
+        <div className="animate-fade-in text-left">
+          <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
+        </div>
+      )}
+
+      {activeTab === "profile" && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <PortalProfileCard
+            roleLabel="Department Head"
+            fields={[
+              { label: 'Subject overseen', value: scope?.subject ?? '—' },
+              { label: 'Department', value: department?.name ?? scope?.subject ?? '—' },
+              { label: 'Leadership track', value: 'ELEP' },
+            ]}
+          />
+        </div>
+      )}
+
       {/* ==================================================== */}
       {/* TAB 3: CALENDAR SCHEDULING                          */}
       {/* ==================================================== */}
@@ -1417,9 +1412,10 @@ export default function DeptHeadPortalApp() {
       {/* ==================================================== */}
       {activeTab === "assessments" && (
         <div className="space-y-6 animate-fade-in text-left">
+          <DeptAssessmentCreatePanel />
           <TablePanel
-            title="Exam & Quiz Verification Desk"
-            description="Verify syllabus alignment, balance, and quality of assessments before school circulation."
+            title="Department assessment desk"
+            description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."
           >
             <table className="eskooly-table">
               <thead>
@@ -1465,17 +1461,28 @@ export default function DeptHeadPortalApp() {
                       </span>
                     </td>
                     <td className="p-3">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          asm.status === "Approved"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : asm.status === "Rejected"
-                              ? "bg-muted text-muted-foreground border border-border"
-                              : "bg-muted text-foreground border border-border"
-                        }`}
-                      >
-                        {asm.status}
-                      </span>
+                      {(() => {
+                        const needsReview =
+                          asm.status === "Pending Dept Head" &&
+                          assessmentNeedsApproval(asm.type, asm.createdByRole);
+                        const displayStatus =
+                          !needsReview && asm.status === "Pending Dept Head"
+                            ? "Approved"
+                            : asm.status;
+                        return (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                              displayStatus === "Approved"
+                                ? "bg-primary/10 text-primary border border-primary/20"
+                                : displayStatus === "Rejected"
+                                  ? "bg-muted text-muted-foreground border border-border"
+                                  : "bg-muted text-foreground border border-border"
+                            }`}
+                          >
+                            {displayStatus}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-3">
                       <button
@@ -1581,7 +1588,11 @@ export default function DeptHeadPortalApp() {
                     Close
                   </Button>
 
-                  {selectedAsm.status === "Pending Dept Head" && (
+                  {selectedAsm.status === "Pending Dept Head" &&
+                    assessmentNeedsApproval(
+                      selectedAsm.type,
+                      selectedAsm.createdByRole,
+                    ) && (
                     <div className="flex space-x-2">
                       <Button
                         variant="destructive"
@@ -1599,58 +1610,17 @@ export default function DeptHeadPortalApp() {
                       </Button>
                     </div>
                   )}
+                  {(selectedAsm.type === "Quiz" ||
+                    selectedAsm.type === "Baseline") && (
+                    <p className="text-xs text-muted-foreground">
+                      Quizzes and baselines do not require department head
+                      approval — they are ready for teachers immediately.
+                    </p>
+                  )}
                 </DialogFooter>
               </div>
             )}
           </Dialog>
-        </div>
-      )}
-
-      {/* ==================================================== */}
-      {/* TAB 6: SURVEYS & WELLNESS FEED                       */}
-      {/* ==================================================== */}
-      {activeTab === "feedbacks" && (
-        <div className="space-y-6 animate-fade-in text-left">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                Feedback loops
-              </CardTitle>
-              <CardDescription>
-                Teacher wellness and student satisfaction tied to {scope?.subject ?? "subject"} instruction this term.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-2">
-              {departmentCheckIns.map((ch) => (
-                <div
-                  key={ch.id}
-                  className="p-4 bg-muted/40 border border-border/40 rounded-xl text-xxs font-medium flex justify-between items-start text-left gap-3"
-                >
-                  <div className="space-y-1.5 max-w-xl">
-                    <div className="flex items-center space-x-2.5">
-                      <span className="font-bold text-foreground text-xs">
-                        {ch.respondentName}
-                      </span>
-                      <Badge variant="neutral" size="sm">
-                        {ch.type}
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground leading-normal">
-                      {ch.comment}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground font-semibold">
-                      Logged: {ch.date}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0 text-amber-500 font-bold text-xs">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i}>{i < ch.rating ? "★" : "☆"}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
         </div>
       )}
     </DashboardShell>

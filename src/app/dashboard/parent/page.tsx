@@ -15,12 +15,12 @@ import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { InvoiceDetailDialog } from '@/components/dashboard/billing/InvoiceDetailDialog';
-import { AnnouncementFeed } from '@/components/dashboard/announcements/AnnouncementFeed';
-import { MessageCenter } from '@/components/dashboard/messaging/MessageCenter';
 import { ParentReenrollmentInvites } from '@/components/dashboard/parent/ParentReenrollmentInvites';
 import { ParentFeedbackForm } from '@/components/dashboard/parent/ParentFeedbackForm';
+import { ParentCommunicationModule } from '@/components/dashboard/parent/ParentCommunicationModule';
 import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
 import { usePortalTab } from '@/lib/usePortalTab';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
 type Child = {
   id: string;
@@ -42,7 +42,7 @@ function deadlineVariant(color: Invoice['deadlineColor']) {
 
 export default function ParentPortalPage() {
   const session = readStoredSession();
-  const { attendance: appAttendance, addNotification } = useApp();
+  const { attendance: appAttendance, addNotification, communityPosts, refreshFromApi } = useApp();
   const { activeTab: tab, setActiveTab: setTab } = usePortalTab('parent');
   const [children, setChildren] = useState<Child[]>([]);
   const [childId, setChildId] = useState('');
@@ -74,6 +74,7 @@ export default function ParentPortalPage() {
 
   useEffect(() => {
     setLoading(true);
+    void refreshFromApi();
     Promise.all([
       api.portalChildren().catch(() => []),
       api.myApplications().catch(() => [] as AdmissionApplication[]),
@@ -95,7 +96,42 @@ export default function ParentPortalPage() {
       setInvoices(inv);
       setAnnouncements(anns);
     }).finally(() => setLoading(false));
-  }, [session?.schoolId]);
+  }, [session?.schoolId, refreshFromApi]);
+
+  const displayAnnouncements = useMemo(() => {
+    const fromFeed = (communityPosts || [])
+      .filter(
+        (p) =>
+          p.authorRole === 'school-head' ||
+          /^announcement\s*:/i.test(p.title || '') ||
+          (p.title || '').toLowerCase().includes('announcement'),
+      )
+      .map((p) => ({
+        id: p.id,
+        title: (p.title || 'Announcement').replace(/^Announcement:\s*/i, ''),
+        body: p.body,
+        publishedAt: p.createdAt,
+        authorName: p.authorName || 'School Head',
+      }));
+    const fromApi = announcements.map((a) => ({
+      id: String(a.id),
+      title: String(a.title ?? 'Announcement').replace(/^Announcement:\s*/i, ''),
+      body: String(a.body ?? ''),
+      publishedAt: a.publishedAt
+        ? String(a.publishedAt)
+        : a.published_at
+          ? String(a.published_at)
+          : a.createdAt
+            ? String(a.createdAt)
+            : '',
+      authorName: String(a.authorName ?? a.author_name ?? 'School Head'),
+    }));
+    const map = new Map<string, (typeof fromFeed)[number]>();
+    for (const a of [...fromFeed, ...fromApi]) {
+      if (!map.has(a.id)) map.set(a.id, a);
+    }
+    return [...map.values()];
+  }, [communityPosts, announcements]);
 
   useEffect(() => {
     if (!child) return;
@@ -283,7 +319,7 @@ export default function ParentPortalPage() {
             <div className="lg:col-span-3">
               <ContentCard title="Latest announcements" description="Posted by school head">
                 <div className="space-y-3">
-                  {announcements.slice(0, 4).map((a) => (
+                  {displayAnnouncements.slice(0, 4).map((a) => (
                     <div
                       key={String(a.id)}
                       className="rounded-xl border border-border/60 bg-gradient-to-br from-primary/[0.03] to-transparent p-3.5 transition hover:border-primary/25"
@@ -295,7 +331,7 @@ export default function ParentPortalPage() {
                       <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{String(a.body)}</p>
                     </div>
                   ))}
-                  {!announcements.length && (
+                  {!displayAnnouncements.length && (
                     <EmptyState title="No announcements" description="School updates will appear here." />
                   )}
                 </div>
@@ -678,30 +714,37 @@ export default function ParentPortalPage() {
         </div>
       )}
 
-      {!loading && tab === 'announcements' && (
-        <AnnouncementFeed
-          schoolName="School Head"
-          items={announcements.map((a) => ({
-            id: String(a.id),
-            title: String(a.title),
-            body: String(a.body),
-            publishedAt: a.publishedAt ? String(a.publishedAt) : a.published_at ? String(a.published_at) : null,
-            audience: a.audience ? String(a.audience) : 'all',
-            authorName: 'School Head',
-            authorRole: 'Official',
-          }))}
-        />
-      )}
-
-      {!loading && tab === 'messages' && (
-        <MessageCenter
+      {!loading &&
+        (tab === 'communication' ||
+          tab === 'messaging' ||
+          tab === 'messages' ||
+          tab === 'announcements') && (
+        <ParentCommunicationModule
           mode="parent"
+          announcements={displayAnnouncements}
           childrenOptions={children.map((c) => ({ id: c.id, name: c.name }))}
         />
       )}
 
       {!loading && tab === 'feedback' && (
         <ParentFeedbackForm childrenOptions={children.map((c) => ({ id: c.id, name: c.name }))} />
+      )}
+
+      {!loading && tab === 'profile' && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <PortalProfileCard
+            roleLabel="Parent"
+            fields={[
+              {
+                label: 'Linked children',
+                value: children.length
+                  ? children.map((c) => `${c.name} (${c.grade} ${c.section})`).join(', ')
+                  : '—',
+              },
+              { label: 'Open invoices', value: openInvoices.length },
+            ]}
+          />
+        </div>
       )}
     </DashboardShell>
   );

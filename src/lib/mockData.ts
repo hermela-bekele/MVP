@@ -14,6 +14,8 @@ export interface School {
   gps: string;
 }
 
+export type TeacherExperienceLevel = 'new' | 'experienced';
+
 export interface Teacher {
   id: string;
   name: string;
@@ -26,6 +28,45 @@ export interface Teacher {
   grades: string[];
   certification: string;
   trainingProgress: number; // percentage
+  /** Self-reported (or HoD-entered) years of teaching experience. Drives the default TIP/STEP placement. */
+  yearsOfExperience: number;
+  /** HoD/School Head can force a teacher into TIP or STEP regardless of the years-based default. */
+  experienceOverride?: TeacherExperienceLevel | null;
+}
+
+/** New teachers (< 2 years, unless overridden) get TIP; everyone else gets STEP only. */
+export function getTeacherExperienceLevel(
+  teacher: Pick<Teacher, 'yearsOfExperience' | 'experienceOverride'>
+): TeacherExperienceLevel {
+  if (teacher.experienceOverride === 'new' || teacher.experienceOverride === 'experienced') {
+    return teacher.experienceOverride;
+  }
+  return (teacher.yearsOfExperience ?? 0) < 2 ? 'new' : 'experienced';
+}
+
+/** A teacher's self-rating against the STEP competency rubric. */
+export interface TeacherSelfAssessment {
+  id: string;
+  teacherId: string;
+  responses: { competencyId: string; rating: number }[];
+  overallScore: number; // 0-100
+  weakestCompetencyId?: string;
+  submittedAt: string;
+}
+
+export type DevelopmentProgram = 'TIP' | 'STEP' | 'ELEP';
+
+/** A module assigned to a specific teacher/leader by their HoD or School Head. */
+export interface TeacherTrainingAssignment {
+  id: string;
+  teacherId: string;
+  program: DevelopmentProgram;
+  moduleId: string;
+  moduleTitle: string;
+  assignedByName: string;
+  reason?: string;
+  status: 'assigned' | 'in_progress' | 'completed';
+  createdAt: string;
 }
 
 export interface Student {
@@ -164,6 +205,8 @@ export interface Assessment {
   comments?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   questions: { id: number; question: string; type: string; options?: string[]; answer: string }[];
+  /** Who authored the assessment — HoD-authored exams skip approval. */
+  createdByRole?: 'teacher' | 'department-head';
   createdAt: string;
 }
 
@@ -287,13 +330,14 @@ export const mockTeachers: Teacher[] = [
     name: 'Martha Feyissa',
     email: 'martha.feyissa@prime.edu.et',
     phone: '+251-911-223344',
-    departmentId: 'dept-bio',
+    departmentId: 'dept-math',
     schoolId: 'sch-1',
     status: 'Active',
-    subjects: ['Biology', 'General Science'],
-    grades: ['Grade 9', 'Grade 10'],
+    subjects: ['Mathematics'],
+    grades: ['Grade 9', 'Grade 10', 'Grade 11'],
     certification: 'Professional Educator License A',
     trainingProgress: 85,
+    yearsOfExperience: 6,
   },
   {
     id: 'tch-2',
@@ -307,6 +351,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 9', 'Grade 10', 'Grade 11'],
     certification: 'Senior Math Educator Badge',
     trainingProgress: 100,
+    yearsOfExperience: 15,
   },
   {
     id: 'tch-3',
@@ -320,6 +365,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 11', 'Grade 12'],
     certification: 'National STEM Certificate',
     trainingProgress: 60,
+    yearsOfExperience: 1,
   },
   {
     id: 'tch-4',
@@ -333,6 +379,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 9', 'Grade 12'],
     certification: 'TEFL Ethiopia Professional',
     trainingProgress: 45,
+    yearsOfExperience: 3,
   },
   {
     id: 'tch-5',
@@ -346,6 +393,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 11', 'Grade 12'],
     certification: 'Regional Senior Biology Expert',
     trainingProgress: 90,
+    yearsOfExperience: 10,
   },
   {
     id: 'tch-6',
@@ -359,6 +407,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 10', 'Grade 11'],
     certification: 'Professional Educator License B',
     trainingProgress: 70,
+    yearsOfExperience: 1,
   },
   {
     id: 'tch-7',
@@ -372,6 +421,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 11', 'Grade 12'],
     certification: 'Advanced Pedagogy License',
     trainingProgress: 80,
+    yearsOfExperience: 9,
   },
   {
     id: 'tch-8',
@@ -385,6 +435,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 9', 'Grade 10', 'Grade 12'],
     certification: 'National STEM Badge',
     trainingProgress: 50,
+    yearsOfExperience: 1,
   },
   {
     id: 'tch-9',
@@ -398,6 +449,7 @@ export const mockTeachers: Teacher[] = [
     grades: ['Grade 9', 'Grade 10'],
     certification: 'Professional Educator License A',
     trainingProgress: 95,
+    yearsOfExperience: 7,
   },
 ];
 
@@ -613,57 +665,85 @@ export const mockStudents: Student[] = [
 
 export const mockLessonPlans: LessonPlan[] = [
   {
+    id: 'lp-hod-math-g11',
+    subject: 'Mathematics',
+    grade: 'Grade 11',
+    title: 'Grade 11 Mathematics — Annual Lesson Plan',
+    sessions: 36,
+    teacherId: 'tch-7',
+    teacherName: 'Ato Belayneh Kassahun',
+    status: 'Approved',
+    planType: 'yearly',
+    createdByRole: 'department-head',
+    deptComments: 'Published for Mathematics teachers.',
+    version: 1,
+    objectives: [
+      'Cover Grade 11 Mathematics textbook units for the school year.',
+      'Pace relations, functions, trigonometry, and probability across terms.',
+    ],
+    activities: [
+      { session: 1, activity: 'Unit 1 — Relations and functions overview', duration: '45 mins' },
+      { session: 2, activity: 'Weekly pacing from annual calendar', duration: '45 mins' },
+    ],
+    assessments: ['Term quizzes', 'Mid exam', 'Final exam'],
+    homework: 'Follow weekly plans derived from this annual plan.',
+    createdAt: '2026-08-01T08:00:00Z',
+  },
+  {
     id: 'lp-1',
-    subject: 'Biology',
-    grade: 'Grade 9',
-    title: 'Cell Biology - Organelles & Membrane Transport',
+    subject: 'Mathematics',
+    grade: 'Grade 11',
+    title: 'Grade 11 Mathematics — Meskerem week (Relations & Functions)',
     sessions: 5,
     teacherId: 'tch-1',
     teacherName: 'Martha Feyissa',
-    status: 'Pending School Head',
-    deptComments: 'Excellent structure. Added resources references. Recommended approval.',
+    status: 'Approved',
+    planType: 'weekly',
+    createdByRole: 'teacher',
+    deptComments: 'Aligned to the published annual plan.',
     version: 2,
     objectives: [
-      'Describe the structure and function of major cell organelles.',
-      'Differentiate between plant cells and animal cells.',
-      'Explain passive transport mechanisms including diffusion and osmosis.',
-      'Demonstrate cell plasmolysis in laboratory conditions.',
+      'Define relations and functions with domain and range.',
+      'Represent functions using tables, graphs, and equations.',
+      'Evaluate and interpret function values in context.',
     ],
     activities: [
-      { session: 1, activity: 'Introduction to Cell Structure & Microscope usage', duration: '40 mins' },
-      { session: 2, activity: 'Plant vs Animal Cells laboratory diagram review', duration: '45 mins' },
-      { session: 3, activity: 'Membrane structure and passive transport group quiz', duration: '45 mins' },
-      { session: 4, activity: 'Active transport model builder using clay', duration: '45 mins' },
-      { session: 5, activity: 'Practical quiz & chapter completion analysis', duration: '50 mins' },
+      { session: 1, activity: 'Relations vs functions warm-up', duration: '40 mins' },
+      { session: 2, activity: 'Domain and range board practice', duration: '45 mins' },
+      { session: 3, activity: 'Graphing linear and quadratic functions', duration: '45 mins' },
+      { session: 4, activity: 'Function notation group quiz', duration: '45 mins' },
+      { session: 5, activity: 'Exit ticket and remediation', duration: '50 mins' },
     ],
-    assessments: ['Quiz on Membrane Transport', 'Syllabus alignment lab sheet', 'Active transport presentation'],
-    homework: 'Write a 200-word paragraph describing why mitochondrion is called the powerhouse of the cell.',
-    createdAt: '2026-05-18T10:00:00Z',
+    assessments: ['Quiz on relations and functions', 'Exit ticket'],
+    homework: 'Textbook exercises on relations and functions for the assigned pages.',
+    createdAt: '2026-08-04T10:00:00Z',
   },
   {
     id: 'lp-6',
-    subject: 'Biology',
-    grade: 'Grade 10',
-    title: 'Genetics — DNA Replication & Protein Synthesis',
+    subject: 'Mathematics',
+    grade: 'Grade 11',
+    title: 'Grade 11 Mathematics — Probability (Weekly Plan)',
     sessions: 4,
     teacherId: 'tch-1',
     teacherName: 'Martha Feyissa',
     status: 'Approved',
-    deptComments: 'Approved for Grade 10 Section B.',
+    planType: 'weekly',
+    createdByRole: 'teacher',
+    deptComments: 'Approved for Grade 11 Mathematics.',
     version: 1,
     objectives: [
-      'Explain the semi-conservative model of DNA replication.',
-      'Describe transcription and translation steps.',
+      'Define probability of simple events.',
+      'Compute probabilities using equally likely outcomes.',
     ],
     activities: [
-      { session: 1, activity: 'DNA structure review and replication animation', duration: '45 mins' },
-      { session: 2, activity: 'Membrane transport recap and lab prep', duration: '45 mins' },
-      { session: 3, activity: 'Protein synthesis modeling activity', duration: '50 mins' },
-      { session: 4, activity: 'Unit synthesis quiz', duration: '45 mins' },
+      { session: 1, activity: 'Introduction to probability language', duration: '45 mins' },
+      { session: 2, activity: 'Sample spaces and events', duration: '45 mins' },
+      { session: 3, activity: 'Equally likely outcomes practice', duration: '50 mins' },
+      { session: 4, activity: 'Probability quiz', duration: '45 mins' },
     ],
-    assessments: ['Replication diagram quiz', 'Translation worksheet'],
-    homework: 'Label a replication fork diagram from textbook page 112.',
-    createdAt: '2026-05-14T09:00:00Z',
+    assessments: ['Probability quiz', 'Worksheet'],
+    homework: 'Complete probability exercises from the Grade 11 Math textbook.',
+    createdAt: '2026-08-03T09:00:00Z',
   },
   {
     id: 'lp-2',
@@ -674,6 +754,8 @@ export const mockLessonPlans: LessonPlan[] = [
     teacherId: 'tch-2',
     teacherName: 'Abebe Kebede',
     status: 'Approved',
+    planType: 'weekly',
+    createdByRole: 'teacher',
     deptComments: 'Calculations verified. Perfect alignment.',
     schoolHeadComments: 'Approved for circulation to Grade 10 sections.',
     version: 1,
@@ -701,6 +783,8 @@ export const mockLessonPlans: LessonPlan[] = [
     teacherId: 'tch-3',
     teacherName: 'Yohannes Tesfaye',
     status: 'Pending Dept Head',
+    planType: 'weekly',
+    createdByRole: 'teacher',
     version: 1,
     objectives: [
       'Compare covalent and ionic chemical structures.',
@@ -728,6 +812,8 @@ export const mockLessonPlans: LessonPlan[] = [
     teacherId: 'tch-8',
     teacherName: 'W/t Selamawit Hailu',
     status: 'Pending Dept Head',
+    planType: 'weekly',
+    createdByRole: 'teacher',
     version: 1,
     objectives: ['Apply free-body diagrams to static equilibrium problems.'],
     activities: [{ session: 1, activity: 'Free-body diagram workshop', duration: '45 mins' }],
@@ -744,6 +830,8 @@ export const mockLessonPlans: LessonPlan[] = [
     teacherId: 'tch-7',
     teacherName: 'Ato Belayneh Kassahun',
     status: 'Pending Dept Head',
+    planType: 'weekly',
+    createdByRole: 'teacher',
     version: 1,
     objectives: ['Prove basic trigonometric identities.', 'Solve height and distance problems.'],
     activities: [{ session: 1, activity: 'Identity proof board work', duration: '45 mins' }],
@@ -756,18 +844,18 @@ export const mockLessonPlans: LessonPlan[] = [
 export const mockAssessments: Assessment[] = [
   {
     id: 'asm-1',
-    title: 'Grade 9 Biology Midterm - Unit 1 & 2',
+    title: 'Grade 11 Mathematics Midterm — Relations & Functions',
     type: 'Mid Exam',
-    subject: 'Biology',
-    grade: 'Grade 9',
+    subject: 'Mathematics',
+    grade: 'Grade 11',
     teacherId: 'tch-1',
     teacherName: 'Martha Feyissa',
     status: 'Approved',
     difficulty: 'Medium',
     questions: [
-      { id: 1, question: 'Which organelle is responsible for cellular respiration?', type: 'MCQ', options: ['Nucleus', 'Mitochondria', 'Chloroplast', 'Ribosome'], answer: 'Mitochondria' },
-      { id: 2, question: 'Osmosis is the net movement of water from high to low solute concentration.', type: 'True/False', answer: 'False' },
-      { id: 3, question: 'Explain the primary differences between eukaryotic and prokaryotic cells.', type: 'Essay', answer: 'Eukaryotes have a membrane-bound nucleus and membrane-bound organelles (e.g. mitochondria), whereas prokaryotes lack a defined nucleus and their DNA is circular and floats in the nucleoid region.' },
+      { id: 1, question: 'Is the relation {(1,2),(1,3)} a function? Explain.', type: 'Short Answer', answer: 'No — one input maps to two outputs.' },
+      { id: 2, question: 'If f(x) = 2x + 1, find f(3).', type: 'Short Answer', answer: '7' },
+      { id: 3, question: 'State the domain of f(x) = 1/(x − 2).', type: 'Short Answer', answer: 'All real x except 2' },
     ],
     createdAt: '2026-05-12T09:00:00Z',
   },
@@ -779,7 +867,7 @@ export const mockAssessments: Assessment[] = [
     grade: 'Grade 10',
     teacherId: 'tch-2',
     teacherName: 'Abebe Kebede',
-    status: 'Pending Dept Head',
+    status: 'Approved',
     difficulty: 'Hard',
     questions: [
       { id: 1, question: 'What is the discriminant of the quadratic equation 3x^2 - 5x + 2 = 0?', type: 'Short Answer', answer: '1' },
@@ -796,7 +884,7 @@ export const mockAssessments: Assessment[] = [
     grade: 'Grade 11',
     teacherId: 'tch-8',
     teacherName: 'W/t Selamawit Hailu',
-    status: 'Pending Dept Head',
+    status: 'Approved',
     difficulty: 'Medium',
     questions: [
       { id: 1, question: 'State Newton’s second law of motion.', type: 'Short Answer', answer: 'F = ma' },
@@ -821,17 +909,16 @@ export const mockAssessments: Assessment[] = [
   },
   {
     id: 'asm-5',
-    title: 'Grade 9 Biology — Cell Structure Quiz',
+    title: 'Quiz — Grade 11 Mathematics — Probability',
     type: 'Quiz',
-    subject: 'Biology',
-    grade: 'Grade 9',
+    subject: 'Mathematics',
+    grade: 'Grade 11',
     teacherId: 'tch-1',
     teacherName: 'Martha Feyissa',
-    status: 'Rejected',
+    status: 'Approved',
     difficulty: 'Easy',
-    comments: 'Revise difficulty balance — too many recall questions.',
     questions: [
-      { id: 1, question: 'Name the control center of the cell.', type: 'Short Answer', answer: 'Nucleus' },
+      { id: 1, question: 'A fair die is rolled. Find P(even number).', type: 'Short Answer', answer: '1/2' },
     ],
     createdAt: '2026-05-10T09:00:00Z',
   },
@@ -876,7 +963,7 @@ export const regionalPerformance = [
 
 export const subjectPerformance = [
   { subject: 'Mathematics', average: 64.2, status: 'Warning', riskIndex: 28.5 },
-  { subject: 'Biology', average: 75.8, status: 'Stable', riskIndex: 12.4 },
+  { subject: 'Mathematics', average: 75.8, status: 'Stable', riskIndex: 12.4 },
   { subject: 'Chemistry', average: 69.1, status: 'Stable', riskIndex: 19.8 },
   { subject: 'Physics', average: 58.6, status: 'Critical', riskIndex: 38.2 },
   { subject: 'English', average: 79.4, status: 'Stable', riskIndex: 8.5 },
@@ -1119,7 +1206,7 @@ export const mockExams: ExamPaper[] = [
     id: 'ex-1',
     title: 'Biology Grade 9 Midterm Exam',
     type: 'Mid Exam',
-    subject: 'Biology',
+    subject: 'Mathematics',
     grade: 'Grade 9',
     departmentId: 'dept-stem',
     teacherName: 'Martha Feyissa',
@@ -1153,9 +1240,9 @@ export const mockExams: ExamPaper[] = [
 export const mockTrainingMaterials: TrainingMaterial[] = [
   { id: 'tm-1', title: 'MOE Modern Secondary Pedagogy Guide v2', resourceUrl: '#', category: 'Pedagogy', trainingType: 'MOE Mandatory', uploadedAt: '2026-05-10', disseminated: true },
   { id: 'tm-2', title: 'Inclusion & Classroom Management Guide', resourceUrl: '#', category: 'Classroom Management', trainingType: 'Pedagogy', uploadedAt: '2026-05-12', disseminated: true },
-  { id: 'tm-3', title: 'STEM Lab Safety & Practical Assessment Rubric', resourceUrl: '#', category: 'STEM', trainingType: 'STEM', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Biology', uploadedAt: '2026-05-14', disseminated: true },
-  { id: 'tm-4', title: 'Grade 9–12 Biology Syllabus Alignment Pack', resourceUrl: '#', category: 'Biology', trainingType: 'Subject Specialty', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Biology', uploadedAt: '2026-05-15', disseminated: false },
-  { id: 'tm-6', title: 'Mathematics Grade 9–12 Problem-Solving Framework', resourceUrl: '#', category: 'Mathematics', trainingType: 'Subject Specialty', departmentId: 'dept-math', grade: 'Grade 9', subject: 'Mathematics', uploadedAt: '2026-05-17', disseminated: false },
+  { id: 'tm-3', title: 'STEM Lab Safety & Practical Assessment Rubric', resourceUrl: '#', category: 'STEM', trainingType: 'STEM', departmentId: 'dept-stem', grade: 'Grade 9', subject: 'Mathematics', uploadedAt: '2026-05-14', disseminated: true },
+  { id: 'tm-4', title: 'Grade 9–12 Mathematics Syllabus Alignment Pack', resourceUrl: '#', category: 'Mathematics', trainingType: 'Subject Specialty', departmentId: 'dept-math', grade: 'Grade 9', subject: 'Mathematics', uploadedAt: '2026-05-15', disseminated: true },
+  { id: 'tm-6', title: 'Mathematics Grade 9–12 Problem-Solving Framework', resourceUrl: '#', category: 'Mathematics', trainingType: 'Subject Specialty', departmentId: 'dept-math', grade: 'Grade 9', subject: 'Mathematics', uploadedAt: '2026-05-17', disseminated: true },
 ];
 
 export const mockTeachingNotes: TeachingNote[] = [
@@ -1163,26 +1250,28 @@ export const mockTeachingNotes: TeachingNote[] = [
     id: 'tn-1',
     teacherId: 'tch-1',
     lessonPlanId: 'lp-1',
-    title: 'Cellular Respiration Lecture Notes',
-    grade: 'Grade 9',
-    subject: 'Biology',
-    topic: 'Cellular Respiration',
+    title: 'Relations and Functions — Lecture Notes',
+    grade: 'Grade 11',
+    subject: 'Mathematics',
+    topic: 'Relations and Functions',
     language: 'English',
-    contentSummary: 'AI-generated notes covering mitochondria, ATP synthesis, and aerobic pathways.',
-    status: 'Saved',
+    contentSummary: 'Notes covering relations vs functions, domain/range, and function notation.',
+    status: 'Approved',
+    deptComments: 'Approved for classroom use.',
     createdAt: '2026-05-12',
   },
   {
     id: 'tn-2',
     teacherId: 'tch-1',
     lessonPlanId: 'lp-6',
-    title: 'Session 2 — Membrane Transport Handout',
-    grade: 'Grade 10',
-    subject: 'Biology',
-    topic: 'Membrane transport',
+    title: 'Session 1 — Introduction to Probability',
+    grade: 'Grade 11',
+    subject: 'Mathematics',
+    topic: 'Probability',
     language: 'English',
-    contentSummary: 'Student handout for passive and active transport with diagram prompts.',
-    status: 'Saved',
+    contentSummary: 'Student handout for probability language, sample spaces, and simple events.',
+    status: 'Approved',
+    deptComments: 'Approved for classroom use.',
     createdAt: '2026-05-16',
     updatedAt: '2026-05-16',
   },
@@ -1190,27 +1279,51 @@ export const mockTeachingNotes: TeachingNote[] = [
     id: 'tn-3',
     teacherId: 'tch-1',
     lessonPlanId: 'lp-1',
-    title: 'Organelles Quick Reference (Draft)',
-    grade: 'Grade 9',
-    subject: 'Biology',
-    topic: 'Cell organelles',
+    title: 'Function Notation Quick Reference (Draft)',
+    grade: 'Grade 11',
+    subject: 'Mathematics',
+    topic: 'Function notation',
     language: 'English',
-    contentSummary: 'Draft reference sheet for cell organelles.',
+    contentSummary: 'Draft reference sheet for f(x) evaluation and common function types.',
     status: 'Draft',
     createdAt: '2026-05-22',
   },
   {
     id: 'tn-4',
     teacherId: 'tch-1',
-    lessonPlanId: 'lp-1',
-    title: 'Photosynthesis AI Notes — Pending Review',
-    grade: 'Grade 9',
-    subject: 'Biology',
-    topic: 'Photosynthesis',
+    lessonPlanId: 'lp-6',
+    title: 'Probability AI Notes — Pending Review',
+    grade: 'Grade 11',
+    subject: 'Mathematics',
+    topic: 'Probability',
     language: 'English',
-    contentSummary: 'AI-generated teaching notes on light-dependent reactions and Calvin cycle.',
+    contentSummary: 'AI-generated teaching notes on equally likely outcomes and event probability.',
     status: 'Pending Dept Head',
     createdAt: '2026-06-01',
+  },
+];
+
+export const mockLessonDeliveries: LessonDelivery[] = [
+  {
+    id: 'ld-1',
+    teachingNoteId: 'tn-1',
+    lessonPlanId: 'lp-1',
+    teacherId: 'tch-1',
+    graspOutcome: 'majority_grasped',
+    postedToHod: true,
+    postedToCommunity: false,
+    deliveredAt: '2026-05-14T14:30:00Z',
+  },
+  {
+    id: 'ld-2',
+    teachingNoteId: 'tn-2',
+    lessonPlanId: 'lp-6',
+    teacherId: 'tch-1',
+    graspOutcome: 'challenged',
+    challengeText: 'Students struggled with sample-space language on compound events.',
+    postedToHod: true,
+    postedToCommunity: false,
+    deliveredAt: '2026-05-18T11:00:00Z',
   },
 ];
 
@@ -1221,8 +1334,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-1',
     studentId: 'std-1',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Quiz',
     title: 'Quiz 1',
@@ -1248,8 +1361,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-1b',
     studentId: 'std-1',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Quiz',
     title: 'Quiz 2',
@@ -1275,8 +1388,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-2',
     studentId: 'std-1',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Project',
     title: 'Cell model project',
@@ -1290,8 +1403,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-3',
     studentId: 'std-1',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Mid Exam',
     title: 'Mid Exam',
@@ -1309,8 +1422,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-4',
     studentId: 'std-2',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Quiz',
     title: 'Quiz 1',
@@ -1337,8 +1450,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-4b',
     studentId: 'std-2',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Quiz',
     title: 'Quiz 2',
@@ -1364,8 +1477,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-5',
     studentId: 'std-2',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Test',
     title: 'Unit Test 1',
@@ -1383,8 +1496,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-5b',
     studentId: 'std-2',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'A',
     entryType: 'Mid Exam',
     title: 'Mid Exam',
@@ -1402,8 +1515,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-6',
     studentId: 'std-3',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'B',
     entryType: 'Assignment',
     title: 'Homework — mitochondria essay',
@@ -1417,8 +1530,8 @@ export const mockStudentGradeEntries: StudentGradeEntry[] = [
     id: 'ge-7',
     studentId: 'std-3',
     teacherId: 'tch-1',
-    subject: 'Biology',
-    gradeLevel: 'Grade 9',
+    subject: 'Mathematics',
+    gradeLevel: 'Grade 11',
     section: 'B',
     entryType: 'Final Exam',
     title: 'Final Exam',
@@ -1435,9 +1548,9 @@ export const mockTeacherResources: TeacherResource[] = [
     id: 'tr-1',
     teacherId: 'tch-1',
     title: 'Grade 9 Cell Structure Lab Guide',
-    type: 'Lab Guide',
-    grade: 'Grade 9',
-    subject: 'Biology',
+    type: 'Worksheet',
+    grade: 'Grade 11',
+    subject: 'Mathematics',
     url: '#',
     downloads: 48,
     createdAt: '2026-05-08',
@@ -1445,10 +1558,10 @@ export const mockTeacherResources: TeacherResource[] = [
   {
     id: 'tr-2',
     teacherId: 'tch-1',
-    title: 'Mitosis Slide Deck',
+    title: 'Probability Slide Deck',
     type: 'Slide Deck',
-    grade: 'Grade 10',
-    subject: 'Biology',
+    grade: 'Grade 11',
+    subject: 'Mathematics',
     url: '#',
     downloads: 32,
     createdAt: '2026-05-14',

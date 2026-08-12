@@ -32,12 +32,8 @@ export const ContentCard: React.FC<ContentCardProps> = ({
       <div className="min-w-0 relative z-10">
         <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
           {title}
-          {/* Animated pulse indicator */}
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
         </CardTitle>
-        {description && (
-          <CardDescription className="mt-0.5 text-sm">{description}</CardDescription>
-        )}
       </div>
       {actions && <div className="shrink-0 relative z-10">{actions}</div>}
     </CardHeader>

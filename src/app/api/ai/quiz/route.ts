@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchPrimeAI } from '@/lib/primeAiServer';
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // In-memory cache shared across all users
 const cache = new Map<string, { data: any; timestamp: number }>();
@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
     const payload: Record<string, unknown> = {
       topic,
       difficulty,
-      num_questions,
+      // Quiz/assessment endpoint allows up to 60 (mid/final batched server-side)
+      num_questions: Math.min(60, Math.max(3, Number(num_questions) || 5)),
       question_type,
       student_level,
     };

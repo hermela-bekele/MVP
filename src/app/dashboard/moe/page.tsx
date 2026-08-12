@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
 import { usePortalTab } from '@/lib/usePortalTab';
+import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 export default function MoePortalPage() {
   const { 
     schools, 
@@ -113,6 +114,10 @@ export default function MoePortalPage() {
     analytics: {
       title: 'AI Risk Analytics',
       subtitle: 'Predictive insights on dropout risk and staffing gaps.',
+    },
+    profile: {
+      title: 'My Profile',
+      subtitle: 'Your MOE account information.',
     },
   };
 
@@ -586,6 +591,19 @@ export default function MoePortalPage() {
                 </CardContent>
               </Card>
 
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <PortalProfileCard
+                roleLabel="MOE Admin"
+                fields={[
+                  { label: 'Scope', value: 'National — all regions' },
+                  { label: 'Schools overseen', value: schools.length },
+                  { label: 'Certified teachers tracked', value: teachers.length.toLocaleString() },
+                ]}
+              />
             </div>
           )}
 
