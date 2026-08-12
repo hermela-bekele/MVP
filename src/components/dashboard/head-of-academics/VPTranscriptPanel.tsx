@@ -14,7 +14,7 @@ import {
   mergeTemplateSettings,
   transcriptRowsForStudent,
   type ReportCardTemplateSettings,
-} from '@/lib/vicePrincipalPortal';
+} from '@/lib/headOfAcademicsPortal';
 import { percentToGpa } from '@/lib/teacherPortal';
 import { ReportDocumentPreview } from './ReportDocumentPreview';
 

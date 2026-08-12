@@ -284,6 +284,13 @@ interface AppContextType {
   addStudentFeedback: (
     feedback: Omit<TeacherFeedback, 'id' | 'teacherId' | 'direction' | 'authorName' | 'date'>
   ) => void;
+  giveTeacherFeedback: (input: {
+    teacherId: string;
+    authorRole: 'peer' | 'department-head';
+    subject: string;
+    comment: string;
+    rating?: number;
+  }) => void;
   markLessonDelivered: (payload: {
     teachingNoteId: string;
     lessonPlanId?: string;
@@ -1790,6 +1797,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
+  const giveTeacherFeedback = (input: {
+    teacherId: string;
+    authorRole: 'peer' | 'department-head';
+    subject: string;
+    comment: string;
+    rating?: number;
+  }) => {
+    const authorName =
+      currentUser?.displayName ?? (input.authorRole === 'department-head' ? 'Department Head' : 'Colleague');
+    const record: TeacherFeedback = {
+      id: `local-fb-${Date.now()}`,
+      teacherId: input.teacherId,
+      direction: 'to_teacher',
+      authorRole: input.authorRole,
+      authorName,
+      subject: input.subject,
+      comment: input.comment,
+      rating: input.rating,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    setTeacherFeedbacks((prev) => [record, ...prev]);
+    addNotification('Feedback Sent', `Your feedback was recorded for the teacher.`, 'success');
+    void api
+      .sendPortalFeedback({ ...input, authorName, direction: 'to_teacher' })
+      .catch(() => {
+        /* recorded locally; will sync once the server accepts this feedback type */
+      });
+  };
+
   const markLessonDelivered = async (payload: {
     teachingNoteId: string;
     lessonPlanId?: string;
@@ -2106,6 +2142,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         respondToTeacherCheckIn,
         sendParentMessage,
         addStudentFeedback,
+        giveTeacherFeedback,
         markLessonDelivered,
         createCommunityPost,
         replyToCommunityPost,

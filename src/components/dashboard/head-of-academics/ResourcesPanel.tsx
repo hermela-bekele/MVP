@@ -9,7 +9,7 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-export const SchoolHeadResourcesPanel: React.FC = () => {
+export const ResourcesPanel: React.FC = () => {
   const { trainingMaterials, addTrainingMaterial, disseminateTrainingMaterial, addNotification } = useApp();
   const [title, setTitle] = useState('');
   const [resourceUrl, setResourceUrl] = useState('');

@@ -25,7 +25,7 @@ import { toast } from '@/components/ui/toast';
 type Phase = 'view-moe' | 'editing' | 'generated';
 type CalendarSource = 'moe' | 'school';
 
-export const SchoolHeadAcademicCalendarPanel: React.FC<{
+export const AcademicCalendarPanel: React.FC<{
   onActionsChange?: (actions: React.ReactNode) => void;
 }> = ({ onActionsChange }) => {
   const {

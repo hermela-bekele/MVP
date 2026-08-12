@@ -14,7 +14,7 @@ import {
   type ReportCardTemplate,
   type ReportCardTemplateSettings,
   type SignatureLine,
-} from '@/lib/vicePrincipalPortal';
+} from '@/lib/headOfAcademicsPortal';
 
 type DocKind = 'reportCard' | 'transcript';
 

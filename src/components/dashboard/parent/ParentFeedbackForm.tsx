@@ -57,6 +57,7 @@ export function ParentFeedbackForm({ childrenOptions }: Props) {
         studentId: studentId || undefined,
         studentName: child?.name,
         direction: 'to_teacher',
+        authorRole: 'parent',
         subject: subject || 'Parent feedback',
         comment: comment.trim(),
         rating: Number(rating) || undefined,

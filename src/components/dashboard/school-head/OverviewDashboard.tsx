@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { staggerContainer, staggerItem } from "@/lib/animations";
+import { PerformanceReports } from "@/components/dashboard/school-head/PerformanceReports";
 
 export const OverviewDashboard: React.FC = () => {
   const { students, teachers, checkIns, notifications, classes } = useApp();
@@ -68,6 +69,12 @@ export const OverviewDashboard: React.FC = () => {
     }
   };
 
+  const scrollToPerformanceReports = () => {
+    document
+      .getElementById("performance-reports")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <motion.div
       className="space-y-6"
@@ -102,7 +109,7 @@ export const OverviewDashboard: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleQuickAction("reports")}
+              onClick={scrollToPerformanceReports}
               className="text-xs h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
             >
               Performance Reports
@@ -309,6 +316,16 @@ export const OverviewDashboard: React.FC = () => {
             ))}
           </CardContent>
         </Card>
+      </motion.div>
+
+      <motion.div id="performance-reports" variants={staggerItem} className="space-y-3 scroll-mt-6">
+        <div>
+          <h2 className="text-base font-bold text-foreground">Performance Reports</h2>
+          <p className="text-xs text-muted-foreground">
+            Analyze academic indicators, curriculum passing rates, and class averages.
+          </p>
+        </div>
+        <PerformanceReports />
       </motion.div>
     </motion.div>
   );

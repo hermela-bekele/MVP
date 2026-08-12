@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { buildReportDocumentInnerHTML, type RenderableReportDoc } from '@/lib/reportCardPdf';
-import type { ReportCardTemplate } from '@/lib/vicePrincipalPortal';
+import type { ReportCardTemplate } from '@/lib/headOfAcademicsPortal';
 
 /** On-screen preview of a report card / transcript. Renders the exact same markup the PDF
  *  exporter screenshots, so the preview and the downloaded PDF can never drift apart. */

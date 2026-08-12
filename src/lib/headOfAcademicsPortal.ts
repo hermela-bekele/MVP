@@ -3,14 +3,14 @@ import { subjectMatches } from './departmentHead';
 import type { Student, StudentGradeEntry } from './mockData';
 import { percentToGpa, weightedTermAverage } from './teacherPortal';
 
-export interface VicePrincipalScope {
+export interface HeadOfAcademicsScope {
   schoolId: string;
 }
 
-export function resolveVicePrincipalScope(
+export function resolveHeadOfAcademicsScope(
   user: Pick<AuthUser, 'role' | 'schoolId'> | null | undefined,
-): VicePrincipalScope | null {
-  if (!user || user.role !== 'vice-principal') return null;
+): HeadOfAcademicsScope | null {
+  if (!user || user.role !== 'head-of-academics') return null;
   return { schoolId: user.schoolId || 'sch-1' };
 }
 
@@ -227,7 +227,7 @@ function defaultTemplate(kind: 'report-card' | 'transcript'): ReportCardTemplate
     },
     signatureLines: [
       { id: 'sig-1', label: 'Class Teacher' },
-      { id: 'sig-2', label: 'Vice Principal' },
+      { id: 'sig-2', label: 'Head of Academics' },
       { id: 'sig-3', label: 'Principal' },
     ],
     footerText: '',

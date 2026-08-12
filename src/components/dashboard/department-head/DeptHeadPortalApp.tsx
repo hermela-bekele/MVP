@@ -19,13 +19,14 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import type { Teacher, SchoolClass, LessonPlan } from "@/lib/mockData";
 import { MetricProgressRow } from "@/components/ui/metric-progress-row";
-import { BarChart3, ClipboardList, Users, AlertTriangle } from "lucide-react";
+import { ArrowLeft, BarChart3, ClipboardList, Users, AlertTriangle } from "lucide-react";
 import { computeSubjectPerformance } from "@/lib/analytics";
 import {
   classSectionKey,
   filterBySubjectScope,
-  filterDeptTeachingNotes,
   isSubjectTeacher,
   resolveDeptHeadScope,
   subjectMatches,
@@ -35,10 +36,11 @@ import {
 } from "@/lib/departmentHead";
 import { assessmentNeedsApproval } from "@/lib/teacherPortal";
 import { DeptAnnualPlanPanel } from "@/components/dashboard/department-head/DeptAnnualPlanPanel";
-import { DeptTeachingNotesPanel } from "@/components/dashboard/department-head/DeptTeachingNotesPanel";
 import { DeptLessonPlansPanel } from "@/components/dashboard/department-head/DeptLessonPlansPanel";
 import { DeptGapAnalysisPanel } from "@/components/dashboard/department-head/DeptGapAnalysisPanel";
 import { DeptTeacherDevelopmentAssignmentPanel } from "@/components/dashboard/department-head/DeptTeacherDevelopmentAssignmentPanel";
+import { DeptFeedbackPanel } from "@/components/dashboard/department-head/DeptFeedbackPanel";
+import { DeptWellnessCheckins } from "@/components/dashboard/department-head/DeptWellnessCheckins";
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 import { CommunicationModule } from "@/components/dashboard/communication/CommunicationModule";
@@ -46,12 +48,68 @@ import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-hea
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
 import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
 
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
+      <p className="text-xs font-medium text-foreground">{value ?? "—"}</p>
+    </div>
+  );
+}
+
+function studentReportStatus(gpa: number): "Excellent" | "On Track" | "At Risk" {
+  if (gpa >= 3.5) return "Excellent";
+  if (gpa >= 2.5) return "On Track";
+  return "At Risk";
+}
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="flex items-center gap-2 min-w-[120px]">
+      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary" style={{ width: `${value}%` }} />
+      </div>
+      <span className="text-xxs font-bold text-foreground font-mono">{value}%</span>
+    </div>
+  );
+}
+
+/** Workflow-stage completion for a plan (Draft → Pending Dept Head → Pending School Head/Approved). */
+function planStageProgress(status: LessonPlan["status"] | undefined): number {
+  switch (status) {
+    case "Approved":
+    case "Pending School Head":
+      return 100;
+    case "Pending Dept Head":
+      return 55;
+    case "Rejected":
+      return 15;
+    case "Draft":
+      return 25;
+    default:
+      return 0;
+  }
+}
+
+type PaceStatus = "On Track" | "Ahead of Plan" | "At Risk";
+
+function paceStatusBadgeVariant(status: PaceStatus): "success" | "info" | "danger" {
+  if (status === "Ahead of Plan") return "info";
+  if (status === "At Risk") return "danger";
+  return "success";
+}
+
 export default function DeptHeadPortalApp() {
   const pathname = usePathname();
   const router = useRouter();
   const activeTab = tabFromPortalPath(pathname, "department-head");
+
+  // Class Detail View State (reset whenever the user navigates away from Class room view)
+  const [detailClass, setDetailClass] = useState<SchoolClass | null>(null);
+
   const setActiveTab = useCallback(
     (tab: string) => {
+      setDetailClass(null);
       router.push(portalTabPath("department-head", tab));
     },
     [router],
@@ -69,7 +127,6 @@ export default function DeptHeadPortalApp() {
     studentGradeEntries,
     approveAssessment,
     rejectAssessment,
-    teachingNotes,
     addTeacher,
     checkIns,
     addTrainingMaterial,
@@ -95,6 +152,22 @@ export default function DeptHeadPortalApp() {
   const [selectedAsmId, setSelectedAsmId] = useState<string | null>(null);
   const [isAsmOpen, setIsAsmOpen] = useState(false);
   const [deptComments, setDeptComments] = useState("");
+
+  // Teacher Detail View State
+  const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
+
+  // Attendance Filters State
+  const [attStudentName, setAttStudentName] = useState("");
+  const [attGrade, setAttGrade] = useState("All");
+  const [attSection, setAttSection] = useState("All");
+  const [attStartDate, setAttStartDate] = useState("");
+  const [attEndDate, setAttEndDate] = useState("");
+
+  // Class Reports Filters State
+  const [reportSearch, setReportSearch] = useState("");
+  const [reportGrade, setReportGrade] = useState("All");
+  const [reportSection, setReportSection] = useState("All");
+  const [reportStatus, setReportStatus] = useState("All");
 
   // Onboard Teacher State
   const [isOnboardOpen, setIsOnboardOpen] = useState(false);
@@ -135,6 +208,57 @@ export default function DeptHeadPortalApp() {
     return classes.filter((cls) => teacherNames.has(cls.homeroomTeacher));
   }, [classes, departmentTeachers]);
 
+  const teacherPlanProgress = useMemo(() => {
+    const rows = departmentTeachers.map((t) => {
+      const weeklyPlans = departmentLessonPlans.filter(
+        (lp) => lp.teacherName === t.name && lp.planType !== "yearly",
+      );
+      const annualPlans = departmentLessonPlans.filter(
+        (lp) => lp.teacherName === t.name && lp.planType === "yearly",
+      );
+      const latestAnnual = [...annualPlans].sort(
+        (a, b) => b.version - a.version || b.createdAt.localeCompare(a.createdAt),
+      )[0];
+      const weeklyApproved = weeklyPlans.filter(
+        (p) => p.status === "Approved" || p.status === "Pending School Head",
+      ).length;
+      const weeklyTotal = weeklyPlans.length;
+      const weeklyProgress =
+        weeklyTotal > 0 ? Math.round((weeklyApproved / weeklyTotal) * 100) : 0;
+      const annualProgress = latestAnnual ? planStageProgress(latestAnnual.status) : 0;
+      const hasRejected =
+        weeklyPlans.some((p) => p.status === "Rejected") || latestAnnual?.status === "Rejected";
+      return { teacher: t, weeklyTotal, weeklyProgress, annualProgress, hasRejected };
+    });
+
+    const deptAvgWeekly =
+      rows.length > 0
+        ? rows.reduce((sum, r) => sum + r.weeklyTotal, 0) / rows.length
+        : 0;
+
+    return rows.map((row) => {
+      let status: PaceStatus;
+      if (row.hasRejected) {
+        status = "At Risk";
+      } else if (deptAvgWeekly <= 0) {
+        status = row.weeklyTotal > 0 ? "Ahead of Plan" : "On Track";
+      } else {
+        const ratio = row.weeklyTotal / deptAvgWeekly;
+        status = ratio >= 1.15 ? "Ahead of Plan" : ratio < 0.7 ? "At Risk" : "On Track";
+      }
+      return { ...row, status };
+    });
+  }, [departmentTeachers, departmentLessonPlans]);
+
+  const classPlanProgress = useMemo(
+    () =>
+      departmentClasses.map((cls) => ({
+        cls,
+        progress: teacherPlanProgress.find((row) => row.teacher.name === cls.homeroomTeacher),
+      })),
+    [departmentClasses, teacherPlanProgress],
+  );
+
   const departmentStudents = useMemo(() => {
     if (!scope) return [];
     const sectionKeys = new Set(
@@ -147,6 +271,36 @@ export default function DeptHeadPortalApp() {
     );
   }, [students, departmentClasses, scope]);
 
+  const reportGradeOptions = useMemo(
+    () => Array.from(new Set(departmentStudents.map((s) => s.grade))).sort(),
+    [departmentStudents],
+  );
+
+  const reportSectionOptions = useMemo(
+    () => Array.from(new Set(departmentStudents.map((s) => s.section))).sort(),
+    [departmentStudents],
+  );
+
+  const filteredReportStudents = useMemo(() => {
+    const q = reportSearch.trim().toLowerCase();
+    return departmentStudents.filter((std) => {
+      if (q && !std.name.toLowerCase().includes(q)) return false;
+      if (reportGrade !== "All" && std.grade !== reportGrade) return false;
+      if (reportSection !== "All" && std.section !== reportSection) return false;
+      if (reportStatus !== "All" && studentReportStatus(std.gpa) !== reportStatus) {
+        return false;
+      }
+      return true;
+    });
+  }, [departmentStudents, reportSearch, reportGrade, reportSection, reportStatus]);
+
+  const clearReportFilters = () => {
+    setReportSearch("");
+    setReportGrade("All");
+    setReportSection("All");
+    setReportStatus("All");
+  };
+
   const departmentAttendance = useMemo(() => {
     const sectionKeys = new Set(
       departmentClasses.map((cls) => classSectionKey(cls.grade, cls.section)),
@@ -155,6 +309,47 @@ export default function DeptHeadPortalApp() {
       sectionKeys.has(classSectionKey(row.grade, row.section)),
     );
   }, [attendance, departmentClasses]);
+
+  const attendanceGradeOptions = useMemo(
+    () =>
+      Array.from(new Set(departmentAttendance.map((row) => row.grade))).sort(),
+    [departmentAttendance],
+  );
+
+  const attendanceSectionOptions = useMemo(
+    () =>
+      Array.from(new Set(departmentAttendance.map((row) => row.section))).sort(),
+    [departmentAttendance],
+  );
+
+  const filteredDepartmentAttendance = useMemo(() => {
+    const nameQuery = attStudentName.trim().toLowerCase();
+    return departmentAttendance.filter((row) => {
+      if (nameQuery && !row.studentName.toLowerCase().includes(nameQuery)) {
+        return false;
+      }
+      if (attGrade !== "All" && row.grade !== attGrade) return false;
+      if (attSection !== "All" && row.section !== attSection) return false;
+      if (attStartDate && row.date < attStartDate) return false;
+      if (attEndDate && row.date > attEndDate) return false;
+      return true;
+    });
+  }, [
+    departmentAttendance,
+    attStudentName,
+    attGrade,
+    attSection,
+    attStartDate,
+    attEndDate,
+  ]);
+
+  const clearAttendanceFilters = () => {
+    setAttStudentName("");
+    setAttGrade("All");
+    setAttSection("All");
+    setAttStartDate("");
+    setAttEndDate("");
+  };
 
   const subjectPerformance = useMemo(
     () => computeSubjectPerformance(studentGradeEntries),
@@ -174,12 +369,6 @@ export default function DeptHeadPortalApp() {
       asm.status === "Pending Dept Head" &&
       assessmentNeedsApproval(asm.type, asm.createdByRole),
   );
-  const pendingTeachingNotes = useMemo(() => {
-    if (!scope) return [];
-    return filterDeptTeachingNotes(teachingNotes, teachers, scope).filter(
-      (n) => n.status === "Pending Dept Head",
-    );
-  }, [teachingNotes, teachers, scope]);
   const selectedAsm = departmentAssessments.find(
     (asm) => asm.id === selectedAsmId,
   );
@@ -308,18 +497,14 @@ export default function DeptHeadPortalApp() {
   const tabTitles: Record<string, { title: string; subtitle?: string }> = {
     dashboard: {
       title: "Subject Performance",
-      subtitle: `${scope?.subject ?? "Subject"} department metrics and alerts.`,
+      subtitle: `${scope?.subject ?? "Subject"} department metrics, alerts, and analysis.`,
     },
     reports: {
       title: "Class Reports",
       subtitle: "Section-level academic reports.",
     },
-    analysis: {
-      title: "Department Analysis",
-      subtitle: "Deep-dive analytics.",
-    },
     timetable: {
-      title: "Class Scheduler",
+      title: "Class room view",
       subtitle: "Scheduling and sessions.",
     },
     "academic-calendar": {
@@ -328,15 +513,11 @@ export default function DeptHeadPortalApp() {
     },
     sessions: {
       title: "Session Progress",
-      subtitle: "Curriculum delivery tracking.",
+      subtitle: "Weekly and annual lesson plan progress by class and by teacher.",
     },
     teachers: {
       title: "Manage Teachers",
       subtitle: "Department instructor roster.",
-    },
-    classes: {
-      title: "Manage Classes",
-      subtitle: "Class sections and assignments.",
     },
     attendance: {
       title: "Manage Attendance",
@@ -355,15 +536,11 @@ export default function DeptHeadPortalApp() {
       title: "Weekly Plans Approval",
       subtitle: "Review and approve weekly detailed lesson plans. Your approval is final.",
     },
-    "teaching-notes": {
-      title: "Lesson Notes Approval",
-      subtitle: "Review AI-generated lesson notes from instructors.",
-    },
     communication: {
       title: "Communication",
     },
     "teacher-messages": {
-      title: "Teacher Messages",
+      title: "Messaging",
       subtitle: "Live chat with teachers and review classroom challenges.",
     },
     training: {
@@ -374,9 +551,13 @@ export default function DeptHeadPortalApp() {
       title: "Study Resources",
       subtitle: "Shared learning materials.",
     },
+    feedbacks: {
+      title: "Feedback Loops",
+      subtitle: "Give direct feedback and review peer, parent, and student feedback for department teachers.",
+    },
     checkins: {
       title: "Wellness Check-ins",
-      subtitle: "Staff wellness surveys.",
+      subtitle: "Recurrent questionnaire towards general challenges and school improvement ideas.",
     },
     settings: { title: "Portal Settings", subtitle: "Department preferences." },
     "leadership-development": {
@@ -411,8 +592,8 @@ export default function DeptHeadPortalApp() {
             />
             <KpiWidget
               label="Pending Reviews"
-              value={pendingAssessments.length + pendingTeachingNotes.length}
-              hint={`${pendingAssessments.length} tests · ${pendingTeachingNotes.length} notes`}
+              value={pendingAssessments.length}
+              hint={`${pendingAssessments.length} tests`}
               tone="emphasis"
               icon={<ClipboardList className="h-5 w-5" strokeWidth={1.75} />}
             />
@@ -482,18 +663,16 @@ export default function DeptHeadPortalApp() {
                   Verification Desk Inbox
                 </CardTitle>
                 <CardDescription>
-                  Tests, quizzes, and teaching notes submitted by teachers awaiting department
-                  head endorsement.
+                  Tests and quizzes submitted by teachers awaiting department head endorsement.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-2 space-y-3">
-                {pendingAssessments.length === 0 && pendingTeachingNotes.length === 0 ? (
+                {pendingAssessments.length === 0 ? (
                   <div className="text-center py-10 text-xxs text-muted-foreground font-semibold">
                     All reviews are fully completed. Good job!
                   </div>
                 ) : (
-                  <>
-                  {pendingAssessments.map((asm) => (
+                  pendingAssessments.map((asm) => (
                     <div
                       key={asm.id}
                       className="flex justify-between items-center p-3 bg-muted/40 border border-border/40 rounded-lg"
@@ -518,120 +697,13 @@ export default function DeptHeadPortalApp() {
                         Review
                       </Button>
                     </div>
-                  ))}
-                  {pendingTeachingNotes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="flex justify-between items-center p-3 bg-muted/40 border border-border/40 rounded-lg"
-                    >
-                      <div className="flex flex-col text-left">
-                        <span className="text-xs font-semibold text-foreground">
-                          {note.title}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground mt-0.5">
-                          Teaching note · {note.grade} {note.subject}
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => setActiveTab("teaching-notes")}
-                        className="text-xxs cursor-pointer h-8"
-                      >
-                        Review
-                      </Button>
-                    </div>
-                  ))}
-                  </>
+                  ))
                 )}
               </CardContent>
             </Card>
           </div>
-        </div>
-      )}
 
-      {activeTab === "annual-plans" && scope && (
-        <DeptAnnualPlanPanel
-          subject={scope.subject}
-          onViewCalendar={() => setActiveTab("academic-calendar")}
-        />
-      )}
-
-      {activeTab === "lesson-plans" && (
-        <DeptLessonPlansPanel scope={scope} />
-      )}
-
-      {activeTab === "teaching-notes" && (
-        <DeptTeachingNotesPanel scope={scope} />
-      )}
-
-      {activeTab === "teacher-messages" && (
-        <CommunicationModule
-          mode="department-head"
-          mainTab="channels"
-          onMainTabChange={() => {}}
-        />
-      )}
-      {activeTab === "communication" && (
-        <CommunicationModule
-          mode="department-head"
-          mainTab="channels"
-          onMainTabChange={() => {}}
-        />
-      )}
-
-      {activeTab === "reports" && (
-        <div className="space-y-6 animate-fade-in">
-          <TablePanel
-            title="Class Performance Reports"
-            description={`Student GPA and attendance for ${scope?.subject ?? "subject"} class sections`}
-          >
-            <table className="eskooly-table">
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>ID</th>
-                  <th>Grade / Section</th>
-                  <th>GPA</th>
-                  <th>Attendance</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {departmentStudents.map((std) => (
-                  <tr key={std.id} className="hover:bg-muted/20">
-                    <td className="p-3 font-semibold text-foreground">
-                      {std.name}
-                    </td>
-                    <td className="p-3 font-mono text-xs">{std.studentId}</td>
-                    <td className="p-3">
-                      {std.grade} · Section {std.section}
-                    </td>
-                    <td className="p-3 font-mono font-bold">
-                      {std.gpa.toFixed(2)}
-                    </td>
-                    <td className="p-3">{std.attendanceRate}%</td>
-                    <td className="p-3">
-                      <Badge
-                        variant={std.gpa >= 2.5 ? "success" : "warning"}
-                        size="sm"
-                      >
-                        {std.gpa >= 3.5
-                          ? "Excellent"
-                          : std.gpa >= 2.5
-                            ? "On Track"
-                            : "At Risk"}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TablePanel>
-        </div>
-      )}
-
-      {activeTab === "analysis" && (
-        <div className="space-y-6 animate-fade-in">
+          {/* Department Analysis (merged) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {subjectMetrics.map((sub) => (
               <Card key={sub.subject}>
@@ -706,86 +778,254 @@ export default function DeptHeadPortalApp() {
         </div>
       )}
 
-      {activeTab === "sessions" && (
+      {activeTab === "annual-plans" && scope && (
+        <DeptAnnualPlanPanel
+          subject={scope.subject}
+          onViewCalendar={() => setActiveTab("academic-calendar")}
+        />
+      )}
+
+      {activeTab === "lesson-plans" && (
+        <DeptLessonPlansPanel scope={scope} />
+      )}
+
+      {activeTab === "teacher-messages" && (
+        <CommunicationModule
+          mode="department-head"
+          mainTab="channels"
+          onMainTabChange={() => {}}
+        />
+      )}
+      {activeTab === "communication" && (
+        <CommunicationModule
+          mode="department-head"
+          mainTab="channels"
+          onMainTabChange={() => {}}
+        />
+      )}
+
+      {activeTab === "reports" && (
         <div className="space-y-6 animate-fade-in">
+          <Card>
+            <CardContent className="pt-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Student name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Search student..."
+                    value={reportSearch}
+                    onChange={(e) => setReportSearch(e.target.value)}
+                    className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Grade
+                  </label>
+                  <Select
+                    options={[
+                      { value: "All", label: "All grades" },
+                      ...reportGradeOptions.map((g) => ({ value: g, label: g })),
+                    ]}
+                    value={reportGrade}
+                    onChange={(e) => setReportGrade(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Section
+                  </label>
+                  <Select
+                    options={[
+                      { value: "All", label: "All sections" },
+                      ...reportSectionOptions.map((s) => ({
+                        value: s,
+                        label: `Section ${s}`,
+                      })),
+                    ]}
+                    value={reportSection}
+                    onChange={(e) => setReportSection(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Status
+                  </label>
+                  <Select
+                    options={[
+                      { value: "All", label: "All statuses" },
+                      { value: "Excellent", label: "Excellent" },
+                      { value: "On Track", label: "On Track" },
+                      { value: "At Risk", label: "At Risk" },
+                    ]}
+                    value={reportStatus}
+                    onChange={(e) => setReportStatus(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearReportFilters}
+                  className="text-xs h-8"
+                >
+                  Clear filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <TablePanel
-            title="Session delivery progress"
-            description="Lesson plan session counts and workflow status by instructor"
+            title="Class Performance Reports"
+            description={`Showing ${filteredReportStudents.length} of ${departmentStudents.length} students for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
                 <tr>
-                  <th>Plan</th>
-                  <th>Teacher</th>
-                  <th>Sessions planned</th>
-                  <th>Delivery status</th>
+                  <th>Student</th>
+                  <th>ID</th>
+                  <th>Grade / Section</th>
+                  <th>GPA</th>
+                  <th>Attendance</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {departmentLessonPlans.map((lp) => {
-                  const progress =
-                    lp.status === "Approved" || lp.status === "Pending School Head"
-                      ? 100
-                      : lp.status === "Pending Dept Head"
-                        ? 55
-                        : 30;
-                  return (
-                    <tr key={lp.id} className="hover:bg-muted/20">
+                {filteredReportStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+                      No students match these filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredReportStudents.map((std) => (
+                    <tr key={std.id} className="hover:bg-muted/20">
                       <td className="p-3 font-semibold text-foreground">
-                        {lp.title}
+                        {std.name}
                       </td>
-                      <td className="p-3">{lp.teacherName}</td>
-                      <td className="p-3 font-mono">{lp.sessions}</td>
+                      <td className="p-3 font-mono text-xs">{std.studentId}</td>
                       <td className="p-3">
-                        <div className="flex items-center gap-2 min-w-[140px]">
-                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <span className="text-xxs font-bold text-foreground">
-                            {progress}%
-                          </span>
-                        </div>
+                        {std.grade} · Section {std.section}
+                      </td>
+                      <td className="p-3 font-mono font-bold">
+                        {std.gpa.toFixed(2)}
+                      </td>
+                      <td className="p-3">{std.attendanceRate}%</td>
+                      <td className="p-3">
+                        <Badge
+                          variant={std.gpa >= 2.5 ? "success" : "warning"}
+                          size="sm"
+                        >
+                          {studentReportStatus(std.gpa)}
+                        </Badge>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))
+                )}
               </tbody>
             </table>
           </TablePanel>
         </div>
       )}
 
-      {activeTab === "classes" && (
+      {activeTab === "sessions" && (
         <div className="space-y-6 animate-fade-in">
           <TablePanel
-            title={`${scope?.subject ?? "Subject"} class sections`}
-            description="Homeroom assignments linked to your department instructors"
+            title="Plan progress by class"
+            description="Weekly and annual lesson plan progress for each department class section"
           >
             <table className="eskooly-table">
               <thead>
                 <tr>
                   <th>Class</th>
-                  <th>Grade</th>
-                  <th>Section</th>
                   <th>Homeroom teacher</th>
-                  <th>Enrollment</th>
+                  <th>Weekly plan progress</th>
+                  <th>Annual plan progress</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {departmentClasses.map((cls) => (
-                  <tr key={cls.id} className="hover:bg-muted/20">
-                    <td className="p-3 font-semibold text-foreground">
-                      {cls.name}
+                {classPlanProgress.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                      No class sections assigned to {scope?.subject ?? "subject"} instructors yet.
                     </td>
-                    <td className="p-3">{cls.grade}</td>
-                    <td className="p-3">{cls.section}</td>
-                    <td className="p-3">{cls.homeroomTeacher}</td>
-                    <td className="p-3 font-mono">{cls.studentsCount}</td>
                   </tr>
-                ))}
+                ) : (
+                  classPlanProgress.map(({ cls, progress }) => (
+                    <tr key={cls.id} className="hover:bg-muted/20">
+                      <td className="p-3 font-semibold text-foreground">
+                        {cls.grade} · Section {cls.section}
+                      </td>
+                      <td className="p-3">{cls.homeroomTeacher}</td>
+                      <td className="p-3">
+                        <ProgressBar value={progress?.weeklyProgress ?? 0} />
+                      </td>
+                      <td className="p-3">
+                        <ProgressBar value={progress?.annualProgress ?? 0} />
+                      </td>
+                      <td className="p-3">
+                        <Badge
+                          variant={paceStatusBadgeVariant(progress?.status ?? "On Track")}
+                          size="sm"
+                        >
+                          {progress?.status ?? "On Track"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </TablePanel>
+
+          <TablePanel
+            title="Plan progress by teacher"
+            description="Weekly plan approval rate and annual plan approval stage, paced against the department average"
+          >
+            <table className="eskooly-table">
+              <thead>
+                <tr>
+                  <th>Teacher</th>
+                  <th>Weekly plans submitted</th>
+                  <th>Weekly plan progress</th>
+                  <th>Annual plan progress</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teacherPlanProgress.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                      No instructors on the department roster yet.
+                    </td>
+                  </tr>
+                ) : (
+                  teacherPlanProgress.map((row) => (
+                    <tr key={row.teacher.id} className="hover:bg-muted/20">
+                      <td className="p-3 font-semibold text-foreground">
+                        {row.teacher.name}
+                      </td>
+                      <td className="p-3 font-mono">{row.weeklyTotal}</td>
+                      <td className="p-3">
+                        <ProgressBar value={row.weeklyProgress} />
+                      </td>
+                      <td className="p-3">
+                        <ProgressBar value={row.annualProgress} />
+                      </td>
+                      <td className="p-3">
+                        <Badge variant={paceStatusBadgeVariant(row.status)} size="sm">
+                          {row.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </TablePanel>
@@ -794,9 +1034,93 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "attendance" && (
         <div className="space-y-6 animate-fade-in">
+          <Card>
+            <CardContent className="pt-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Student name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Search student..."
+                    value={attStudentName}
+                    onChange={(e) => setAttStudentName(e.target.value)}
+                    className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Grade
+                  </label>
+                  <Select
+                    options={[
+                      { value: "All", label: "All grades" },
+                      ...attendanceGradeOptions.map((g) => ({
+                        value: g,
+                        label: g,
+                      })),
+                    ]}
+                    value={attGrade}
+                    onChange={(e) => setAttGrade(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Section
+                  </label>
+                  <Select
+                    options={[
+                      { value: "All", label: "All sections" },
+                      ...attendanceSectionOptions.map((s) => ({
+                        value: s,
+                        label: `Section ${s}`,
+                      })),
+                    ]}
+                    value={attSection}
+                    onChange={(e) => setAttSection(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    From date
+                  </label>
+                  <input
+                    type="date"
+                    value={attStartDate}
+                    onChange={(e) => setAttStartDate(e.target.value)}
+                    className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    To date
+                  </label>
+                  <input
+                    type="date"
+                    value={attEndDate}
+                    onChange={(e) => setAttEndDate(e.target.value)}
+                    className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAttendanceFilters}
+                  className="text-xs h-8"
+                >
+                  Clear filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <TablePanel
             title="Department attendance log"
-            description={`Recent roll-call entries for ${scope?.subject ?? "subject"} class sections`}
+            description={`Showing ${filteredDepartmentAttendance.length} of ${departmentAttendance.length} entries for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -809,34 +1133,42 @@ export default function DeptHeadPortalApp() {
                 </tr>
               </thead>
               <tbody>
-                {departmentAttendance.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/20">
-                    <td className="p-3 font-semibold text-foreground">
-                      {row.studentName}
-                    </td>
-                    <td className="p-3">
-                      {row.grade} · {row.section}
-                    </td>
-                    <td className="p-3">{row.date}</td>
-                    <td className="p-3">
-                      <Badge
-                        variant={
-                          row.status === "Present"
-                            ? "success"
-                            : row.status === "Absent"
-                              ? "danger"
-                              : "warning"
-                        }
-                        size="sm"
-                      >
-                        {row.status}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-muted-foreground">
-                      {row.remarks ?? "—"}
+                {filteredDepartmentAttendance.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                      No attendance entries match these filters.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredDepartmentAttendance.map((row) => (
+                    <tr key={row.id} className="hover:bg-muted/20">
+                      <td className="p-3 font-semibold text-foreground">
+                        {row.studentName}
+                      </td>
+                      <td className="p-3">
+                        {row.grade} · {row.section}
+                      </td>
+                      <td className="p-3">{row.date}</td>
+                      <td className="p-3">
+                        <Badge
+                          variant={
+                            row.status === "Present"
+                              ? "success"
+                              : row.status === "Absent"
+                                ? "danger"
+                                : "warning"
+                          }
+                          size="sm"
+                        >
+                          {row.status}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {row.remarks ?? "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </TablePanel>
@@ -1045,56 +1377,9 @@ export default function DeptHeadPortalApp() {
         </div>
       )}
 
-      {activeTab === "checkins" && (
-        <div className="space-y-6 animate-fade-in text-left">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                Wellness & satisfaction check-ins
-              </CardTitle>
-              <CardDescription>
-                Teacher wellness and student feedback from {scope?.subject ?? "subject"} instructors
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-2">
-              {departmentCheckIns.length === 0 ? (
-                <p className="text-center py-8 text-sm text-muted-foreground">
-                  No check-ins recorded yet.
-                </p>
-              ) : (
-                departmentCheckIns.map((ch) => (
-                  <div
-                    key={ch.id}
-                    className="p-4 bg-muted/40 border border-border/40 rounded-xl flex justify-between items-start gap-3"
-                  >
-                    <div className="space-y-1.5 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-xs text-foreground">
-                          {ch.respondentName}
-                        </span>
-                        <Badge variant="neutral" size="sm">
-                          {ch.type}
-                        </Badge>
-                      </div>
-                      <p className="text-xxs text-muted-foreground leading-relaxed">
-                        {ch.comment}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-semibold">
-                        Logged: {ch.date}
-                      </p>
-                    </div>
-                    <div className="text-amber-500 text-xs shrink-0">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <span key={i}>{i < ch.rating ? "★" : "☆"}</span>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {activeTab === "feedbacks" && <DeptFeedbackPanel />}
+
+      {activeTab === "checkins" && <DeptWellnessCheckins />}
 
       {activeTab === "settings" && (
         <div className="space-y-6 animate-fade-in">
@@ -1155,16 +1440,95 @@ export default function DeptHeadPortalApp() {
       {/* ==================================================== */}
       {/* TAB 3: CALENDAR SCHEDULING                          */}
       {/* ==================================================== */}
-      {activeTab === "timetable" && (
+      {activeTab === "timetable" && detailClass && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setDetailClass(null)}
+            className="text-xs h-9 gap-1.5"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to classes
+          </Button>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">
+                {detailClass.grade} · Section {detailClass.section}
+              </CardTitle>
+              <CardDescription>
+                {detailClass.name} · Homeroom: {detailClass.homeroomTeacher}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+              <DetailRow label="Class" value={detailClass.name} />
+              <DetailRow label="Homeroom teacher" value={detailClass.homeroomTeacher} />
+              <DetailRow label="Subject block" value={scope?.subject ?? "—"} />
+              <DetailRow label="Enrollment" value={detailClass.studentsCount} />
+            </CardContent>
+          </Card>
+
+          <TablePanel
+            title="Student roster"
+            description={`${scope?.subject ?? "Subject"} class roster for ${detailClass.grade} · Section ${detailClass.section}`}
+          >
+            <table className="eskooly-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>ID</th>
+                  <th>GPA</th>
+                  <th>Attendance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const roster = students.filter(
+                    (s) =>
+                      s.schoolId === scope?.schoolId &&
+                      s.grade === detailClass.grade &&
+                      s.section === detailClass.section,
+                  );
+                  if (roster.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={4} className="p-6 text-center text-sm text-muted-foreground">
+                          No students on record for this class.
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return roster.map((std) => (
+                    <tr key={std.id} className="hover:bg-muted/20">
+                      <td className="p-3 font-semibold text-foreground">
+                        {std.name}
+                      </td>
+                      <td className="p-3 font-mono text-xs">{std.studentId}</td>
+                      <td className="p-3 font-mono font-bold">
+                        {std.gpa.toFixed(2)}
+                      </td>
+                      <td className="p-3">{std.attendanceRate}%</td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </TablePanel>
+        </div>
+      )}
+
+      {activeTab === "timetable" && !detailClass && (
         <div className="space-y-6 animate-fade-in text-left">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold">
-                Calendar Teacher Scheduler
+                Class room view
               </CardTitle>
               <CardDescription>
-                Allocate subject block configurations and section limits for the
-                active term.
+                Browse {scope?.subject ?? "subject"} class sections. Click a class to view its
+                roster and classroom detail.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
@@ -1175,9 +1539,11 @@ export default function DeptHeadPortalApp() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {departmentClasses.map((cls) => (
-                    <div
+                    <button
+                      type="button"
                       key={cls.id}
-                      className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2"
+                      onClick={() => setDetailClass(cls)}
+                      className="text-left p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2 cursor-pointer hover:bg-muted/60 hover:border-primary/40 transition-colors"
                     >
                       <span className="text-lg">🏫</span>
                       <h4 className="text-xs font-bold text-foreground">
@@ -1189,7 +1555,7 @@ export default function DeptHeadPortalApp() {
                       <p className="text-xxs text-primary font-bold">
                         {scope?.subject ?? "Subject"} block · {cls.studentsCount} pupils
                       </p>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -1246,6 +1612,9 @@ export default function DeptHeadPortalApp() {
                   <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">
                     Status
                   </th>
+                  <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40 text-muted-foreground">
@@ -1282,6 +1651,14 @@ export default function DeptHeadPortalApp() {
                       >
                         {tch.status}
                       </span>
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => setDetailTeacher(tch)}
+                        className="text-primary hover:underline font-semibold cursor-pointer"
+                      >
+                        View
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1403,6 +1780,116 @@ export default function DeptHeadPortalApp() {
                 </Button>
               </DialogFooter>
             </form>
+          </Dialog>
+
+          {/* Instructor Detail Dialog */}
+          <Dialog
+            isOpen={detailTeacher !== null}
+            onClose={() => setDetailTeacher(null)}
+            title="Instructor Record"
+            description={detailTeacher ? `${detailTeacher.email} · ${detailTeacher.phone}` : undefined}
+            size="xl"
+          >
+            {detailTeacher && (
+              <div className="space-y-5 pt-2 text-left">
+                <div className="flex items-center gap-3 pb-3 border-b border-border/40">
+                  <Avatar name={detailTeacher.name} size="md" />
+                  <div>
+                    <p className="text-sm font-bold text-foreground">
+                      {detailTeacher.name}
+                    </p>
+                    <Badge
+                      variant={detailTeacher.status === "Active" ? "success" : "neutral"}
+                      size="sm"
+                      className="mt-1"
+                    >
+                      {detailTeacher.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                    Contact
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <DetailRow label="Email" value={detailTeacher.email} />
+                    <DetailRow label="Phone" value={detailTeacher.phone} />
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">
+                    Academic profile
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <DetailRow label="Subjects" value={detailTeacher.subjects.join(", ")} />
+                    <DetailRow label="Grades" value={detailTeacher.grades.join(", ")} />
+                    <DetailRow label="Certification" value={detailTeacher.certification} />
+                    <DetailRow
+                      label="Years of experience"
+                      value={detailTeacher.yearsOfExperience}
+                    />
+                    <DetailRow
+                      label="Training course sync"
+                      value={`${detailTeacher.trainingProgress}%`}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Department activity
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <DetailRow
+                      label="Homeroom classes"
+                      value={
+                        departmentClasses.filter(
+                          (cls) => cls.homeroomTeacher === detailTeacher.name,
+                        ).length || "—"
+                      }
+                    />
+                    <DetailRow
+                      label="Lesson plans"
+                      value={
+                        departmentLessonPlans.filter(
+                          (lp) => lp.teacherName === detailTeacher.name,
+                        ).length || "—"
+                      }
+                    />
+                    <DetailRow
+                      label="Assessments"
+                      value={
+                        departmentAssessments.filter(
+                          (asm) => asm.teacherName === detailTeacher.name,
+                        ).length || "—"
+                      }
+                    />
+                    <DetailRow
+                      label="Wellness check-ins"
+                      value={
+                        departmentCheckIns.filter(
+                          (c) => c.respondentName === detailTeacher.name,
+                        ).length || "—"
+                      }
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter className="mt-4 border-t border-border/20 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDetailTeacher(null)}
+                    className="text-xs h-9"
+                  >
+                    Close
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
           </Dialog>
         </div>
       )}

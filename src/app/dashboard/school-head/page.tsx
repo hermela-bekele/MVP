@@ -12,13 +12,15 @@ import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
 
 // Decomposed Sub-components
 import { OverviewDashboard } from '@/components/dashboard/school-head/OverviewDashboard';
-import { PerformanceReports } from '@/components/dashboard/school-head/PerformanceReports';
 import { StudentManagement } from '@/components/dashboard/school-head/StudentManagement';
 import { EmployeeManagement } from '@/components/dashboard/school-head/EmployeeManagement';
 import { WellnessCheckins } from '@/components/dashboard/school-head/WellnessCheckins';
 import { SettingsPanel } from '@/components/dashboard/school-head/SettingsPanel';
-import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
-import { SchoolHeadResourcesPanel } from '@/components/dashboard/school-head/SchoolHeadResourcesPanel';
+import { MoeUpdatesPanel } from '@/components/dashboard/school-head/MoeUpdatesPanel';
+import { MoeMessagesPanel } from '@/components/dashboard/school-head/MoeMessagesPanel';
+import { HrOverviewPanel } from '@/components/dashboard/school-head/HrOverviewPanel';
+import { RegistrarOverviewPanel } from '@/components/dashboard/school-head/RegistrarOverviewPanel';
+import { FinanceOverviewPanel } from '@/components/dashboard/school-head/FinanceOverviewPanel';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { CommunicationModule } from '@/components/dashboard/communication/CommunicationModule';
 import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
@@ -59,14 +61,16 @@ export default function SchoolHeadPortalPage() {
     const base = [{ label: 'School Head Portal', href: '#' }];
     switch (activeTab) {
       case 'dashboard': return [...base, { label: 'Overview' }];
-      case 'reports': return [...base, { label: 'Performance Reports' }];
-      case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
-      case 'resources': return [...base, { label: 'School Resources' }];
       case 'manage-students': return [...base, { label: 'Student Directory' }];
       case 'manage-employees': return [...base, { label: 'Faculty Directory' }];
       case 'manage-classes': return [...base, { label: 'Classes Registry' }];
       case 'manage-departments': return [...base, { label: 'Department Registry' }];
       case 'manage-attendance': return [...base, { label: 'Attendance Ledger' }];
+      case 'hr-overview': return [...base, { label: 'HR Overview' }];
+      case 'registrar-overview': return [...base, { label: 'Registrar Overview' }];
+      case 'finance-overview': return [...base, { label: 'Finance Overview' }];
+      case 'moe-updates': return [...base, { label: 'MOE Updates & Compliance' }];
+      case 'moe-messages': return [...base, { label: 'Message MOE' }];
       case 'teachers-development': return [...base, { label: 'Professional Development' }];
       case 'communication': return [...base, { label: 'Communication' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
@@ -107,18 +111,6 @@ export default function SchoolHeadPortalPage() {
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },
-    reports: {
-      title: 'Performance Reports',
-      subtitle: 'Analyze academic indicators, curriculum passing rates, and class averages.',
-    },
-    'academic-calendar': {
-      title: 'Academic Calendar',
-      subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.',
-    },
-    resources: {
-      title: 'School Resources',
-      subtitle: 'Upload and disseminate school-wide pedagogy and policy materials.',
-    },
     'manage-students': {
       title: 'Student Directory',
       subtitle: 'View active student credentials, parent contact details, and grade statistics.',
@@ -139,6 +131,26 @@ export default function SchoolHeadPortalPage() {
       title: 'Attendance Ledger',
       subtitle: 'View student classroom roll-call rates and staff check-in history.',
     },
+    'hr-overview': {
+      title: 'HR Overview',
+      subtitle: 'Cross-functional read-only view of staff leave and payroll status.',
+    },
+    'registrar-overview': {
+      title: 'Registrar Overview',
+      subtitle: 'Cross-functional read-only view of registration and enrollment activity.',
+    },
+    'finance-overview': {
+      title: 'Finance Overview',
+      subtitle: 'Cross-functional read-only view of school billing and collections.',
+    },
+    'moe-updates': {
+      title: 'MOE Updates & Compliance',
+      subtitle: 'Ministry of Education circulars and compliance milestones for this academic year.',
+    },
+    'moe-messages': {
+      title: 'Message MOE',
+      subtitle: 'Direct communication channel with the Ministry of Education regional desk.',
+    },
     'teachers-development': {
       title: 'Professional Development',
       subtitle: 'Monitor MOE training participation rates and upload pedagogy instructional guidelines.',
@@ -149,7 +161,7 @@ export default function SchoolHeadPortalPage() {
     },
     'manage-checkins': {
       title: 'Wellness Check-ins',
-      subtitle: 'Monitor environmental satisfaction index, review teacher burnout variables, and capture parent feedback loops.',
+      subtitle: 'Recurrent questionnaire towards general challenges and school improvement ideas.',
     },
     'account-settings': {
       title: 'Portal Settings',
@@ -165,14 +177,10 @@ export default function SchoolHeadPortalPage() {
     },
   };
 
-  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
-
   const meta = tabMeta[activeTab] ?? { title: 'School Head Portal' };
 
   const shellActions =
-    activeTab === 'academic-calendar'
-      ? calendarHeaderActions
-      : activeTab === 'manage-checkins' ? (
+    activeTab === 'manage-checkins' ? (
       <Button
         variant="organic"
         size="sm"
@@ -196,16 +204,6 @@ export default function SchoolHeadPortalPage() {
       showPageHeader={activeTab !== 'dashboard'}
     >
           {activeTab === 'dashboard' && <OverviewDashboard />}
-
-          {/* 2. Performance Reports */}
-          {activeTab === 'reports' && <PerformanceReports />}
-
-          {/* 3. Academic Calendar & AI Timetable */}
-          {activeTab === 'academic-calendar' && (
-            <SchoolHeadAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
-          )}
-
-          {activeTab === 'resources' && <SchoolHeadResourcesPanel />}
 
           {/* Communication */}
           {activeTab === 'communication' && (
@@ -350,6 +348,15 @@ export default function SchoolHeadPortalPage() {
               </TablePanel>
             </div>
           )}
+
+          {/* HR / Registrar / Finance cross-functional overviews (Administrative Engine) */}
+          {activeTab === 'hr-overview' && <HrOverviewPanel />}
+          {activeTab === 'registrar-overview' && <RegistrarOverviewPanel />}
+          {activeTab === 'finance-overview' && <FinanceOverviewPanel />}
+
+          {/* Regulatory Engine: MOE updates & communication */}
+          {activeTab === 'moe-updates' && <MoeUpdatesPanel />}
+          {activeTab === 'moe-messages' && <MoeMessagesPanel />}
 
           {/* 11. Teacher Development */}
           {activeTab === 'teachers-development' && (

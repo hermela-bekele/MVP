@@ -28,15 +28,6 @@ function DashboardCommandPalette() {
         label: 'Toggle Dark/Light Mode',
         group: 'System Preferences',
         action: () => toggleTheme(),
-      },
-      {
-        id: 'logout',
-        label: 'Sign Out Session',
-        group: 'Account',
-        action: () => {
-          logout();
-          router.push('/login');
-        }
       }
     ];
 
@@ -88,13 +79,16 @@ function DashboardCommandPalette() {
     if (activeRole === 'school-head') {
       const schoolHeadTabs = [
         { id: 'dashboard', label: 'Overview Dashboard' },
-        { id: 'reports', label: 'Performance Reports' },
-        { id: 'academic-calendar', label: 'Academic Calendar' },
         { id: 'manage-students', label: 'View Students' },
         { id: 'manage-employees', label: 'View Employees' },
         { id: 'manage-classes', label: 'View Classes' },
         { id: 'manage-departments', label: 'View Departments' },
         { id: 'manage-attendance', label: 'View Attendance' },
+        { id: 'hr-overview', label: 'HR Overview' },
+        { id: 'registrar-overview', label: 'Registrar Overview' },
+        { id: 'finance-overview', label: 'Finance Overview' },
+        { id: 'moe-updates', label: 'MOE Updates & Compliance' },
+        { id: 'moe-messages', label: 'Message MOE' },
         { id: 'teachers-development', label: 'Teacher Development' },
         { id: 'manage-checkins', label: 'Wellness Check-ins' },
         { id: 'account-settings', label: 'Portal Settings' },

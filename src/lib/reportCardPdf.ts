@@ -1,5 +1,5 @@
 import { renderNodeToPDF } from './pdfUtils';
-import { resolveLetterGrade, type ReportCardTemplate, type SubjectReportRow } from './vicePrincipalPortal';
+import { resolveLetterGrade, type ReportCardTemplate, type SubjectReportRow } from './headOfAcademicsPortal';
 
 export interface RenderableReportDoc {
   kind: 'report-card' | 'transcript';

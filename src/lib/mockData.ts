@@ -1105,6 +1105,8 @@ export interface TeacherFeedback {
   studentId?: string;
   studentName?: string;
   direction: 'to_teacher' | 'from_teacher';
+  /** Who authored a 'to_teacher' entry. Missing on legacy rows is treated as 'department-head'. */
+  authorRole?: 'student' | 'parent' | 'peer' | 'department-head';
   authorName: string;
   subject: string;
   comment: string;
@@ -1573,11 +1575,49 @@ export const mockTeacherFeedbacks: TeacherFeedback[] = [
     id: 'tfb-1',
     teacherId: 'tch-1',
     direction: 'to_teacher',
+    authorRole: 'peer',
     authorName: 'Ato Demis Khabte',
     subject: 'Lesson plan — Unit 3',
     comment: 'Strong pedagogical sequencing. Consider adding a formative check in session 2.',
     rating: 5,
     date: '2026-05-18',
+  },
+  {
+    id: 'tfb-4',
+    teacherId: 'tch-1',
+    direction: 'to_teacher',
+    authorRole: 'department-head',
+    authorName: 'Ato Belayneh Kassahun',
+    subject: 'Term 2 classroom observation',
+    comment: 'Instructional pacing has improved since last term. Keep using worked examples before independent practice.',
+    rating: 4,
+    date: '2026-06-02',
+  },
+  {
+    id: 'tfb-5',
+    teacherId: 'tch-1',
+    studentId: 'std-2',
+    studentName: 'Yonas Kassa',
+    direction: 'to_teacher',
+    authorRole: 'parent',
+    authorName: 'Kebede Abebe',
+    subject: 'Support with attendance',
+    comment: 'Thank you for following up on Yonas — the extra tutorial sessions have made a real difference.',
+    rating: 4,
+    date: '2026-06-05',
+  },
+  {
+    id: 'tfb-6',
+    teacherId: 'tch-1',
+    studentId: 'std-1',
+    studentName: 'Almaz Kebede',
+    direction: 'to_teacher',
+    authorRole: 'student',
+    authorName: 'Almaz Kebede',
+    subject: 'Great explanations in class',
+    comment: 'The worked examples before group work really help me understand the steps before trying them alone.',
+    rating: 5,
+    date: '2026-06-06',
   },
   {
     id: 'tfb-2',
