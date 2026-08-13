@@ -14,7 +14,7 @@ import {
   filterDeptTeachingNotes,
   resolveDeptHeadScope,
 } from '@/lib/departmentHead';
-import type { Assessment, GraspOutcome, LessonDelivery, TeachingNote } from '@/lib/mockData';
+import type { Assessment, GraspOutcome, LessonDelivery, LessonPlan, TeachingNote } from '@/lib/mockData';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import {
   AisBtnPrimary,
