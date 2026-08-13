@@ -1900,6 +1900,7 @@ export default function DeptHeadPortalApp() {
       {activeTab === "assessments" && (
         <div className="space-y-6 animate-fade-in text-left">
           <DeptAssessmentCreatePanel />
+          <DeptGapAnalysisPanel />
           <TablePanel
             title="Department assessment desk"
             description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."

@@ -8,13 +8,13 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { buildLessonPlanContext, generateAssessmentWithAI, questionLimitsForAssessmentType } from '@/lib/ai';
+import { buildLessonPlanContext, generateAssessmentWithAI, questionLimitsForAssessmentType, getWeeklyPlanSessionTopicOptions, parseWeeklyPlanDetail } from '@/lib/ai';
 import { GRADE_OPTIONS, graspOutcomeLabel, normalizeGradeLabel } from '@/lib/teacherPortal';
 import {
   filterDeptTeachingNotes,
   resolveDeptHeadScope,
 } from '@/lib/departmentHead';
-import type { Assessment, GraspOutcome, LessonDelivery, TeachingNote } from '@/lib/mockData';
+import type { Assessment, GraspOutcome, LessonDelivery, LessonPlan, TeachingNote } from '@/lib/mockData';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import {
   AisBtnPrimary,
@@ -45,6 +45,14 @@ type DeliveredTopicOption = {
   delivery: LessonDelivery;
   planTitle: string;
   planContext: string;
+  planId?: string;
+  sessions?: {
+    sessionNumber: number;
+    topic: string;
+    subtopic: string;
+    label: string;
+    context: string;
+  }[];
 };
 
 function shortLabel(text: string, max = 42) {
@@ -87,7 +95,9 @@ export function DeptAssessmentCreatePanel() {
   const [type, setType] = useState<Assessment['type']>('Mid Exam');
   const [grade, setGrade] = useState('Grade 11');
   const [difficulty, setDifficulty] = useState<Assessment['difficulty']>('Medium');
-  const [topicValue, setTopicValue] = useState('');
+  const [topicValues, setTopicValues] = useState<string[]>([]);
+  const [selectAllSessions, setSelectAllSessions] = useState(false);
+  const [selectedSessionsByPlan, setSelectedSessionsByPlan] = useState<Record<string, number[]>>({});
   const [numQuestions, setNumQuestions] = useState(
     () => questionLimitsForAssessmentType('Mid Exam').default,
   );
@@ -119,6 +129,25 @@ export function DeptAssessmentCreatePanel() {
       const fullLabel = `${note.topic} · ${planTitle} · ${graspOutcomeLabel(delivery.graspOutcome)}${
         teacher ? ` · ${teacher.name}` : ''
       }`;
+      
+      // Extract sessions from the lesson plan if available
+      let sessions: DeliveredTopicOption['sessions'] = undefined;
+      if (plan) {
+        const sessionOptions = getWeeklyPlanSessionTopicOptions(plan);
+        const weeklyPlan = parseWeeklyPlanDetail(plan);
+        if (weeklyPlan?.sessions) {
+          sessions = weeklyPlan.sessions.map((s) => ({
+            sessionNumber: s.sessionNumber,
+            topic: s.subTopic || s.mainTopic || plan.title,
+            subtopic: s.textbookPages || '',
+            label: `Session ${s.sessionNumber}: ${s.subTopic || s.mainTopic}${
+              s.textbookPages ? ` (${s.textbookPages})` : ''
+            }`,
+            context: sessionOptions.find((opt) => opt.value === String(s.sessionNumber))?.context || '',
+          }));
+        }
+      }
+      
       options.push({
         value: note.id,
         label: `${shortLabel(note.topic, 36)} · ${shortLabel(planTitle, 28)} · ${graspOutcomeLabel(delivery.graspOutcome)}`,
@@ -126,6 +155,8 @@ export function DeptAssessmentCreatePanel() {
         note,
         delivery,
         planTitle,
+        planId: plan?.id,
+        sessions,
         planContext: plan
           ? buildLessonPlanContext(plan)
           : `Teaching note: ${note.title}\nTopic: ${note.topic}\n${note.contentSummary}`,
@@ -135,30 +166,38 @@ export function DeptAssessmentCreatePanel() {
     return options.sort((a, b) => b.delivery.deliveredAt.localeCompare(a.delivery.deliveredAt));
   }, [scope, teachingNotes, teachers, lessonDeliveries, lessonPlans, grade]);
 
-  const selected = topicOptions.find((o) => o.value === topicValue) ?? null;
-  const selectedPlan = selected
-    ? lessonPlans.find(
-        (p) =>
-          p.id === selected.note.lessonPlanId || p.id === selected.delivery.lessonPlanId,
-      )
-    : undefined;
+  const selectedTopics = topicOptions.filter((o) => topicValues.includes(o.value));
+  const selectedPlans = useMemo(() => {
+    const planIds = new Set(
+      selectedTopics
+        .map((t) => t.note.lessonPlanId || t.delivery.lessonPlanId)
+        .filter(Boolean)
+    );
+    return Array.from(planIds)
+      .map((id) => lessonPlans.find((p) => p.id === id))
+      .filter(Boolean) as LessonPlan[];
+  }, [selectedTopics, lessonPlans]);
 
   useEffect(() => {
-    setTopicValue('');
+    setTopicValues([]);
+    setSelectAllSessions(false);
+    setSelectedSessionsByPlan({});
   }, [grade]);
 
   useEffect(() => {
-    if (!topicValue && topicOptions[0]) {
-      setTopicValue(topicOptions[0].value);
-    } else if (topicValue && !topicOptions.some((o) => o.value === topicValue)) {
-      setTopicValue(topicOptions[0]?.value ?? '');
+    if (!topicValues.length && topicOptions[0]) {
+      setTopicValues([topicOptions[0].value]);
+    } else if (topicValues.length && !topicValues.every((v) => topicOptions.some((o) => o.value === v))) {
+      setTopicValues(topicOptions.length ? [topicOptions[0]?.value ?? ''] : []);
     }
-  }, [topicOptions, topicValue]);
+  }, [topicOptions, topicValues]);
 
   const reset = () => {
     setOpen(false);
     setTitle('');
-    setTopicValue('');
+    setTopicValues([]);
+    setSelectAllSessions(false);
+    setSelectedSessionsByPlan({});
     setContent('');
     setType('Mid Exam');
     setNumQuestions(questionLimitsForAssessmentType('Mid Exam').default);
@@ -166,39 +205,83 @@ export function DeptAssessmentCreatePanel() {
   };
 
   const handleGenerate = async () => {
-    if (!selected?.topic.trim()) return;
+    if (!selectedTopics.length) return;
     setGenerating(true);
     try {
+      // Build context from selected topics and their specific sessions if any
+      const combinedParts: string[] = [];
+      
+      for (const topic of selectedTopics) {
+        const planId = topic.planId;
+        const selectedSessions = planId ? selectedSessionsByPlan[planId] : undefined;
+        
+        if (selectedSessions && selectedSessions.length > 0 && topic.sessions) {
+          // Use specific sessions from this plan
+          for (const sessionNum of selectedSessions) {
+            const session = topic.sessions.find((s) => s.sessionNumber === sessionNum);
+            if (session) {
+              combinedParts.push(`${session.topic} (${session.label})`);
+            }
+          }
+        } else {
+          // Use the whole topic
+          combinedParts.push(topic.topic);
+        }
+      }
+      
+      const combinedTopic = combinedParts.join('; ');
+      const combinedContext = selectedTopics
+        .map((t) => {
+          const planId = t.planId;
+          const selectedSessions = planId ? selectedSessionsByPlan[planId] : undefined;
+          
+          let contextParts = [
+            `Classroom delivery: ${graspOutcomeLabel(t.delivery.graspOutcome)}`,
+            t.delivery.challengeText ? `Teacher challenge note: ${t.delivery.challengeText}` : '',
+          ];
+          
+          // Add session-specific context if sessions are selected
+          if (selectedSessions && selectedSessions.length > 0 && t.sessions) {
+            contextParts.unshift('Selected sessions:');
+            for (const sessionNum of selectedSessions) {
+              const session = t.sessions.find((s) => s.sessionNumber === sessionNum);
+              if (session?.context) {
+                contextParts.push(session.context);
+              }
+            }
+          } else {
+            // Use the general plan context
+            contextParts.unshift(t.planContext);
+          }
+          
+          return contextParts.filter(Boolean).join('\n\n');
+        })
+        .join('\n\n---\n\n');
+      
       const text = wrapAssessmentMarkdown({
         body: await generateAssessmentWithAI(
           type,
-          selected.topic.trim(),
+          combinedTopic.trim(),
           grade,
           subject,
           difficulty,
           numQuestions,
           questionFormat,
-          [
-            selected.planContext,
-            `Classroom delivery: ${graspOutcomeLabel(selected.delivery.graspOutcome)}`,
-            selected.delivery.challengeText
-              ? `Teacher challenge note: ${selected.delivery.challengeText}`
-              : '',
-          ]
-            .filter(Boolean)
-            .join('\n\n'),
+          combinedContext,
           'differentiated',
         ),
         assessmentType: type,
         questionFormat,
         numQuestions,
-        topic: selected.topic.trim(),
+        topic: combinedTopic.trim(),
         grade,
         subject,
       });
       setContent(text);
       if (!title.trim()) {
-        setTitle(`${grade} ${subject} — ${type}: ${selected.topic.trim()}`);
+        const sessionCount = Object.values(selectedSessionsByPlan).reduce((sum, sessions) => sum + sessions.length, 0);
+        const totalSessions = sessionCount > 0 ? sessionCount : selectedTopics.length;
+        setTitle(`${grade} ${subject} — ${type}: ${totalSessions === 1 ? selectedTopics[0].topic : `${totalSessions} sessions`}`);
       }
     } catch {
       alert('Failed to generate assessment. Try again.');
@@ -238,8 +321,8 @@ export function DeptAssessmentCreatePanel() {
           <div>
             <CardTitle className="text-sm font-semibold">Generate department exams</CardTitle>
             <CardDescription>
-              Topics come from approved teaching notes teachers marked as delivered — with the
-              linked weekly lesson plan. Published immediately; quizzes stay with teachers.
+              Topics come from teaching notes teachers marked as delivered — with the
+              linked weekly lesson plan. Select one or all sessions to generate assessments.
             </CardDescription>
           </div>
           <Button
@@ -330,88 +413,185 @@ export function DeptAssessmentCreatePanel() {
             onChange={(e) => setTitle(e.target.value)}
             required
           />
-          <Select
-            label="Topic (delivered teaching notes)"
-            options={
-              topicOptions.length
-                ? topicOptions.map((o) => ({
-                    value: o.value,
-                    label: o.label,
-                    title: o.fullLabel,
-                  }))
-                : [
-                    {
-                      value: '',
-                      label: 'No delivered notes for this grade yet',
-                    },
-                  ]
-            }
-            value={topicValue}
-            onChange={(e) => setTopicValue(e.target.value)}
-            disabled={!topicOptions.length}
-          />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold uppercase text-muted-foreground">
+                Topics (delivered teaching notes)
+              </label>
+              {topicOptions.length > 1 && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectAllSessions}
+                    onChange={(e) => {
+                      setSelectAllSessions(e.target.checked);
+                      setTopicValues(e.target.checked ? topicOptions.map((o) => o.value) : []);
+                    }}
+                    className="rounded border-input text-primary focus:ring-ring"
+                  />
+                  Select all ({topicOptions.length})
+                </label>
+              )}
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
+              {!topicOptions.length ? (
+                <p className="text-xs text-muted-foreground">
+                  No delivered notes for this grade yet
+                </p>
+              ) : (
+                topicOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-start gap-2 cursor-pointer hover:bg-muted/30 rounded px-2 py-1"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={topicValues.includes(option.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setTopicValues([...topicValues, option.value]);
+                        } else {
+                          setTopicValues(topicValues.filter((v) => v !== option.value));
+                          setSelectAllSessions(false);
+                        }
+                      }}
+                      className="mt-0.5 rounded border-input text-primary focus:ring-ring"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" title={option.topic}>
+                        {option.topic}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate" title={option.fullLabel}>
+                        {option.planTitle} · {graspOutcomeLabel(option.delivery.graspOutcome)}
+                      </p>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
           {!topicOptions.length ? (
             <p className="text-xs text-muted-foreground">
               Topics appear after teachers get notes approved and mark them delivered (grasped /
               majority / challenged).
             </p>
-          ) : selected ? (
-            <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+          ) : selectedTopics.length > 0 ? (
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <p
-                  className="text-sm font-semibold text-foreground max-w-full truncate"
-                  title={selected.topic}
-                >
-                  {selected.topic}
+                <p className="text-sm font-semibold text-foreground">
+                  {selectedTopics.length} session{selectedTopics.length === 1 ? '' : 's'} selected
                 </p>
-                <Badge variant={graspBadgeVariant(selected.delivery.graspOutcome)} size="sm">
-                  {graspOutcomeLabel(selected.delivery.graspOutcome)}
-                </Badge>
+                {selectedTopics.map((topic) => (
+                  <Badge key={topic.value} variant={graspBadgeVariant(topic.delivery.graspOutcome)} size="sm">
+                    {graspOutcomeLabel(topic.delivery.graspOutcome)}
+                  </Badge>
+                ))}
                 <Badge variant="success" size="sm">
                   Delivered
                 </Badge>
               </div>
-              <p
-                className="text-xs text-muted-foreground truncate"
-                title={selected.note.title}
-              >
-                Note: {selected.note.title}
-              </p>
-              {selectedPlan ? (
-                <div className="rounded-lg border border-border/40 bg-card p-3 space-y-1.5">
+              {selectedPlans.length > 0 && (
+                <div className="space-y-2">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Linked weekly lesson plan
+                    Linked weekly lesson plan{selectedPlans.length === 1 ? '' : 's'}
                   </p>
-                  <p
-                    className="text-sm font-semibold truncate"
-                    title={selectedPlan.title}
-                  >
-                    {selectedPlan.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions}{' '}
-                    session{selectedPlan.sessions === 1 ? '' : 's'}
-                    {selectedPlan.teacherName ? ` · ${selectedPlan.teacherName}` : ''}
-                  </p>
-                  {selectedPlan.objectives?.length > 0 && (
-                    <ul className="list-disc pl-4 text-xs text-muted-foreground space-y-0.5">
-                      {selectedPlan.objectives.slice(0, 3).map((obj) => (
-                        <li key={obj}>{obj}</li>
-                      ))}
-                    </ul>
-                  )}
+                  {selectedPlans.map((plan) => {
+                    const topicWithPlan = selectedTopics.find((t) => t.planId === plan.id);
+                    const sessions = topicWithPlan?.sessions || [];
+                    const selectedSessions = selectedSessionsByPlan[plan.id] || [];
+                    
+                    return (
+                      <div key={plan.id} className="rounded-lg border border-border/40 bg-card p-3 space-y-2">
+                        <div>
+                          <p className="text-sm font-semibold truncate" title={plan.title}>
+                            {plan.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {plan.grade} · {plan.subject} · {plan.sessions} session{plan.sessions === 1 ? '' : 's'}
+                            {plan.teacherName ? ` · ${plan.teacherName}` : ''}
+                          </p>
+                        </div>
+                        
+                        {sessions.length > 0 && (
+                          <div className="space-y-1 pt-2 border-t border-border/30">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                Select Sessions ({sessions.length} available)
+                              </p>
+                              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSessions.length === sessions.length}
+                                  onChange={(e) => {
+                                    setSelectedSessionsByPlan((prev) => ({
+                                      ...prev,
+                                      [plan.id]: e.target.checked
+                                        ? sessions.map((s) => s.sessionNumber)
+                                        : [],
+                                    }));
+                                  }}
+                                  className="rounded border-input text-primary focus:ring-ring"
+                                />
+                                All
+                              </label>
+                            </div>
+                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {sessions.map((session) => (
+                                <label
+                                  key={session.sessionNumber}
+                                  className="flex items-start gap-2 cursor-pointer hover:bg-muted/20 rounded px-2 py-1 text-xs"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSessions.includes(session.sessionNumber)}
+                                    onChange={(e) => {
+                                      setSelectedSessionsByPlan((prev) => {
+                                        const current = prev[plan.id] || [];
+                                        return {
+                                          ...prev,
+                                          [plan.id]: e.target.checked
+                                            ? [...current, session.sessionNumber]
+                                            : current.filter((n) => n !== session.sessionNumber),
+                                        };
+                                      });
+                                    }}
+                                    className="mt-0.5 rounded border-input text-primary focus:ring-ring"
+                                  />
+                                  <span className="flex-1">{session.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground pt-1">
+                              {selectedSessions.length === 0
+                                ? 'All sessions will be included'
+                                : `${selectedSessions.length} session${selectedSessions.length === 1 ? '' : 's'} selected`}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {plan.objectives?.length > 0 && (
+                          <div className="pt-2 border-t border-border/30">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
+                              Plan Objectives
+                            </p>
+                            <ul className="list-disc pl-4 text-xs text-muted-foreground space-y-0.5">
+                              {plan.objectives.slice(0, 2).map((obj) => (
+                                <li key={obj}>{obj}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  This note is not linked to a weekly lesson plan.
-                </p>
               )}
             </div>
           ) : null}
           <div className="flex justify-end">
             <AisBtnPrimary
               type="button"
-              disabled={generating || !selected?.topic.trim()}
+              disabled={generating || selectedTopics.length === 0}
               onClick={() => void handleGenerate()}
             >
               <Sparkles className="h-3.5 w-3.5" />

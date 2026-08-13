@@ -26,7 +26,7 @@ import { CommunicationModule } from '@/components/dashboard/communication/Commun
 import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
 import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
-
+import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
 export default function SchoolHeadPortalPage() {
   const {
     departments,
@@ -77,6 +77,7 @@ export default function SchoolHeadPortalPage() {
       case 'account-settings': return [...base, { label: 'Portal Settings' }];
       case 'leadership-development': return [...base, { label: 'ELEP Leadership Development' }];
       case 'profile': return [...base, { label: 'My Profile' }];
+      case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
       default: return base;
     }
   };
@@ -108,6 +109,9 @@ export default function SchoolHeadPortalPage() {
 
   // Communication Tab State (school head only ever browses channels — no Feedback sub-tab)
   const [commMainTab] = useState<CommunicationMainTab>('channels');
+
+  // Academic Calendar Tab State
+  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },
@@ -175,12 +179,18 @@ export default function SchoolHeadPortalPage() {
       title: 'My Profile',
       subtitle: 'Your school head account information.',
     },
+    'academic-calendar': {
+      title: 'Academic Calendar',
+      subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.',
+    },
   };
 
   const meta = tabMeta[activeTab] ?? { title: 'School Head Portal' };
 
   const shellActions =
-    activeTab === 'manage-checkins' ? (
+    activeTab === 'academic-calendar'
+      ? calendarHeaderActions
+      : activeTab === 'manage-checkins' ? (
       <Button
         variant="organic"
         size="sm"
@@ -507,7 +517,12 @@ export default function SchoolHeadPortalPage() {
             </div>
           )}
 
-          {/* 15. Profile */}
+          {/* 15. Academic Calendar & AI Timetable */}
+          {activeTab === 'academic-calendar' && (
+            <SchoolHeadAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
+          )}
+
+          {/* 16. Profile */}
           {activeTab === 'profile' && (
             <div className="space-y-6 animate-fade-in text-left">
               <PortalProfileCard

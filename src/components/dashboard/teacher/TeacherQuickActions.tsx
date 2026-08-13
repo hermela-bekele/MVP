@@ -34,14 +34,14 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: <PenLine className="h-4 w-4" aria-hidden />,
   },
   {
-    tab: 'teaching-notes',
+    tab: 'lesson-notes',
     event: 'open-teacher-create-note',
     label: 'New teaching note',
     description: 'Create a note with AI assist',
     icon: <BookOpen className="h-4 w-4" aria-hidden />,
   },
   {
-    tab: 'teaching-notes',
+    tab: 'lesson-plans',
     event: 'open-teacher-lesson-plan',
     label: 'Create lesson plan',
     description: 'Draft a new lesson plan',

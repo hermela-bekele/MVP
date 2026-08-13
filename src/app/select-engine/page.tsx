@@ -67,7 +67,17 @@ export default function SelectEnginePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[hsl(var(--dashboard-bg))] p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[hsl(var(--dashboard-bg))] p-6 login-orange-theme">
+      <style jsx global>{`
+        .login-orange-theme {
+          --primary: 33.8 96.2% 69.2%;
+          --primary-foreground: 0 0% 0%;
+          --primary-light: 33.8 96.2% 79.2%;
+          --accent: 33.8 96.2% 69.2%;
+          --accent-foreground: 0 0% 0%;
+          --ring: 33.8 96.2% 69.2%;
+        }
+      `}</style>
       <div className="w-full max-w-3xl">
         <div className="text-center mb-8">
           <div className="mx-auto h-11 w-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-md mb-4">

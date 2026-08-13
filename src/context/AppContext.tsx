@@ -805,14 +805,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const approveLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
     void api.approveLessonPlan(id, role, comments).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Updated', `Lesson plan "${(lp as LessonPlan).title}" was approved.`, 'success', '/dashboard/teacher/teaching-notes');
+      addNotification('Lesson Plan Updated', `Lesson plan "${(lp as LessonPlan).title}" was approved.`, 'success', '/dashboard/teacher/lesson-plans');
     }).catch(() => void refreshFromApi());
   };
 
   const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
     void api.rejectLessonPlan(id, role, comments).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert', '/dashboard/teacher/teaching-notes');
+      addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert', '/dashboard/teacher/lesson-plans');
     }).catch(() => void refreshFromApi());
   };
 
@@ -1438,7 +1438,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const note = teachingNotes.find((n) => n.id === id);
     updateTeachingNote(id, { status: 'Approved', deptComments: comments });
     if (note) {
-      addNotification('Lesson Note Approved', `"${note.title}" approved for classroom use.`, 'success', '/dashboard/teacher/teaching-notes');
+      addNotification('Lesson Note Approved', `"${note.title}" approved for classroom use.`, 'success', '/dashboard/teacher/lesson-notes');
     }
   };
 

@@ -30,6 +30,7 @@ import {
   type AnnualLessonPlanResult,
 } from '@/lib/annualLessonPlan';
 import { AnnualLessonPlanTable } from '@/components/ui/AnnualLessonPlanTable';
+import { toast as showToast, dismissToast } from '@/components/ui/toast';
 import {
   ANNUAL_PLAN_SUBJECT_OPTIONS,
   inferSubjectStream,
@@ -102,14 +103,17 @@ export const DeptAnnualPlanPanel: React.FC<{
 
   const schoolId = currentUser?.schoolId;
   const publishedCalendar = useMemo(
-    () =>
-      academicCalendars.find(
-        (c) =>
-          c.status === 'Published' &&
-          (!schoolId || c.schoolId === schoolId),
-      ) ??
-      academicCalendars.find((c) => c.status === 'Published') ??
-      null,
+    () => {
+      // First try to find a calendar for this specific school
+      if (schoolId) {
+        const schoolCalendar = academicCalendars.find(
+          (c) => c.status === 'Published' && c.schoolId === schoolId
+        );
+        if (schoolCalendar) return schoolCalendar;
+      }
+      // Fallback: show any published calendar
+      return academicCalendars.find((c) => c.status === 'Published') ?? null;
+    },
     [academicCalendars, schoolId],
   );
 
@@ -257,6 +261,16 @@ export const DeptAnnualPlanPanel: React.FC<{
   };
 
   const handleGenerate = async () => {
+    if (alreadyPublishedForSelection) {
+      addNotification(
+        'Already generated',
+        `An annual plan for ${grade} ${planSubject} already exists — opening it instead.`,
+        'info',
+      );
+      scrollToPublished(alreadyPublishedForSelection.id);
+      return;
+    }
+
     if (!publishedCalendar) {
       addNotification(
         'Calendar required',
@@ -289,6 +303,7 @@ export const DeptAnnualPlanPanel: React.FC<{
 
     setGenerating(true);
     setAnnualPlan(null);
+    const batchToastId = `annual-plan-batch-${Date.now()}`;
     try {
       const nonTeaching = summarizeNonTeachingWindows(publishedCalendar.events);
       const shortWeeks = weeks
@@ -331,11 +346,13 @@ export const DeptAnnualPlanPanel: React.FC<{
         const totalBatches = Math.ceil(weeks.length / WEEK_BATCH_SIZE);
         const isFirstBatch = i === 0;
 
-        addNotification(
-          'Generating…',
-          `Annual plan batch ${batchNum} of ${totalBatches} (${batch.length} weeks)`,
-          'info',
-        );
+        showToast({
+          id: batchToastId,
+          title: 'Generating…',
+          description: `Annual plan batch ${batchNum} of ${totalBatches} (${batch.length} weeks)`,
+          variant: 'info',
+          durationMs: 15000,
+        });
 
         const topicHint = isFirstBatch
           ? [
@@ -395,11 +412,13 @@ export const DeptAnnualPlanPanel: React.FC<{
             const retryable =
               /timeout|timed out|handshake|ssl|500|network|fetch/i.test(msg);
             if (!retryable || attempt === 3) break;
-            addNotification(
-              'Retrying…',
-              `Batch ${batchNum} network error — attempt ${attempt + 1}/3`,
-              'alert',
-            );
+            showToast({
+              id: batchToastId,
+              title: 'Retrying…',
+              description: `Batch ${batchNum} network error — attempt ${attempt + 1}/3`,
+              variant: 'alert',
+              durationMs: 15000,
+            });
             await new Promise((r) => setTimeout(r, 3000 * attempt));
           }
         }
@@ -453,6 +472,7 @@ export const DeptAnnualPlanPanel: React.FC<{
         },
       );
 
+      dismissToast(batchToastId);
       setAnnualPlan(result);
       addNotification(
         'Annual plan ready',
@@ -463,6 +483,7 @@ export const DeptAnnualPlanPanel: React.FC<{
         generatedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     } catch (err) {
+      dismissToast(batchToastId);
       const msg = err instanceof Error ? err.message : 'Could not generate annual plan. Try again.';
       addNotification('Generation failed', msg.slice(0, 180), 'alert');
     } finally {

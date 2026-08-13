@@ -42,6 +42,7 @@ import {
   AisTr,
   approvalBadgeVariant,
   aisInput,
+  aisFormLabel,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 
 const QUESTION_FORMAT_OPTIONS = [
@@ -73,7 +74,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [uploadMode, setUploadMode] = useState<'create' | 'upload'>('create');
   const [sourceType, setSourceType] = useState<'topic' | 'lesson_plan'>('topic');
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState('');
-  const [selectedSessionScope, setSelectedSessionScope] = useState('');
+  const [selectedSessionScopes, setSelectedSessionScopes] = useState<string[]>([]);
   const [topic, setTopic] = useState('');
   const [numQuestions, setNumQuestions] = useState(
     () => questionLimitsForAssessmentType('Quiz').default,
@@ -98,29 +99,57 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
   const selectedPlan = teacherPlans.find((p) => p.id === selectedLessonPlanId);
   const sessionOptions = useMemo(
-    () => (selectedPlan ? getWeeklyPlanSessionTopicOptions(selectedPlan) : []),
+    () =>
+      (selectedPlan ? getWeeklyPlanSessionTopicOptions(selectedPlan) : []).filter(
+        (o) => o.value !== 'all',
+      ),
     [selectedPlan],
   );
-  const selectedSession = sessionOptions.find((o) => o.value === selectedSessionScope);
+  const selectedSessions = sessionOptions.filter((o) =>
+    selectedSessionScopes.includes(o.value),
+  );
+  // Merged topic/context across every selected session, used as generation input.
+  const combinedSession = useMemo(() => {
+    if (selectedSessions.length === 0) return undefined;
+    if (selectedSessions.length === 1) return selectedSessions[0];
+    return {
+      value: selectedSessions.map((s) => s.value).join(','),
+      label: `${selectedSessions.length} sessions selected`,
+      topic: selectedSessions.map((s) => s.topic).join('; '),
+      subtopic: [...new Set(selectedSessions.map((s) => s.subtopic).filter(Boolean))].join('; '),
+      context: [
+        `Focus: ${selectedSessions.length} selected sessions from this weekly lesson plan`,
+        ...selectedSessions.map((s) => s.context),
+      ].join('\n\n'),
+    };
+  }, [selectedSessions]);
 
   useEffect(() => {
-    setSelectedSessionScope('');
+    setSelectedSessionScopes([]);
     if (sourceType === 'lesson_plan' && selectedPlan) {
       setGrade(selectedPlan.grade);
       setSubject(selectedPlan.subject);
-      const options = getWeeklyPlanSessionTopicOptions(selectedPlan);
-      const firstSession = options.find((o) => o.value !== 'all') ?? options[0];
+      const options = getWeeklyPlanSessionTopicOptions(selectedPlan).filter(
+        (o) => o.value !== 'all',
+      );
+      const firstSession = options[0];
       if (firstSession) {
-        setSelectedSessionScope(firstSession.value);
+        setSelectedSessionScopes([firstSession.value]);
         setTopic(firstSession.topic);
       }
     }
   }, [sourceType, selectedPlan]);
 
   useEffect(() => {
-    if (sourceType !== 'lesson_plan' || !selectedSession) return;
-    setTopic(selectedSession.topic);
-  }, [sourceType, selectedSession]);
+    if (sourceType !== 'lesson_plan' || !combinedSession) return;
+    setTopic(combinedSession.topic);
+  }, [sourceType, combinedSession]);
+
+  const toggleSessionScope = (value: string) => {
+    setSelectedSessionScopes((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  };
 
   const isBaseline = type === 'Baseline';
 
@@ -130,14 +159,14 @@ export const TeacherAssessmentsTab: React.FC = () => {
       setTitle(`Baseline — ${grade} ${subject} (${baselineTimingLabel(baselineTiming, grade)})`);
       return;
     }
-    if (sourceType === 'lesson_plan' && selectedPlan && selectedSession && type) {
-      const pages = selectedSession.subtopic?.trim();
+    if (sourceType === 'lesson_plan' && selectedPlan && combinedSession && type) {
+      const pages = combinedSession.subtopic?.trim();
       const pageSuffix = pages && /p\.|pp\.|\d/.test(pages) ? ` (${pages})` : '';
-      setTitle(`${type} — ${selectedSession.topic}${pageSuffix}`);
+      setTitle(`${type} — ${combinedSession.topic}${pageSuffix}`);
     } else if (topic && type) {
       setTitle(`${type} on ${topic}`);
     }
-  }, [topic, type, sourceType, selectedPlan, selectedSession, isBaseline, grade, subject, baselineTiming]);
+  }, [topic, type, sourceType, selectedPlan, combinedSession, isBaseline, grade, subject, baselineTiming]);
 
   const handleGenerateWithAI = async () => {
     if (isBaseline) {
@@ -172,20 +201,20 @@ export const TeacherAssessmentsTab: React.FC = () => {
       alert('Please select a lesson plan first');
       return;
     }
-    if (sourceType === 'lesson_plan' && !selectedSession) {
-      alert('Please select a session from the lesson plan');
+    if (sourceType === 'lesson_plan' && selectedSessionScopes.length === 0) {
+      alert('Please select at least one session from the lesson plan');
       return;
     }
 
-    const pages = selectedSession?.subtopic?.trim() || '';
+    const pages = combinedSession?.subtopic?.trim() || '';
     const pageHint = pages && /p\.|pp\.|\d/.test(pages) ? ` (textbook ${pages})` : '';
     const effectiveTopic =
-      sourceType === 'lesson_plan' && selectedSession
-        ? `${selectedSession.topic}${pageHint}`
+      sourceType === 'lesson_plan' && combinedSession
+        ? `${combinedSession.topic}${pageHint}`
         : topic.trim();
     const lessonPlanContext =
-      sourceType === 'lesson_plan' && selectedSession
-        ? selectedSession.context
+      sourceType === 'lesson_plan' && combinedSession
+        ? combinedSession.context
         : undefined;
     
     setIsGenerating(true);
@@ -246,7 +275,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setTopic('');
     setSourceType('topic');
     setSelectedLessonPlanId('');
-    setSelectedSessionScope('');
+    setSelectedSessionScopes([]);
     setNumQuestions(questionLimitsForAssessmentType('Quiz').default);
     setQuestionFormat('Mixed');
     setAssessmentStudentLevel('differentiated');
@@ -263,7 +292,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setTopic('');
     setSourceType('topic');
     setSelectedLessonPlanId('');
-    setSelectedSessionScope('');
+    setSelectedSessionScopes([]);
     setNumQuestions(questionLimitsForAssessmentType('Quiz').default);
     setQuestionFormat('Mixed');
     setAssessmentStudentLevel('differentiated');
@@ -274,7 +303,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     ? true
     : sourceType === 'topic'
       ? !!topic.trim()
-      : !!selectedLessonPlanId && !!selectedSessionScope;
+      : !!selectedLessonPlanId && selectedSessionScopes.length > 0;
 
   const canSubmit =
     uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
@@ -392,7 +421,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 setSourceType(next);
                 if (next === 'topic') {
                   setSelectedLessonPlanId('');
-                  setSelectedSessionScope('');
+                  setSelectedSessionScopes([]);
                 } else {
                   setTopic('');
                 }
@@ -461,37 +490,75 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 value={selectedLessonPlanId}
                 onChange={(e) => {
                   setSelectedLessonPlanId(e.target.value);
-                  setSelectedSessionScope('');
+                  setSelectedSessionScopes([]);
                 }}
               />
               {selectedPlan && (
                 <>
-                  <Select
-                    variant="ais"
-                    label="Session"
-                    options={
-                      sessionOptions.length === 0
-                        ? [{ value: '', label: 'No sessions in this plan' }]
-                        : sessionOptions.map((o) => ({
-                            value: o.value,
-                            label: o.label,
-                          }))
-                    }
-                    value={selectedSessionScope}
-                    onChange={(e) => setSelectedSessionScope(e.target.value)}
-                  />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className={aisFormLabel}>Session(s)</label>
+                      {sessionOptions.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-ais-primary hover:underline"
+                          onClick={() =>
+                            setSelectedSessionScopes((prev) =>
+                              prev.length === sessionOptions.length
+                                ? []
+                                : sessionOptions.map((o) => o.value),
+                            )
+                          }
+                        >
+                          {selectedSessionScopes.length === sessionOptions.length
+                            ? 'Clear all'
+                            : 'Select all'}
+                        </button>
+                      )}
+                    </div>
+                    {sessionOptions.length === 0 ? (
+                      <p className="text-xs text-ais-on-surface-variant">No sessions in this plan</p>
+                    ) : (
+                      <div
+                        className="max-h-44 overflow-y-auto rounded-xl border border-ais-card-border bg-white dark:bg-ais-surface"
+                        role="listbox"
+                        aria-multiselectable="true"
+                        aria-label="Sessions"
+                      >
+                        {sessionOptions.map((o) => {
+                          const on = selectedSessionScopes.includes(o.value);
+                          return (
+                            <label
+                              key={o.value}
+                              className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-ais-row-hover"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                onChange={() => toggleSessionScope(o.value)}
+                                className="h-3.5 w-3.5 rounded border-ais-card-border accent-ais-primary"
+                              />
+                              <span className={on ? 'font-medium text-ais-on-surface' : 'text-ais-on-surface-variant'}>
+                                {o.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                   <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-3 text-xs text-ais-on-surface-variant space-y-2">
                     <p className="font-semibold text-ais-on-surface">{selectedPlan.title}</p>
                     <p>
                       {selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions} sessions
                     </p>
-                    {selectedSession && (
+                    {combinedSession && (
                       <div className="space-y-1 rounded-lg bg-white/60 p-2 dark:bg-black/20">
                         <p className="font-semibold text-ais-on-surface">
-                          Quiz topic: {selectedSession.topic}
+                          Quiz topic: {combinedSession.topic}
                         </p>
-                        {selectedSession.subtopic?.trim() && (
-                          <p>Textbook: {selectedSession.subtopic}</p>
+                        {combinedSession.subtopic?.trim() && (
+                          <p>Textbook: {combinedSession.subtopic}</p>
                         )}
                       </div>
                     )}
@@ -535,7 +602,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   if (next === 'Baseline') {
                     setSourceType('topic');
                     setSelectedLessonPlanId('');
-                    setSelectedSessionScope('');
+                    setSelectedSessionScopes([]);
                   }
                 }}
               />
