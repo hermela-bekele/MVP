@@ -69,7 +69,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(var(--dashboard-bg))]">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[hsl(var(--dashboard-bg))] login-orange-theme">
+      <style jsx global>{`
+        .login-orange-theme {
+          --primary: 33.8 96.2% 69.2%;
+          --primary-foreground: 0 0% 0%;
+          --primary-light: 33.8 96.2% 79.2%;
+          --accent: 33.8 96.2% 69.2%;
+          --accent-foreground: 0 0% 0%;
+          --ring: 33.8 96.2% 69.2%;
+          --sidebar-bg: 33.8 100% 97%;
+          --sidebar-fg: 33.8 96.2% 69.2%;
+          --sidebar-active-fg: 33.8 96.2% 69.2%;
+        }
+      `}</style>
       <div className="hidden lg:flex lg:w-[42%] xl:w-[45%] flex-col justify-between bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-fg))] p-10 xl:p-14">
         <div>
           <div className="flex items-center gap-3">

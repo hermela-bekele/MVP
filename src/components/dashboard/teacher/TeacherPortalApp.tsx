@@ -128,9 +128,13 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: "Academic Calendar",
     subtitle: "Official school calendar disseminated by the school head.",
   },
-  "teaching-notes": {
+  "lesson-plans": {
+    title: "Lesson Plans",
+    subtitle: "Annual and weekly lesson plans, paced on the school calendar.",
+  },
+  "lesson-notes": {
     title: "Lesson Notes",
-    subtitle: "Weekly plans, AI lesson notes, drafts, and classroom delivery — organized by section.",
+    subtitle: "AI lesson notes, drafts, and classroom delivery — organized by section.",
   },
   communication: {
     title: "Communication",
@@ -245,27 +249,26 @@ export function TeacherPortalApp() {
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
   const shellActions =
-    activeTab === "teaching-notes" ? (
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={`${aisBtnPrimary} text-xs`}
-          onClick={() =>
-            window.dispatchEvent(new Event("open-teacher-lesson-plan"))
-          }
-        >
-          + Create lesson plan
-        </button>
-        <button
-          type="button"
-          className={`${aisBtnPrimary} text-xs`}
-          onClick={() =>
-            window.dispatchEvent(new Event("open-teacher-create-note"))
-          }
-        >
-          + New lesson note
-        </button>
-      </div>
+    activeTab === "lesson-plans" ? (
+      <button
+        type="button"
+        className={`${aisBtnPrimary} text-xs`}
+        onClick={() =>
+          window.dispatchEvent(new Event("open-teacher-lesson-plan"))
+        }
+      >
+        + Create lesson plan
+      </button>
+    ) : activeTab === "lesson-notes" ? (
+      <button
+        type="button"
+        className={`${aisBtnPrimary} text-xs`}
+        onClick={() =>
+          window.dispatchEvent(new Event("open-teacher-create-note"))
+        }
+      >
+        + New lesson note
+      </button>
     ) : activeTab === "manage-students" ? (
       <Button
         variant="organic"
@@ -294,7 +297,8 @@ export function TeacherPortalApp() {
         {activeTab === "dashboard" && <TeacherDashboard />}
         {activeTab === "academic-calendar" && <TeacherAcademicCalendarTab />}
         {activeTab === "timetable" && <TeacherTimetableTab />}
-        {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
+        {activeTab === "lesson-plans" && <TeacherTeachingNotes mode="plans" />}
+        {activeTab === "lesson-notes" && <TeacherTeachingNotes mode="notes" />}
         {activeTab === "communication" && (
           <CommunicationModule
             mode="teacher"

@@ -88,7 +88,7 @@ function RendererLoading() {
 
 function noteStatusVariant(status: TeachingNote['status']) {
   if (status === 'Draft') return 'neutral' as const;
-  if (status === 'Pending Dept Head') return 'warning' as const;
+  if (status === 'Pending Dept Head') return 'success' as const; // Treat as approved
   if (status === 'Rejected') return 'error' as const;
   if (status === 'Approved') return 'success' as const;
   return 'success' as const;
@@ -144,10 +144,13 @@ function editableTextToNotesResult(
 
 interface TeacherTeachingNotesProps {
   lessonPlanId?: string;
+  /** Restricts this module to lesson plans (annual + weekly) or lesson notes only. Omit to show everything. */
+  mode?: 'plans' | 'notes';
 }
 
 export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   lessonPlanId,
+  mode,
 }) => {
   const router = useRouter();
   const {
@@ -208,7 +211,23 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [editWeeklyTitle, setEditWeeklyTitle] = useState('');
   const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
   const [notePendingDelete, setNotePendingDelete] = useState<TeachingNote | null>(null);
-  const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>('annual');
+  const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>(
+    mode === 'notes' ? 'notes' : 'annual',
+  );
+  const listTabOptions = (
+    mode === 'notes'
+      ? [{ id: 'notes' as const, label: 'Lesson notes' }]
+      : mode === 'plans'
+        ? [
+            { id: 'annual' as const, label: 'Annual plans' },
+            { id: 'weekly' as const, label: 'Weekly plans' },
+          ]
+        : [
+            { id: 'annual' as const, label: 'Annual plans' },
+            { id: 'weekly' as const, label: 'Weekly plans' },
+            { id: 'notes' as const, label: 'Lesson notes' },
+          ]
+  );
   const [presetTopics, setPresetTopics] = useState<string[]>([]);
   const [explainingMore, setExplainingMore] = useState(false);
   const [explainMoreUsed, setExplainMoreUsed] = useState(false);
@@ -614,12 +633,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       addNotification('Nothing to submit', 'Add note content or generate with AI first.', 'alert');
       return;
     }
+    // Teaching notes no longer need HOD approval - save as Approved directly
     if (editingNoteId) {
-      updateTeachingNote(editingNoteId, { ...payload, status: 'Pending Dept Head' });
-      addNotification('Submitted', 'Teaching note sent to department head for approval.', 'success');
+      updateTeachingNote(editingNoteId, { ...payload, status: 'Approved' });
+      addNotification('Saved', 'Teaching note saved and ready for delivery.', 'success');
     } else {
-      createTeachingNote(payload, 'Pending Dept Head');
-      addNotification('Submitted', 'Teaching note sent to department head for approval.', 'success');
+      createTeachingNote(payload, 'Approved');
+      addNotification('Saved', 'Teaching note saved and ready for delivery.', 'success');
     }
     closeNoteModal();
   };
@@ -782,7 +802,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               {graspOutcomeLabel(delivery.graspOutcome)}
             </span>
           </>
-        ) : note.status === 'Approved' ? (
+        ) : (
           <button
             type="button"
             className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ais-primary transition-colors hover:bg-ais-primary/10"
@@ -791,12 +811,6 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             <HelpCircle className="h-5 w-5" aria-hidden />
             Delivered?
           </button>
-        ) : (
-          <span className="text-center text-[10px] leading-tight text-ais-on-surface-variant px-1">
-            {note.status === 'Pending Dept Head'
-              ? 'Awaiting HoD approval'
-              : 'Approve first'}
-          </span>
         )}
       </div>
     </div>
@@ -804,11 +818,11 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   };
 
   const goToLessonPlan = (planId: string) => {
-    router.push(`/dashboard/teacher/teaching-notes/${planId}`);
+    router.push(`/dashboard/teacher/lesson-plans/${planId}`);
   };
 
   const goBackToList = () => {
-    router.push('/dashboard/teacher/teaching-notes');
+    router.push('/dashboard/teacher/lesson-plans');
   };
 
   return (
@@ -841,14 +855,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         )
       ) : (
         <div className="space-y-8">
+          {listTabOptions.length > 1 && (
           <div className="flex flex-wrap gap-2 rounded-xl border border-ais-card-border bg-white p-1 dark:bg-ais-surface">
-            {(
-              [
-                { id: 'annual' as const, label: 'Annual plans' },
-                { id: 'weekly' as const, label: 'Weekly plans' },
-                { id: 'notes' as const, label: 'Lesson notes' },
-              ] as const
-            ).map((tab) => (
+            {listTabOptions.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -863,8 +872,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </button>
             ))}
           </div>
+          )}
 
-          {listTab === 'annual' && (
+          {mode !== 'notes' && listTab === 'annual' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Published annual lesson plans</p>
             <p className={aisBodySm}>
@@ -906,7 +916,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </section>
           )}
 
-          {listTab === 'weekly' && (
+          {mode !== 'notes' && listTab === 'weekly' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Weekly lesson plans</p>
             <p className={aisBodySm}>
@@ -1035,7 +1045,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </section>
           )}
 
-          {listTab === 'notes' && (
+          {mode !== 'plans' && listTab === 'notes' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Lesson notes</p>
             <p className={aisBodySm}>
@@ -1043,7 +1053,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </p>
             {myNotes.length === 0 ? (
               <p className={aisBodyMd}>
-                No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Weekly plans tab.
+                {mode === 'notes'
+                  ? 'No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Lesson Plans module.'
+                  : 'No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Weekly plans tab.'}
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1458,8 +1470,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               Save draft
             </AisBtnSecondary>
             <AisBtnPrimary type="button" onClick={handleSubmitNoteForApproval} disabled={!hasNoteContent}>
-              <Send className="h-3.5 w-3.5" aria-hidden />
-              Submit for dept approval
+              <Save className="h-3.5 w-3.5" aria-hidden />
+              Save & ready to deliver
             </AisBtnPrimary>
           </DialogFooter>
         </div>

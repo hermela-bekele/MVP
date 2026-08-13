@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Info, AlertTriangle, X } from 'lucide-react';
 
@@ -14,6 +14,8 @@ export interface ToastItem {
 }
 
 type ToastInput = {
+  /** Pass the same id across calls to update an existing toast in place instead of stacking a new one. */
+  id?: string;
   title: string;
   description?: string;
   variant?: ToastVariant;
@@ -21,7 +23,7 @@ type ToastInput = {
 };
 
 type ToastContextValue = {
-  toast: (input: ToastInput) => void;
+  toast: (input: ToastInput) => string;
   dismiss: (id: string) => void;
 };
 
@@ -53,15 +55,22 @@ const VARIANT_STYLES: Record<
   },
 };
 
-let externalToast: ((input: ToastInput) => void) | null = null;
+let externalToast: ((input: ToastInput) => string) | null = null;
+let externalDismiss: ((id: string) => void) | null = null;
 
-/** Imperative toast helper — safe to call outside React components. */
-export function toast(input: ToastInput) {
-  externalToast?.(input);
+/** Imperative toast helper — safe to call outside React components. Returns the toast id (pass it back in via `id` to update the same toast). */
+export function toast(input: ToastInput): string {
+  return externalToast?.(input) ?? input.id ?? '';
+}
+
+/** Imperative dismiss helper — safe to call outside React components. */
+export function dismissToast(id: string) {
+  externalDismiss?.(id);
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
+  const timeoutsRef = useRef<Map<string, number>>(new Map());
   const mounted = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -70,30 +79,49 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const dismiss = useCallback((id: string) => {
     setItems((prev) => prev.filter((t) => t.id !== id));
+    const existingTimeout = timeoutsRef.current.get(id);
+    if (existingTimeout !== undefined) {
+      window.clearTimeout(existingTimeout);
+      timeoutsRef.current.delete(id);
+    }
   }, []);
 
   const push = useCallback(
-    (input: ToastInput) => {
-      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const item: ToastItem = {
-        id,
-        title: input.title,
-        description: input.description,
-        variant: input.variant ?? 'info',
-      };
-      setItems((prev) => [item, ...prev].slice(0, 5));
+    (input: ToastInput): string => {
+      const id = input.id ?? `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setItems((prev) => {
+        const item: ToastItem = {
+          id,
+          title: input.title,
+          description: input.description,
+          variant: input.variant ?? 'info',
+        };
+        const existingIndex = prev.findIndex((t) => t.id === id);
+        if (existingIndex >= 0) {
+          const next = [...prev];
+          next[existingIndex] = item;
+          return next;
+        }
+        return [item, ...prev].slice(0, 5);
+      });
+      const existingTimeout = timeoutsRef.current.get(id);
+      if (existingTimeout !== undefined) window.clearTimeout(existingTimeout);
       const duration = input.durationMs ?? 4200;
-      window.setTimeout(() => dismiss(id), duration);
+      const timeoutId = window.setTimeout(() => dismiss(id), duration);
+      timeoutsRef.current.set(id, timeoutId);
+      return id;
     },
     [dismiss],
   );
 
   React.useEffect(() => {
     externalToast = push;
+    externalDismiss = dismiss;
     return () => {
       if (externalToast === push) externalToast = null;
+      if (externalDismiss === dismiss) externalDismiss = null;
     };
-  }, [push]);
+  }, [push, dismiss]);
 
   const value = useMemo(() => ({ toast: push, dismiss }), [push, dismiss]);
 

@@ -70,13 +70,13 @@ function resolveNotifDestination(
   }
   if (title.includes('lesson plan')) {
     return {
-      tab: role === 'department-head' ? 'lesson-plans' : 'teaching-notes',
+      tab: 'lesson-plans',
       label: 'Review plan',
     };
   }
   if (title.includes('teaching note') || title.includes('lesson note')) {
     return {
-      tab: role === 'department-head' ? 'teaching-notes' : 'teaching-notes',
+      tab: 'lesson-notes',
       label: 'Open lesson notes',
     };
   }
