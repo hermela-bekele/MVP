@@ -20,8 +20,7 @@ import { VPReportTemplateBuilder } from './VPReportTemplateBuilder';
 import { AnnualLessonPlanPanel } from './AnnualLessonPlanPanel';
 import { AcademicCalendarPanel } from './AcademicCalendarPanel';
 import { ResourcesPanel } from './ResourcesPanel';
-import { LeadershipTrainingPanel } from './LeadershipTrainingPanel';
-import { AcademicTrainingsPanel } from './AcademicTrainingsPanel';
+import { TrainingPanel } from './TrainingPanel';
 
 const COVERAGE_DATA = [
   { grade: 'Grade 9', stream: 'Natural Science', coverage: 78.4, status: 'On Track' },
@@ -106,10 +105,8 @@ export default function HeadOfAcademicsPortalApp() {
         return { title: 'Academic Calendar', subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.' };
       case 'resources':
         return { title: 'School Resources', subtitle: 'Upload and disseminate school-wide pedagogy and policy materials.' };
-      case 'leadership-training':
-        return { title: 'Leadership Training', subtitle: 'Leadership development training assigned to you' };
-      case 'academic-trainings':
-        return { title: 'Academic Trainings', subtitle: 'Browse other academic and professional development trainings' };
+      case 'training':
+        return { title: 'Training', subtitle: 'Browse every training type — leadership, subject-matter, induction, and continuous development' };
       case 'settings':
         return { title: 'Portal Settings', subtitle: 'Your account and school details' };
       default:
@@ -287,8 +284,7 @@ export default function HeadOfAcademicsPortalApp() {
         <AcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
       )}
       {activeTab === 'resources' && <ResourcesPanel />}
-      {activeTab === 'leadership-training' && <LeadershipTrainingPanel />}
-      {activeTab === 'academic-trainings' && <AcademicTrainingsPanel />}
+      {activeTab === 'training' && <TrainingPanel />}
 
       {activeTab === 'settings' && (
         <div className="space-y-6 animate-fade-in text-left">

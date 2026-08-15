@@ -239,6 +239,14 @@ export function emptyBootstrapPayload(): BootstrapPayload {
     staffMessages: [],
     teacherSelfAssessments: [],
     teacherTrainingAssignments: [],
+    hrEmployees: [],
+    leaveRequests: [],
+    payrollRecords: [],
+    jobPostings: [],
+    jobApplications: [],
+    performanceReviews: [],
+    onboardingTasks: [],
+    staffAttendance: [],
     notifications: [],
   };
 }

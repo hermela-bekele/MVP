@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
@@ -10,17 +10,40 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Student } from '@/lib/mockData';
-import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
+import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, statusBadgeVariant } from '@/lib/registrarPortal';
+import { api, type AuditLogEntry } from '@/lib/api';
+import { toCsv, downloadCsv } from '@/lib/csvExport';
+import { generateEnrollmentLetterPDF, generateIdCardPDF } from '@/lib/registrarDocs';
+import { slugifyFilename } from '@/lib/pdfUtils';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+
+function normalizeContact(value?: string): string {
+  return (value ?? '').replace(/[^0-9a-z]/gi, '').toLowerCase();
+}
 
 export const RegistrarStudentRegistry: React.FC = () => {
   const { students, updateStudent } = useApp();
   const schoolStudents = filterSchoolStudents(students);
 
+  const [statusFilter, setStatusFilter] = useState<Student['status'] | 'All'>('All');
+  const [gradeFilter, setGradeFilter] = useState<string>('All');
+
+  const filteredStudents = useMemo(
+    () =>
+      schoolStudents.filter(
+        (s) =>
+          (statusFilter === 'All' || s.status === statusFilter) &&
+          (gradeFilter === 'All' || s.grade === gradeFilter)
+      ),
+    [schoolStudents, statusFilter, gradeFilter]
+  );
+
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [detailMode, setDetailMode] = useState<'view' | 'edit' | null>(null);
+  const [history, setHistory] = useState<AuditLogEntry[]>([]);
+  const [docBusy, setDocBusy] = useState<'letter' | 'card' | null>(null);
 
   const [studentName, setStudentName] = useState('');
   const [studentGrade, setStudentGrade] = useState('Grade 9');
@@ -30,7 +53,31 @@ export const RegistrarStudentRegistry: React.FC = () => {
   const [parentEmail, setParentEmail] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [medicalInfo, setMedicalInfo] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [studentStatus, setStudentStatus] = useState<Student['status']>('Active');
+
+  useEffect(() => {
+    if (!detailStudent) {
+      setHistory([]);
+      return;
+    }
+    api
+      .listAuditLogs({ entityType: 'student', entityId: detailStudent.id, limit: 15 })
+      .then(setHistory)
+      .catch(() => setHistory([]));
+  }, [detailStudent]);
+
+  const siblings = useMemo(() => {
+    if (!detailStudent) return [];
+    const phone = normalizeContact(detailStudent.parentPhone);
+    const email = normalizeContact(detailStudent.parentEmail);
+    return schoolStudents.filter(
+      (s) =>
+        s.id !== detailStudent.id &&
+        ((phone && normalizeContact(s.parentPhone) === phone) ||
+          (email && normalizeContact(s.parentEmail) === email))
+    );
+  }, [detailStudent, schoolStudents]);
 
   const loadForm = (student: Student) => {
     setStudentName(student.name);
@@ -41,6 +88,7 @@ export const RegistrarStudentRegistry: React.FC = () => {
     setParentEmail(student.parentEmail ?? '');
     setEmergencyContact(student.emergencyContact);
     setMedicalInfo(student.medicalInfo ?? '');
+    setDateOfBirth(student.dateOfBirth ?? '');
     setStudentStatus(student.status);
   };
 
@@ -56,10 +104,69 @@ export const RegistrarStudentRegistry: React.FC = () => {
       parentEmail,
       emergencyContact,
       medicalInfo,
+      dateOfBirth: dateOfBirth || undefined,
       status: studentStatus,
     });
     setDetailStudent(null);
     setDetailMode(null);
+  };
+
+  const handleExport = () => {
+    const csv = toCsv(filteredStudents, [
+      { key: 'studentId', header: 'Student ID' },
+      { key: 'name', header: 'Name' },
+      { key: 'grade', header: 'Grade' },
+      { key: 'section', header: 'Section' },
+      { key: 'status', header: 'Status' },
+      { key: 'gpa', header: 'GPA' },
+      { key: 'attendanceRate', header: 'Attendance %' },
+      { key: 'parentName', header: 'Parent' },
+      { key: 'parentPhone', header: 'Parent Phone' },
+    ]);
+    downloadCsv('student-registry.csv', csv);
+  };
+
+  const handleEnrollmentLetter = async (student: Student) => {
+    setDocBusy('letter');
+    try {
+      await generateEnrollmentLetterPDF(
+        {
+          schoolName: 'Bole Secondary',
+          student: {
+            name: student.name,
+            studentId: student.studentId,
+            grade: student.grade,
+            section: student.section,
+            parentName: student.parentName,
+          },
+          academicYear: student.academicYear,
+        },
+        `${slugifyFilename(student.name)}-enrollment-letter.pdf`
+      );
+    } finally {
+      setDocBusy(null);
+    }
+  };
+
+  const handleIdCard = async (student: Student) => {
+    setDocBusy('card');
+    try {
+      await generateIdCardPDF(
+        {
+          schoolName: 'Bole Secondary',
+          student: {
+            name: student.name,
+            studentId: student.studentId,
+            grade: student.grade,
+            section: student.section,
+          },
+          academicYear: student.academicYear,
+        },
+        `${slugifyFilename(student.name)}-id-card.pdf`
+      );
+    } finally {
+      setDocBusy(null);
+    }
   };
 
   const columns: DataTableColumn<Student>[] = [
@@ -143,12 +250,47 @@ export const RegistrarStudentRegistry: React.FC = () => {
         title="Official Student Registry"
         description="Complete roster of all enrolled students with searchable records"
       >
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as Student['status'] | 'All')}
+            className="h-9 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground"
+          >
+            <option value="All">All statuses</option>
+            <option value="Active">Active</option>
+            <option value="Suspended">Suspended</option>
+            <option value="Transferred">Transferred</option>
+            <option value="Graduated">Graduated</option>
+          </select>
+          <select
+            value={gradeFilter}
+            onChange={(e) => setGradeFilter(e.target.value)}
+            className="h-9 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground"
+          >
+            <option value="All">All grades</option>
+            {REGISTRAR_GRADE_OPTIONS.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+          {(statusFilter !== 'All' || gradeFilter !== 'All') && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-9"
+              onClick={() => { setStatusFilter('All'); setGradeFilter('All'); }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
         <DataTable<Student>
           columns={columns}
-          data={schoolStudents}
+          data={filteredStudents}
           searchable
           searchKeys={['name', 'studentId', 'parentName', 'grade']}
           pageSize={12}
+          onExport={handleExport}
         />
       </TablePanel>
 
@@ -170,8 +312,63 @@ export const RegistrarStudentRegistry: React.FC = () => {
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Parent</p><p className="text-xs font-medium">{detailStudent.parentName}</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Phone</p><p className="text-xs font-medium">{detailStudent.parentPhone}</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Email</p><p className="text-xs font-medium">{detailStudent.parentEmail || '—'}</p></div>
+              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Date of Birth</p><p className="text-xs font-medium">{detailStudent.dateOfBirth || '—'}</p></div>
+              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Academic Year</p><p className="text-xs font-medium">{detailStudent.academicYear || '—'}</p></div>
             </div>
-            <DialogFooter className="border-t border-border/20 pt-4">
+
+            {siblings.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Siblings at this school</p>
+                <div className="space-y-1">
+                  {siblings.map((sib) => (
+                    <div key={sib.id} className="flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-3 py-2">
+                      <p className="text-xs font-medium">{sib.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{sib.grade} · {sib.section || 'Unplaced'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Record History</p>
+              {history.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No recorded changes yet.</p>
+              ) : (
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {history.map((h) => (
+                    <div key={h.id} className="flex items-center justify-between text-[10px] py-1 border-b border-border/20 last:border-0">
+                      <span className="text-foreground">
+                        {(h.actorName || h.actorEmail || 'Someone')} · {h.action.replace(/[._]/g, ' ')}
+                      </span>
+                      <span className="text-muted-foreground whitespace-nowrap ml-2">
+                        {new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="border-t border-border/20 pt-4 flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={docBusy !== null}
+                onClick={() => handleEnrollmentLetter(detailStudent)}
+                className="text-xs h-9"
+              >
+                {docBusy === 'letter' ? 'Generating…' : 'Enrollment Letter'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={docBusy !== null}
+                onClick={() => handleIdCard(detailStudent)}
+                className="text-xs h-9"
+              >
+                {docBusy === 'card' ? 'Generating…' : 'ID Card'}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setDetailMode('edit')} className="text-xs h-9">Edit Record</Button>
               <Button variant="outline" size="sm" onClick={() => { setDetailStudent(null); setDetailMode(null); }} className="text-xs h-9">Close</Button>
             </DialogFooter>
@@ -209,6 +406,10 @@ export const RegistrarStudentRegistry: React.FC = () => {
                     <option key={s} value={s}>Section {s}</option>
                   ))}
                 </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Date of Birth</label>
+                <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} className={inputClass} />
               </div>
             </div>
             <DialogFooter className="border-t border-border/20 pt-4">

@@ -10,6 +10,10 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import { api, type AdmissionApplication, type Invoice } from '@/lib/api';
 import { readStoredSession } from '@/lib/auth';
 
+function formatDocType(docType: string): string {
+  return docType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
@@ -37,6 +41,7 @@ export const RegistrarApplications: React.FC = () => {
   const [score, setScore] = useState('70');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [requiredDocs, setRequiredDocs] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -55,6 +60,28 @@ export const RegistrarApplications: React.FC = () => {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    api
+      .getSchoolSettings(schoolId)
+      .then((s) => {
+        const docs = (s as { required_documents?: string[] } | undefined)?.required_documents;
+        setRequiredDocs(Array.isArray(docs) ? docs : []);
+      })
+      .catch(() => setRequiredDocs([]));
+  }, [schoolId]);
+
+  const openReview = async (row: AdmissionApplication) => {
+    setSelected(row);
+    setNotes(row.reviewerNotes || '');
+    setScore(String(row.priorityScore || 70));
+    try {
+      const detail = await api.getApplication(row.id);
+      setSelected(detail);
+    } catch {
+      /* fall back to the row already shown */
+    }
+  };
+
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError('');
@@ -64,6 +91,22 @@ export const RegistrarApplications: React.FC = () => {
       setSelected(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifyDoc = async (docId: string) => {
+    if (!selected) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api.verifyApplicationDocument(selected.id, docId, true);
+      const detail = await api.getApplication(selected.id);
+      setSelected(detail);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verify failed');
     } finally {
       setBusy(false);
     }
@@ -126,9 +169,7 @@ export const RegistrarApplications: React.FC = () => {
           className="text-xs h-8"
           onClick={(e) => {
             e.stopPropagation();
-            setSelected(row);
-            setNotes(row.reviewerNotes || '');
-            setScore(String(row.priorityScore || 70));
+            void openReview(row);
           }}
         >
           Review
@@ -169,6 +210,88 @@ export const RegistrarApplications: React.FC = () => {
             <p>
               Parent: {selected.parentName} ({selected.parentPhone})
             </p>
+
+            {(requiredDocs.length > 0 || (selected.documents?.length ?? 0) > 0) && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Documents</p>
+                {requiredDocs.map((docType) => {
+                  const doc = selected.documents?.find((d) => d.docType === docType);
+                  return (
+                    <div
+                      key={docType}
+                      className="flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium">{formatDocType(docType)}</p>
+                        {doc ? (
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline truncate block"
+                          >
+                            {doc.fileName}
+                          </a>
+                        ) : (
+                          <p className="text-[10px] text-destructive">Not uploaded</p>
+                        )}
+                      </div>
+                      {doc ? (
+                        doc.verified ? (
+                          <Badge variant="success" size="sm">Verified</Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[10px] h-7 px-2"
+                            disabled={busy}
+                            onClick={() => verifyDoc(doc.id)}
+                          >
+                            Verify
+                          </Button>
+                        )
+                      ) : (
+                        <Badge variant="warning" size="sm">Missing</Badge>
+                      )}
+                    </div>
+                  );
+                })}
+                {(selected.documents ?? [])
+                  .filter((d) => !requiredDocs.includes(d.docType))
+                  .map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium">{formatDocType(doc.docType)}</p>
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-primary hover:underline truncate block"
+                        >
+                          {doc.fileName}
+                        </a>
+                      </div>
+                      {doc.verified ? (
+                        <Badge variant="success" size="sm">Verified</Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[10px] h-7 px-2"
+                          disabled={busy}
+                          onClick={() => verifyDoc(doc.id)}
+                        >
+                          Verify
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+
             <label className="block text-xs space-y-1">
               Priority score
               <input className={inputClass} value={score} onChange={(e) => setScore(e.target.value)} />

@@ -113,6 +113,14 @@ export interface BootstrapPayload {
   staffMessages: import('@/lib/mockData').StaffMessage[];
   teacherSelfAssessments: import('@/lib/mockData').TeacherSelfAssessment[];
   teacherTrainingAssignments: import('@/lib/mockData').TeacherTrainingAssignment[];
+  hrEmployees: import('@/lib/hrPortal').HrEmployee[];
+  leaveRequests: import('@/lib/hrPortal').LeaveRequest[];
+  payrollRecords: import('@/lib/hrPortal').PayrollRecord[];
+  jobPostings: import('@/lib/hrPortal').JobPosting[];
+  jobApplications: import('@/lib/hrPortal').JobApplication[];
+  performanceReviews: import('@/lib/hrPortal').PerformanceReview[];
+  onboardingTasks: import('@/lib/hrPortal').OnboardingTask[];
+  staffAttendance: import('@/lib/hrPortal').StaffAttendanceRecord[];
   notifications: {
     id: string;
     title: string;
@@ -167,6 +175,39 @@ export const api = {
     request(`/teachers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   toggleTeacherStatus: (id: string) =>
     request(`/teachers/${id}/toggle-status`, { method: 'PATCH' }),
+  createHrEmployee: (body: Record<string, unknown>) =>
+    request('/hr/employees', { method: 'POST', body: JSON.stringify(body) }),
+  updateHrEmployee: (id: string, body: Record<string, unknown>) =>
+    request(`/hr/employees/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  toggleHrEmployeeStatus: (id: string) =>
+    request(`/hr/employees/${id}/toggle-status`, { method: 'PATCH' }),
+  submitLeaveRequest: (body: Record<string, unknown>) =>
+    request('/hr/leave-requests', { method: 'POST', body: JSON.stringify(body) }),
+  reviewLeaveRequest: (id: string, status: string, reviewerNotes?: string) =>
+    request(`/hr/leave-requests/${id}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reviewerNotes }),
+    }),
+  processPayroll: (employeeId: string, month: string) =>
+    request('/hr/payroll/process', { method: 'POST', body: JSON.stringify({ employeeId, month }) }),
+  updatePayrollStatus: (id: string, status: string) =>
+    request(`/hr/payroll/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  createJobPosting: (body: Record<string, unknown>) =>
+    request('/hr/job-postings', { method: 'POST', body: JSON.stringify(body) }),
+  updateJobPosting: (id: string, body: Record<string, unknown>) =>
+    request(`/hr/job-postings/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  updateJobApplication: (id: string, status: string, notes?: string) =>
+    request(`/hr/job-applications/${id}`, { method: 'PATCH', body: JSON.stringify({ status, notes }) }),
+  createPerformanceReview: (body: Record<string, unknown>) =>
+    request('/hr/performance-reviews', { method: 'POST', body: JSON.stringify(body) }),
+  updatePerformanceReview: (id: string, body: Record<string, unknown>) =>
+    request(`/hr/performance-reviews/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  createOnboardingTask: (body: Record<string, unknown>) =>
+    request('/hr/onboarding-tasks', { method: 'POST', body: JSON.stringify(body) }),
+  toggleOnboardingTask: (id: string) =>
+    request(`/hr/onboarding-tasks/${id}/toggle`, { method: 'PATCH' }),
+  recordStaffAttendance: (body: Record<string, unknown>) =>
+    request('/hr/attendance', { method: 'POST', body: JSON.stringify(body) }),
   createStudent: (body: Record<string, unknown>) =>
     request('/students', { method: 'POST', body: JSON.stringify(body) }),
   updateStudent: (id: string, body: Record<string, unknown>) =>
@@ -501,12 +542,45 @@ export const api = {
   listWaitlist: (schoolId?: string) =>
     request(`/admissions/waitlist${schoolId ? `?schoolId=${schoolId}` : ''}`),
   listCapacity: (schoolId?: string) =>
-    request(`/admissions/capacity${schoolId ? `?schoolId=${schoolId}` : ''}`),
+    request<GradeSectionCapacity[]>(`/admissions/capacity${schoolId ? `?schoolId=${schoolId}` : ''}`),
   updateCapacity: (id: string, body: { capacity: number }) =>
     request(`/admissions/capacity/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   getSchoolSettings: (schoolId: string) => request(`/admissions/settings/${schoolId}`),
   updateSchoolSettings: (schoolId: string, body: Record<string, unknown>) =>
     request(`/admissions/settings/${schoolId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listRegistrationForms: (schoolId: string) =>
+    request<RegistrationFormTemplate[]>(`/admissions/registration-forms?schoolId=${schoolId}`),
+  createRegistrationForm: (body: {
+    schoolId: string;
+    name: string;
+    description?: string;
+    fields: RegistrationFormField[];
+    requiredDocuments: string[];
+  }) =>
+    request<RegistrationFormTemplate>(`/admissions/registration-forms`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateRegistrationForm: (id: string, body: Record<string, unknown>) =>
+    request<RegistrationFormTemplate>(`/admissions/registration-forms/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  getPublicRegistrationForm: (code: string) =>
+    request<{
+      school: { id: string; name: string; slug: string; code: string };
+      formName: string;
+      formDescription?: string;
+      formSchema: RegistrationFormField[];
+      requiredDocuments: string[];
+      branding?: { primaryColor?: string; tagline?: string; logoUrl?: string; schoolDisplayName?: string };
+    }>(`/admissions/public/forms/${code}`),
+  submitPublicRegistrationForm: (code: string, body: Record<string, unknown>) =>
+    request(`/admissions/public/forms/${code}/applications`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   listInvoices: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params);
@@ -571,6 +645,26 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ verified }),
     }),
+
+  // Registrar Engine additions: audit trail, bulk import, grade promotion
+  listAuditLogs: (params?: { entityType?: string; entityId?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.entityType) q.set('entityType', params.entityType);
+    if (params?.entityId) q.set('entityId', params.entityId);
+    if (params?.limit) q.set('limit', String(params.limit));
+    const s = q.toString();
+    return request<AuditLogEntry[]>(`/registrar/audit-logs${s ? `?${s}` : ''}`);
+  },
+  bulkCreateStudents: (body: { schoolId: string; rows: Record<string, unknown>[] }) =>
+    request<{
+      created: import('@/lib/mockData').Student[];
+      errors: { row: number; message: string }[];
+    }>('/registrar/students/bulk', { method: 'POST', body: JSON.stringify(body) }),
+  promoteStudents: (body: { schoolId: string; fromGrade: string; toGrade: string; studentIds?: string[] }) =>
+    request<{ promoted: number; students: import('@/lib/mockData').Student[] }>(
+      '/registrar/students/promote',
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
   listReenrollmentCampaigns: (schoolId?: string) =>
     request<{ id: string; title: string; inviteCount: number; confirmedCount: number; status: string }[]>(
       `/portal/reenroll/campaigns${schoolId ? `?schoolId=${schoolId}` : ''}`
@@ -703,6 +797,58 @@ export interface AdmissionApplication {
   editLocked?: boolean;
   waitlistRank?: number | null;
   waitlistStatus?: string | null;
+  documents?: ApplicationDocument[];
+  formTemplateId?: string;
+}
+
+export interface RegistrationFormField {
+  key: string;
+  label: string;
+  type?: string;
+  required?: boolean;
+}
+
+export interface RegistrationFormTemplate {
+  id: string;
+  schoolId: string;
+  name: string;
+  description?: string;
+  code: string;
+  fields: RegistrationFormField[];
+  requiredDocuments: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApplicationDocument {
+  id: string;
+  docType: string;
+  fileName: string;
+  fileUrl: string;
+  verified: boolean;
+  scanStatus?: string;
+  uploadedAt?: string;
+}
+
+export interface GradeSectionCapacity {
+  id: string;
+  grade: string;
+  section: string;
+  capacity: number;
+  reserved_count: number;
+  enrolled_count: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorName?: string;
+  actorEmail?: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface Invoice {

@@ -5,7 +5,9 @@ import { useApp } from '@/context/AppContext';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { enrollmentByGrade, filterSchoolStudents } from '@/lib/registrarPortal';
+import { toCsv, downloadCsv } from '@/lib/csvExport';
 
 export const RegistrarReports: React.FC = () => {
   const { students, registrationApplications } = useApp();
@@ -39,6 +41,40 @@ export const RegistrarReports: React.FC = () => {
     .filter((s) => s.status === 'Active' && s.attendanceRate < 85)
     .sort((a, b) => a.attendanceRate - b.attendanceRate);
 
+  const exportEnrollmentSummary = () => {
+    const rows = Object.entries(byGrade).map(([grade, count]) => ({
+      grade,
+      activeStudents: count,
+      sharePercent: stats.active > 0 ? Math.round((count / stats.active) * 100) : 0,
+    }));
+    const csv = toCsv(rows, [
+      { key: 'grade', header: 'Grade' },
+      { key: 'activeStudents', header: 'Active Students' },
+      { key: 'sharePercent', header: 'Share %' },
+    ]);
+    downloadCsv('enrollment-summary.csv', csv);
+  };
+
+  const exportAttendanceAlerts = () => {
+    const csv = toCsv(
+      lowAttendance.map((s) => ({
+        name: s.name,
+        studentId: s.studentId,
+        grade: s.grade,
+        section: s.section,
+        attendanceRate: s.attendanceRate,
+      })),
+      [
+        { key: 'name', header: 'Student' },
+        { key: 'studentId', header: 'Student ID' },
+        { key: 'grade', header: 'Grade' },
+        { key: 'section', header: 'Section' },
+        { key: 'attendanceRate', header: 'Attendance %' },
+      ]
+    );
+    downloadCsv('attendance-alerts.csv', csv);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -60,7 +96,15 @@ export const RegistrarReports: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TablePanel title="Enrollment by Grade Level" description="Active student distribution">
+        <TablePanel
+          title="Enrollment by Grade Level"
+          description="Active student distribution"
+          actions={
+            <Button size="sm" variant="outline" className="text-xs h-8" onClick={exportEnrollmentSummary}>
+              Export CSV
+            </Button>
+          }
+        >
           <table className="eskooly-table">
             <thead>
               <tr>
@@ -83,7 +127,17 @@ export const RegistrarReports: React.FC = () => {
           </table>
         </TablePanel>
 
-        <TablePanel title="Attendance Alerts" description="Students below 85% attendance">
+        <TablePanel
+          title="Attendance Alerts"
+          description="Students below 85% attendance"
+          actions={
+            lowAttendance.length > 0 ? (
+              <Button size="sm" variant="outline" className="text-xs h-8" onClick={exportAttendanceAlerts}>
+                Export CSV
+              </Button>
+            ) : undefined
+          }
+        >
           {lowAttendance.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">No attendance alerts.</p>
           ) : (

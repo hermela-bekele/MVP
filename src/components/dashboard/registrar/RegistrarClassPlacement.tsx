@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
@@ -8,14 +8,28 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, REGISTRAR_SECTION_OPTIONS } from '@/lib/registrarPortal';
+import { api, type GradeSectionCapacity } from '@/lib/api';
+import { readStoredSession } from '@/lib/auth';
+
+const DEFAULT_SECTION_CAPACITY = 40; // matches grade_section_capacity's DB column default
 
 export const RegistrarClassPlacement: React.FC = () => {
   const { students, classes, updateStudent } = useApp();
   const schoolStudents = filterSchoolStudents(students).filter((s) => s.status === 'Active');
+  const session = readStoredSession();
+  const schoolId = session?.schoolId || 'sch-1';
 
   const [selectedGrade, setSelectedGrade] = useState('Grade 9');
   const [placementStudentId, setPlacementStudentId] = useState<string | null>(null);
   const [newSection, setNewSection] = useState('A');
+  const [capacityRows, setCapacityRows] = useState<GradeSectionCapacity[]>([]);
+
+  useEffect(() => {
+    api
+      .listCapacity(schoolId)
+      .then(setCapacityRows)
+      .catch(() => setCapacityRows([]));
+  }, [schoolId]);
 
   const gradeStudents = useMemo(
     () => schoolStudents.filter((s) => s.grade === selectedGrade),
@@ -29,6 +43,10 @@ export const RegistrarClassPlacement: React.FC = () => {
     }
     return counts;
   }, [gradeStudents]);
+
+  const capacityFor = (section: string): number =>
+    capacityRows.find((r) => r.grade === selectedGrade && r.section === section)?.capacity ??
+    DEFAULT_SECTION_CAPACITY;
 
   const gradeClasses = classes.filter((c) => c.grade === selectedGrade);
 
@@ -61,7 +79,7 @@ export const RegistrarClassPlacement: React.FC = () => {
         {REGISTRAR_SECTION_OPTIONS.map((section) => {
           const count = sectionCounts[section] ?? 0;
           const classInfo = gradeClasses.find((c) => c.section === section || c.name.includes(section));
-          const capacity = 45;
+          const capacity = capacityFor(section);
           const utilization = Math.round((count / capacity) * 100);
           return (
             <Card key={section} className="border-border/60">

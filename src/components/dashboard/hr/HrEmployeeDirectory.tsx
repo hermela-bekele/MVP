@@ -15,13 +15,14 @@ import {
   formatCurrency,
   HR_DEPARTMENTS,
   HR_POSITIONS,
+  HR_TEACHER_LINKED_POSITIONS,
 } from '@/lib/hrPortal';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 export const HrEmployeeDirectory: React.FC = () => {
-  const { hrEmployees, addHrEmployee, updateHrEmployee, toggleHrEmployeeStatus } = useApp();
+  const { hrEmployees, teachers, addHrEmployee, updateHrEmployee, toggleHrEmployeeStatus } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailEmployee, setDetailEmployee] = useState<HrEmployee | null>(null);
   const [detailMode, setDetailMode] = useState<'view' | 'edit' | null>(null);
@@ -36,6 +37,9 @@ export const HrEmployeeDirectory: React.FC = () => {
   const [hireDate, setHireDate] = useState('');
   const [salary, setSalary] = useState('15000');
   const [manager, setManager] = useState('');
+  const [teacherId, setTeacherId] = useState('');
+
+  const isTeacherLinkedPosition = HR_TEACHER_LINKED_POSITIONS.includes(position);
 
   const employees = useMemo(() => filterSchoolEmployees(hrEmployees), [hrEmployees]);
   const filtered = useMemo(() => {
@@ -66,6 +70,7 @@ export const HrEmployeeDirectory: React.FC = () => {
     setHireDate('');
     setSalary('15000');
     setManager('');
+    setTeacherId('');
   };
 
   const loadForm = (emp: HrEmployee) => {
@@ -78,12 +83,13 @@ export const HrEmployeeDirectory: React.FC = () => {
     setHireDate(emp.hireDate);
     setSalary(String(emp.salary));
     setManager(emp.manager ?? '');
+    setTeacherId(emp.teacherId ?? '');
   };
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !phone) return;
-    addHrEmployee({
+    void addHrEmployee({
       name,
       email,
       phone,
@@ -94,6 +100,7 @@ export const HrEmployeeDirectory: React.FC = () => {
       salary: Number(salary) || 0,
       status: 'Active',
       manager: manager || undefined,
+      teacherId: isTeacherLinkedPosition && teacherId ? teacherId : undefined,
     });
     resetForm();
     setIsModalOpen(false);
@@ -112,6 +119,7 @@ export const HrEmployeeDirectory: React.FC = () => {
       hireDate,
       salary: Number(salary) || 0,
       manager: manager || undefined,
+      teacherId: isTeacherLinkedPosition && teacherId ? teacherId : undefined,
     });
     closeDetail();
   };
@@ -195,6 +203,20 @@ export const HrEmployeeDirectory: React.FC = () => {
       <div><label className="text-[10px] font-bold text-muted-foreground uppercase">Hire Date</label><input type="date" className={inputClass} value={hireDate} onChange={(e) => setHireDate(e.target.value)} /></div>
       <div><label className="text-[10px] font-bold text-muted-foreground uppercase">Monthly Salary (ETB)</label><input type="number" className={inputClass} value={salary} onChange={(e) => setSalary(e.target.value)} /></div>
       <div className="sm:col-span-2"><label className="text-[10px] font-bold text-muted-foreground uppercase">Manager</label><input className={inputClass} value={manager} onChange={(e) => setManager(e.target.value)} placeholder="Reporting manager" /></div>
+      {isTeacherLinkedPosition && (
+        <div className="sm:col-span-2">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase">Linked Instructional Record</label>
+          <select className={inputClass} value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
+            <option value="">— Not linked to a teacher roster record —</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} ({t.subjects.join(', ') || 'no subjects set'})</option>
+            ))}
+          </select>
+          <p className="text-[9px] text-muted-foreground mt-1">
+            Linking keeps this HR record and the instructor&apos;s teaching profile (subjects, grades, training) in sync — leave status here mirrors to the linked record.
+          </p>
+        </div>
+      )}
     </div>
   );
 
@@ -234,6 +256,14 @@ export const HrEmployeeDirectory: React.FC = () => {
             <div><p className="text-[10px] text-muted-foreground uppercase">Department</p><p className="font-medium">{detailEmployee.department}</p></div>
             <div><p className="text-[10px] text-muted-foreground uppercase">Hire Date</p><p className="font-medium">{detailEmployee.hireDate}</p></div>
             <div><p className="text-[10px] text-muted-foreground uppercase">Salary</p><p className="font-medium">{formatCurrency(detailEmployee.salary)}</p></div>
+            {detailEmployee.teacherId && (
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted-foreground uppercase">Linked Instructional Record</p>
+                <p className="font-medium">
+                  {teachers.find((t) => t.id === detailEmployee.teacherId)?.name ?? 'Linked record not found'}
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => toggleHrEmployeeStatus(detailEmployee.id)}>

@@ -46,7 +46,7 @@ export const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
 export const ROLE_ENGINES: Record<PortalRole, EngineId[]> = {
   moe: ['administrative', 'curriculum', 'training'],
   'school-head': ['administrative', 'regulatory', 'training', 'communications'],
-  registrar: ['registrar', 'administrative'],
+  registrar: ['registrar'],
   hr: ['administrative', 'training'],
   'head-of-academics': ['curriculum', 'training'],
   'department-head': ['administrative', 'academic', 'training', 'communications'],
@@ -60,13 +60,9 @@ export function enginesForRole(role: PortalRole): EngineId[] {
   return ROLE_ENGINES[role] ?? [];
 }
 
-/** Display label for an engine. The Training engine reads "Leadership Training Engine"
- * for every role except teacher, since only teachers use it for their own classroom
- * professional development — everyone else uses it to manage/track leadership training. */
+/** Display label for an engine. */
 export function engineLabel(engine: EngineId, role?: PortalRole): string {
-  if (engine === 'training' && role && role !== 'teacher') {
-    return 'Leadership Training Engine';
-  }
+  void role;
   return ENGINE_LABELS[engine];
 }
 

@@ -20,7 +20,7 @@ export const HrOnboarding: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [position, setPosition] = useState('Administrative Assistant');
+  const [position, setPosition] = useState('Teacher Assistant');
   const [department, setDepartment] = useState('Administration');
   const [salary, setSalary] = useState('12000');
 
@@ -53,7 +53,7 @@ export const HrOnboarding: React.FC = () => {
   const handleOnboard = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !phone) return;
-    const empId = addHrEmployee({
+    void addHrEmployee({
       name,
       email,
       phone,
@@ -63,8 +63,9 @@ export const HrOnboarding: React.FC = () => {
       hireDate: new Date().toISOString().slice(0, 10),
       salary: Number(salary) || 0,
       status: 'Probation',
+    }).then((employee) => {
+      defaultOnboardingTasks(employee.id, name).forEach((t) => addOnboardingTask(t));
     });
-    defaultOnboardingTasks(empId, name).forEach((t) => addOnboardingTask(t));
     setIsNewEmployeeOpen(false);
     setName('');
     setEmail('');

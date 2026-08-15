@@ -85,6 +85,9 @@ export interface Student {
   attendanceRate: number;
   medicalInfo?: string;
   emergencyContact: string;
+  dateOfBirth?: string;
+  academicYear?: string;
+  promotedAt?: string;
 }
 
 export type RegistrationApplicationStatus =

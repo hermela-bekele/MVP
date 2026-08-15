@@ -73,13 +73,15 @@ export const TeacherTrainingTab: React.FC<{
 
   // Select the appropriate modules based on active tab
   const ALL_MODULES =
-    activeTabType === "training-subject-matter"
-      ? TRAINING_MODULES
-      : activeTabType === "training-induction"
-        ? TIP_MODULES
-        : activeTabType === "leadership-development"
-          ? ELEP_MODULES
-          : CONTINUOUS_DEVELOPMENT_MODULES;
+    activeTabType === "all"
+      ? [...TRAINING_MODULES, ...TIP_MODULES, ...ELEP_MODULES, ...CONTINUOUS_DEVELOPMENT_MODULES]
+      : activeTabType === "training-subject-matter"
+        ? TRAINING_MODULES
+        : activeTabType === "training-induction"
+          ? TIP_MODULES
+          : activeTabType === "leadership-development"
+            ? ELEP_MODULES
+            : CONTINUOUS_DEVELOPMENT_MODULES;
 
   const program: "TIP" | "STEP" | null =
     activeTabType === "training-induction" ? "TIP" : activeTabType === "training-continuous" ? "STEP" : null;

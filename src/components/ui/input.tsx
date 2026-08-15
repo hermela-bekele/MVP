@@ -46,7 +46,11 @@ export const Input: React.FC<InputProps> = ({
   const isControlled = value !== undefined;
   const currentValue = isControlled ? String(value) : internalValue;
   const hasValue = currentValue.length > 0;
-  const isFloating = focused || hasValue;
+  // Native date/time inputs always render their own placeholder (e.g. dd/mm/yyyy) which
+  // isn't a real CSS placeholder and can't be hidden, so the label must stay floated up
+  // at all times for these types or it visually collides with that native text.
+  const isDateLikeType = ['date', 'time', 'datetime-local', 'month', 'week'].includes(type as string);
+  const isFloating = focused || hasValue || isDateLikeType;
   const isPassword = type === 'password';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
