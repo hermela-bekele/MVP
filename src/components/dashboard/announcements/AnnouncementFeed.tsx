@@ -121,7 +121,7 @@ export function AnnouncementFeed({
             </div>
 
             <div className="px-4 pb-3">
-              <h3 className="text-[15px] font-bold leading-snug text-foreground">{post.title}</h3>
+              <h3 className="text-[15px] font-bold leading-snug text-title">{post.title}</h3>
               <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-foreground/90">{body}</p>
               {isLong && (
                 <button

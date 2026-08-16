@@ -40,7 +40,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
 
       {/* Title */}
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <h3 className="text-base font-semibold text-title">{title}</h3>
 
       {/* Description */}
       {description && (

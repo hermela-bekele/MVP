@@ -31,26 +31,22 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 const VARIANT_STYLES: Record<
   ToastVariant,
-  { bar: string; icon: string; Icon: React.ComponentType<{ className?: string }> }
+  { iconWrap: string; Icon: React.ComponentType<{ className?: string }> }
 > = {
   success: {
-    bar: 'border-l-emerald-500',
-    icon: 'text-emerald-600',
+    iconWrap: 'bg-emerald-500/10 text-emerald-600',
     Icon: CheckCircle2,
   },
   info: {
-    bar: 'border-l-primary',
-    icon: 'text-primary',
+    iconWrap: 'bg-primary/10 text-primary',
     Icon: Info,
   },
   alert: {
-    bar: 'border-l-red-500',
-    icon: 'text-red-600',
+    iconWrap: 'bg-red-500/10 text-red-600',
     Icon: AlertTriangle,
   },
   request: {
-    bar: 'border-l-amber-500',
-    icon: 'text-amber-600',
+    iconWrap: 'bg-amber-500/10 text-amber-600',
     Icon: Info,
   },
 };
@@ -142,11 +138,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <div
                   key={item.id}
                   role="status"
-                  className={`pointer-events-auto w-full max-w-md animate-fade-in-down rounded-xl border border-border/70 border-l-4 ${style.bar} bg-white/95 px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm`}
+                  className="pointer-events-auto w-full max-w-md animate-fade-in-down rounded-2xl border border-border/60 bg-white/95 px-4 py-3.5 shadow-[0_16px_40px_rgba(15,23,42,0.16)] backdrop-blur-sm"
                 >
                   <div className="flex items-start gap-3">
-                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${style.icon}`} />
-                    <div className="min-w-0 flex-1">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.iconWrap}`}>
+                      <Icon className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="min-w-0 flex-1 pt-1">
                       <p className="text-sm font-semibold text-foreground leading-snug">{item.title}</p>
                       {item.description ? (
                         <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
@@ -157,7 +155,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     <button
                       type="button"
                       onClick={() => dismiss(item.id)}
-                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="shrink-0 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                       aria-label="Dismiss notification"
                     >
                       <X className="h-3.5 w-3.5" />

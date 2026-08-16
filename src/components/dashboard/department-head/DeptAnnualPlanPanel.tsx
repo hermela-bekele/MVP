@@ -645,7 +645,7 @@ export const DeptAnnualPlanPanel: React.FC<{
               <ClipboardList className="h-4.5 w-4.5 h-[18px] w-[18px]" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-foreground">Plan Overview</h3>
+              <h3 className="text-base font-semibold text-title">Plan Overview</h3>
               <p className="text-sm text-muted-foreground">
                 Set the basic details for your annual lesson plan.
               </p>
@@ -759,7 +759,7 @@ export const DeptAnnualPlanPanel: React.FC<{
                 <Briefcase className="h-4 w-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Teaching Aids</h3>
+                <h3 className="text-sm font-semibold text-title">Teaching Aids</h3>
                 <p className="text-xs text-muted-foreground">
                   Select aids available for this plan.
                 </p>
@@ -877,7 +877,7 @@ export const DeptAnnualPlanPanel: React.FC<{
               <CalendarDays className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-foreground">Academic Calendar</h3>
+              <h3 className="text-sm font-semibold text-title">Academic Calendar</h3>
               <p className="text-xs text-muted-foreground line-clamp-2">
                 {publishedCalendar?.title || `${schoolName} Academic Calendar`}
               </p>

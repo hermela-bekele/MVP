@@ -55,6 +55,7 @@ export default function LessonPlanNotesPage({
       subtitle="All notes for this lesson plan."
       eyebrow="Bole Secondary · Teacher Portal"
       headerVariant="portal"
+      hideSearch
       breadcrumbs={[
         { label: "Lesson Plans", onClick: () => navigateToTeacherTab("lesson-plans") },
         { label: "Lesson plan notes" },

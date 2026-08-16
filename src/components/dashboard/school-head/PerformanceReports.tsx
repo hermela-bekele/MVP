@@ -6,11 +6,12 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Badge } from '@/components/ui/badge';
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table';
 import { LinearProgress } from '@/components/ui/progress';
+import { gpaToMark } from '@/lib/grading';
 
 type AcademicGradeRow = {
   grade: string;
   studentsCount: number;
-  avgGpa: number;
+  avgMark: number;
   avgAttendance: number;
 };
 
@@ -28,7 +29,7 @@ type ClassPerfRow = {
   grade: string;
   section: string;
   teacher: string;
-  avgGpa: number;
+  avgMark: number;
   attendance: number;
 };
 
@@ -42,17 +43,17 @@ export const PerformanceReports: React.FC = () => {
     return grades.map(grade => {
       const gradeStudents = students.filter(s => s.grade === grade);
       const totalStudents = gradeStudents.length;
-      const avgGpa = totalStudents > 0 
-        ? parseFloat((gradeStudents.reduce((acc, s) => acc + s.gpa, 0) / totalStudents).toFixed(2))
+      const avgMark = totalStudents > 0
+        ? Math.round(gradeStudents.reduce((acc, s) => acc + gpaToMark(s.gpa), 0) / totalStudents)
         : 0;
       const avgAttendance = totalStudents > 0
         ? Math.round(gradeStudents.reduce((acc, s) => acc + s.attendanceRate, 0) / totalStudents)
         : 0;
-      
+
       return {
         grade,
         studentsCount: totalStudents,
-        avgGpa,
+        avgMark,
         avgAttendance,
       };
     });
@@ -61,15 +62,15 @@ export const PerformanceReports: React.FC = () => {
   const academicColumns: DataTableColumn<AcademicGradeRow>[] = [
     { key: 'grade', header: 'Grade Level', sortable: true },
     { key: 'studentsCount', header: 'Active Students', sortable: true },
-    { 
-      key: 'avgGpa', 
-      header: 'Average GPA', 
+    {
+      key: 'avgMark',
+      header: 'Average Mark',
       sortable: true,
       render: (row) => (
         <div className="flex items-center space-x-2">
-          <span className="font-semibold text-xs text-foreground">{row.avgGpa}</span>
+          <span className="font-semibold text-xs text-foreground">{row.avgMark}%</span>
           <div className="w-16">
-            <LinearProgress value={(row.avgGpa / 4.0) * 100} size="sm" color={row.avgGpa >= 3.0 ? 'primary' : row.avgGpa >= 2.0 ? 'accent' : 'destructive'} />
+            <LinearProgress value={row.avgMark} size="sm" color={row.avgMark >= 75 ? 'primary' : row.avgMark >= 50 ? 'accent' : 'destructive'} />
           </div>
         </div>
       )
@@ -140,15 +141,15 @@ export const PerformanceReports: React.FC = () => {
   // Class Section Sub-Tab Data
   const classPerformanceData = React.useMemo(() => {
     return classes.map(cls => {
-      // Mock average GPA and attendance for class sections
-      const mockScores: Record<string, { gpa: number; att: number }> = {
-        'cls-1': { gpa: 3.12, att: 94 },
-        'cls-2': { gpa: 2.89, att: 91 },
-        'cls-3': { gpa: 3.41, att: 96 },
-        'cls-4': { gpa: 3.01, att: 92 },
+      // Mock average mark and attendance for class sections
+      const mockScores: Record<string, { mark: number; att: number }> = {
+        'cls-1': { mark: 78, att: 94 },
+        'cls-2': { mark: 72, att: 91 },
+        'cls-3': { mark: 85, att: 96 },
+        'cls-4': { mark: 75, att: 92 },
       };
-      
-      const stats = mockScores[cls.id] ?? { gpa: 3.00, att: 93 };
+
+      const stats = mockScores[cls.id] ?? { mark: 75, att: 93 };
 
       return {
         id: cls.id,
@@ -156,28 +157,28 @@ export const PerformanceReports: React.FC = () => {
         grade: cls.grade,
         section: cls.section,
         teacher: cls.homeroomTeacher,
-        avgGpa: stats.gpa,
+        avgMark: stats.mark,
         attendance: stats.att,
       };
     });
   }, [classes]);
 
   const classColumns: DataTableColumn<ClassPerfRow>[] = [
-    { 
-      key: 'name', 
-      header: 'Classroom Section', 
+    {
+      key: 'name',
+      header: 'Classroom Section',
       sortable: true,
       render: (row) => (
         <span className="font-bold text-foreground">{row.grade} - {row.section}</span>
       )
     },
     { key: 'teacher', header: 'Homeroom Advisor', sortable: true },
-    { 
-      key: 'avgGpa', 
-      header: 'Classroom GPA Average', 
+    {
+      key: 'avgMark',
+      header: 'Classroom Average Mark',
       sortable: true,
       render: (row) => (
-        <span className="font-semibold text-xs text-foreground">{row.avgGpa} / 4.0</span>
+        <span className="font-semibold text-xs text-foreground">{row.avgMark}%</span>
       )
     },
     {
@@ -236,14 +237,7 @@ export const PerformanceReports: React.FC = () => {
             ? 'Academic Performance by Grade Level'
             : activeSubTab === 'department'
               ? 'Department Curriculum Analytics'
-              : 'Classroom Section GPAs & Attendance'
-        }
-        description={
-          activeSubTab === 'academic'
-            ? 'Summarized KPIs across core secondary grades'
-            : activeSubTab === 'department'
-              ? 'Comparative pass rates and subject average scores'
-              : 'Granular performance overview for homerooms'
+              : 'Classroom Section Marks & Attendance'
         }
       >
           {activeSubTab === 'academic' && (

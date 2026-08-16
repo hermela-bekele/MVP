@@ -164,7 +164,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
   return (
     <div className="max-w-3xl mx-auto py-8 px-6 space-y-6">
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+        <h2 className="text-2xl font-bold text-title dark:text-gray-100 mb-2">
           Reflection After Assessment
         </h2>
         <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
@@ -210,7 +210,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
           <button
             onClick={handleReflectionSubmit}
             disabled={!allReflectionAnswered}
-            className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-8 py-3 bg-btn-primary text-btn-primary-foreground rounded-lg hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Submit Reflection
             <ArrowRight className="w-4 h-4" />

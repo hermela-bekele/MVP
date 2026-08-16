@@ -68,19 +68,19 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ content, className =
       // Headers
       if (line.startsWith('###')) {
         processedLines.push(
-          <h3 key={idx} className="text-lg font-semibold mt-4 mb-2 text-ais-on-surface dark:text-gray-100">
+          <h3 key={idx} className="text-lg font-semibold mt-4 mb-2 text-title dark:text-gray-100">
             {lineContent}
           </h3>
         );
       } else if (line.startsWith('##')) {
         processedLines.push(
-          <h2 key={idx} className="text-xl font-bold mt-6 mb-3 text-ais-on-surface dark:text-gray-100">
+          <h2 key={idx} className="text-xl font-bold mt-6 mb-3 text-title dark:text-gray-100">
             {lineContent}
           </h2>
         );
       } else if (line.startsWith('#')) {
         processedLines.push(
-          <h1 key={idx} className="text-2xl font-bold mt-6 mb-4 text-ais-on-surface dark:text-gray-100">
+          <h1 key={idx} className="text-2xl font-bold mt-6 mb-4 text-title dark:text-gray-100">
             {lineContent}
           </h1>
         );

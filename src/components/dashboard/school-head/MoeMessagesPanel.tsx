@@ -69,7 +69,7 @@ export const MoeMessagesPanel: React.FC = () => {
       <div className="space-y-4">
         <div>
           <p className={aisLabelCaps}>Regulatory Engine</p>
-          <h2 className={`${aisHeadlineSm} mt-1`}>Message MOE</h2>
+          <h2 className={`${aisHeadlineSm} mt-1 !text-title`}>Message MOE</h2>
           <p className={`${aisBodySm} mt-1`}>
             Direct line to the Ministry of Education regional desk. Messages are kept for this session.
           </p>

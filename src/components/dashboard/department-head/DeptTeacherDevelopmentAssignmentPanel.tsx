@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -303,10 +302,6 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
           <ClipboardCheck className="h-4 w-4 text-primary" />
           Assign teacher development modules
         </CardTitle>
-        <CardDescription>
-          Pick a teacher, then assign a preset TIP/STEP module — or expand a missed-question
-          coaching suggestion into a PD module.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-2">
         <Select

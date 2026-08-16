@@ -178,7 +178,6 @@ export const RegistrarBilling: React.FC = () => {
 
       <TablePanel
         title="Invoices & deadlines"
-        description="Admission and tuition invoices with live deadline colors"
       >
         {invoices.length ? (
           <DataTable columns={columns} data={invoices} />

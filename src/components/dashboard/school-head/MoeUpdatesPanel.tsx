@@ -1,12 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import {
   MOE_ACADEMIC_YEAR_TITLE,
-  MOE_REFERENCE,
   MOE_MAJOR_ACTIVITIES,
 } from '@/lib/moeCalendarData';
 
@@ -29,7 +28,6 @@ export const MoeUpdatesPanel: React.FC = () => {
       <Card className="border-border/60">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-bold text-foreground">{MOE_ACADEMIC_YEAR_TITLE}</CardTitle>
-          <CardDescription className="text-xxs">{MOE_REFERENCE}</CardDescription>
         </CardHeader>
         <CardContent className="text-xxs text-muted-foreground">
           <p>
@@ -41,7 +39,6 @@ export const MoeUpdatesPanel: React.FC = () => {
 
       <TablePanel
         title="Compliance Milestones"
-        description="Key MOE-mandated dates the school must observe this academic year"
       >
         <table className="eskooly-table">
           <thead>

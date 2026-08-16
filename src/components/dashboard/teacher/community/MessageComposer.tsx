@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Bold, Code, Italic, List, Paperclip, Send, Smile } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { MentionSuggestion } from '@/lib/communityTypes';
 import { aisInput } from '@/components/dashboard/teacher/aisStyles';
+import { QUICK_EMOJIS } from './communityUi';
 
 type Props = {
   communityId: string | null;
@@ -25,8 +26,51 @@ export function MessageComposer({
   const [sending, setSending] = useState(false);
   const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const wrapSelection = (before: string, after: string = before) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = value.slice(start, end);
+    const next = value.slice(0, start) + before + selected + after + value.slice(end);
+    setValue(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  };
+
+  const insertListPrefix = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const next = `${value.slice(0, lineStart)}- ${value.slice(lineStart)}`;
+    setValue(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + 2;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + emoji + value.slice(end);
+    setValue(next);
+    setEmojiOpen(false);
+    requestAnimationFrame(() => {
+      el?.focus();
+      const pos = start + emoji.length;
+      el?.setSelectionRange(pos, pos);
+    });
+  };
 
   useEffect(() => {
     if (!communityId || mentionQuery == null) {
@@ -116,6 +160,77 @@ export function MessageComposer({
           ))}
         </div>
       )}
+      <div className="mb-2 flex items-center gap-0.5">
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+          title="Bold"
+          disabled={disabled}
+          onClick={() => wrapSelection('**')}
+        >
+          <Bold className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+          title="Italic"
+          disabled={disabled}
+          onClick={() => wrapSelection('*')}
+        >
+          <Italic className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+          title="Code"
+          disabled={disabled}
+          onClick={() => wrapSelection('`')}
+        >
+          <Code className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+          title="Bullet list"
+          disabled={disabled}
+          onClick={insertListPrefix}
+        >
+          <List className="h-3.5 w-3.5" />
+        </button>
+        <div className="relative">
+          <button
+            type="button"
+            className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+            title="Emoji"
+            disabled={disabled}
+            onClick={() => setEmojiOpen((o) => !o)}
+          >
+            <Smile className="h-3.5 w-3.5" />
+          </button>
+          {emojiOpen && (
+            <div className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-lg border border-ais-card-border bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
+              {QUICK_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  className="rounded-md p-1 text-base hover:bg-ais-row-hover"
+                  onClick={() => insertEmoji(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          className="rounded-md p-1.5 text-ais-on-surface-variant/50 transition-colors hover:bg-ais-row-hover disabled:cursor-not-allowed"
+          title="Attachments coming soon"
+          disabled
+        >
+          <Paperclip className="h-3.5 w-3.5" />
+        </button>
+      </div>
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -131,7 +246,7 @@ export function MessageComposer({
           type="button"
           disabled={disabled || sending || !value.trim()}
           onClick={() => void submit()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ais-primary text-white shadow-sm transition-colors hover:bg-ais-primary-container disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E88700] text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Send"
         >
           <Send className="h-4 w-4" />

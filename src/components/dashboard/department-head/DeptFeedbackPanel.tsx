@@ -200,7 +200,6 @@ export const DeptFeedbackPanel: React.FC = () => {
 
       <TablePanel
         title="Department feedback loops"
-        description="Direct feedback, peer reviews, and parent & student feedback given to department teachers"
         actions={
           <Button
             variant="organic"

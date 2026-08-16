@@ -146,7 +146,6 @@ export const RegistrarApplications: React.FC = () => {
       )}
       <TablePanel
         title="Applications queue"
-        description="Score/priority waitlist, accept (reserves seat + admission invoice), reject, or waitlist."
         actions={
           <Button size="sm" variant="outline" onClick={() => refresh()}>
             Refresh

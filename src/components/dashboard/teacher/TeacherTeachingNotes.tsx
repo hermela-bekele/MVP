@@ -20,6 +20,7 @@ import {
   resolveTeacherProfile,
   primarySubjectForTeacher,
   STUDENT_LEVEL_OPTIONS,
+  SUBJECT_OPTIONS,
   isWeeklyPlanHodApproved,
   weeklyPlanStatusLabel,
   graspOutcomeLabel,
@@ -901,7 +902,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           Annual
                         </span>
                       </div>
-                      <h3 className={`${aisHeadlineSm} line-clamp-2 mb-2`}>{plan.title}</h3>
+                      <h3 className={`${aisHeadlineSm} line-clamp-2 mb-2 !text-title`}>{plan.title}</h3>
                       <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
                         {plan.grade} · {plan.subject} · {plan.sessions} weeks
                       </p>
@@ -944,7 +945,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           className="min-w-0 flex-1 text-left"
                           onClick={() => openWeeklyPlanDialog(plan, 'view')}
                         >
-                          <h3 className={`${aisHeadlineSm} line-clamp-2`}>{weeklyPlanWeekLabel(plan)}</h3>
+                          <h3 className={`${aisHeadlineSm} line-clamp-2 !text-title`}>{weeklyPlanWeekLabel(plan)}</h3>
                         </button>
                         <div className="flex shrink-0 items-center gap-1">
                           <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-ais-primary/10 px-2.5 text-xs font-bold tabular-nums text-ais-primary">
@@ -1028,7 +1029,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           type="button"
                           aria-label={hodApproved ? 'Add note' : 'Weekly plan not yet approved by HoD'}
                           disabled={!hodApproved}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-ais-primary text-white shadow-md transition-all hover:bg-ais-primary-container hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-btn-primary text-btn-primary-foreground shadow-md transition-all hover:bg-btn-primary/90 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                           onClick={(e) => {
                             e.stopPropagation();
                             openCreateNote(plan.id);
@@ -1241,7 +1242,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={notesGrade} onChange={(e) => setNotesGrade(e.target.value)} />
             </div>
             <div className="min-w-0">
-              <Select variant="ais" label="Subject" options={[{ value: 'Mathematics', label: 'Mathematics' }, { value: 'Biology', label: 'Biology' }, { value: 'General Science', label: 'General Science' }]} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
+              <Select variant="ais" label="Subject" options={SUBJECT_OPTIONS.map((s) => ({ value: s, label: s }))} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
             </div>
             {activePlan && !editingNoteId ? (
               <div className="min-w-0">

@@ -10,6 +10,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { Student } from '@/lib/mockData';
 import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
+import { gpaToMark } from '@/lib/grading';
 
 export const RegistrarTransfers: React.FC = () => {
   const { students, updateStudent, addNotification } = useApp();
@@ -88,7 +89,6 @@ export const RegistrarTransfers: React.FC = () => {
 
       <TablePanel
         title="Student Status Management"
-        description="Transfers apply tuition proration credit to open invoices when applicable"
       >
         <table className="eskooly-table">
           <thead>
@@ -96,7 +96,7 @@ export const RegistrarTransfers: React.FC = () => {
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Student</th>
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Grade</th>
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Current Status</th>
-              <th className="p-3 text-left text-muted-foreground font-semibold text-xs">GPA</th>
+              <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Mark</th>
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Action</th>
             </tr>
           </thead>
@@ -120,7 +120,7 @@ export const RegistrarTransfers: React.FC = () => {
                     {student.status}
                   </Badge>
                 </td>
-                <td className="p-3 text-xs font-semibold">{student.gpa.toFixed(2)}</td>
+                <td className="p-3 text-xs font-semibold">{gpaToMark(student.gpa)}%</td>
                 <td className="p-3">
                   <Button
                     variant="outline"

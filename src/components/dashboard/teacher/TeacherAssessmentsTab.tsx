@@ -6,7 +6,7 @@ import { FilePlus, Upload, Sparkles, Printer, Download } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS, resolveTeacherProfile } from '@/lib/teacherPortal';
+import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS, SUBJECT_OPTIONS, resolveTeacherProfile } from '@/lib/teacherPortal';
 import {
   generateAssessmentWithAI,
   generateBaselineAssessmentWithAI,
@@ -65,6 +65,19 @@ export const TeacherAssessmentsTab: React.FC = () => {
     subjects: teacherProfile.subjects,
   });
   const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'All' | Assessment['type']>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | Assessment['status']>('All');
+  const filteredAssessments = useMemo(() => {
+    return myAssessments.filter((a) => {
+      if (typeFilter !== 'All' && a.type !== typeFilter) return false;
+      if (statusFilter !== 'All' && a.status !== statusFilter) return false;
+      const q = searchQuery.trim().toLowerCase();
+      if (q && !a.title.toLowerCase().includes(q) && !a.subject.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessments, teacherId, typeFilter, statusFilter, searchQuery]);
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<Assessment['type']>('Quiz');
@@ -351,6 +364,43 @@ export const TeacherAssessmentsTab: React.FC = () => {
           </>
         }
       >
+        <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:grid-cols-3">
+          <input
+            type="search"
+            className={aisInput}
+            placeholder="Search by title or subject..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Select
+            variant="ais"
+            label=""
+            options={[
+              { value: 'All', label: 'All types' },
+              { value: 'Quiz', label: 'Quiz' },
+              { value: 'Mid Exam', label: 'Mid Exam' },
+              { value: 'Final Exam', label: 'Final Exam' },
+              { value: 'Assignment', label: 'Assignment' },
+              { value: 'Practical', label: 'Practical' },
+              { value: 'Baseline', label: 'Baseline' },
+            ]}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+          />
+          <Select
+            variant="ais"
+            label=""
+            options={[
+              { value: 'All', label: 'All statuses' },
+              { value: 'Draft', label: 'Draft' },
+              { value: 'Pending Dept Head', label: 'Pending Dept Head' },
+              { value: 'Approved', label: 'Approved' },
+              { value: 'Rejected', label: 'Rejected' },
+            ]}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          />
+        </div>
         <AisTable>
           <thead>
             <tr className="bg-ais-surface-container-low">
@@ -363,10 +413,10 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {myAssessments.length === 0 ? (
-              <AisEmptyRow colSpan={6} message="No assessments created yet." />
+            {filteredAssessments.length === 0 ? (
+              <AisEmptyRow colSpan={6} message="No assessments match this filter." />
             ) : (
-              myAssessments.map((a) => (
+              filteredAssessments.map((a) => (
                 <AisTr
                   key={a.id}
                   className="cursor-pointer"
@@ -685,12 +735,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             <Select
               variant="ais"
               label="Subject"
-              options={[
-                { value: 'Mathematics', label: 'Mathematics' },
-                { value: 'Biology', label: 'Biology' },
-                { value: 'Chemistry', label: 'Chemistry' },
-                { value: 'Physics', label: 'Physics' },
-              ]}
+              options={SUBJECT_OPTIONS.map((s) => ({ value: s, label: s }))}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
             />
@@ -710,7 +755,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 type="button"
                 onClick={handleGenerateWithAI}
                 disabled={isGenerating || !canGenerate}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-8 py-3 text-base font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-8 py-3 text-base font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
               >
                 <Sparkles className="h-4 w-4 animate-pulse" />
                 {isGenerating ? 'Generating with AI...' : isBaseline ? 'Generate baseline with AI' : 'Generate with AI'}
@@ -772,7 +817,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             {canSubmit && (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
               >
                 {type === 'Quiz' || type === 'Baseline'
                   ? 'Save & make available for grades'

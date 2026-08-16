@@ -8,7 +8,6 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -198,10 +197,6 @@ export function DeptGradeMissTrainingPanel() {
           <CardTitle className="text-sm font-semibold">
             Grade miss alerts (≥{GRADE_MISS_THRESHOLD}%)
           </CardTitle>
-          <CardDescription>
-            Student-result gaps for {scope?.subject ?? 'department'} classes. Use AI to generate a
-            training module on the weak topic, then disseminate it to the teacher.
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 pt-2">
           {missStats.length === 0 ? (
@@ -259,9 +254,6 @@ export function DeptGradeMissTrainingPanel() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-semibold">Teacher miss reports</CardTitle>
-          <CardDescription>
-            Reports teachers sent from the gradebook. Generate a PD module on the flagged topic.
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 pt-2">
           {teacherReports.length === 0 ? (
@@ -306,7 +298,6 @@ export function DeptGradeMissTrainingPanel() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold">Generated PD modules</CardTitle>
-            <CardDescription>AI modules saved for this department</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-2">
             {aiModules.map((m) => (

@@ -16,18 +16,18 @@ export const WorkingDaysAnalysis: React.FC = () => {
   );
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-slate-50 via-white to-teal-50/40 overflow-hidden">
+    <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-slate-50 via-white to-primary/5 overflow-hidden">
       <div className="px-6 py-5 border-b border-border/40 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-700/80">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
             Working days analysis
           </p>
-          <h3 className="text-lg font-bold text-foreground mt-1">Instructional calendar load</h3>
+          <h3 className="text-lg font-bold text-title mt-1">Instructional calendar load</h3>
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             Official MOE working-day distribution across Ethiopian months for the academic year.
           </p>
         </div>
-        <div className="flex items-baseline gap-2 rounded-xl bg-teal-700 text-white px-4 py-3 shadow-sm">
+        <div className="flex items-baseline gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-3 shadow-sm">
           <span className="text-3xl font-bold tabular-nums leading-none">{ACADEMIC_YEAR_TOTAL_DAYS}</span>
           <span className="text-xs font-medium opacity-90">total days</span>
         </div>
@@ -39,14 +39,14 @@ export const WorkingDaysAnalysis: React.FC = () => {
           total={SEMESTER_1_TOTAL}
           months={WORKING_DAYS_SEMESTER_1}
           maxDays={maxDays}
-          accent="from-sky-500 to-teal-600"
+          accent="from-primary to-primary/80"
         />
         <SemesterColumn
           title="Semester II"
           total={SEMESTER_2_TOTAL}
           months={WORKING_DAYS_SEMESTER_2}
           maxDays={maxDays}
-          accent="from-teal-600 to-emerald-600"
+          accent="from-primary/60 to-primary/40"
         />
       </div>
     </section>
@@ -69,7 +69,7 @@ function SemesterColumn({
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-bold text-foreground">{title}</h4>
+        <h4 className="text-sm font-bold text-title">{title}</h4>
         <span className="text-xs font-semibold tabular-nums text-muted-foreground">
           <span className="text-foreground text-base font-bold">{total}</span> days
         </span>

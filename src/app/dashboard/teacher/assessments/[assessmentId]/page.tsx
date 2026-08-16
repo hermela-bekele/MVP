@@ -54,6 +54,7 @@ export default function AssessmentDetailPage({
       subtitle="View, edit, and add questions for this assessment."
       eyebrow="Bole Secondary · Teacher Portal"
       headerVariant="portal"
+      hideSearch
       breadcrumbs={[
         { label: "Assessments", onClick: handleBack },
         { label: "Questions" },

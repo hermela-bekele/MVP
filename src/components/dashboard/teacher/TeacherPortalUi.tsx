@@ -68,7 +68,7 @@ export function AisPanel({
       {(title || description || actions) && (
         <div className={aisPanelHeader}>
           <div className="min-w-0">
-            {title && <h3 className={aisHeadlineSm}>{title}</h3>}
+            {title && <h3 className={`${aisHeadlineSm} !text-title`}>{title}</h3>}
             {description && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -236,7 +236,7 @@ export function AisFormCard({
   return (
     <Tag onSubmit={onSubmit} className={`${aisCard} space-y-4 p-4 ${className}`}>
       <div>
-        <h3 className={aisHeadlineSm}>{title}</h3>
+        <h3 className={`${aisHeadlineSm} !text-title`}>{title}</h3>
         {description && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
       </div>
       {children}

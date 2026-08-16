@@ -373,7 +373,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className={aisLabelCaps}>Gap analysis</p>
-          <h3 className={`${aisHeadlineSm} mt-1`}>AI analysis</h3>
+          <h3 className={`${aisHeadlineSm} mt-1 !text-title`}>AI analysis</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {analysisReady && !isHod && flaggedMisses.length > 0 && (

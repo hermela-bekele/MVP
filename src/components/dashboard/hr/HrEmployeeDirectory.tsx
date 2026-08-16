@@ -201,7 +201,6 @@ export const HrEmployeeDirectory: React.FC = () => {
   return (
     <TablePanel
       title="Employee Directory"
-      description="Complete staff records — teaching and non-teaching personnel"
       actions={
         <input
           className="h-9 px-3 bg-muted/40 border border-border rounded-md text-xs w-48"

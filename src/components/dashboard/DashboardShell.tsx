@@ -23,6 +23,8 @@ export interface DashboardShellProps {
   showPageHeader?: boolean;
   /** Page header visual style */
   headerVariant?: 'default' | 'portal';
+  /** Hide the top navbar's global search / command-palette trigger */
+  hideSearch?: boolean;
 }
 
 export const DashboardShell: React.FC<DashboardShellProps> = ({
@@ -38,6 +40,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
   animateTabs = true,
   showPageHeader = true,
   headerVariant = 'default',
+  hideSearch = false,
 }) => {
   useEffect(() => {
     const handleNavigate = (e: Event) => {
@@ -72,11 +75,11 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative z-10">
-        <Navbar breadcrumbs={breadcrumbs} />
+        <Navbar breadcrumbs={breadcrumbs} hideSearch={hideSearch} />
 
         <main
           className={`flex-1 overflow-y-auto px-4 sm:px-5 lg:px-4${
-            headerVariant === 'portal' ? ' bg-[#f9f9ff] teacher-portal' : ''
+            headerVariant === 'portal' ? ' bg-dashboard-bg teacher-portal' : ''
           }`}
         >
           <div className="mx-auto w-full max-w-[1400px] py-5 sm:py-6">

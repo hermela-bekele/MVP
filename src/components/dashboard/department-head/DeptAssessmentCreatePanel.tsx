@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildLessonPlanContext, generateAssessmentWithAI, questionLimitsForAssessmentType, getWeeklyPlanSessionTopicOptions, parseWeeklyPlanDetail } from '@/lib/ai';
 import { GRADE_OPTIONS, graspOutcomeLabel, normalizeGradeLabel } from '@/lib/teacherPortal';
 import {
@@ -320,10 +320,6 @@ export function DeptAssessmentCreatePanel() {
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div>
             <CardTitle className="text-sm font-semibold">Generate department exams</CardTitle>
-            <CardDescription>
-              Topics come from teaching notes teachers marked as delivered — with the
-              linked weekly lesson plan. Select one or all sessions to generate assessments.
-            </CardDescription>
           </div>
           <Button
             type="button"

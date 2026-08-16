@@ -17,10 +17,10 @@ import {
   primaryEventForDay,
   shortHolidayLabel,
 } from '@/lib/calendarPresentation';
-import { formatEthiopianDateShort, gregorianIsoToEthiopian, ETHIOPIAN_MONTHS } from '@/lib/ethiopianCalendar';
+import { formatEthiopianDateShort } from '@/lib/ethiopianCalendar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type ViewMode = 'grid' | 'list';
 
@@ -54,12 +54,6 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     year: 'numeric',
   });
 
-  const ethiopianMonthHint = useMemo(() => {
-    const midIso = toIso(year, month, 15);
-    const e = gregorianIsoToEthiopian(midIso);
-    return `${ETHIOPIAN_MONTHS[e.month - 1]} ${e.year} E.C.`;
-  }, [year, month]);
-
   const gridCells = useMemo(() => {
     const totalDays = daysInMonth(year, month);
     const leading = firstWeekdayOfMonth(year, month);
@@ -83,7 +77,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold text-foreground">{title}</h3>
+          <h3 className="text-sm font-bold text-title">{title}</h3>
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
           {holidayCount > 0 && (
             <p className="text-xs text-destructive font-medium mt-1">
@@ -134,11 +128,6 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-base font-bold">{monthLabel}</CardTitle>
-                <CardDescription className="text-xs mt-1">
-                  Ethiopian calendar: <span className="font-semibold text-foreground">{ethiopianMonthHint}</span>
-                  <span className="mx-2 text-border">|</span>
-                  Red fill = weekday holiday · Red outline = weekend holiday · Blue = exams · Amber = breaks
-                </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Button

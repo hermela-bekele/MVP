@@ -1,33 +1,61 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Hash, Loader2, Users, Volume2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  BookOpen,
+  Calendar,
+  Folder,
+  Hash,
+  Loader2,
+  Megaphone,
+  Star,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { useApp } from '@/context/AppContext';
-import type { Community, CommunityChannel, CommunityMessage } from '@/lib/communityTypes';
+import type { CommunityChannel, CommunityMessage } from '@/lib/communityTypes';
 import { toast } from '@/components/ui/toast';
 import { aisBodySm, aisLabelCaps } from '@/components/dashboard/teacher/aisStyles';
-import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
+import { avatarColor, communityInitials, formatMessageTime } from '@/components/dashboard/teacher/community/communityUi';
 import { MessageBubble } from '@/components/dashboard/teacher/community/MessageBubble';
 import { MessageComposer } from '@/components/dashboard/teacher/community/MessageComposer';
 import { ThreadPanel } from '@/components/dashboard/teacher/community/ThreadPanel';
 import { useCommunityRealtime } from '@/hooks/useCommunityRealtime';
 
+type ChannelFilter = 'all' | 'announcement' | 'text';
+
+function channelIcon(channel: CommunityChannel) {
+  if (channel.type === 'announcement') return <Megaphone className="h-5 w-5" />;
+  const name = channel.name.toLowerCase();
+  if (name.includes('event')) return <Calendar className="h-5 w-5" />;
+  if (name.includes('resource')) return <Folder className="h-5 w-5" />;
+  if (name.includes('feedback')) return <Star className="h-5 w-5" />;
+  if (name.includes('lesson') || name.includes('plan')) return <BookOpen className="h-5 w-5" />;
+  return <Hash className="h-5 w-5" />;
+}
+
 /**
- * Card-based community picker: each card is a community (grouped by department),
- * showing only the ones the current user is a member of. Selecting a card opens
- * that community's channels as flat tabs — no nested sidebar-within-sidebar.
+ * Workspace home for one Community: header (name, favorite, member count),
+ * All/Announcements/Posts filter tabs, a card grid of channels, and a
+ * recent-activity feed. Clicking a card opens that channel's chat.
+ * Which community is active is decided by the sidebar (see Sidebar.tsx).
  */
-export function CommunityChannelsPanel() {
-  const { currentUser, departments } = useApp();
+export function CommunityChannelsPanel({
+  communityId,
+  onBack,
+}: {
+  communityId: string;
+  onBack: () => void;
+}) {
+  const { currentUser } = useApp();
   const userId = currentUser?.id ?? '';
   const userName = currentUser?.displayName ?? 'You';
 
-  const [communities, setCommunities] = useState<Community[]>([]);
-  const [loadingCommunities, setLoadingCommunities] = useState(true);
-  const [activeCommunityId, setActiveCommunityId] = useState<string | null>(null);
-
   const [channels, setChannels] = useState<CommunityChannel[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(true);
+  const [filter, setFilter] = useState<ChannelFilter>('all');
+  const [activity, setActivity] = useState<{ channel: CommunityChannel; message: CommunityMessage }[]>([]);
+
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<CommunityMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -37,62 +65,58 @@ export function CommunityChannelsPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setActiveChannelId(null);
+    setLoadingChannels(true);
     let cancelled = false;
-    setLoadingCommunities(true);
-    void api
-      .listCommunities()
-      .then((rows) => {
-        if (!cancelled) setCommunities(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setError('Could not load communities.');
+    api
+      .listCommunityChannels(communityId)
+      .then((ch) => {
+        if (!cancelled) setChannels(ch);
       })
       .finally(() => {
-        if (!cancelled) setLoadingCommunities(false);
+        if (!cancelled) setLoadingChannels(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [communityId]);
 
-  const activeCommunity = useMemo(
-    () => communities.find((c) => c.id === activeCommunityId) ?? null,
-    [communities, activeCommunityId],
-  );
+  // Recent Activity: latest message from each channel, merged and sorted.
+  useEffect(() => {
+    if (channels.length === 0) {
+      setActivity([]);
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      channels.map((channel) =>
+        api
+          .getChannelMessages(channel.id, { limit: 1 })
+          .then((res) => (res.messages[0] ? { channel, message: res.messages[0] } : null))
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      const withMessage = results.filter(
+        (r): r is { channel: CommunityChannel; message: CommunityMessage } => r !== null,
+      );
+      withMessage.sort((a, b) => b.message.createdAt.localeCompare(a.message.createdAt));
+      setActivity(withMessage.slice(0, 6));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [channels]);
+
   const activeChannel = useMemo(
     () => channels.find((c) => c.id === activeChannelId) ?? null,
     [channels, activeChannelId],
   );
 
-  const groups = useMemo(() => {
-    const byDept = new Map<string, Community[]>();
-    for (const c of communities) {
-      const key = c.departmentId
-        ? departments.find((d) => d.id === c.departmentId)?.name ?? 'Department'
-        : 'School-wide';
-      const list = byDept.get(key) ?? [];
-      list.push(c);
-      byDept.set(key, list);
-    }
-    return Array.from(byDept.entries());
-  }, [communities, departments]);
-
-  useEffect(() => {
-    if (!activeCommunityId) {
-      setChannels([]);
-      setActiveChannelId(null);
-      return;
-    }
-    let cancelled = false;
-    void api.listCommunityChannels(activeCommunityId).then((rows) => {
-      if (cancelled) return;
-      setChannels(rows);
-      setActiveChannelId(rows[0]?.id ?? null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCommunityId]);
+  const filteredChannels = useMemo(
+    () => channels.filter((c) => filter === 'all' || c.type === filter),
+    [channels, filter],
+  );
 
   const loadMessages = useCallback(async (channelId: string) => {
     setLoadingMessages(true);
@@ -203,193 +227,211 @@ export function CommunityChannelsPanel() {
   };
 
   useCommunityRealtime({
-    communityId: activeCommunityId,
+    communityId,
     channelId: activeChannelId,
     threadId: activeThreadId,
   });
 
-  // Card grid — pick a community you belong to.
-  if (!activeCommunityId) {
+  // Channel chat view
+  if (activeChannelId) {
     return (
-      <div className="space-y-6">
-        {loadingCommunities ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading your communities…
+      <div className="flex h-[calc(100vh-150px)] min-h-[520px] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
+        <div className="flex shrink-0 items-center gap-3 border-b border-ais-card-border px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setActiveChannelId(null)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-on-surface"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Channels
+          </button>
+          <div className="h-4 w-px bg-ais-card-border" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-ais-on-surface">#{activeChannel?.name}</p>
           </div>
-        ) : communities.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-ais-card-border bg-ais-surface-container-low/30 py-16 text-center">
-            <Users className="mx-auto h-8 w-8 text-ais-on-surface-variant" />
-            <p className={`${aisBodySm} mt-2`}>You aren&apos;t a member of any community yet.</p>
-          </div>
-        ) : (
-          groups.map(([groupName, items]) => (
-            <div key={groupName} className="space-y-3">
-              <p className={aisLabelCaps}>{groupName}</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setActiveCommunityId(c.id)}
-                    className="group flex items-start gap-3 rounded-2xl border border-ais-card-border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-ais-primary/40 hover:shadow-md dark:bg-ais-surface"
-                  >
-                    <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white ${avatarColor(c.id)}`}
-                    >
-                      {communityInitials(c.name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-ais-on-surface group-hover:text-ais-primary">
-                        {c.name}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-ais-on-surface-variant">
-                        {c.description || 'No description yet.'}
-                      </p>
-                      {(c.unreadCount ?? 0) > 0 && (
-                        <span className="mt-2 inline-flex items-center rounded-full bg-ais-primary/10 px-2 py-0.5 text-[10px] font-bold text-ais-primary">
-                          {c.unreadCount} new
-                        </span>
-                      )}
-                    </div>
-                  </button>
+        </div>
+
+        <div className="relative flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto">
+              {loadingMessages && (
+                <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading messages…
+                </div>
+              )}
+              {!loadingMessages && error && (
+                <p className="px-4 py-8 text-center text-sm text-ais-error">{error}</p>
+              )}
+              {!loadingMessages && !error && messages.length === 0 && (
+                <div className="px-6 py-16 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ais-surface-container-low text-ais-primary">
+                    <Hash className="h-6 w-6" />
+                  </div>
+                  <p className="mt-3 text-base font-semibold text-ais-on-surface">
+                    Welcome to #{activeChannel?.name ?? 'channel'}
+                  </p>
+                  <p className={`${aisBodySm} mx-auto mt-1 max-w-sm`}>
+                    This is the start of the channel. Send a message to get the conversation going.
+                  </p>
+                </div>
+              )}
+              {!loadingMessages &&
+                messages.map((m) => (
+                  <MessageBubble
+                    key={m.id}
+                    message={m}
+                    currentUserId={userId}
+                    canModerate={false}
+                    onReact={onReact}
+                    onStartThread={onStartThread}
+                    onOpenThread={(id) => setActiveThreadId(id)}
+                    onDelete={onDelete}
+                  />
                 ))}
-              </div>
+              <div ref={bottomRef} />
             </div>
-          ))
-        )}
+
+            <MessageComposer
+              communityId={communityId}
+              placeholder={activeChannel ? `Message #${activeChannel.name}` : 'Select a channel to message'}
+              disabled={!activeChannelId}
+              onSend={sendChannelMessage}
+              onTyping={() => {
+                window.dispatchEvent(
+                  new CustomEvent('community:local-typing', {
+                    detail: { channelId: activeChannelId, communityId },
+                  }),
+                );
+              }}
+            />
+          </div>
+
+          {activeThreadId ? (
+            <div className="absolute inset-0 z-20 bg-white md:static md:z-auto md:w-80 md:shrink-0 md:border-l md:border-ais-card-border">
+              <ThreadPanel
+                threadId={activeThreadId}
+                communityId={communityId}
+                currentUserId={userId}
+                currentUserName={userName}
+                canModerate={false}
+                onClose={() => setActiveThreadId(null)}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
 
-  const textChannels = channels.filter((c) => c.type === 'text');
-  const announcementChannels = channels.filter((c) => c.type === 'announcement');
-
+  // Workspace home: header + filter tabs + channel cards + recent activity
   return (
-    <div className="flex h-[min(68vh,680px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
-      <div className="flex shrink-0 items-center gap-3 border-b border-ais-card-border px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setActiveCommunityId(null)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-on-surface"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Communities
-        </button>
-        <div className="h-4 w-px bg-ais-card-border" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-ais-on-surface">{activeCommunity?.name}</p>
+    <div className="space-y-6">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-on-surface"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Communities
+      </button>
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="inline-flex rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-1">
+          {([
+            { id: 'all', label: 'All' },
+            { id: 'announcement', label: 'Announcements' },
+            { id: 'text', label: 'Posts' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setFilter(tab.id)}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                filter === tab.id
+                  ? 'bg-white text-ais-primary shadow-[0_1px_3px_rgba(15,23,42,0.05)]'
+                  : 'text-ais-on-surface-variant hover:text-ais-on-surface'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-ais-card-border px-3 py-2">
-        {announcementChannels.map((ch) => (
-          <ChannelTab key={ch.id} channel={ch} active={ch.id === activeChannelId} icon={<Volume2 className="h-3.5 w-3.5" />} onClick={() => setActiveChannelId(ch.id)} />
-        ))}
-        {textChannels.map((ch) => (
-          <ChannelTab key={ch.id} channel={ch} active={ch.id === activeChannelId} icon={<Hash className="h-3.5 w-3.5" />} onClick={() => setActiveChannelId(ch.id)} />
-        ))}
-        {channels.length === 0 && (
-          <p className="px-1 py-1 text-xs text-ais-on-surface-variant">No channels yet.</p>
-        )}
-      </div>
-
-      <div className="relative flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto">
-            {loadingMessages && (
-              <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading messages…
-              </div>
-            )}
-            {!loadingMessages && error && (
-              <p className="px-4 py-8 text-center text-sm text-ais-error">{error}</p>
-            )}
-            {!loadingMessages && !error && messages.length === 0 && (
-              <div className="px-6 py-16 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ais-surface-container-low text-ais-primary">
-                  <Hash className="h-6 w-6" />
+      {loadingChannels ? (
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading channels…
+        </div>
+      ) : filteredChannels.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-ais-card-border bg-ais-surface-container-low/30 py-16 text-center">
+          <Hash className="mx-auto h-8 w-8 text-ais-on-surface-variant" />
+          <p className={`${aisBodySm} mt-2`}>No channels here yet.</p>
+        </div>
+      ) : (
+        <div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {filteredChannels.map((channel) => (
+              <button
+                key={channel.id}
+                type="button"
+                onClick={() => setActiveChannelId(channel.id)}
+                className="group rounded-xl border border-l-4 border-ais-card-border border-l-ais-primary bg-ais-surface-container-low/40 p-3.5 text-left transition-all hover:bg-white hover:shadow-sm dark:bg-ais-surface"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-ais-primary shadow-sm">
+                    {channelIcon(channel)}
+                  </span>
+                  <p className="truncate text-sm font-bold text-ais-on-surface group-hover:text-ais-primary">
+                    #{channel.name}
+                  </p>
                 </div>
-                <p className="mt-3 text-base font-semibold text-ais-on-surface">
-                  Welcome to #{activeChannel?.name ?? 'channel'}
+                <p className="mt-2 line-clamp-2 text-xs text-ais-on-surface-variant">
+                  {channel.description || (channel.type === 'announcement' ? 'Official updates and important announcements.' : 'General discussion.')}
                 </p>
-                <p className={`${aisBodySm} mx-auto mt-1 max-w-sm`}>
-                  This is the start of the channel. Send a message to get the conversation going.
-                </p>
-              </div>
-            )}
-            {!loadingMessages &&
-              messages.map((m) => (
-                <MessageBubble
-                  key={m.id}
-                  message={m}
-                  currentUserId={userId}
-                  canModerate={false}
-                  onReact={onReact}
-                  onStartThread={onStartThread}
-                  onOpenThread={(id) => setActiveThreadId(id)}
-                  onDelete={onDelete}
-                />
-              ))}
-            <div ref={bottomRef} />
+                {(channel.unreadCount ?? 0) > 0 && (
+                  <span className="mt-2 inline-flex items-center rounded-full bg-ais-primary/10 px-2 py-0.5 text-[10px] font-bold text-ais-primary">
+                    {channel.unreadCount} new
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-
-          <MessageComposer
-            communityId={activeCommunityId}
-            placeholder={activeChannel ? `Message #${activeChannel.name}` : 'Select a channel to message'}
-            disabled={!activeChannelId}
-            onSend={sendChannelMessage}
-            onTyping={() => {
-              window.dispatchEvent(
-                new CustomEvent('community:local-typing', {
-                  detail: { channelId: activeChannelId, communityId: activeCommunityId },
-                }),
-              );
-            }}
-          />
         </div>
+      )}
 
-        {activeThreadId && activeCommunityId ? (
-          <div className="absolute inset-0 z-20 bg-white md:static md:z-auto md:w-80 md:shrink-0 md:border-l md:border-ais-card-border">
-            <ThreadPanel
-              threadId={activeThreadId}
-              communityId={activeCommunityId}
-              currentUserId={userId}
-              currentUserName={userName}
-              canModerate={false}
-              onClose={() => setActiveThreadId(null)}
-            />
+      {activity.length > 0 && (
+        <div>
+          <p className={`${aisLabelCaps} mb-3`}>Recent Activity</p>
+          <div className="divide-y divide-ais-row-border rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
+            {activity.map(({ channel, message }) => (
+              <button
+                key={message.id}
+                type="button"
+                onClick={() => setActiveChannelId(channel.id)}
+                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-ais-row-hover"
+              >
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(message.authorId)}`}
+                >
+                  {communityInitials(message.authorName)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-bold text-ais-on-surface">{message.authorName}</span>
+                    <span className="rounded-full bg-ais-surface-container-low px-1.5 py-0.5 text-[10px] font-semibold text-ais-on-surface-variant">
+                      #{channel.name}
+                    </span>
+                    <span className="text-[11px] text-ais-outline">{formatMessageTime(message.createdAt)}</span>
+                  </div>
+                  <p className="truncate text-xs text-ais-on-surface-variant">{message.content}</p>
+                </div>
+              </button>
+            ))}
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
     </div>
-  );
-}
-
-function ChannelTab({
-  channel,
-  active,
-  icon,
-  onClick,
-}: {
-  channel: CommunityChannel;
-  active: boolean;
-  icon: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-        active
-          ? 'bg-ais-primary text-white'
-          : 'text-ais-on-surface-variant hover:bg-ais-row-hover hover:text-ais-on-surface'
-      }`}
-    >
-      {icon}
-      {channel.name}
-    </button>
   );
 }

@@ -2,9 +2,7 @@
 
 import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { PenLine } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { Button } from "@/components/ui/button";
 import { aisBtnPrimary } from "@/components/dashboard/teacher/aisStyles";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 
@@ -93,11 +91,6 @@ const TeacherTimetableTab = lazy(() =>
     default: m.TeacherTimetableTab,
   })),
 );
-const TeacherCommunityTab = lazy(() =>
-  import("@/components/dashboard/teacher/TeacherCommunityTab").then((m) => ({
-    default: m.TeacherCommunityTab,
-  })),
-);
 const TeacherHodMessagesTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherHodMessagesTab").then((m) => ({
     default: m.TeacherHodMessagesTab,
@@ -137,13 +130,11 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "AI lesson notes, drafts, and classroom delivery — organized by section.",
   },
   communication: {
-    title: "Communication",
-  },
-  community: {
-    title: "Teacher Community",
+    title: "Community",
+    subtitle: "School-wide announcements and your community channels.",
   },
   "hod-messages": {
-    title: "HoD Messages",
+    title: "Direct Messages",
     subtitle: "Real-time conversation with your department head.",
   },
   "manage-students": {
@@ -202,6 +193,13 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "One-to-one conversations with parents about your students.",
   },
   settings: {
+    title: "Settings",
+    subtitle: "Personal profile and general portal preferences.",
+  },
+  // The navbar's "Profile Settings" dropdown item always links to a `profile` tab (matching
+  // every other portal) — alias it to the same content as `settings` rather than renaming
+  // the teacher portal's existing sidebar "Settings" entry.
+  profile: {
     title: "Settings",
     subtitle: "Personal profile and general portal preferences.",
   },
@@ -269,18 +267,6 @@ export function TeacherPortalApp() {
       >
         + New lesson note
       </button>
-    ) : activeTab === "manage-students" ? (
-      <Button
-        variant="organic"
-        size="sm"
-        className="text-xs h-9 gap-1.5 border-none"
-        onClick={() =>
-          window.dispatchEvent(new Event("open-teacher-grade-entry"))
-        }
-      >
-        <PenLine className="h-3.5 w-3.5" aria-hidden />
-        Record grade
-      </Button>
     ) : null;
 
   return (
@@ -292,6 +278,7 @@ export function TeacherPortalApp() {
       eyebrow="Bole Secondary · Teacher Portal"
       actions={shellActions}
       headerVariant="portal"
+      hideSearch
     >
       <Suspense fallback={<TabLoading />}>
         {activeTab === "dashboard" && <TeacherDashboard />}
@@ -299,14 +286,7 @@ export function TeacherPortalApp() {
         {activeTab === "timetable" && <TeacherTimetableTab />}
         {activeTab === "lesson-plans" && <TeacherTeachingNotes mode="plans" />}
         {activeTab === "lesson-notes" && <TeacherTeachingNotes mode="notes" />}
-        {activeTab === "communication" && (
-          <CommunicationModule
-            mode="teacher"
-            mainTab="channels"
-            onMainTabChange={() => {}}
-          />
-        )}
-        {activeTab === "community" && <TeacherCommunityTab />}
+        {activeTab === "communication" && <CommunicationModule mode="teacher" />}
         {activeTab === "hod-messages" && <TeacherHodMessagesTab />}
         {activeTab === "manage-students" && <TeacherStudentsTab />}
         {activeTab === "resources" && <TeacherResourcesTab />}
@@ -329,7 +309,7 @@ export function TeacherPortalApp() {
         {activeTab === "messages" && (
           <MessageCenter mode="staff" staffRoleHint="teacher" />
         )}
-        {activeTab === "settings" && <TeacherSettingsTab />}
+        {(activeTab === "settings" || activeTab === "profile") && <TeacherSettingsTab />}
       </Suspense>
     </DashboardShell>
   );

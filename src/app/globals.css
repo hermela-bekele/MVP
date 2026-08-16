@@ -5,10 +5,10 @@
 
 @layer base {
   :root {
-    /* Blue & white — Prime / eSkooly school theme */
-    --background: 0 0% 100%;
+    /* Amber & white — Prime / eSkooly school theme */
+    --background: 240 15.4% 94.9%;
     --foreground: 218 32% 14%;
-    --dashboard-bg: 228 100% 99%;
+    --dashboard-bg: 240 15.4% 94.9%;
 
     --card: 0 0% 100%;
     --card-foreground: 218 32% 14%;
@@ -16,16 +16,16 @@
     --popover: 0 0% 100%;
     --popover-foreground: 218 32% 14%;
 
-    --primary: 218 100% 39%;
+    --primary: 43 74% 49%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 218 80% 48%;
+    --primary-light: 43 74% 66%;
 
-    /* AIS sidebar — light blue surface, blue accents */
-    --sidebar-bg: 228 100% 97%;
-    --sidebar-fg: 218 100% 39%;
+    /* AIS sidebar — light gold surface, dark gold accents */
+    --sidebar-bg: 43 100% 97%;
+    --sidebar-fg: 43 74% 49%;
     --sidebar-muted: 230 9% 44%;
     --sidebar-active: 0 0% 100%;
-    --sidebar-active-fg: 218 100% 39%;
+    --sidebar-active-fg: 43 74% 49%;
 
     --secondary: 220 35% 94%;
     --secondary-foreground: 218 32% 14%;
@@ -33,21 +33,32 @@
     --muted: 220 28% 95%;
     --muted-foreground: 218 12% 40%;
 
-    --accent: 218 80% 48%;
+    --accent: 43 74% 49%;
     --accent-foreground: 0 0% 100%;
-    
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
 
     --success: 142 76% 36%;
     --success-foreground: 210 20% 98%;
 
-    --warning: 38 92% 50%;
+    --warning: 45 93% 47%;
     --warning-foreground: 224 71.4% 4.1%;
-    
+
     --border: 220 18% 88%;
     --input: 220 18% 88%;
-    --ring: 218 100% 39%;
+    --ring: 43 74% 66%;
+
+    /* App-wide button color (dark indigo) — independent of --primary so it stays
+       consistent even where --primary is locally overridden (e.g. school-head dashboard) */
+    --btn-primary: 240 39.1% 18%;
+    --btn-primary-foreground: 0 0% 100%;
+
+    /* App-wide page title color (PRIME Indigo) */
+    --title: 240 39.4% 25.9%;
+
+    /* App-wide chart / graph color (#3478B8) */
+    --chart-color: 207 58% 47%;
 
     --radius: 0.5rem;
 
@@ -55,6 +66,11 @@
     --sidebar-width: 256px;
     --sidebar-collapsed-width: 72px;
   }
+}
+
+/* School Head Portal — Dashboard module primary color override (dark gold) */
+.school-head-dashboard {
+  --primary: 37 50% 56%;
 }
 
 @theme {
@@ -68,6 +84,10 @@
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
   --color-primary-light: hsl(var(--primary-light));
+  --color-btn-primary: hsl(var(--btn-primary));
+  --color-btn-primary-foreground: hsl(var(--btn-primary-foreground));
+  --color-title: hsl(var(--title));
+  --color-chart-color: hsl(var(--chart-color));
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-destructive: hsl(var(--destructive));
@@ -98,26 +118,26 @@
   --color-ais-card-border: #e2e8f0;
   --color-ais-row-border: #f1f5f9;
   --color-ais-row-hover: #eff6ff;
-  --color-ais-primary: #004ac6;
+  --color-ais-primary: #B8860B;
   --color-ais-on-primary: #ffffff;
-  --color-ais-primary-container: #2563eb;
+  --color-ais-primary-container: #f5e6c8;
   --color-ais-error: #ba1a1a;
   --color-ais-error-container: #ffdad6;
   --color-ais-success: #059669;
-  --color-ais-warning: #d97706;
+  --color-ais-warning: #eab308;
   --color-ais-surface-lowest: #ffffff;
   --color-ais-error-container: #ffdad6;
   --color-ais-on-primary: #ffffff;
   --color-ais-row-hover: #eff6ff;
 
   /* portal-* aliases (AIS) */
-  --color-portal-primary: #004ac6;
+  --color-portal-primary: #B8860B;
   --color-portal-on-primary: #ffffff;
   --color-portal-surface: #ffffff;
   --color-portal-on-surface: #111c2d;
   --color-portal-on-surface-variant: #434655;
   --color-portal-outline: #e2e8f0;
-  --color-portal-primary-container: #f0f3ff;
+  --color-portal-primary-container: #f5e6c8;
   --color-portal-secondary-container: #f0f3ff;
   --color-portal-error-container: #ffdad6;
   --color-portal-error: #ba1a1a;
@@ -566,7 +586,7 @@ body {
    ==================================== */
 
 .teacher-portal {
-  background-color: #f9f9ff;
+  background-color: hsl(var(--dashboard-bg));
   color: #111c2d;
   font-feature-settings: "tnum";
 }
@@ -659,14 +679,14 @@ body {
   font-weight: 500;
   line-height: 20px;
   color: #ffffff;
-  background-color: #004ac6;
-  border: 1px solid #004ac6;
+  background-color: #B8860B;
+  border: 1px solid #B8860B;
   border-radius: 0.25rem;
   transition: background-color 0.15s ease;
 }
 
 .teacher-portal .ais-btn-primary:hover {
-  background-color: #003ea8;
+  background-color: #9A7209;
 }
 
 .teacher-portal .ais-btn-secondary {
@@ -696,7 +716,7 @@ body {
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
-  color: #004ac6;
+  color: #B8860B;
   background: transparent;
   border: none;
   border-radius: 0.25rem;
@@ -704,7 +724,7 @@ body {
 }
 
 .teacher-portal .ais-btn-ghost:hover {
-  color: #003ea8;
+  color: #9A7209;
 }
 
 .teacher-portal .ais-btn-ghost-muted {
@@ -735,8 +755,8 @@ body {
 }
 
 .teacher-portal .ais-badge--warning {
-  background-color: rgba(217, 119, 6, 0.1);
-  color: #d97706;
+  background-color: rgba(234, 179, 8, 0.1);
+  color: #ca8a04;
 }
 
 .teacher-portal .ais-badge--error {
@@ -795,6 +815,6 @@ body {
 
 .teacher-portal .portal-fab,
 .teacher-portal .ais-fab {
-  box-shadow: 0 4px 12px rgba(0, 74, 198, 0.25);
+  box-shadow: 0 4px 12px rgba(184, 134, 11, 0.25);
   border-radius: 0.25rem;
 }

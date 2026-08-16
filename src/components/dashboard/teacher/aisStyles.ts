@@ -79,75 +79,70 @@ export const aisNavbarDropdown =
 export const aisNavbarOverlay = 'fixed inset-0 z-20';
 
 export const aisNavbarNotifPanel =
-  'absolute right-0 z-30 mt-2 flex w-[420px] max-w-[calc(100vw-2rem)] max-h-[32rem] flex-col overflow-hidden rounded-xl border border-ais-card-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] animate-fade-in';
+  'absolute right-0 z-30 mt-2.5 flex w-[400px] max-w-[calc(100vw-2rem)] max-h-[34rem] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white shadow-[0_16px_40px_rgba(15,23,42,0.16)] animate-fade-in';
 
 export const aisNavbarNotifHeader =
-  'flex shrink-0 items-center justify-between border-b border-ais-card-border bg-ais-surface-container-low/40 px-4 py-3';
+  'flex shrink-0 items-center justify-between px-4 py-3.5';
 
 export const aisNavbarNotifFilters =
-  'flex shrink-0 gap-1 border-b border-ais-card-border bg-ais-surface-container-low/20 px-3 py-2';
+  'flex shrink-0 gap-1 rounded-full bg-ais-surface-container-low p-1 mx-4 mb-3';
 
 export const aisNavbarNotifFilterBtn =
-  'rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors';
+  'flex-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all duration-150';
 
 export const aisNavbarNotifFilterBtnActive =
-  'bg-white text-ais-primary shadow-[0_1px_3px_rgba(15,23,42,0.05)]';
+  'bg-white text-ais-primary shadow-[0_1px_4px_rgba(15,23,42,0.12)]';
 
 export const aisNavbarNotifFilterBtnInactive =
-  'text-ais-on-surface-variant hover:bg-white/70 hover:text-ais-primary';
+  'text-ais-on-surface-variant hover:text-ais-primary';
 
 export const aisNavbarNotifSectionHeader =
-  'bg-ais-surface-container-low/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-ais-outline border-b border-ais-card-border';
+  'px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-ais-outline';
 
 export const aisNavbarNotifList =
-  'scrollbar-none flex-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+  'scrollbar-none flex-1 overflow-y-auto border-t border-ais-card-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 export const aisNavbarNotifItem =
-  'group relative border-b border-ais-row-border px-4 py-4 transition-colors last:border-b-0 hover:bg-ais-row-hover';
+  'group relative px-4 py-3.5 transition-colors hover:bg-ais-row-hover';
 
 export const aisNavbarNotifItemUnread =
-  'bg-ais-surface-container-low/60 before:absolute before:left-0 before:top-4 before:bottom-4 before:w-1 before:rounded-r-full before:bg-ais-primary';
+  'bg-ais-primary/[0.03] before:absolute before:left-1.5 before:top-[1.35rem] before:h-1.5 before:w-1.5 before:rounded-full before:bg-ais-primary';
 
-export const aisNavbarNotifItemInner = 'flex gap-3 pl-1';
+export const aisNavbarNotifItemInner = 'flex gap-3 pl-2';
 
 export const aisNavbarNotifIconWrap =
-  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border';
+  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full';
 
-export const aisNavbarNotifIconAlert =
-  'border-ais-error/20 bg-ais-error/10 text-ais-error';
+export const aisNavbarNotifIconAlert = 'bg-ais-error/10 text-ais-error';
 
-export const aisNavbarNotifIconSuccess =
-  'border-ais-success/20 bg-ais-success/10 text-ais-success';
+export const aisNavbarNotifIconSuccess = 'bg-ais-success/10 text-ais-success';
 
-export const aisNavbarNotifIconRequest =
-  'border-ais-primary/20 bg-ais-primary/10 text-ais-primary';
+export const aisNavbarNotifIconRequest = 'bg-ais-primary/10 text-ais-primary';
 
-export const aisNavbarNotifIconInfo =
-  'border-ais-card-border bg-ais-surface-container-low text-ais-on-surface-variant';
+export const aisNavbarNotifIconInfo = 'bg-ais-surface-container-low text-ais-on-surface-variant';
 
 export const aisNavbarNotifActionBtn =
-  'flex h-8 w-8 items-center justify-center rounded-lg text-ais-on-surface-variant transition-colors hover:bg-white hover:text-ais-primary cursor-pointer';
+  'flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-surface-container-low hover:text-ais-primary cursor-pointer';
 
 export const aisNavbarNotifActionBtnDanger =
-  'flex h-8 w-8 items-center justify-center rounded-lg text-ais-on-surface-variant transition-colors hover:bg-ais-error/10 hover:text-ais-error cursor-pointer';
+  'flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-error/10 hover:text-ais-error cursor-pointer';
+
+export const aisNavbarNotifActions =
+  'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100';
 
 export const aisNavbarNotifFooterBtn =
-  'inline-flex items-center gap-1.5 rounded-lg border border-ais-card-border bg-white px-2.5 py-1.5 text-[11px] font-bold text-ais-primary transition-colors hover:border-ais-primary/30 hover:bg-ais-surface-container-low cursor-pointer';
+  'inline-flex items-center gap-1.5 rounded-full bg-ais-primary/10 px-3 py-1.5 text-[11px] font-bold text-ais-primary transition-colors hover:bg-ais-primary/20 cursor-pointer';
 
-export const aisNavbarNotifTypeRequest =
-  'inline-flex rounded-lg bg-ais-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ais-primary';
+export const aisNavbarNotifTypeRequest = 'text-[11px] font-semibold text-ais-primary';
 
-export const aisNavbarNotifTypeAlert =
-  'inline-flex rounded-lg bg-ais-error/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ais-error';
+export const aisNavbarNotifTypeAlert = 'text-[11px] font-semibold text-ais-error';
 
-export const aisNavbarNotifTypeSuccess =
-  'inline-flex rounded-lg bg-ais-success/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ais-success';
+export const aisNavbarNotifTypeSuccess = 'text-[11px] font-semibold text-ais-success';
 
-export const aisNavbarNotifTypeInfo =
-  'inline-flex rounded-lg border border-ais-card-border bg-ais-surface-container-low px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-ais-on-surface-variant';
+export const aisNavbarNotifTypeInfo = 'text-[11px] font-semibold text-ais-on-surface-variant';
 
 export const aisNavbarNotifBadge =
-  'absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-ais-error text-[9px] font-bold text-white';
+  'absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-ais-error px-1 text-[9px] font-bold text-white ring-2 ring-white';
 
 export const aisNavbarDropdownItem =
   'w-full text-left px-3 py-2 text-xs text-ais-on-surface-variant hover:text-ais-primary hover:bg-ais-surface-container-low rounded-md transition-colors cursor-pointer';
@@ -214,7 +209,7 @@ export const aisScheduleListRow =
   'flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ais-row-border px-4 py-3 transition-colors last:border-b-0 hover:bg-ais-row-hover';
 
 export const aisBtnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-ais-primary';
+  'inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-btn-primary';
 
 export const aisBtnSecondary =
   'inline-flex items-center justify-center gap-2 rounded-2xl border border-ais-outline-variant bg-white px-6 py-2 text-sm font-semibold text-ais-on-surface-variant transition-colors hover:bg-ais-surface-container-low shadow-sm';

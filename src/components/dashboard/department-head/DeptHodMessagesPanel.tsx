@@ -14,6 +14,11 @@ import {
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
+import {
+  HOD_THREAD_SELECT_EVENT,
+  readActiveHodTeacherId,
+  writeActiveHodTeacherId,
+} from '@/lib/communitySelectionStorage';
 
 function timeLabel(iso: string) {
   try {
@@ -54,10 +59,25 @@ export function DeptHodMessagesPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!selectedTeacherId && deptTeachers[0]) {
-      setSelectedTeacherId(deptTeachers[0].id);
-    }
+    if (selectedTeacherId) return;
+    const stored = readActiveHodTeacherId();
+    const preselected = stored && deptTeachers.some((t) => t.id === stored) ? stored : deptTeachers[0]?.id;
+    if (preselected) setSelectedTeacherId(preselected);
   }, [deptTeachers, selectedTeacherId]);
+
+  // Sidebar "Direct Messages" list dispatches this when a teacher is clicked.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const teacherId = (e as CustomEvent<string>).detail;
+      if (teacherId) setSelectedTeacherId(teacherId);
+    };
+    window.addEventListener(HOD_THREAD_SELECT_EVENT, handler);
+    return () => window.removeEventListener(HOD_THREAD_SELECT_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    if (selectedTeacherId) writeActiveHodTeacherId(selectedTeacherId);
+  }, [selectedTeacherId]);
 
   useEffect(() => {
     if (!scope?.departmentId) return;
@@ -123,7 +143,7 @@ export function DeptHodMessagesPanel() {
       <div className="space-y-4">
         <div>
           <p className={aisLabelCaps}>Teacher messaging</p>
-          <h2 className={`${aisHeadlineSm} mt-1`}>Live chat with teachers</h2>
+          <h2 className={`${aisHeadlineSm} mt-1 !text-title`}>Live chat with teachers</h2>
           <p className={`${aisBodySm} mt-1`}>
             Select an active teacher to message. Conversations refresh every few seconds.
           </p>

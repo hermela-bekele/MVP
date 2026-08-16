@@ -211,7 +211,7 @@ export const TeacherTrainingTab: React.FC<{
                 </div>
 
                 {/* Title */}
-                <h3 className={`${aisHeadlineSm} mb-2 group-hover:text-ais-primary transition-colors line-clamp-2`}>
+                <h3 className={`${aisHeadlineSm} mb-2 transition-colors line-clamp-2 !text-title`}>
                   {module.title}
                 </h3>
 
@@ -346,7 +346,7 @@ export const TeacherTrainingTab: React.FC<{
             <div className={`${aisBadgePrimary} mb-2`}>
               {selectedModule.category}
             </div>
-            <h1 className={`text-2xl font-bold text-ais-on-surface mb-2`}>
+            <h1 className={`text-2xl font-bold text-title mb-2`}>
               {selectedModule.title}
             </h1>
             <p className={aisBodyMd}>
@@ -402,7 +402,7 @@ export const TeacherTrainingTab: React.FC<{
           {/* Sidebar - Session Navigation */}
           <div className="lg:col-span-1 space-y-4">
             <div className={`${aisCard} p-4`}>
-              <h3 className="font-semibold text-ais-on-surface mb-4">Sessions</h3>
+              <h3 className="font-semibold text-title mb-4">Sessions</h3>
               <div className="space-y-2">
                 {selectedModule.sessions.map((session) => (
                   <button
@@ -488,7 +488,7 @@ export const TeacherTrainingTab: React.FC<{
                             </span>
                           )}
                         </div>
-                        <h2 className="text-2xl font-bold text-ais-on-surface mb-2">
+                        <h2 className="text-2xl font-bold text-title mb-2">
                           {selectedSession.title}
                         </h2>
                         <p className={aisBodyMd}>
@@ -627,7 +627,7 @@ export const TeacherTrainingTab: React.FC<{
 
                 {/* Video Info */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-ais-on-surface mb-2">
+                  <h3 className="font-semibold text-title mb-2">
                     {video.title}
                   </h3>
                   <p className={`text-xs ${aisBodyMd}`}>

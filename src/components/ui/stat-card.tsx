@@ -94,12 +94,6 @@ export const StatCard: React.FC<StatCardProps> = ({
   const numericValue = typeof value === 'number' ? value : null;
   const animatedValue = useAnimatedNumber(numericValue ?? 0);
 
-  const accentColors = {
-    primary: 'border-l-primary',
-    muted: 'border-l-primary/30',
-    emphasis: 'border-l-border',
-  };
-
   const iconBgColors = {
     primary: 'bg-primary/10 text-primary',
     muted: 'bg-muted text-muted-foreground',
@@ -110,7 +104,6 @@ export const StatCard: React.FC<StatCardProps> = ({
     <div
       className={`
         group relative rounded-lg border border-border bg-card text-card-foreground shadow-sm
-        border-l-[3px] ${accentColors[color]}
         transition-all duration-300 hover:shadow-md hover:-translate-y-0.5
         ${className}
       `}
@@ -118,12 +111,12 @@ export const StatCard: React.FC<StatCardProps> = ({
       <div className="flex items-start justify-between p-4">
         {/* Left side */}
         <div className="flex flex-col min-w-0">
-          <span className="text-base font-bold leading-snug text-foreground sm:text-lg">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
           </span>
 
           <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-sm font-semibold tabular-nums text-muted-foreground sm:text-base">
+            <span className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">
               {numericValue !== null ? animatedValue.toLocaleString() : value}
             </span>
             {trend && <TrendIndicator direction={trend.direction} value={trend.value} />}
@@ -136,7 +129,7 @@ export const StatCard: React.FC<StatCardProps> = ({
 
         {/* Icon */}
         {icon && (
-          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${iconBgColors[color]} transition-transform duration-300 group-hover:scale-110`}>
+          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${iconBgColors[color]} transition-transform duration-300 group-hover:scale-110`}>
             <span className="h-5 w-5">{icon}</span>
           </div>
         )}

@@ -23,6 +23,7 @@ import {
   dispatchTeacherQuickAction,
 } from '@/lib/teacherPortal';
 import type { Student } from '@/lib/mockData';
+import { gpaToMark, formatMark } from '@/lib/grading';
 import {
   aisActivityAlertRow,
   aisActivityPanel,
@@ -237,7 +238,7 @@ function SectionTitle({
   className?: string;
 }) {
   return (
-    <h3 className={`${aisDisplayMd} flex items-center gap-2 ${className}`}>
+    <h3 className={`${aisDisplayMd} flex items-center gap-2 ${className} !text-title`}>
       <Icon className="h-5 w-5 shrink-0 text-ais-primary" aria-hidden />
       {children}
     </h3>
@@ -256,7 +257,7 @@ function KpiCard({
   label: string;
   value: React.ReactNode;
   pill?: React.ReactNode;
-  pillVariant?: 'neutral' | 'success' | 'error';
+  pillVariant?: 'neutral' | 'success' | 'error' | 'plain';
   valueIcon?: React.ReactNode;
   icon: React.ComponentType<{ className?: string }>;
   accent?: 'primary' | 'error';
@@ -266,7 +267,9 @@ function KpiCard({
       ? aisKpiPillSuccess
       : pillVariant === 'error'
         ? aisKpiPillError
-        : aisKpiPill;
+        : pillVariant === 'plain'
+          ? 'text-[11px] font-semibold text-ais-on-surface-variant'
+          : aisKpiPill;
 
   return (
     <div className={aisKpiCard}>
@@ -327,11 +330,12 @@ export const TeacherDashboard: React.FC = () => {
           label="Total Students"
           value={roster.length}
           pill="Grades 9–10"
+          pillVariant="plain"
           icon={Users}
         />
         <KpiCard
-          label="Average GPA"
-          value={avgGpa.toFixed(2)}
+          label="Average Mark"
+          value={`${gpaToMark(avgGpa)}%`}
           valueIcon={
             <TrendingUp className="h-5 w-5 text-ais-success" aria-hidden />
           }
@@ -359,7 +363,7 @@ export const TeacherDashboard: React.FC = () => {
               <SectionTitle icon={BarChart3}>Academic Performance</SectionTitle>
               <div className={`${aisCard} space-y-6 p-4`}>
                 {gradeBands.map((band) => {
-                  const barWidth = Math.min(100, (band.avg / 4) * 100);
+                  const barWidth = Math.min(100, gpaToMark(band.avg));
                   return (
                     <div key={band.label} className="space-y-2">
                       <div className="flex items-end justify-between gap-4">
@@ -368,8 +372,8 @@ export const TeacherDashboard: React.FC = () => {
                           <p className={aisBodySm}>{band.students.length} students enrolled</p>
                         </div>
                         <span className={aisDataLg}>
-                          {band.avg.toFixed(2)}{' '}
-                          <span className={`${aisBodySm} font-normal`}>GPA</span>
+                          {gpaToMark(band.avg)}
+                          <span className={`${aisBodySm} font-normal`}>%</span>
                         </span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-sm bg-ais-surface-container-low">
@@ -404,7 +408,7 @@ export const TeacherDashboard: React.FC = () => {
               ) : (
                 atRisk.map((s) => {
                   const reason =
-                    s.attendanceRate < 90 ? 'low attendance' : 'low GPA';
+                    s.attendanceRate < 90 ? 'low attendance' : 'low mark';
                   return (
                     <div
                       key={s.id}
@@ -418,7 +422,7 @@ export const TeacherDashboard: React.FC = () => {
                         <span className="font-medium text-ais-on-surface">{s.name}</span>
                         <span className="text-ais-on-surface-variant">
                           {' '}
-                          · GPA {s.gpa.toFixed(2)} · {s.attendanceRate}% att. ·{' '}
+                          · Mark {formatMark(s.gpa)} · {s.attendanceRate}% att. ·{' '}
                         </span>
                         <span className="font-medium text-ais-error">{reason}</span>
                       </p>
@@ -457,13 +461,13 @@ export const TeacherDashboard: React.FC = () => {
                     </div>
                     <p className={`${aisBodyMd} mb-2`}>
                       {atRiskStudent
-                        ? `GPA ${s.gpa.toFixed(2)} · Attendance ${s.attendanceRate}% — needs follow-up.`
-                        : `Enrolled · GPA ${s.gpa.toFixed(2)} · ${s.attendanceRate}% attendance.`}
+                        ? `Mark ${formatMark(s.gpa)} · Attendance ${s.attendanceRate}% — needs follow-up.`
+                        : `Enrolled · Mark ${formatMark(s.gpa)} · ${s.attendanceRate}% attendance.`}
                     </p>
                     {atRiskStudent ? (
                       <span className={aisBadgeWarning}>
                         <AlertCircle className="h-3 w-3" aria-hidden />
-                        GPA Alert
+                        Low Mark Alert
                       </span>
                     ) : (
                       <span className={aisBadgeSuccess}>

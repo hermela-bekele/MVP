@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -13,7 +14,9 @@ import {
   filterTeacherGradeEntries,
   weightedTermAverage,
 } from '@/lib/teacherPortal';
+import { formatMark } from '@/lib/grading';
 import {
+  AisBtnPrimary,
   AisBtnSecondary,
   AisEmptyRow,
   AisPage,
@@ -26,12 +29,12 @@ import {
   AisTr,
   aisTextarea,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { aisBodyMd, aisBodySm } from '@/components/dashboard/teacher/aisStyles';
+import { aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 
-type SubTab = 'roster' | 'gradebook' | 'parents';
+type SubTab = 'roster' | 'gradebook';
 
 export const TeacherStudentsTab: React.FC = () => {
-  const { students, sendParentMessage, parentMessages, studentGradeEntries, resolveTeacherId } = useApp();
+  const { students, sendParentMessage, studentGradeEntries, resolveTeacherId } = useApp();
   const teacherId = resolveTeacherId();
 
   const [subTab, setSubTab] = useState<SubTab>('roster');
@@ -44,14 +47,16 @@ export const TeacherStudentsTab: React.FC = () => {
 
   const [grade, setGrade] = useState('Grade 9');
   const [section, setSection] = useState('All');
+  const [nameQuery, setNameQuery] = useState('');
   const [messageStudentId, setMessageStudentId] = useState<string | null>(null);
   const [parentMsg, setParentMsg] = useState('');
 
-  const roster = useMemo(
-    () => filterTeacherStudents(students, grade, section),
-    [students, grade, section],
-  );
-  const myMessages = parentMessages.filter((m) => m.teacherId === teacherId);
+  const roster = useMemo(() => {
+    const base = filterTeacherStudents(students, grade, section);
+    const query = nameQuery.trim().toLowerCase();
+    if (!query) return base;
+    return base.filter((std) => std.name.toLowerCase().includes(query));
+  }, [students, grade, section, nameQuery]);
   const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries, teacherId);
   const selectedStudent = roster.find((s) => s.id === messageStudentId);
 
@@ -76,7 +81,6 @@ export const TeacherStudentsTab: React.FC = () => {
         tabs={[
           { id: 'roster', label: 'Class roster' },
           { id: 'gradebook', label: 'Gradebook' },
-          { id: 'parents', label: 'Parent messages' },
         ]}
       />
 
@@ -84,25 +88,41 @@ export const TeacherStudentsTab: React.FC = () => {
         <TeacherGradebook />
       ) : (
         <>
-          {(subTab === 'roster' || subTab === 'parents') && (
-            <div className="grid max-w-md grid-cols-1 gap-4 sm:grid-cols-2">
-              <Select
-                variant="ais"
-                label="Class grade"
-                options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))}
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-              />
-              <Select
-                variant="ais"
-                label="Section"
-                options={SECTION_FILTER_OPTIONS.map((s) => ({
-                  value: s,
-                  label: s === 'All' ? 'All sections' : `Section ${s}`,
-                }))}
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
-              />
+          {subTab === 'roster' && (
+            <div className="flex flex-col gap-4 max-w-4xl sm:flex-row sm:items-end sm:justify-between">
+              <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3">
+                <Select
+                  variant="ais"
+                  label="Class grade"
+                  options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))}
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                />
+                <Select
+                  variant="ais"
+                  label="Section"
+                  options={SECTION_FILTER_OPTIONS.map((s) => ({
+                    value: s,
+                    label: s === 'All' ? 'All sections' : `Section ${s}`,
+                  }))}
+                  value={section}
+                  onChange={(e) => setSection(e.target.value)}
+                />
+                <div className="flex flex-col gap-1.5">
+                  <label className={aisBodySm}>Search by name</label>
+                  <input
+                    type="search"
+                    className="h-10 rounded-lg border border-ais-outline-variant bg-white px-3 text-sm outline-none focus:border-ais-primary"
+                    placeholder="Student name..."
+                    value={nameQuery}
+                    onChange={(e) => setNameQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+              <AisBtnPrimary type="button" className="!text-xs h-10 shrink-0" onClick={() => setSubTab('gradebook')}>
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Add Result
+              </AisBtnPrimary>
             </div>
           )}
 
@@ -115,7 +135,7 @@ export const TeacherStudentsTab: React.FC = () => {
                     <AisTh>Section</AisTh>
                     <AisTh>ID</AisTh>
                     <AisTh>Term avg</AisTh>
-                    <AisTh>GPA</AisTh>
+                    <AisTh>Cumulative mark</AisTh>
                     <AisTh>Attendance</AisTh>
                     <AisTh>Results</AisTh>
                     <AisTh>Actions</AisTh>
@@ -141,7 +161,7 @@ export const TeacherStudentsTab: React.FC = () => {
                               {termAvg != null ? `${termAvg}%` : '—'}
                             </AisStatusBadge>
                           </AisTd>
-                          <AisTd className="font-mono font-bold tabular-nums">{std.gpa.toFixed(2)}</AisTd>
+                          <AisTd className="font-mono font-bold tabular-nums">{formatMark(std.gpa)}</AisTd>
                           <AisTd className="tabular-nums">{std.attendanceRate}%</AisTd>
                           <AisTd className="text-xs">{entries.length}</AisTd>
                           <AisTd>
@@ -158,34 +178,6 @@ export const TeacherStudentsTab: React.FC = () => {
             </AisPanel>
           )}
 
-          {subTab === 'parents' && (
-            <AisPanel title="Parent messages" flush>
-              <AisTable>
-                <thead>
-                  <tr className="bg-ais-surface-container-low">
-                    <AisTh>Student</AisTh>
-                    <AisTh>Parent</AisTh>
-                    <AisTh>Message</AisTh>
-                    <AisTh>Sent</AisTh>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myMessages.length === 0 ? (
-                    <AisEmptyRow colSpan={4} message="No messages sent yet." />
-                  ) : (
-                    myMessages.map((m) => (
-                      <AisTr key={m.id}>
-                        <AisTd className="font-semibold">{m.studentName}</AisTd>
-                        <AisTd>{m.parentName}</AisTd>
-                        <AisTd className="max-w-md text-xs">{m.message}</AisTd>
-                        <AisTd className={aisBodyMd}>{m.sentAt}</AisTd>
-                      </AisTr>
-                    ))
-                  )}
-                </tbody>
-              </AisTable>
-            </AisPanel>
-          )}
         </>
       )}
 
@@ -201,7 +193,7 @@ export const TeacherStudentsTab: React.FC = () => {
             </AisBtnSecondary>
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
             >
               Send to parent portal
             </button>

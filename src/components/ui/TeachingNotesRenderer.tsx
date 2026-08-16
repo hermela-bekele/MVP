@@ -93,7 +93,7 @@ export const TeachingNotesRenderer: React.FC<TeachingNotesRendererProps> = ({
   return (
     <div className={`teaching-notes-content space-y-6 ${className}`}>
       <div className="border-b border-ais-card-border pb-3 dark:border-gray-700">
-        <h2 className="text-xl font-bold text-ais-on-surface dark:text-gray-100">
+        <h2 className="text-xl font-bold text-title dark:text-gray-100">
           {content.title || 'Teaching Notes'}
         </h2>
         <p className="mt-1 text-xs text-ais-on-surface-variant dark:text-gray-400">
@@ -119,7 +119,7 @@ export const TeachingNotesRenderer: React.FC<TeachingNotesRendererProps> = ({
               className="rounded-xl border border-ais-card-border bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
             >
               {exp.subtitle && !looksLikeMarkdown(exp.content) && (
-                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-ais-on-surface">
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-title">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {idx + 1}
                   </span>
@@ -168,7 +168,7 @@ export const TeachingNotesRenderer: React.FC<TeachingNotesRendererProps> = ({
 
       {exercises.length > 0 && (
         <div className="rounded-xl border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent p-5">
-          <h3 className="mb-4 text-sm font-semibold text-ais-on-surface">Practice Exercises</h3>
+          <h3 className="mb-4 text-sm font-semibold text-title">Practice Exercises</h3>
           <ol className="space-y-3">
             {exercises.map((exercise, i) => (
               <li key={i} className="flex gap-3">

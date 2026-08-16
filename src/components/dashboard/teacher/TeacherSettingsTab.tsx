@@ -64,7 +64,7 @@ export const TeacherSettingsTab: React.FC = () => {
 
       <div className={`${aisCard} p-4`}>
         <div className="mb-4 border-b border-ais-card-border pb-3">
-          <h3 className={aisHeadlineSm}>Personal profile</h3>
+          <h3 className={`${aisHeadlineSm} !text-title`}>Personal profile</h3>
           <p className={`${aisBodyMd} mt-0.5`}>Contact details visible to department head and parents.</p>
         </div>
         <form onSubmit={handlePersonalSave} className="space-y-3">
@@ -91,7 +91,7 @@ export const TeacherSettingsTab: React.FC = () => {
 
       <div className={`${aisCard} p-4`}>
         <div className="mb-4 border-b border-ais-card-border pb-3">
-          <h3 className={aisHeadlineSm}>General preferences</h3>
+          <h3 className={`${aisHeadlineSm} !text-title`}>General preferences</h3>
           <p className={`${aisBodyMd} mt-0.5`}>Notifications and display options.</p>
         </div>
         <form onSubmit={handleGeneralSave} className="space-y-3">

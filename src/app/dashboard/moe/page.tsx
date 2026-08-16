@@ -7,23 +7,24 @@ import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Badge } from '@/components/ui/badge';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { FormField, FormSectionHeading, formFieldInputClass } from '@/components/ui/form-field';
 import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
 import { usePortalTab } from '@/lib/usePortalTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
+import { MoeAcademicCalendarPanel } from '@/components/dashboard/moe/MoeAcademicCalendarPanel';
 export default function MoePortalPage() {
   const { 
     schools, 
     teachers,
     students,
     studentGradeEntries,
-    addSchool, 
+    addSchool,
     toggleSchoolStatus,
     trainings,
-    addNotification
   } = useApp();
 
   const nationalStats = React.useMemo(() => computeNationalStats(schools, teachers, students), [schools, teachers, students]);
@@ -34,7 +35,8 @@ export default function MoePortalPage() {
   const [searchSchool, setSearchSchool] = useState('');
   const [filterRegion, setFilterRegion] = useState('All');
   const [filterType, setFilterType] = useState('All');
-  
+  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
+
   // Add School Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [schoolName, setSchoolName] = useState('');
@@ -44,10 +46,6 @@ export default function MoePortalPage() {
   const [schoolCapacity, setSchoolCapacity] = useState(1000);
   const [schoolEmail, setSchoolEmail] = useState('');
   const [schoolPhone, setSchoolPhone] = useState('');
-
-  // AI Generation State
-  const [generatingReport, setGeneratingReport] = useState(false);
-  const [aiReportOutput, setAiReportOutput] = useState<string | null>(null);
 
   const handleRegisterSchool = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,28 +69,6 @@ export default function MoePortalPage() {
     setIsAddOpen(false);
   };
 
-  const handleGenerateAIReport = () => {
-    setGeneratingReport(true);
-    setTimeout(() => {
-      setAiReportOutput(`
-[Ethiopian MOE AI Predictive Synthesis – May 2026]
-
-1. Regional Dropout Forecasting:
-   - High alert identified in Sidama Region secondary nodes. Current predictive dropout risk sits at 14.2% due to agricultural seasonal migration.
-   - Recommended Action: Launch targeted evening study sections and localized attendance tracking.
-
-2. Teacher Shortage Predictions:
-   - STEM teacher vacancies in Tigray region are predicted to expand by 8.5% over the next two terms.
-   - Mathematics teacher ratios require immediate optimization in Hawassa zones.
-
-3. Curriculum coverage gaps:
-   - Grade 11 Physics coverage is lagging by 18% nationwide, attributed to practical lab duration constraints.
-      `);
-      addNotification('AI Analytics Report Ready', 'Predicted national dropout and teacher shortage analysis is now available.', 'success');
-      setGeneratingReport(false);
-    }, 1500);
-  };
-
   const portalMeta: Record<string, { title: string; subtitle?: string; eyebrow?: string }> = {
     dashboard: {
       title: 'National Dashboard',
@@ -111,9 +87,9 @@ export default function MoePortalPage() {
       title: 'Teacher Training',
       subtitle: 'Professional development programs nationwide.',
     },
-    analytics: {
-      title: 'AI Risk Analytics',
-      subtitle: 'Predictive insights on dropout risk and staffing gaps.',
+    'academic-calendar': {
+      title: 'Academic Calendar',
+      subtitle: 'Build and disseminate the national reference calendar to school heads.',
     },
     profile: {
       title: 'My Profile',
@@ -143,11 +119,9 @@ export default function MoePortalPage() {
           <Button size="sm" onClick={() => setIsAddOpen(true)}>
             + Register School
           </Button>
-        ) : (
-          <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-semibold border border-primary/20">
-            Federal Access Active
-          </span>
-        )
+        ) : activeTab === 'academic-calendar' ? (
+          calendarHeaderActions
+        ) : undefined
       }
     >
           {activeTab === 'dashboard' && (
@@ -166,7 +140,6 @@ export default function MoePortalPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm font-semibold">Regional Pass Rate Comparison</CardTitle>
-                    <CardDescription>Average secondary graduation percentage by administrative zone</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-2">
                     <div className="space-y-4">
@@ -175,7 +148,7 @@ export default function MoePortalPage() {
                           key={reg.name}
                           label={reg.name}
                           value={reg.passRate}
-                          barClassName="bg-primary"
+                          barClassName="bg-chart-color"
                         />
                       ))}
                     </div>
@@ -186,7 +159,6 @@ export default function MoePortalPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm font-semibold">Subject Coverage Performance & Risks</CardTitle>
-                    <CardDescription>Assessment pass ratios and predicted coverage failure probability</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-2">
                     <div className="space-y-4">
@@ -283,7 +255,6 @@ export default function MoePortalPage() {
 
               <TablePanel
                 title="School Registry"
-                description={`${filteredSchools.length} institutions matching current filters`}
               >
                 <table className="eskooly-table">
                   <thead>
@@ -352,95 +323,94 @@ export default function MoePortalPage() {
                 title="Register New School Node"
                 description="Input institutional profile details to assign federal identification codes."
               >
-                <form onSubmit={handleRegisterSchool} className="space-y-4 text-left">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">School Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={schoolName}
-                        onChange={(e) => setSchoolName(e.target.value)}
-                        placeholder="e.g. Hawassa Academy" 
-                        className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      />
+                <form onSubmit={handleRegisterSchool} className="space-y-5 text-left">
+                  <div className="space-y-4">
+                    <FormSectionHeading>School Identity</FormSectionHeading>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField label="School Name">
+                        <input
+                          type="text"
+                          required
+                          value={schoolName}
+                          onChange={(e) => setSchoolName(e.target.value)}
+                          placeholder="e.g. Hawassa Academy"
+                          className={formFieldInputClass}
+                        />
+                      </FormField>
+                      <FormField label="Institution Principal">
+                        <input
+                          type="text"
+                          required
+                          value={schoolPrincipal}
+                          onChange={(e) => setSchoolPrincipal(e.target.value)}
+                          placeholder="e.g. Ato Martha"
+                          className={formFieldInputClass}
+                        />
+                      </FormField>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Institution Principal</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={schoolPrincipal}
-                        onChange={(e) => setSchoolPrincipal(e.target.value)}
-                        placeholder="e.g. Ato Martha" 
-                        className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      />
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <FormField label="Region Zone">
+                        <Select
+                          options={[
+                            { value: 'Addis Ababa', label: 'Addis Ababa' },
+                            { value: 'Oromia', label: 'Oromia' },
+                            { value: 'Amhara', label: 'Amhara' },
+                            { value: 'Tigray', label: 'Tigray' },
+                            { value: 'Sidama', label: 'Sidama' },
+                          ]}
+                          value={schoolRegion}
+                          onChange={(e) => setSchoolRegion(e.target.value)}
+                        />
+                      </FormField>
+                      <FormField label="Funding Sector">
+                        <Select
+                          options={[
+                            { value: 'Public', label: 'Public Sector' },
+                            { value: 'Private', label: 'Private Sector' },
+                          ]}
+                          value={schoolType}
+                          onChange={(e) => setSchoolType(e.target.value)}
+                        />
+                      </FormField>
+                      <FormField label="Total Student Capacity">
+                        <input
+                          type="number"
+                          required
+                          value={schoolCapacity}
+                          onChange={(e) => setSchoolCapacity(Number(e.target.value))}
+                          className={formFieldInputClass}
+                        />
+                      </FormField>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Region Zone</label>
-                      <Select 
-                        options={[
-                          { value: 'Addis Ababa', label: 'Addis Ababa' },
-                          { value: 'Oromia', label: 'Oromia' },
-                          { value: 'Amhara', label: 'Amhara' },
-                          { value: 'Tigray', label: 'Tigray' },
-                          { value: 'Sidama', label: 'Sidama' },
-                        ]}
-                        value={schoolRegion}
-                        onChange={(e) => setSchoolRegion(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Funding Sector</label>
-                      <Select 
-                        options={[
-                          { value: 'Public', label: 'Public Sector' },
-                          { value: 'Private', label: 'Private Sector' },
-                        ]}
-                        value={schoolType}
-                        onChange={(e) => setSchoolType(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Student Capacity</label>
-                      <input 
-                        type="number" 
-                        required
-                        value={schoolCapacity}
-                        onChange={(e) => setSchoolCapacity(Number(e.target.value))}
-                        className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      />
+                  <div className="space-y-4">
+                    <FormSectionHeading>Contact Information</FormSectionHeading>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField label="Administrative Email">
+                        <input
+                          type="email"
+                          required
+                          value={schoolEmail}
+                          onChange={(e) => setSchoolEmail(e.target.value)}
+                          placeholder="office@academy.edu.et"
+                          className={formFieldInputClass}
+                        />
+                      </FormField>
+                      <FormField label="Direct Hotline Phone">
+                        <input
+                          type="text"
+                          value={schoolPhone}
+                          onChange={(e) => setSchoolPhone(e.target.value)}
+                          placeholder="+251-46-XXX-XXXX"
+                          className={formFieldInputClass}
+                        />
+                      </FormField>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Administrative Email</label>
-                      <input 
-                        type="email" 
-                        required
-                        value={schoolEmail}
-                        onChange={(e) => setSchoolEmail(e.target.value)}
-                        placeholder="office@academy.edu.et" 
-                        className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Direct Hotline Phone</label>
-                      <input 
-                        type="text" 
-                        value={schoolPhone}
-                        onChange={(e) => setSchoolPhone(e.target.value)}
-                        placeholder="+251-46-XXX-XXXX" 
-                        className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                      />
-                    </div>
-                  </div>
-
-                  <DialogFooter className="mt-6">
+                  <DialogFooter className="mt-2">
                     <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="text-xs h-10 cursor-pointer">
                       Cancel
                     </Button>
@@ -461,7 +431,6 @@ export default function MoePortalPage() {
             <div className="space-y-6 animate-fade-in">
               <TablePanel
                 title="Federal Curriculum Syllabi Registry"
-                description="Manage alignment thresholds, stream subdivisions and curriculum version logs."
                 actions={
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] bg-muted text-foreground border border-border px-3 py-1 rounded-full font-bold">
@@ -532,7 +501,6 @@ export default function MoePortalPage() {
                         <span className="text-[9px] text-muted-foreground">{tr.duration}</span>
                       </div>
                       <CardTitle className="text-sm font-bold text-foreground mt-2 leading-snug">{tr.title}</CardTitle>
-                      <CardDescription className="text-xxs text-primary font-semibold mt-1">Instructor: {tr.instructor}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-2 text-xxs font-medium text-muted-foreground">
                       <MetricProgressRow
@@ -552,46 +520,10 @@ export default function MoePortalPage() {
           )}
 
           {/* ==================================================== */}
-          {/* TAB 5: AI RISK ANALYTICS                            */}
+          {/* TAB: ACADEMIC CALENDAR                              */}
           {/* ==================================================== */}
-          {activeTab === 'analytics' && (
-            <div className="space-y-6 animate-fade-in">
-              
-              <Card accent="accent" glow>
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <span className="animate-pulse h-2.5 w-2.5 rounded-full bg-primary"></span>
-                    AI Predictive Neural Engine – Federal Analytics Desk
-                  </CardTitle>
-                  <CardDescription>Utilize curriculum feedback and regional attendance models to forecast national education risks.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  <div className="flex items-center space-x-3 bg-muted/40 p-4 border border-border/40 rounded-xl max-w-xl">
-                    <span className="text-2xl">🧠</span>
-                    <div className="text-left">
-                      <h4 className="text-xs font-bold text-foreground">Forecast Gaps & Teacher Shortages</h4>
-                      <p className="text-xxs text-muted-foreground mt-0.5">Generates deep recommendations mapping geographical teacher shortages and grade level risk thresholds.</p>
-                    </div>
-                  </div>
-
-                  <Button 
-                    variant="organic" 
-                    onClick={handleGenerateAIReport}
-                    loading={generatingReport}
-                    className="text-xs h-10 border-none cursor-pointer"
-                  >
-                    🧠 Generate Neural Report
-                  </Button>
-
-                  {aiReportOutput && (
-                    <div className="p-5 bg-slate-900/60 border border-slate-800 text-slate-300 rounded-lg text-xxs font-mono leading-relaxed text-left whitespace-pre-wrap shadow-inner glass">
-                      {aiReportOutput}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-            </div>
+          {activeTab === 'academic-calendar' && (
+            <MoeAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
           )}
 
           {activeTab === 'profile' && (

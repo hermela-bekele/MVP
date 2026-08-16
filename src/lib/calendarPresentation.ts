@@ -110,7 +110,7 @@ export const EVENT_CELL_STYLES: Record<AcademicCalendarEvent['type'], string> = 
   term: 'bg-primary/15 border-primary/30 text-primary',
   break: 'bg-amber-500/15 border-amber-500/30 text-amber-800 dark:text-amber-200',
   holiday: 'bg-destructive/15 border-destructive/30 text-destructive',
-  exam: 'bg-sky-500/15 border-sky-500/30 text-sky-700 dark:text-sky-200',
+  exam: 'bg-violet-500/15 border-violet-500/30 text-violet-700 dark:text-violet-200',
   moe: 'bg-muted/50 border-border text-muted-foreground',
   other: 'bg-rose-500/15 border-rose-500/30 text-rose-800 dark:text-rose-200',
 };

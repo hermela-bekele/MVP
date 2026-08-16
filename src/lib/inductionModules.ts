@@ -36,7 +36,7 @@ Every school has its own rhythm, and most first-year stress comes from not knowi
 - **Bell schedule** — know your periods and the transition time between them before day one.
 - **Attendance** — you are responsible for marking attendance for every period you teach, submitted through your Teacher Portal ("Attendance" tab) by the end of the period.
 - **Lesson plans** — your weekly lesson plan is submitted through the portal and reviewed by your Department Head; it should reach them at least a day before you teach it, not after.
-- **Grade book** — assessment scores are entered under "Grades" and roll up into the student's GPA automatically; a late entry is better than a missing one.
+- **Grade book** — assessment scores are entered under "Grades" and roll up into the student's cumulative mark (%) automatically; a late entry is better than a missing one.
 
 ### Who to ask
 | Situation | Go to |
