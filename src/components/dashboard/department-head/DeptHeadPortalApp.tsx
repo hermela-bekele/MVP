@@ -4,13 +4,13 @@ import React, { useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { uploadFile } from "@/lib/api";
+import { gpaToMark } from "@/lib/grading";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { KpiWidget, KpiGrid } from "@/components/dashboard/KpiWidget";
 import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardContent,
 } from "@/components/ui/card";
 import { ContentCard } from "@/components/dashboard/ContentCard";
@@ -44,6 +44,8 @@ import { DeptWellnessCheckins } from "@/components/dashboard/department-head/Dep
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 import { CommunicationModule } from "@/components/dashboard/communication/CommunicationModule";
+import { DeptHodMessagesPanel } from "@/components/dashboard/department-head/DeptHodMessagesPanel";
+import { DeptHeadSchoolHeadMessagesTab } from "@/components/dashboard/department-head/DeptHeadSchoolHeadMessagesTab";
 import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-head/DeptAssessmentCreatePanel";
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
 import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
@@ -537,11 +539,16 @@ export default function DeptHeadPortalApp() {
       subtitle: "Review and approve weekly detailed lesson plans. Your approval is final.",
     },
     communication: {
-      title: "Communication",
+      title: "Community",
+      subtitle: "School-wide announcements and your department's community channels.",
     },
     "teacher-messages": {
-      title: "Messaging",
-      subtitle: "Live chat with teachers and review classroom challenges.",
+      title: "Direct Messages",
+      subtitle: "Live chat with teachers in your department.",
+    },
+    "school-head-messages": {
+      title: "Direct Messages",
+      subtitle: "Message the school head.",
     },
     training: {
       title: "Teacher Development",
@@ -662,9 +669,6 @@ export default function DeptHeadPortalApp() {
                 <CardTitle className="text-sm font-semibold">
                   Verification Desk Inbox
                 </CardTitle>
-                <CardDescription>
-                  Tests and quizzes submitted by teachers awaiting department head endorsement.
-                </CardDescription>
               </CardHeader>
               <CardContent className="pt-2 space-y-3">
                 {pendingAssessments.length === 0 ? (
@@ -738,9 +742,6 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 Department snapshot
               </CardTitle>
-              <CardDescription>
-                {department?.name ?? `${scope?.subject ?? "Subject"} Department`} · Bole Community School
-              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
@@ -789,20 +790,9 @@ export default function DeptHeadPortalApp() {
         <DeptLessonPlansPanel scope={scope} />
       )}
 
-      {activeTab === "teacher-messages" && (
-        <CommunicationModule
-          mode="department-head"
-          mainTab="channels"
-          onMainTabChange={() => {}}
-        />
-      )}
-      {activeTab === "communication" && (
-        <CommunicationModule
-          mode="department-head"
-          mainTab="channels"
-          onMainTabChange={() => {}}
-        />
-      )}
+      {activeTab === "teacher-messages" && <DeptHodMessagesPanel />}
+      {activeTab === "school-head-messages" && <DeptHeadSchoolHeadMessagesTab />}
+      {activeTab === "communication" && <CommunicationModule mode="department-head" />}
 
       {activeTab === "reports" && (
         <div className="space-y-6 animate-fade-in">
@@ -882,7 +872,6 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Class Performance Reports"
-            description={`Showing ${filteredReportStudents.length} of ${departmentStudents.length} students for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -890,7 +879,7 @@ export default function DeptHeadPortalApp() {
                   <th>Student</th>
                   <th>ID</th>
                   <th>Grade / Section</th>
-                  <th>GPA</th>
+                  <th>Mark</th>
                   <th>Attendance</th>
                   <th>Status</th>
                 </tr>
@@ -913,7 +902,7 @@ export default function DeptHeadPortalApp() {
                         {std.grade} · Section {std.section}
                       </td>
                       <td className="p-3 font-mono font-bold">
-                        {std.gpa.toFixed(2)}
+                        {gpaToMark(std.gpa)}%
                       </td>
                       <td className="p-3">{std.attendanceRate}%</td>
                       <td className="p-3">
@@ -937,7 +926,6 @@ export default function DeptHeadPortalApp() {
         <div className="space-y-6 animate-fade-in">
           <TablePanel
             title="Plan progress by class"
-            description="Weekly and annual lesson plan progress for each department class section"
           >
             <table className="eskooly-table">
               <thead>
@@ -986,7 +974,6 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Plan progress by teacher"
-            description="Weekly plan approval rate and annual plan approval stage, paced against the department average"
           >
             <table className="eskooly-table">
               <thead>
@@ -1120,7 +1107,6 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Department attendance log"
-            description={`Showing ${filteredDepartmentAttendance.length} of ${departmentAttendance.length} entries for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -1197,7 +1183,6 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Study & pedagogy resources"
-            description={`Upload materials for ${scope?.subject ?? "subject"} staff and disseminate to all teacher resource libraries`}
           >
             <table className="eskooly-table">
               <thead>
@@ -1388,9 +1373,6 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 Department portal settings
               </CardTitle>
-              <CardDescription>
-                {scope?.subject ?? "Subject"} department preferences at Bole Community School
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="flex justify-between py-2 border-b border-border/40">
@@ -1458,9 +1440,6 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 {detailClass.grade} · Section {detailClass.section}
               </CardTitle>
-              <CardDescription>
-                {detailClass.name} · Homeroom: {detailClass.homeroomTeacher}
-              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
               <DetailRow label="Class" value={detailClass.name} />
@@ -1472,14 +1451,13 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Student roster"
-            description={`${scope?.subject ?? "Subject"} class roster for ${detailClass.grade} · Section ${detailClass.section}`}
           >
             <table className="eskooly-table">
               <thead>
                 <tr>
                   <th>Student</th>
                   <th>ID</th>
-                  <th>GPA</th>
+                  <th>Mark</th>
                   <th>Attendance</th>
                 </tr>
               </thead>
@@ -1507,7 +1485,7 @@ export default function DeptHeadPortalApp() {
                       </td>
                       <td className="p-3 font-mono text-xs">{std.studentId}</td>
                       <td className="p-3 font-mono font-bold">
-                        {std.gpa.toFixed(2)}
+                        {gpaToMark(std.gpa)}%
                       </td>
                       <td className="p-3">{std.attendanceRate}%</td>
                     </tr>
@@ -1526,10 +1504,6 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 Class room view
               </CardTitle>
-              <CardDescription>
-                Browse {scope?.subject ?? "subject"} class sections. Click a class to view its
-                roster and classroom detail.
-              </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
               {departmentClasses.length === 0 ? (
@@ -1546,7 +1520,7 @@ export default function DeptHeadPortalApp() {
                       className="text-left p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2 cursor-pointer hover:bg-muted/60 hover:border-primary/40 transition-colors"
                     >
                       <span className="text-lg">🏫</span>
-                      <h4 className="text-xs font-bold text-foreground">
+                      <h4 className="text-xs font-bold text-title">
                         {cls.grade} · Section {cls.section}
                       </h4>
                       <p className="text-xxs text-muted-foreground">
@@ -1589,7 +1563,6 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title={`${scope?.subject ?? "Subject"} Instructors`}
-            description="Training sync, certification, and roster status"
           >
             <table className="eskooly-table">
               <thead>
@@ -1903,7 +1876,6 @@ export default function DeptHeadPortalApp() {
           <DeptGapAnalysisPanel />
           <TablePanel
             title="Department assessment desk"
-            description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."
           >
             <table className="eskooly-table">
               <thead>
@@ -2028,7 +2000,7 @@ export default function DeptHeadPortalApp() {
                 </div>
 
                 <div className="space-y-3">
-                  <h4 className="font-bold text-foreground text-xs">
+                  <h4 className="font-bold text-title text-xs">
                     Test Questions Blueprint
                   </h4>
                   <div className="space-y-3 max-h-56 overflow-y-auto border border-border/40 p-4 rounded-lg bg-muted/20">

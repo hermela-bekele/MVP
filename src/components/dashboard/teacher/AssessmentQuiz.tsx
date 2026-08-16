@@ -86,7 +86,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
             <div className="w-20 h-20 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trophy className="w-10 h-10 text-primary dark:text-primary-light" />
             </div>
-            <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+            <h2 className="text-2xl font-bold text-title dark:text-gray-100 mb-2">
               {moduleTitle} Assessment
             </h2>
             <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
@@ -116,7 +116,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
           </div>
 
           <div className="space-y-3 mb-8 text-left bg-primary/5 dark:bg-primary/10 rounded-lg p-4">
-            <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-2">
+            <h3 className="font-semibold text-title dark:text-gray-100 mb-2">
               📝 Instructions
             </h3>
             <ul className="space-y-2 text-sm text-ais-on-surface-variant dark:text-gray-300">
@@ -137,7 +137,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
 
           <button
             onClick={() => setQuizStarted(true)}
-            className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 mx-auto"
+            className="px-8 py-3 bg-btn-primary text-btn-primary-foreground rounded-lg hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 mx-auto"
           >
             Start Assessment
             <ArrowRight className="w-4 h-4" />
@@ -171,7 +171,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
                 <XCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
               )}
             </div>
-            <h2 className="text-3xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+            <h2 className="text-3xl font-bold text-title dark:text-gray-100 mb-2">
               {answerKeysRevealed
                 ? passed
                   ? 'Congratulations! 🎉'
@@ -220,7 +220,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
 
           {/* Answer Review */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-6 mb-6 text-left">
-            <h3 className="font-semibold text-ais-on-surface dark:text-gray-100 mb-4">
+            <h3 className="font-semibold text-title dark:text-gray-100 mb-4">
               {answerKeysRevealed ? 'Answer Key' : 'Your Answers'}
             </h3>
             <div className="space-y-3">
@@ -288,7 +288,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
             {!answerKeysRevealed ? (
               <button
                 onClick={() => setAnswerKeysRevealed(true)}
-                className="px-8 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
+                className="px-8 py-2 rounded-lg bg-btn-primary text-btn-primary-foreground hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
               >
                 Check Answer
                 <CheckCircle className="w-4 h-4" />
@@ -297,7 +297,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
               onComplete && (
                 <button
                   onClick={handleContinue}
-                  className="px-8 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
+                  className="px-8 py-2 rounded-lg bg-btn-primary text-btn-primary-foreground hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
                 >
                   {continueLabel}
                   <ArrowRight className="w-4 h-4" />
@@ -356,7 +356,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 ${
                     isSelected
-                      ? 'bg-primary text-white'
+                      ? 'bg-btn-primary text-btn-primary-foreground'
                       : 'bg-ais-surface-container-low dark:bg-gray-700 text-ais-on-surface-variant dark:text-gray-400'
                   }`}>
                     {optionLetter}
@@ -405,7 +405,7 @@ export const AssessmentQuiz: React.FC<AssessmentQuizProps> = ({
         <button
           onClick={handleNext}
           disabled={!hasAnswered}
-          className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          className="flex items-center gap-2 px-6 py-2 rounded-lg bg-btn-primary text-btn-primary-foreground hover:bg-btn-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
         >
           {isLastQuestion ? 'Finish' : 'Next'}
           <ArrowRight className="w-4 h-4" />

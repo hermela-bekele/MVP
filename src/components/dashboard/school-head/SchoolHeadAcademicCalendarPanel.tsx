@@ -33,10 +33,22 @@ export const SchoolHeadAcademicCalendarPanel: React.FC<{
     createAcademicCalendar,
     updateAcademicCalendar,
     publishAcademicCalendar,
+    moeCalendar,
   } = useApp();
 
-  const moeEvents = useMemo(() => buildMoeCalendarEvents(), []);
-  const bounds = useMemo(() => getMoeCalendarBounds(), []);
+  const disseminatedMoeCalendar = moeCalendar?.status === 'Published' ? moeCalendar : null;
+
+  const moeEvents = useMemo(
+    () => (disseminatedMoeCalendar?.events?.length ? disseminatedMoeCalendar.events : buildMoeCalendarEvents()),
+    [disseminatedMoeCalendar],
+  );
+  const bounds = useMemo(() => {
+    if (disseminatedMoeCalendar?.events?.length) {
+      const dates = disseminatedMoeCalendar.events.flatMap((e) => [e.startDate, e.endDate]).sort();
+      return { start: dates[0], end: dates[dates.length - 1] };
+    }
+    return getMoeCalendarBounds();
+  }, [disseminatedMoeCalendar]);
   const [phase, setPhase] = useState<Phase>('view-moe');
   const [calendarSource, setCalendarSource] = useState<CalendarSource>('moe');
   const [assignments, setAssignments] = useState<DayAssignment[]>([]);

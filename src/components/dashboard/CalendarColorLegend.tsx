@@ -15,7 +15,7 @@ export const CALENDAR_COLOR_LEGEND: {
     label: 'Holiday (weekend)',
     swatch: 'bg-white ring-1 ring-red-300',
   },
-  { key: 'class', label: 'Class / MOE activity', swatch: 'bg-blue-50 ring-1 ring-blue-200' },
+  { key: 'class', label: 'Class / MOE activity', swatch: 'bg-primary/10 ring-1 ring-primary/25' },
   { key: 'moe', label: 'Other MOE activity', swatch: 'bg-slate-100 ring-1 ring-slate-200' },
   ...DAY_MARK_LEGEND.map((item) => ({
     key: item.mark,
@@ -32,7 +32,7 @@ export const CalendarColorLegend: React.FC<{ className?: string }> = ({ classNam
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
         Color key
       </p>
-      <h3 className="text-sm font-bold text-foreground mt-1 mb-4">What each color means</h3>
+      <h3 className="text-sm font-bold text-title mt-1 mb-4">What each color means</h3>
       <ul className="space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
         {CALENDAR_COLOR_LEGEND.map((item) => (
           <li key={item.key} className="flex items-center gap-3">

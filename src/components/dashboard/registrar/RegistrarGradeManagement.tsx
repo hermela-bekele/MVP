@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { ContentCard } from '@/components/dashboard/ContentCard';
+import { gpaToMark } from '@/lib/grading';
 import {
   CURRENT_TERM,
   GRADE_ENTRY_TYPES,
@@ -118,13 +119,13 @@ export const RegistrarGradeManagement: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TablePanel title="Class Roster & GPA" description={`${classGrade} Section ${classSection} — ${roster.length} students`}>
+        <TablePanel title="Class Roster & Marks">
           <table className="eskooly-table">
             <thead>
               <tr>
                 <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Student</th>
                 <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Term Avg</th>
-                <th className="p-3 text-left text-muted-foreground font-semibold text-xs">GPA</th>
+                <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Cumulative Mark</th>
                 <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Actions</th>
               </tr>
             </thead>
@@ -138,7 +139,7 @@ export const RegistrarGradeManagement: React.FC = () => {
                     <td className="p-3 text-xs">{avg !== null ? `${avg}%` : '—'}</td>
                     <td className="p-3">
                       <Badge variant={student.gpa >= 3.0 ? 'success' : 'warning'} size="sm">
-                        {student.gpa.toFixed(2)}
+                        {gpaToMark(student.gpa)}%
                       </Badge>
                     </td>
                     <td className="p-3">

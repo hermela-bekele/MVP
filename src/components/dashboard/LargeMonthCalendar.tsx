@@ -36,9 +36,9 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 /** Soft activity tints — readable, not loud. */
 const ACTIVITY_SOFT: Record<string, { circle: string; caption: string; ec: string }> = {
   exam: {
-    circle: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/80',
-    caption: 'text-sky-700',
-    ec: 'text-sky-700/80',
+    circle: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/80',
+    caption: 'text-violet-700',
+    ec: 'text-violet-700/80',
   },
   break: {
     circle: 'bg-amber-50 text-amber-900 ring-1 ring-amber-200/80',
@@ -46,9 +46,9 @@ const ACTIVITY_SOFT: Record<string, { circle: string; caption: string; ec: strin
     ec: 'text-amber-700/80',
   },
   term: {
-    circle: 'bg-blue-50 text-blue-900 ring-1 ring-blue-200/70',
-    caption: 'text-blue-700',
-    ec: 'text-blue-700/80',
+    circle: 'bg-primary/10 text-primary ring-1 ring-primary/25',
+    caption: 'text-primary',
+    ec: 'text-primary/80',
   },
   moe: {
     circle: 'bg-slate-100 text-slate-800 ring-1 ring-slate-200/80',

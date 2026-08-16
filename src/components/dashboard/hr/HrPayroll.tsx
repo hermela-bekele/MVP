@@ -100,7 +100,6 @@ export const HrPayroll: React.FC = () => {
 
       <TablePanel
         title="Payroll Management"
-        description="Process monthly salaries, allowances, and deductions"
         actions={
           <div className="flex gap-2 items-center">
             <input

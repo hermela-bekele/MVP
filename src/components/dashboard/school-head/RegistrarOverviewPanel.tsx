@@ -42,7 +42,7 @@ export const RegistrarOverviewPanel: React.FC = () => {
         <KpiWidget label="Rejected" value={rejected.length} />
       </KpiGrid>
 
-      <TablePanel title="Applications Queue" description="Most recent registration applications">
+      <TablePanel title="Applications Queue">
         <table className="eskooly-table">
           <thead>
             <tr>

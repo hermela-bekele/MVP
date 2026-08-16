@@ -6,6 +6,7 @@ import { ContentCard } from '@/components/dashboard/ContentCard';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Badge } from '@/components/ui/badge';
 import { enrollmentByGrade, filterSchoolStudents } from '@/lib/registrarPortal';
+import { gpaToMark } from '@/lib/grading';
 
 export const RegistrarReports: React.FC = () => {
   const { students, registrationApplications } = useApp();
@@ -14,9 +15,9 @@ export const RegistrarReports: React.FC = () => {
 
   const stats = useMemo(() => {
     const active = schoolStudents.filter((s) => s.status === 'Active');
-    const avgGpa =
+    const avgMark =
       active.length > 0
-        ? active.reduce((a, s) => a + s.gpa, 0) / active.length
+        ? Math.round(active.reduce((a, s) => a + gpaToMark(s.gpa), 0) / active.length)
         : 0;
     const avgAttendance =
       active.length > 0
@@ -32,7 +33,7 @@ export const RegistrarReports: React.FC = () => {
       ).length,
     };
 
-    return { active: active.length, avgGpa, avgAttendance, appStats };
+    return { active: active.length, avgMark, avgAttendance, appStats };
   }, [schoolStudents, registrationApplications]);
 
   const lowAttendance = schoolStudents
@@ -45,8 +46,8 @@ export const RegistrarReports: React.FC = () => {
         <ContentCard title="Total Active" description="Enrolled students">
           <p className="text-3xl font-bold text-foreground">{stats.active}</p>
         </ContentCard>
-        <ContentCard title="School Avg GPA" description="All active students">
-          <p className="text-3xl font-bold text-foreground">{stats.avgGpa.toFixed(2)}</p>
+        <ContentCard title="School Avg Mark" description="All active students">
+          <p className="text-3xl font-bold text-foreground">{stats.avgMark}%</p>
         </ContentCard>
         <ContentCard title="Avg Attendance" description="School-wide rate">
           <p className="text-3xl font-bold text-foreground">{Math.round(stats.avgAttendance)}%</p>
@@ -60,7 +61,7 @@ export const RegistrarReports: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TablePanel title="Enrollment by Grade Level" description="Active student distribution">
+        <TablePanel title="Enrollment by Grade Level">
           <table className="eskooly-table">
             <thead>
               <tr>
@@ -83,7 +84,7 @@ export const RegistrarReports: React.FC = () => {
           </table>
         </TablePanel>
 
-        <TablePanel title="Attendance Alerts" description="Students below 85% attendance">
+        <TablePanel title="Attendance Alerts">
           {lowAttendance.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">No attendance alerts.</p>
           ) : (

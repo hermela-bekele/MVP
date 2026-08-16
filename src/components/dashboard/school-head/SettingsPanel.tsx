@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export const SettingsPanel: React.FC = () => {
@@ -61,7 +61,6 @@ export const SettingsPanel: React.FC = () => {
         <Card className="border-border/60">
           <CardHeader className="pb-3 border-b border-border/30">
             <CardTitle className="text-base font-bold">General School Coordination</CardTitle>
-            <CardDescription className="text-xs">Edit primary coordinates and school parameters visible on reports.</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <form onSubmit={handleSaveSettingsSubmit} className="space-y-4">
@@ -147,7 +146,6 @@ export const SettingsPanel: React.FC = () => {
         <Card className="border-border/60">
           <CardHeader className="pb-3 border-b border-border/30">
             <CardTitle className="text-base font-bold">Administrative Security</CardTitle>
-            <CardDescription className="text-xs">Modify portal login email and replace security passwords.</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <form onSubmit={handleSavePasswordSubmit} className="space-y-4">

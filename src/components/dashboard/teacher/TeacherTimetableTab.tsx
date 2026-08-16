@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AisPage,
   AisPanel,
@@ -10,7 +10,15 @@ import {
   AisTr,
   AisTd,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { buildTeacherWeeklyTimetable } from '@/lib/teacherPortal';
+import { Select } from '@/components/ui/select';
+import {
+  buildTeacherWeeklyTimetable,
+  CURRENT_TERM,
+  GRADE_OPTIONS,
+  SECTION_FILTER_OPTIONS,
+  TEACHER_CLASS_ASSIGNMENTS,
+  normalizeGradeLabel,
+} from '@/lib/teacherPortal';
 import { aisBodySm, aisDataMd } from '@/components/dashboard/teacher/aisStyles';
 
 function TimetableCell({ value }: { value: string }) {
@@ -29,13 +37,41 @@ function TimetableCell({ value }: { value: string }) {
 }
 
 export const TeacherTimetableTab: React.FC = () => {
-  const schedule = useMemo(() => buildTeacherWeeklyTimetable(), []);
+  const [grade, setGrade] = useState('All');
+  const [section, setSection] = useState('All');
+
+  const filteredAssignments = useMemo(() => {
+    return TEACHER_CLASS_ASSIGNMENTS.filter((a) => {
+      if (grade !== 'All' && normalizeGradeLabel(a.grade) !== normalizeGradeLabel(grade)) return false;
+      if (section !== 'All' && a.section !== section) return false;
+      return true;
+    });
+  }, [grade, section]);
+
+  const schedule = useMemo(() => buildTeacherWeeklyTimetable(filteredAssignments), [filteredAssignments]);
 
   return (
     <AisPage>
+      <div className="grid max-w-md grid-cols-1 gap-4 sm:grid-cols-2">
+        <Select
+          variant="ais"
+          label="Grade"
+          options={[{ value: 'All', label: 'All grades' }, ...GRADE_OPTIONS.map((g) => ({ value: g, label: g }))]}
+          value={grade}
+          onChange={(e) => setGrade(e.target.value)}
+        />
+        <Select
+          variant="ais"
+          label="Section"
+          options={SECTION_FILTER_OPTIONS.map((s) => ({ value: s, label: s === 'All' ? 'All sections' : `Section ${s}` }))}
+          value={section}
+          onChange={(e) => setSection(e.target.value)}
+        />
+      </div>
+
       <AisPanel
-        title="Weekly teaching timetable"
-        description="Your full class schedule across all sections for the current term."
+        title="Full-semester teaching timetable"
+        description={`This weekly pattern repeats every week for the full ${CURRENT_TERM}. ${grade !== 'All' || section !== 'All' ? 'Filtered to the selected grade/section.' : 'Showing all your assigned classes.'}`}
         flush
       >
         <AisTable>
@@ -48,6 +84,13 @@ export const TeacherTimetableTab: React.FC = () => {
             <AisTh>Friday</AisTh>
           </AisTableHead>
           <tbody>
+            {schedule.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-ais-on-surface-variant">
+                  No periods for this grade/section.
+                </td>
+              </tr>
+            )}
             {schedule.map((row) => (
               <AisTr key={row.time}>
                 <AisTd className="whitespace-nowrap bg-ais-surface-container-low/40 font-mono text-xs font-bold text-ais-primary">

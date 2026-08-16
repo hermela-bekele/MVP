@@ -11,6 +11,7 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Student } from '@/lib/mockData';
 import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
+import { gpaToMark } from '@/lib/grading';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
@@ -95,9 +96,9 @@ export const RegistrarStudentRegistry: React.FC = () => {
     },
     {
       key: 'gpa',
-      header: 'GPA',
+      header: 'Mark',
       sortable: true,
-      render: (row) => <span className="text-xs font-semibold">{row.gpa.toFixed(2)}</span>,
+      render: (row) => <span className="text-xs font-semibold">{gpaToMark(row.gpa)}%</span>,
     },
     {
       key: 'parentName',
@@ -141,7 +142,6 @@ export const RegistrarStudentRegistry: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <TablePanel
         title="Official Student Registry"
-        description="Complete roster of all enrolled students with searchable records"
       >
         <DataTable<Student>
           columns={columns}
@@ -165,7 +165,7 @@ export const RegistrarStudentRegistry: React.FC = () => {
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Student ID</p><p className="text-xs font-mono">{detailStudent.studentId}</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Grade</p><p className="text-xs font-medium">{detailStudent.grade} · {detailStudent.section}</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Status</p><Badge variant={statusBadgeVariant(detailStudent.status)} size="sm">{detailStudent.status}</Badge></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">GPA</p><p className="text-xs font-medium">{detailStudent.gpa.toFixed(2)}</p></div>
+              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Mark</p><p className="text-xs font-medium">{gpaToMark(detailStudent.gpa)}%</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Attendance</p><p className="text-xs font-medium">{detailStudent.attendanceRate}%</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Parent</p><p className="text-xs font-medium">{detailStudent.parentName}</p></div>
               <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Phone</p><p className="text-xs font-medium">{detailStudent.parentPhone}</p></div>

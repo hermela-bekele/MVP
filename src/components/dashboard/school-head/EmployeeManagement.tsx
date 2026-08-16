@@ -221,7 +221,6 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
     <div className="space-y-6 animate-fade-in">
       <TablePanel
         title="Instructional Staff Roster"
-        description="Monitor educational practitioners and curriculum licenses"
       >
           <DataTable<Teacher>
             columns={employeeColumns}

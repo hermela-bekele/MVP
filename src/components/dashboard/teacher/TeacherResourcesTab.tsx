@@ -10,17 +10,28 @@ import { filterTrainingMaterialsForTeacher } from '@/lib/trainingResources';
 import type { TeacherResource, TrainingMaterial } from '@/lib/mockData';
 import {
   AisBtnSecondary,
-  AisEmptyRow,
   AisPage,
   AisPanel,
   AisStatusBadge,
-  AisTable,
-  AisTd,
-  AisTh,
-  AisTr,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { aisBodyMd } from '@/components/dashboard/teacher/aisStyles';
+import { aisBodyMd, aisBodySm, aisCard, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
+
+function resourceUrlOf(row: ResourceRow): string | undefined {
+  return row.kind === 'own' ? row.resource.url : row.resource.resourceUrl;
+}
+
+function isImageUrl(url: string) {
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(url);
+}
+
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov)$/i.test(url) || /youtube\.com|youtu\.be|vimeo\.com/i.test(url);
+}
+
+function isPdfUrl(url: string) {
+  return /\.pdf$/i.test(url);
+}
 
 const RESOURCE_TYPES: TeacherResource['type'][] = [
   'Worksheet',
@@ -71,6 +82,7 @@ export const TeacherResourcesTab: React.FC = () => {
     return [...deptRows, ...ownRows];
   }, [departmentResources, myResources]);
 
+  const [viewingResource, setViewingResource] = useState<ResourceRow | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<TeacherResource['type']>('Worksheet');
@@ -120,76 +132,93 @@ export const TeacherResourcesTab: React.FC = () => {
     <AisPage>
       <AisPanel
         title="Classroom resources"
-        description="Your uploads and department-shared study materials"
-        flush
+        description="Your uploads and department-shared study materials — click a card to view it"
       >
-        <AisTable>
-          <thead>
-            <tr className="bg-ais-surface-container-low">
-              <AisTh>Title</AisTh>
-              <AisTh>Type</AisTh>
-              <AisTh>Grade / Subject</AisTh>
-              <AisTh>Source</AisTh>
-              <AisTh>Published</AisTh>
-            </tr>
-          </thead>
-          <tbody>
-            {allResources.length === 0 ? (
-              <AisEmptyRow colSpan={5} message="No resources available yet." />
-            ) : (
-              allResources.map((row) => {
-                if (row.kind === 'own') {
-                  const r = row.resource;
-                  return (
-                    <AisTr key={`own-${r.id}`}>
-                      <AisTd className="font-semibold">{r.title}</AisTd>
-                      <AisTd>
-                        <AisStatusBadge variant="primary">{r.type}</AisStatusBadge>
-                      </AisTd>
-                      <AisTd>
-                        {r.grade} · {r.subject}
-                      </AisTd>
-                      <AisTd>
-                        <AisStatusBadge variant="neutral">My upload</AisStatusBadge>
-                      </AisTd>
-                      <AisTd className={aisBodyMd}>{r.createdAt}</AisTd>
-                    </AisTr>
-                  );
-                }
+        {allResources.length === 0 ? (
+          <p className={`${aisBodyMd} py-8 text-center`}>No resources available yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {allResources.map((row) => {
+              const isOwn = row.kind === 'own';
+              const title = row.resource.title;
+              const type = isOwn ? row.resource.type : categoryToType(row.resource.category);
+              const grade = row.resource.grade;
+              const subject = row.resource.subject;
+              const date = isOwn ? row.resource.createdAt : row.resource.uploadedAt;
+              const key = isOwn ? `own-${row.resource.id}` : `dept-${row.resource.id}`;
 
-                const r = row.resource;
-                const resourceType = categoryToType(r.category);
-                return (
-                  <AisTr key={`dept-${r.id}`}>
-                    <AisTd className="font-semibold">
-                      <a
-                        href={r.resourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-ais-primary hover:underline"
-                      >
-                        {r.title}
-                      </a>
-                    </AisTd>
-                    <AisTd>
-                      <AisStatusBadge variant="primary">{resourceType}</AisStatusBadge>
-                    </AisTd>
-                    <AisTd>
-                      {r.grade && r.subject
-                        ? `${r.grade} · ${r.subject}`
-                        : r.grade || r.subject || r.category}
-                    </AisTd>
-                    <AisTd>
-                      <AisStatusBadge variant="success">Department</AisStatusBadge>
-                    </AisTd>
-                    <AisTd className={aisBodyMd}>{r.uploadedAt}</AisTd>
-                  </AisTr>
-                );
-              })
-            )}
-          </tbody>
-        </AisTable>
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setViewingResource(row)}
+                  className={`${aisCard} flex flex-col p-4 text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ais-primary`}
+                >
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <AisStatusBadge variant="primary">{type}</AisStatusBadge>
+                    <AisStatusBadge variant={isOwn ? 'neutral' : 'success'}>
+                      {isOwn ? 'My upload' : 'Department'}
+                    </AisStatusBadge>
+                  </div>
+                  <h4 className={`${aisHeadlineSm} line-clamp-2 !text-title`}>{title}</h4>
+                  <p className={`${aisBodySm} mt-1`}>
+                    {grade && subject ? `${grade} · ${subject}` : grade || subject || (row.kind === 'department' ? row.resource.category : '')}
+                  </p>
+                  <p className={`${aisBodySm} mt-auto pt-3`}>{date}</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </AisPanel>
+
+      <Dialog
+        isOpen={!!viewingResource}
+        onClose={() => setViewingResource(null)}
+        title={viewingResource ? viewingResource.resource.title : ''}
+        size="lg"
+      >
+        {viewingResource && (() => {
+          const url = resourceUrlOf(viewingResource);
+          const row = viewingResource;
+          const isOwn = row.kind === 'own';
+          const grade = row.resource.grade;
+          const subject = row.resource.subject;
+          return (
+            <div className="space-y-4 pt-2">
+              <p className={aisBodySm}>
+                {grade && subject ? `${grade} · ${subject}` : grade || subject}
+                {' — '}
+                {isOwn ? row.resource.type : categoryToType(row.resource.category)}
+              </p>
+              {url && isImageUrl(url) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt={row.resource.title} className="max-h-[60vh] w-full rounded-lg object-contain" />
+              )}
+              {url && isVideoUrl(url) && !isImageUrl(url) && (
+                <video src={url} controls className="max-h-[60vh] w-full rounded-lg" />
+              )}
+              {url && isPdfUrl(url) && (
+                <iframe src={url} className="h-[60vh] w-full rounded-lg border border-ais-card-border" title={row.resource.title} />
+              )}
+              {url && !isImageUrl(url) && !isVideoUrl(url) && !isPdfUrl(url) && (
+                <div className={`${aisCard} p-6 text-center`}>
+                  <p className={aisBodyMd}>This file type can&apos;t be previewed inline.</p>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90"
+                  >
+                    Open resource
+                  </a>
+                </div>
+              )}
+              {!url && <p className={aisBodyMd}>No file or link attached to this resource.</p>}
+            </div>
+          );
+        })()}
+      </Dialog>
 
       <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Upload & disseminate resource" size="md">
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -227,7 +256,7 @@ export const TeacherResourcesTab: React.FC = () => {
             <button
               type="submit"
               disabled={uploading || (!resourceFile && !url.trim())}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? 'Uploading…' : 'Publish to students'}
             </button>

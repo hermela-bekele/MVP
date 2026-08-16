@@ -5,12 +5,13 @@ import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, REGISTRAR_SECTION_OPTIONS } from '@/lib/registrarPortal';
+import { gpaToMark } from '@/lib/grading';
 
 export const RegistrarClassPlacement: React.FC = () => {
-  const { students, classes, updateStudent } = useApp();
+  const { students, updateStudent } = useApp();
   const schoolStudents = filterSchoolStudents(students).filter((s) => s.status === 'Active');
 
   const [selectedGrade, setSelectedGrade] = useState('Grade 9');
@@ -29,8 +30,6 @@ export const RegistrarClassPlacement: React.FC = () => {
     }
     return counts;
   }, [gradeStudents]);
-
-  const gradeClasses = classes.filter((c) => c.grade === selectedGrade);
 
   const handlePlacement = () => {
     if (!placementStudentId) return;
@@ -60,16 +59,12 @@ export const RegistrarClassPlacement: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {REGISTRAR_SECTION_OPTIONS.map((section) => {
           const count = sectionCounts[section] ?? 0;
-          const classInfo = gradeClasses.find((c) => c.section === section || c.name.includes(section));
           const capacity = 45;
           const utilization = Math.round((count / capacity) * 100);
           return (
             <Card key={section} className="border-border/60">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold">Section {section}</CardTitle>
-                <CardDescription className="text-[10px]">
-                  {classInfo?.homeroomTeacher ?? 'No homeroom assigned'}
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex justify-between text-xs">
@@ -93,14 +88,13 @@ export const RegistrarClassPlacement: React.FC = () => {
 
       <TablePanel
         title={`${selectedGrade} — Student Placement`}
-        description="Assign or reassign students to class sections"
       >
         <table className="eskooly-table">
           <thead>
             <tr>
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Student</th>
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Current Section</th>
-              <th className="p-3 text-left text-muted-foreground font-semibold text-xs">GPA</th>
+              <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Mark</th>
               <th className="p-3 text-left text-muted-foreground font-semibold text-xs">Action</th>
             </tr>
           </thead>
@@ -111,7 +105,7 @@ export const RegistrarClassPlacement: React.FC = () => {
                 <td className="p-3">
                   <Badge variant="neutral" size="sm">Section {student.section}</Badge>
                 </td>
-                <td className="p-3 text-xs">{student.gpa.toFixed(2)}</td>
+                <td className="p-3 text-xs">{gpaToMark(student.gpa)}%</td>
                 <td className="p-3">
                   <Button
                     variant="outline"

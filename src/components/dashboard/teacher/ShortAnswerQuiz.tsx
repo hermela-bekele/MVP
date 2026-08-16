@@ -146,7 +146,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
             <div className="w-20 h-20 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-10 h-10 text-primary dark:text-primary-light" />
             </div>
-            <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+            <h2 className="text-2xl font-bold text-title dark:text-gray-100 mb-2">
               {sectionTitle}
             </h2>
             <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
@@ -166,7 +166,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
 
           <button
             onClick={() => setQuizStarted(true)}
-            className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 mx-auto"
+            className="px-8 py-3 bg-btn-primary text-btn-primary-foreground rounded-lg hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 mx-auto"
           >
             Start Short Answer Section
             <ArrowRight className="w-4 h-4" />
@@ -193,7 +193,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
               <CheckCircle className="w-10 h-10 text-primary dark:text-primary-light" />
             )}
           </div>
-          <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+          <h2 className="text-2xl font-bold text-title dark:text-gray-100 mb-2">
             {answerKeysRevealed ? "Answer Key" : "Your Results"}
           </h2>
           <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
@@ -316,7 +316,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
             <button
               onClick={() => setAnswerKeysRevealed(true)}
               disabled={isEvaluating}
-              className="px-8 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50"
+              className="px-8 py-2 rounded-lg bg-btn-primary text-btn-primary-foreground hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2 disabled:opacity-50"
             >
               Check Answer
               <CheckCircle className="w-4 h-4" />
@@ -325,7 +325,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
             onComplete && (
               <button
                 onClick={() => onComplete(scorePercentage)}
-                className="px-8 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
+                className="px-8 py-2 rounded-lg bg-btn-primary text-btn-primary-foreground hover:bg-btn-primary/90 transition-colors font-semibold text-sm flex items-center gap-2"
               >
                 {continueLabel}
                 <ArrowRight className="w-4 h-4" />
@@ -404,7 +404,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
         <button
           onClick={handleNext}
           disabled={!canProceed}
-          className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+          className="flex items-center gap-2 px-6 py-2 rounded-lg bg-btn-primary text-btn-primary-foreground hover:bg-btn-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
         >
           {isLastQuestion ? "View Results" : "Next"}
           <ArrowRight className="w-4 h-4" />

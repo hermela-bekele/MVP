@@ -101,7 +101,7 @@ export function TeacherQuickActions({
       {open && (
         <div className="w-[min(320px,calc(100vw-4rem))] overflow-hidden rounded-xl border border-ais-card-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] animate-fade-in">
           <div className="border-b border-ais-card-border px-4 py-3">
-            <h3 className={aisHeadlineSm}>Quick actions</h3>
+            <h3 className={`${aisHeadlineSm} !text-title`}>Quick actions</h3>
             <p className={`${aisBodyMd} mt-0.5`}>{teacher.name}</p>
           </div>
           <div className="p-2">

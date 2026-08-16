@@ -42,12 +42,15 @@ import {
   TeacherCheckInPrompt,
   StudentGradeEntry,
   AcademicCalendar,
+  AcademicCalendarEvent,
+  MoeCalendarDraft,
   RegistrationApplication,
   RegistrationApplicationStatus,
   LessonDelivery,
   CommunityPost,
   CommunityReply,
   StaffMessage,
+  DeptHeadMessage,
   GraspOutcome,
   TeacherSelfAssessment,
   TeacherTrainingAssignment,
@@ -97,6 +100,11 @@ import {
 } from '@/lib/hrPortal';
 import { DEMO_TEACHER_ID, percentToGpa } from '@/lib/teacherPortal';
 import { readStoredCalendars, writeStoredCalendars } from '@/lib/calendarStorage';
+import { readStoredMoeCalendar, writeStoredMoeCalendar } from '@/lib/moeCalendarStorage';
+import {
+  readStoredDeptHeadMessages,
+  writeStoredDeptHeadMessages,
+} from '@/lib/deptHeadMessageStorage';
 import {
   type AuthUser,
   clearSession,
@@ -146,6 +154,7 @@ interface AppContextType {
   trainingMaterials: TrainingMaterial[];
   teachingNotes: TeachingNote[];
   academicCalendars: AcademicCalendar[];
+  moeCalendar: MoeCalendarDraft | null;
   teacherResources: TeacherResource[];
   teacherFeedbacks: TeacherFeedback[];
   parentMessages: ParentMessage[];
@@ -155,6 +164,7 @@ interface AppContextType {
   communityPosts: CommunityPost[];
   communityReplies: CommunityReply[];
   staffMessages: StaffMessage[];
+  deptHeadMessages: DeptHeadMessage[];
   teacherSelfAssessments: TeacherSelfAssessment[];
   teacherTrainingAssignments: TeacherTrainingAssignment[];
   registrationApplications: RegistrationApplication[];
@@ -261,6 +271,8 @@ interface AppContextType {
     updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>
   ) => void;
   publishAcademicCalendar: (id: string) => void;
+  saveMoeCalendarDraft: (events: AcademicCalendarEvent[], title: string, academicYear: string) => void;
+  disseminateMoeCalendar: () => void;
   createDeptAnnualLessonPlan: (
     plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
   ) => void;
@@ -314,6 +326,15 @@ interface AppContextType {
   }) => Promise<void>;
   refreshStaffMessages: (params?: { teacherId?: string; departmentId?: string }) => Promise<void>;
   markStaffMessagesRead: (teacherId: string, readerRole: 'teacher' | 'department-head') => void;
+  sendDeptHeadMessage: (payload: {
+    departmentId: string;
+    body: string;
+    senderRole: 'department-head' | 'school-head';
+  }) => void;
+  markDeptHeadMessagesRead: (
+    departmentId: string,
+    readerRole: 'department-head' | 'school-head',
+  ) => void;
   addNotification: (
     title: string,
     description: string,
@@ -408,6 +429,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [academicCalendars, setAcademicCalendars] = useState<AcademicCalendar[]>(() =>
     typeof window !== 'undefined' ? readStoredCalendars() : [],
   );
+  const [moeCalendar, setMoeCalendar] = useState<MoeCalendarDraft | null>(() =>
+    typeof window !== 'undefined' ? readStoredMoeCalendar() : null,
+  );
   const [teacherResources, setTeacherResources] = useState<TeacherResource[]>([]);
   const [teacherFeedbacks, setTeacherFeedbacks] = useState<TeacherFeedback[]>([]);
   const [parentMessages, setParentMessages] = useState<ParentMessage[]>([]);
@@ -419,6 +443,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [communityReplies, setCommunityReplies] = useState<CommunityReply[]>([]);
   const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([]);
+  const [deptHeadMessages, setDeptHeadMessages] = useState<DeptHeadMessage[]>(() =>
+    typeof window !== 'undefined' ? readStoredDeptHeadMessages() : [],
+  );
   const [teacherSelfAssessments, setTeacherSelfAssessments] =
     useState<TeacherSelfAssessment[]>([]);
   const [teacherTrainingAssignments, setTeacherTrainingAssignments] =
@@ -451,6 +478,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTrainingMaterials(mockTrainingMaterials);
     setTeachingNotes(mockTeachingNotes);
     setAcademicCalendars(readStoredCalendars());
+    setMoeCalendar(readStoredMoeCalendar());
+    setDeptHeadMessages(readStoredDeptHeadMessages());
     setTeacherResources(mockTeacherResources);
     setTeacherFeedbacks(mockTeacherFeedbacks);
     setParentMessages(mockParentMessages);
@@ -1540,6 +1569,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const saveMoeCalendarDraft = (events: AcademicCalendarEvent[], title: string, academicYear: string) => {
+    const createdAtFallback = new Date().toISOString().slice(0, 10);
+    setMoeCalendar((prev) => {
+      const draft: MoeCalendarDraft = {
+        academicYear,
+        title,
+        events,
+        status: 'Draft',
+        createdAt: prev?.createdAt ?? createdAtFallback,
+      };
+      writeStoredMoeCalendar(draft);
+      return draft;
+    });
+    addNotification('MOE Calendar Draft Saved', `"${title}" is ready for review.`, 'info');
+  };
+
+  const disseminateMoeCalendar = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setMoeCalendar((prev) => {
+      if (!prev) return prev;
+      const published: MoeCalendarDraft = { ...prev, status: 'Published', publishedAt: today };
+      writeStoredMoeCalendar(published);
+      return published;
+    });
+    addNotification(
+      'MOE Calendar Disseminated',
+      'The national reference calendar is now available to school heads.',
+      'success',
+    );
+  };
+
   const createDeptAnnualLessonPlan = (
     planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>,
   ) => {
@@ -1971,6 +2031,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   };
 
+  // Local-only (no backend support): School Head <-> Department Head messaging,
+  // persisted to localStorage. Mirrors the staffMessages pattern above.
+  const sendDeptHeadMessage = (payload: {
+    departmentId: string;
+    body: string;
+    senderRole: 'department-head' | 'school-head';
+  }) => {
+    const dept = departments.find((d) => d.id === payload.departmentId);
+    const senderName =
+      payload.senderRole === 'school-head'
+        ? currentUser?.displayName ?? 'School Head'
+        : currentUser?.displayName ?? dept?.headName ?? 'Department Head';
+    const msg: DeptHeadMessage = {
+      id: `dhm-${Date.now()}`,
+      departmentId: payload.departmentId,
+      senderId: currentUser?.id ?? payload.senderRole,
+      senderName,
+      senderRole: payload.senderRole,
+      body: payload.body,
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
+    setDeptHeadMessages((prev) => {
+      const next = [...prev, msg];
+      writeStoredDeptHeadMessages(next);
+      return next;
+    });
+  };
+
+  const markDeptHeadMessagesRead = (
+    departmentId: string,
+    readerRole: 'department-head' | 'school-head',
+  ) => {
+    const opposite = readerRole === 'department-head' ? 'school-head' : 'department-head';
+    setDeptHeadMessages((prev) => {
+      const next = prev.map((m) =>
+        m.departmentId === departmentId && m.senderRole === opposite ? { ...m, read: true } : m,
+      );
+      writeStoredDeptHeadMessages(next);
+      return next;
+    });
+  };
+
   const distributeLessonPlan = (id: string) => {
     setLessonPlans(
       lessonPlans.map((lp) => {
@@ -2057,6 +2160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         trainingMaterials,
         teachingNotes,
         academicCalendars,
+        moeCalendar,
         teacherResources,
         teacherFeedbacks,
         parentMessages,
@@ -2066,6 +2170,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         communityPosts,
         communityReplies,
         staffMessages,
+        deptHeadMessages,
         teacherSelfAssessments,
         teacherTrainingAssignments,
         registrationApplications,
@@ -2132,6 +2237,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createAcademicCalendar,
         updateAcademicCalendar,
         publishAcademicCalendar,
+        saveMoeCalendarDraft,
+        disseminateMoeCalendar,
         createDeptAnnualLessonPlan,
         updateDeptAnnualLessonPlan,
         deleteLessonPlan,
@@ -2149,6 +2256,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sendStaffMessage,
         refreshStaffMessages,
         markStaffMessagesRead,
+        sendDeptHeadMessage,
+        markDeptHeadMessagesRead,
         addNotification,
         markNotificationAsRead,
         markNotificationAsUnread,

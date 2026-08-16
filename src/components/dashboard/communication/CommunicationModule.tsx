@@ -1,13 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Hash, Megaphone, MessageSquare } from 'lucide-react';
+import { Loader2, Megaphone, Plus, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { TeacherHodMessagesTab } from '@/components/dashboard/teacher/TeacherHodMessagesTab';
-import { DeptHodMessagesPanel } from '@/components/dashboard/department-head/DeptHodMessagesPanel';
 import { CommunityChannelsPanel } from '@/components/dashboard/communication/CommunityChannelsPanel';
-import { StudentFeedbackTab } from '@/components/dashboard/student/StudentFeedbackTab';
-import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
 import {
   AisPage,
   aisInput,
@@ -19,11 +15,9 @@ import {
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
 import { api } from '@/lib/api';
-import { resolveDeptHeadScope } from '@/lib/departmentHead';
-
-export type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
-
-type ChannelId = 'announcements' | 'hod' | 'community';
+import { departmentIdForSubject, resolveDeptHeadScope } from '@/lib/departmentHead';
+import type { Community } from '@/lib/communityTypes';
+import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 
 type Announcement = {
   id: string;
@@ -34,20 +28,24 @@ type Announcement = {
 };
 
 /**
- * Unified Communication module: channel sidebar (Announcements, HoD, Community).
+ * Communication surface for a school: the school-wide announcements board,
+ * plus a card grid of the user's Communities. Picking a card opens that
+ * community's channel workspace; opening a channel takes over the page.
  */
 export function CommunicationModule({
   mode,
-  mainTab,
-  onMainTabChange: _onMainTabChange,
 }: {
-  mode: 'teacher' | 'department-head' | 'school-head' | 'student';
-  mainTab: CommunicationMainTab;
-  onMainTabChange: (tab: CommunicationMainTab) => void;
+  mode: 'teacher' | 'department-head' | 'school-head';
 }) {
-  const { currentUser, communityPosts, refreshFromApi } = useApp();
-  const hasDirectChannel = mode === 'teacher' || mode === 'department-head';
-  const [channel, setChannel] = useState<ChannelId>(hasDirectChannel ? 'hod' : 'announcements');
+  const { currentUser, departments, communityPosts, refreshFromApi, teachers, resolveTeacherId } = useApp();
+  const [communityId, setCommunityId] = useState<string | null>(null);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [loadingCommunities, setLoadingCommunities] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newCommunityName, setNewCommunityName] = useState('');
+  const [newCommunityDescription, setNewCommunityDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceBody, setAnnounceBody] = useState('');
@@ -58,8 +56,38 @@ export function CommunicationModule({
     [currentUser, mode],
   );
 
-  const canPostAnnouncement =
-    mode === 'school-head' || currentUser?.role === 'school-head';
+  const canPostAnnouncement = currentUser?.role === 'school-head';
+
+  // A subject teacher (or their department head) only sees their own department's
+  // communities, plus any school-wide ones. School-head sees everything.
+  const myDepartmentId = useMemo(() => {
+    if (mode === 'department-head') return scope?.departmentId ?? null;
+    if (mode === 'teacher') {
+      const teacherId = resolveTeacherId();
+      const subject = teachers.find((t) => t.id === teacherId)?.subjects?.[0];
+      return subject ? departmentIdForSubject(subject) : null;
+    }
+    return null;
+  }, [mode, scope, teachers, resolveTeacherId]);
+
+  const visibleCommunities = useMemo(() => {
+    if (!myDepartmentId) return communities;
+    return communities.filter((c) => !c.departmentId || c.departmentId === myDepartmentId);
+  }, [communities, myDepartmentId]);
+
+  const loadCommunities = React.useCallback(() => {
+    setLoadingCommunities(true);
+    return api
+      .listCommunities()
+      .then((rows) => setCommunities(rows))
+      .finally(() => setLoadingCommunities(false));
+  }, []);
+
+  useEffect(() => {
+    void loadCommunities();
+  }, [loadCommunities]);
+
+  // Removed department grouping - now showing all communities in a flat grid
 
   useEffect(() => {
     // Seed announcements from challenge/community posts tagged as announcements,
@@ -80,36 +108,6 @@ export function CommunicationModule({
       return [...localOnly, ...fromFeed];
     });
   }, [communityPosts]);
-
-  const channels: { id: ChannelId; label: string; description: string; icon: React.ReactNode }[] = [
-    {
-      id: 'announcements',
-      label: 'announcements',
-      description: 'Notices from the school head',
-      icon: <Megaphone className="h-4 w-4" />,
-    },
-    ...(hasDirectChannel
-      ? [
-          {
-            id: 'hod' as ChannelId,
-            label: mode === 'teacher' ? 'hod-direct' : 'teachers',
-            description: mode === 'teacher' ? 'Direct line to your HoD' : 'Chat with your teachers',
-            icon: <MessageSquare className="h-4 w-4" />,
-          },
-        ]
-      : []),
-    {
-      id: 'community',
-      label: 'community',
-      description:
-        mode === 'school-head'
-          ? 'Department, HoD & student groups'
-          : mode === 'student'
-            ? 'Your class & school groups'
-            : 'Department & school groups',
-      icon: <Hash className="h-4 w-4" />,
-    },
-  ];
 
   const postAnnouncement = async () => {
     if (!announceTitle.trim() || !announceBody.trim()) return;
@@ -155,130 +153,180 @@ export function CommunicationModule({
     }
   };
 
-  if (mainTab === 'students' && mode === 'student') {
+  const createCommunity = async () => {
+    if (!newCommunityName.trim()) return;
+    setCreating(true);
+    try {
+      const created = await api.createCommunity({
+        name: newCommunityName.trim(),
+        description: newCommunityDescription.trim() || undefined,
+        departmentId: scope?.departmentId,
+      });
+      setNewCommunityName('');
+      setNewCommunityDescription('');
+      setShowCreateForm(false);
+      await loadCommunities();
+      setCommunityId(created.id);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (communityId) {
     return (
       <AisPage>
-        <StudentFeedbackTab />
+        <CommunityChannelsPanel communityId={communityId} onBack={() => setCommunityId(null)} />
       </AisPage>
     );
   }
 
   return (
     <AisPage>
-      <div className="grid min-h-[calc(100vh-220px)] grid-cols-1 gap-4 md:grid-cols-[260px_1fr] md:items-stretch">
-        <aside className="flex h-full min-h-[calc(100vh-220px)] flex-col rounded-2xl border border-ais-card-border bg-white p-3 dark:bg-ais-surface">
-            <p className="px-2 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
-              Your channels
-            </p>
-            <nav className="min-h-0 flex-1 space-y-1.5">
-              {channels.map((c) => {
-                const active = channel === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setChannel(c.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                      active
-                        ? 'bg-ais-primary/10 text-ais-primary'
-                        : 'text-ais-on-surface hover:bg-ais-row-hover'
-                    }`}
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                        active
-                          ? 'bg-ais-primary text-white'
-                          : 'bg-ais-surface-container-low text-ais-on-surface-variant'
-                      }`}
-                    >
-                      {c.icon}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">#{c.label}</span>
-                      <span className="block truncate text-[11px] text-ais-on-surface-variant">
-                        {c.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
-
-          <div
-            className={
-              channel === 'community'
-                ? 'min-h-0'
-                  : channel === 'hod'
-                  ? 'flex min-h-0 flex-col'
-                  : 'min-h-0 overflow-y-auto rounded-2xl border border-ais-card-border bg-white p-4 dark:bg-ais-surface'
-            }
-          >
-            {channel === 'announcements' && (
-              <div className="space-y-4">
-                <div>
-                  <p className={aisLabelCaps}>#announcements</p>
-                  <p className={`${aisBodySm} mt-1`}>
-                    School-wide notices from the school head. Only the school head can publish here.
-                  </p>
-                </div>
-                {canPostAnnouncement && (
-                  <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
-                    <input
-                      className={aisInput}
-                      placeholder="Announcement title"
-                      value={announceTitle}
-                      onChange={(e) => setAnnounceTitle(e.target.value)}
-                    />
-                    <textarea
-                      className={aisTextarea}
-                      placeholder="Write the announcement…"
-                      value={announceBody}
-                      onChange={(e) => setAnnounceBody(e.target.value)}
-                      rows={3}
-                    />
-                    <AisBtnPrimary
-                      type="button"
-                      disabled={posting || !announceTitle.trim() || !announceBody.trim()}
-                      onClick={() => void postAnnouncement()}
-                    >
-                      Post announcement
-                    </AisBtnPrimary>
-                  </div>
-                )}
-                {announcements.length === 0 ? (
-                  <p className={`${aisBodySm} py-8 text-center`}>No announcements yet.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {announcements.map((a) => (
-                      <li
-                        key={a.id}
-                        className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4"
-                      >
-                        <p className="text-sm font-bold text-ais-on-surface">{a.title}</p>
-                        <p className="mt-1 text-xs text-ais-on-surface-variant">
-                          {a.authorName} ·{' '}
-                          {new Date(a.createdAt).toLocaleString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{a.body}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {channel === 'hod' && hasDirectChannel &&
-              (mode === 'teacher' ? <TeacherHodMessagesTab /> : <DeptHodMessagesPanel />)}
-
-            {channel === 'community' && <CommunityChannelsPanel />}
+      <div className="mx-auto max-w-4xl space-y-8">
+        <div className="space-y-4 rounded-2xl border border-ais-card-border bg-white p-4 dark:bg-ais-surface">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ais-primary/10 text-ais-primary">
+              <Megaphone className="h-5 w-5" />
+            </span>
+            <div>
+              <p className={aisLabelCaps}>#announcements</p>
+              <p className={aisBodySm}>
+                School-wide notices from the school head. Only the school head can publish here.
+              </p>
+            </div>
           </div>
+
+          {canPostAnnouncement && (
+            <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
+              <input
+                className={aisInput}
+                placeholder="Announcement title"
+                value={announceTitle}
+                onChange={(e) => setAnnounceTitle(e.target.value)}
+              />
+              <textarea
+                className={aisTextarea}
+                placeholder="Write the announcement…"
+                value={announceBody}
+                onChange={(e) => setAnnounceBody(e.target.value)}
+                rows={3}
+              />
+              <AisBtnPrimary
+                type="button"
+                disabled={posting || !announceTitle.trim() || !announceBody.trim()}
+                onClick={() => void postAnnouncement()}
+              >
+                Post announcement
+              </AisBtnPrimary>
+            </div>
+          )}
+
+          {announcements.length === 0 ? (
+            <p className={`${aisBodySm} py-4 text-center`}>No announcements yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {announcements.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4"
+                >
+                  <p className="text-sm font-bold text-ais-on-surface">{a.title}</p>
+                  <p className="mt-1 text-xs text-ais-on-surface-variant">
+                    {a.authorName} ·{' '}
+                    {new Date(a.createdAt).toLocaleString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{a.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className={aisLabelCaps}>Your Communities</p>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create Community
+            </button>
+          </div>
+
+          {showCreateForm && (
+            <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
+              <input
+                className={aisInput}
+                placeholder="Community name"
+                value={newCommunityName}
+                onChange={(e) => setNewCommunityName(e.target.value)}
+              />
+              <input
+                className={aisInput}
+                placeholder="Description (optional)"
+                value={newCommunityDescription}
+                onChange={(e) => setNewCommunityDescription(e.target.value)}
+              />
+              <AisBtnPrimary
+                type="button"
+                disabled={creating || !newCommunityName.trim()}
+                onClick={() => void createCommunity()}
+              >
+                Create
+              </AisBtnPrimary>
+            </div>
+          )}
+
+          {loadingCommunities ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading your communities…
+            </div>
+          ) : visibleCommunities.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-ais-card-border bg-ais-surface-container-low/30 py-16 text-center">
+              <Users className="mx-auto h-8 w-8 text-ais-on-surface-variant" />
+              <p className={`${aisBodySm} mt-2`}>You aren&apos;t a member of any community yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleCommunities.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCommunityId(c.id)}
+                  className="group flex items-start gap-3 rounded-2xl border border-ais-card-border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-ais-primary/40 hover:shadow-md dark:bg-ais-surface"
+                >
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white ${avatarColor(c.id)}`}
+                  >
+                    {communityInitials(c.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-ais-on-surface group-hover:text-ais-primary">
+                      {c.name}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-ais-on-surface-variant">
+                      {c.description || 'No description yet.'}
+                    </p>
+                    {(c.unreadCount ?? 0) > 0 && (
+                      <span className="mt-2 inline-flex items-center rounded-full bg-ais-primary/10 px-2 py-0.5 text-[10px] font-bold text-ais-primary">
+                        {c.unreadCount} new
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </AisPage>
   );
 }

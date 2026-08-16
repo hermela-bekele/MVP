@@ -113,7 +113,6 @@ export const LessonPlanReview: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <TablePanel
         title="Instructional Syllabus Filings"
-        description="Weekly lesson plans are approved only by the department head. School head approval is not part of this workflow."
       >
           <DataTable<LessonPlan>
             columns={planColumns}
@@ -137,7 +136,7 @@ export const LessonPlanReview: React.FC = () => {
             {/* Title Metadata */}
             <div className="p-3 bg-muted/40 border border-border/60 rounded-xl flex items-center justify-between">
               <div className="text-left space-y-0.5">
-                <h4 className="text-xs font-bold text-foreground">{selectedPlan.title}</h4>
+                <h4 className="text-xs font-bold text-title">{selectedPlan.title}</h4>
                 <p className="text-[10px] text-muted-foreground">Drafted by: {selectedPlan.teacherName} ({selectedPlan.subject})</p>
               </div>
               <Badge variant="primary" badgeStyle="subtle" size="sm" className="font-bold px-2">

@@ -14,6 +14,7 @@ import {
   SELF_REGISTER_ROLES,
   type PortalRole,
 } from '@/lib/auth';
+import { Logo } from '@/components/shared/Logo';
 
 export default function RegisterPage() {
   const { currentUser, authReady } = useApp();
@@ -80,9 +81,7 @@ export default function RegisterPage() {
       <div className="hidden lg:flex lg:w-[42%] xl:w-[45%] flex-col justify-between bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-fg))] p-10 xl:p-14">
         <div>
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-[hsl(var(--sidebar-fg))] text-[hsl(var(--sidebar-bg))] flex items-center justify-center font-bold text-lg shadow-md">
-              PE
-            </div>
+            <Logo className="h-11 w-11" />
             <div>
               <p className="font-bold text-lg leading-tight">
                 PRIME EduAI
@@ -113,9 +112,7 @@ export default function RegisterPage() {
       <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold">
-              PE
-            </div>
+            <Logo className="h-10 w-10" />
             <span className="font-bold text-lg text-foreground">
               PRIME EduAI
             </span>
@@ -123,7 +120,7 @@ export default function RegisterPage() {
 
           <div className="bg-card rounded-xl border border-border/80 shadow-lg p-6 sm:p-8">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-foreground">
+              <h2 className="text-xl font-bold text-title">
                 Join the Portal
               </h2>
               <p className="text-sm text-muted-foreground mt-1">

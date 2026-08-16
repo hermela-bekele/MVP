@@ -8,6 +8,7 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { ParentAttendanceCalendar } from '@/components/dashboard/parent/ParentAttendanceCalendar';
+import { gpaToMark } from '@/lib/grading';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -305,7 +306,7 @@ export default function ParentPortalPage() {
       {!loading && tab === 'dashboard' && child && (
         <div className="space-y-5 animate-fade-in">
           <KpiGrid>
-            <KpiWidget label="GPA" value={child.gpa?.toFixed(2) ?? '—'} hint="Cumulative" tone="emphasis" />
+            <KpiWidget label="Mark" value={child.gpa != null ? `${gpaToMark(child.gpa)}%` : '—'} hint="Cumulative" tone="emphasis" />
             <KpiWidget
               label="Attendance"
               value={`${Number(child.attendanceRate ?? 0).toFixed(1)}%`}

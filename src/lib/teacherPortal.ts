@@ -97,6 +97,11 @@ export const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
 /** Gradebook / roster filters — include All sections for a grade level. */
 export const SECTION_FILTER_OPTIONS = ['All', ...SECTION_OPTIONS];
 
+/** Single source of truth for subject dropdowns (AI lesson plan / notes / assessment
+ * generation). Keep every subject-select in the app pointed at this list so they can't
+ * drift out of sync with each other again. */
+export const SUBJECT_OPTIONS = ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics'];
+
 /** Normalize "Grade 11" / "11" / "G11" style labels for matching. */
 export function normalizeGradeLabel(grade: string): string {
   const raw = (grade || '').trim().toLowerCase();

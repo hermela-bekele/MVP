@@ -65,8 +65,8 @@ function roleBadgeVariant(role: FeedbackFilter): AisBadgeVariant {
 
 /**
  * Teacher's Feedback panel: view feedback received (peer, head of department, parent,
- * student) and give a direct peer review to a colleague. Student-authored feedback is
- * shown anonymously — teachers never see which student left it.
+ * student) and give a direct peer review to a colleague. All feedback received is shown
+ * anonymously by role — teachers never see who specifically left it.
  */
 export const TeacherFeedbackPanel: React.FC = () => {
   const { teachers, teacherFeedbacks, giveTeacherFeedback, resolveTeacherId } = useApp();
@@ -140,7 +140,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
         <AisTable>
           <thead>
             <tr className="bg-ais-surface-container-low">
-              <AisTh>From</AisTh>
+              <AisTh>Source</AisTh>
               <AisTh>Source</AisTh>
               <AisTh>Subject</AisTh>
               <AisTh>Comment</AisTh>
@@ -154,11 +154,10 @@ export const TeacherFeedbackPanel: React.FC = () => {
             ) : (
               filtered.map((f) => {
                 const role = roleOf(f);
-                const isAnonymousStudent = role === 'student';
                 return (
                   <AisTr key={f.id}>
                     <AisTd className="font-semibold">
-                      {isAnonymousStudent ? 'Anonymous student' : f.authorName}
+                      Anonymous {roleLabel(role)}
                     </AisTd>
                     <AisTd>
                       <AisStatusBadge variant={roleBadgeVariant(role)}>{roleLabel(role)}</AisStatusBadge>
@@ -216,7 +215,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
             <button
               type="submit"
               disabled={!peerId || !comment.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send feedback
             </button>

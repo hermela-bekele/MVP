@@ -204,7 +204,7 @@ export default function PublicApplyPage() {
             >
               Apply now
             </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-title sm:text-4xl">
               {displayName}
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
@@ -257,7 +257,7 @@ export default function PublicApplyPage() {
           className="relative space-y-6 rounded-2xl border border-border/70 bg-card p-5 shadow-md sm:p-8"
         >
           <div>
-            <h2 className="text-sm font-bold text-foreground">Student details</h2>
+            <h2 className="text-sm font-bold text-title">Student details</h2>
             <p className="text-xs text-muted-foreground">Tell us about the applicant</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -294,7 +294,7 @@ export default function PublicApplyPage() {
           </div>
 
           <div className="border-t border-border/60 pt-6">
-            <h2 className="text-sm font-bold text-foreground">Parent / guardian</h2>
+            <h2 className="text-sm font-bold text-title">Parent / guardian</h2>
             <p className="text-xs text-muted-foreground">We will email admission updates here</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -346,7 +346,7 @@ export default function PublicApplyPage() {
 
           {extraSchema.length > 0 && (
             <div className="border-t border-border/60 pt-6 space-y-4">
-              <h2 className="text-sm font-bold text-foreground">Additional questions</h2>
+              <h2 className="text-sm font-bold text-title">Additional questions</h2>
               {extraSchema.map((field) => (
                 <Input
                   key={field.key}

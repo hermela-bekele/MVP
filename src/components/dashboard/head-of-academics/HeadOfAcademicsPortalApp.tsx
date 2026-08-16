@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { ContentCard } from '@/components/dashboard/ContentCard';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { computeSubjectPerformance } from '@/lib/analytics';
 import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
@@ -169,7 +169,6 @@ export default function HeadOfAcademicsPortalApp() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">Syllabus Completion Index by Grade</CardTitle>
-                <CardDescription>Estimated percentage of textbook chapters finalized relative to school weeks.</CardDescription>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
@@ -192,7 +191,6 @@ export default function HeadOfAcademicsPortalApp() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">National Curriculum Sync Rates</CardTitle>
-                <CardDescription>Subject performance average and predicted national examination readiness index.</CardDescription>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
@@ -225,7 +223,6 @@ export default function HeadOfAcademicsPortalApp() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">Curriculum Progress by Department</CardTitle>
-                <CardDescription>Average student mastery of each department&apos;s subjects, used as a curriculum progress indicator.</CardDescription>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
@@ -250,7 +247,6 @@ export default function HeadOfAcademicsPortalApp() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">Average Grades by Subject &amp; Grade Level</CardTitle>
-                <CardDescription>Term-to-date average score per subject, broken down by grade level.</CardDescription>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-5 max-h-[360px] overflow-y-auto pr-1">

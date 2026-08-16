@@ -137,7 +137,6 @@ export const DeptWellnessCheckins: React.FC = () => {
 
       <TablePanel
         title="Department wellness & satisfaction check-ins"
-        description="Recurrent questionnaire towards general challenges and school improvement ideas"
         actions={
           <Button variant="organic" size="sm" onClick={() => setIsModalOpen(true)} className="text-xs">
             Create Check-in

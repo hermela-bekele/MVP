@@ -27,16 +27,16 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
         rehypePlugins={[rehypeKatex, rehypeRaw]}
         components={{
           h1: ({ node: _node, ...props }) => (
-            <h1 className="text-2xl font-bold text-ais-on-surface mb-4 mt-6 pb-2 border-b border-ais-card-border" {...props} />
+            <h1 className="text-2xl font-bold text-title mb-4 mt-6 pb-2 border-b border-ais-card-border" {...props} />
           ),
           h2: ({ node: _node, ...props }) => (
-            <h2 className="text-xl font-semibold text-ais-on-surface mb-3 mt-6 first:mt-0 pb-1 border-b border-ais-card-border/60" {...props} />
+            <h2 className="text-xl font-semibold text-title mb-3 mt-6 first:mt-0 pb-1 border-b border-ais-card-border/60" {...props} />
           ),
           h3: ({ node: _node, ...props }) => (
             <h3 className="text-lg font-semibold text-ais-primary mb-2 mt-4" {...props} />
           ),
           h4: ({ node: _node, ...props }) => (
-            <h4 className="text-base font-semibold text-ais-on-surface mb-2 mt-3" {...props} />
+            <h4 className="text-base font-semibold text-title mb-2 mt-3" {...props} />
           ),
           p: ({ node: _node, ...props }) => (
             <p className="text-sm text-ais-on-surface-variant leading-relaxed mb-3" {...props} />

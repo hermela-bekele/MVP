@@ -151,7 +151,7 @@ export function InvoiceDetailDialog({
         />
 
         <section>
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-title">
             Charge breakdown
           </h3>
           <div className="overflow-hidden rounded-xl border border-border/70">
@@ -205,7 +205,7 @@ export function InvoiceDetailDialog({
         </section>
 
         <section>
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-title">
             Payment history & receipts
           </h3>
           <div className="space-y-2">
@@ -237,7 +237,7 @@ export function InvoiceDetailDialog({
 
         {canFinance && (
           <section className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-title">
               Finance overrides
             </h3>
             <div className="grid gap-3 sm:grid-cols-2">
