@@ -3,12 +3,19 @@
 import React, { useMemo } from 'react';
 import type { AnnualLessonPlanResult, AnnualLessonPlanWeekRow } from '@/lib/annualLessonPlan';
 import { computeRowSpans } from '@/lib/annualLessonPlan';
+import { EditableList, EditableText, EditableNumber } from '@/components/ui/editablePlanCells';
 
 interface AnnualLessonPlanTableProps {
   plan: AnnualLessonPlanResult;
   className?: string;
   /** Hide the page heading when an outer chrome already titles this plan */
   showTitle?: boolean;
+  /** Allow editing the AI-authored pedagogical fields (unit, contents, objectives,
+   * methods, aids, evaluation, homework, comments, periods, page). The auto-computed
+   * calendar skeleton (semester/month/week/date) stays read-only — it comes from the
+   * school calendar, not the AI. */
+  editable?: boolean;
+  onChange?: (next: AnnualLessonPlanResult) => void;
 }
 
 function BulletList({
@@ -28,25 +35,6 @@ function BulletList({
         </li>
       ))}
     </ul>
-  );
-}
-
-function VerticalCell({ children, rowSpan }: { children: React.ReactNode; rowSpan: number }) {
-  return (
-    <td
-      rowSpan={rowSpan}
-      className="border border-foreground/80 bg-background px-1 py-2 align-middle text-center"
-    >
-      <div
-        className="mx-auto inline-block max-h-[140px] overflow-hidden text-[10px] font-semibold uppercase tracking-wide"
-        style={{
-          writingMode: 'vertical-rl',
-          transform: 'rotate(180deg)',
-        }}
-      >
-        {children}
-      </div>
-    </td>
   );
 }
 
@@ -124,16 +112,46 @@ function WeekRow({
   semesterSpan,
   monthSpan,
   unitSpan,
+  editable,
+  onEditUnit,
+  onEditField,
 }: {
   row: AnnualLessonPlanWeekRow;
   semesterSpan: number;
   monthSpan: number;
   unitSpan: number;
+  editable: boolean;
+  onEditUnit: (unitSpan: number, next: string) => void;
+  onEditField: <K extends keyof AnnualLessonPlanWeekRow>(field: K, next: AnnualLessonPlanWeekRow[K]) => void;
 }) {
   return (
     <tr className="align-top text-[11px]">
-      {semesterSpan > 0 ? <VerticalCell rowSpan={semesterSpan}>{row.semester}</VerticalCell> : null}
-      {monthSpan > 0 ? <VerticalCell rowSpan={monthSpan}>{row.month}</VerticalCell> : null}
+      {semesterSpan > 0 ? (
+        <td
+          rowSpan={semesterSpan}
+          className="border border-foreground/80 bg-background px-1 py-2 align-middle text-center"
+        >
+          <div
+            className="mx-auto inline-block max-h-[140px] overflow-hidden text-[10px] font-semibold uppercase tracking-wide"
+            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+          >
+            {row.semester}
+          </div>
+        </td>
+      ) : null}
+      {monthSpan > 0 ? (
+        <td
+          rowSpan={monthSpan}
+          className="border border-foreground/80 bg-background px-1 py-2 align-middle text-center"
+        >
+          <div
+            className="mx-auto inline-block max-h-[140px] overflow-hidden text-[10px] font-semibold uppercase tracking-wide"
+            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+          >
+            {row.month}
+          </div>
+        </td>
+      ) : null}
       <td className="border border-foreground/80 px-1.5 py-1.5 text-center font-medium whitespace-nowrap">
         {row.week}
       </td>
@@ -145,25 +163,47 @@ function WeekRow({
           rowSpan={unitSpan}
           className="border border-foreground/80 px-2 py-1.5 align-middle text-center text-[11px] font-semibold"
         >
-          {row.unit || '—'}
+          {editable ? (
+            <EditableText value={row.unit} onChange={(v) => onEditUnit(unitSpan, v)} />
+          ) : (
+            row.unit || '—'
+          )}
         </td>
       ) : null}
       <td className="border border-foreground/80 px-2 py-1.5">
-        <BulletList items={row.contents} marker=">" />
+        {editable ? (
+          <EditableList items={row.contents} onChange={(v) => onEditField('contents', v)} placeholder="One content item per line" />
+        ) : (
+          <BulletList items={row.contents} marker=">" />
+        )}
       </td>
       <td className="border border-foreground/80 px-1 py-1.5 text-center align-middle font-semibold">
-        <span
-          className="inline-block text-[10px]"
-          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-        >
-          {row.periodsNeeded}
-        </span>
+        {editable ? (
+          <EditableNumber value={row.periodsNeeded} onChange={(v) => onEditField('periodsNeeded', v)} />
+        ) : (
+          <span
+            className="inline-block text-[10px]"
+            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+          >
+            {row.periodsNeeded}
+          </span>
+        )}
       </td>
       <td className="border border-foreground/80 px-1.5 py-1.5 text-center whitespace-nowrap">
-        {row.page || '—'}
+        {editable ? (
+          <EditableText value={row.page} onChange={(v) => onEditField('page', v)} />
+        ) : (
+          row.page || '—'
+        )}
       </td>
       <td className="border border-foreground/80 px-2 py-1.5">
-        {row.generalObjectives?.length ? (
+        {editable ? (
+          <EditableList
+            items={row.generalObjectives}
+            onChange={(v) => onEditField('generalObjectives', v)}
+            placeholder="One objective per line"
+          />
+        ) : row.generalObjectives?.length ? (
           <div>
             <p className="mb-0.5 font-semibold">Enabling students to</p>
             <BulletList items={row.generalObjectives} marker="✓" />
@@ -173,26 +213,49 @@ function WeekRow({
         )}
       </td>
       <td className="border border-foreground/80 px-2 py-1.5">
-        <BulletList items={row.teachingMethods} marker=">" />
+        {editable ? (
+          <EditableList items={row.teachingMethods} onChange={(v) => onEditField('teachingMethods', v)} placeholder="One method per line" />
+        ) : (
+          <BulletList items={row.teachingMethods} marker=">" />
+        )}
       </td>
       <td className="border border-foreground/80 px-2 py-1.5">
-        <BulletList items={row.teachingAids} marker=">" />
+        {editable ? (
+          <EditableList items={row.teachingAids} onChange={(v) => onEditField('teachingAids', v)} placeholder="One aid per line" />
+        ) : (
+          <BulletList items={row.teachingAids} marker=">" />
+        )}
       </td>
       <td className="border border-foreground/80 px-2 py-1.5">
-        <div className="space-y-1.5">
-          <BulletList items={row.evaluationMethods} marker="•" />
-          {row.homework?.length ? (
-            <div>
-              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/70">
-                Homework
-              </p>
-              <BulletList items={row.homework} marker="•" />
-            </div>
-          ) : null}
-        </div>
+        {editable ? (
+          <div className="space-y-1.5">
+            <EditableList items={row.evaluationMethods} onChange={(v) => onEditField('evaluationMethods', v)} placeholder="One evaluation method per line" />
+            <EditableList items={row.homework ?? []} onChange={(v) => onEditField('homework', v)} placeholder="Homework (one per line)" />
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            <BulletList items={row.evaluationMethods} marker="•" />
+            {row.homework?.length ? (
+              <div>
+                <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/70">
+                  Homework
+                </p>
+                <BulletList items={row.homework} marker="•" />
+              </div>
+            ) : null}
+          </div>
+        )}
       </td>
       <td className="border border-foreground/80 px-2 py-1.5 min-w-[60px]">
-        {row.comments || ''}
+        {editable ? (
+          <EditableText
+            className="text-left"
+            value={row.comments ?? ''}
+            onChange={(v) => onEditField('comments', v)}
+          />
+        ) : (
+          row.comments || ''
+        )}
       </td>
     </tr>
   );
@@ -202,11 +265,27 @@ export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
   plan,
   className = '',
   showTitle = true,
+  editable = false,
+  onChange,
 }) => {
   const weeks = plan.weeks ?? [];
   const semesterSpans = useMemo(() => computeRowSpans(weeks, 'semester'), [weeks]);
   const monthSpans = useMemo(() => computeRowSpans(weeks, 'month'), [weeks]);
   const unitSpans = useMemo(() => computeRowSpans(weeks, 'unit'), [weeks]);
+
+  const updateWeeks = (index: number, updater: (row: AnnualLessonPlanWeekRow) => AnnualLessonPlanWeekRow) => {
+    if (!onChange) return;
+    const nextWeeks = weeks.map((row, i) => (i === index ? updater(row) : row));
+    onChange({ ...plan, weeks: nextWeeks });
+  };
+
+  const updateUnitSpan = (startIndex: number, span: number, next: string) => {
+    if (!onChange) return;
+    const nextWeeks = weeks.map((row, i) =>
+      i >= startIndex && i < startIndex + span ? { ...row, unit: next } : row,
+    );
+    onChange({ ...plan, weeks: nextWeeks });
+  };
 
   return (
     <div className={`annual-lesson-plan-table space-y-4 ${className}`}>
@@ -217,6 +296,13 @@ export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
       ) : null}
 
       <MetaBox plan={plan} />
+
+      {editable && (
+        <p className="text-xs text-muted-foreground">
+          Editing this draft — change any unit, content, period, objective, method, aid,
+          evaluation, homework, or comment field directly in the table below.
+        </p>
+      )}
 
       <div className="w-full overflow-x-auto rounded-sm border border-foreground/80 print:max-h-none print:overflow-visible">
         <div className="max-h-[75vh] overflow-y-auto print:max-h-none">
@@ -266,6 +352,9 @@ export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
                     semesterSpan={semesterSpans[i]}
                     monthSpan={monthSpans[i]}
                     unitSpan={unitSpans[i]}
+                    editable={editable}
+                    onEditUnit={(span, next) => updateUnitSpan(i, span, next)}
+                    onEditField={(field, next) => updateWeeks(i, (row) => ({ ...row, [field]: next }))}
                   />
                 ))
               )}

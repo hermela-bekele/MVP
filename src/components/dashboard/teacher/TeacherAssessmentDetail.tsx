@@ -48,6 +48,13 @@ const emptyForm = (): Omit<AssessmentQuestion, 'id'> => ({
   answer: '',
 });
 
+const emptyMatchingPairs = () => [
+  { left: '', right: '' },
+  { left: '', right: '' },
+  { left: '', right: '' },
+  { left: '', right: '' },
+];
+
 interface TeacherAssessmentDetailProps {
   assessmentId: string;
 }
@@ -119,6 +126,8 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
       type: q.type,
       options: q.options ?? ['', '', '', ''],
       answer: q.answer,
+      matchingPairs: q.matchingPairs ?? (q.type === 'Matching' ? emptyMatchingPairs() : undefined),
+      competencyLevel: q.competencyLevel,
     });
     setDialogOpen(true);
   };
@@ -131,7 +140,15 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
 
   const handleSaveQuestion = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!assessment || !form.question.trim() || !form.answer.trim()) return;
+    const isMatching = form.type === 'Matching';
+    const cleanedPairs = isMatching
+      ? (form.matchingPairs ?? [])
+          .map((p) => ({ left: p.left.trim(), right: p.right.trim() }))
+          .filter((p) => p.left && p.right)
+      : undefined;
+
+    if (!assessment || !form.question.trim()) return;
+    if (isMatching ? !cleanedPairs || cleanedPairs.length < 2 : !form.answer.trim()) return;
 
     const isMcq = form.type === 'MCQ';
     const cleanedOptions = isMcq
@@ -141,10 +158,14 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
     const questionData: Omit<AssessmentQuestion, 'id'> = {
       question: form.question.trim(),
       type: form.type,
-      answer: form.answer.trim(),
+      answer: isMatching ? '' : form.answer.trim(),
       ...(isMcq && cleanedOptions && cleanedOptions.length > 0
         ? { options: cleanedOptions }
         : {}),
+      ...(isMatching && cleanedPairs && cleanedPairs.length > 0
+        ? { matchingPairs: cleanedPairs }
+        : {}),
+      ...(form.competencyLevel ? { competencyLevel: form.competencyLevel } : {}),
     };
 
     const updated =
@@ -236,8 +257,21 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className={aisLabelCaps}>
-                      Question {index + 1} · {q.type}
+                    <p className={`${aisLabelCaps} flex flex-wrap items-center gap-2`}>
+                      <span>
+                        Question {index + 1} · {q.type}
+                      </span>
+                      {q.competencyLevel && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal ${
+                            q.competencyLevel === 'MLC'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
+                              : 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200'
+                          }`}
+                        >
+                          {q.competencyLevel === 'MLC' ? 'MLC' : 'Advanced'}
+                        </span>
+                      )}
                     </p>
                     <div className={`${aisDataMd} mt-2 font-medium`}>
                       <AssessmentContentRenderer content={q.question} />
@@ -276,10 +310,29 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                   </ul>
                 )}
 
-                <div className={`${aisBodySm} text-ais-on-surface-variant`}>
-                  <span className="font-semibold text-ais-on-surface">Answer: </span>
-                  <MathRenderer content={q.answer} />
-                </div>
+                {q.matchingPairs && q.matchingPairs.length > 0 ? (
+                  <div className="mb-1 overflow-hidden rounded-lg border border-ais-card-border">
+                    <div className="grid grid-cols-2 bg-ais-surface-container-low text-[11px] font-semibold uppercase tracking-wide text-ais-on-surface-variant">
+                      <div className="border-r border-ais-card-border px-3 py-1.5">Column A</div>
+                      <div className="px-3 py-1.5">Column B</div>
+                    </div>
+                    {q.matchingPairs.map((pair, i) => (
+                      <div key={i} className="grid grid-cols-2 border-t border-ais-card-border">
+                        <div className={`${aisBodySm} border-r border-ais-card-border px-3 py-1.5`}>
+                          {i + 1}) <MathRenderer content={pair.left} />
+                        </div>
+                        <div className={`${aisBodySm} px-3 py-1.5`}>
+                          {String.fromCharCode(65 + i)}) <MathRenderer content={pair.right} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`${aisBodySm} text-ais-on-surface-variant`}>
+                    <span className="font-semibold text-ais-on-surface">Answer: </span>
+                    <MathRenderer content={q.answer} />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -319,12 +372,30 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                 ...f,
                 type,
                 options: type === 'MCQ' ? f.options ?? ['', '', '', ''] : undefined,
+                matchingPairs: type === 'Matching' ? f.matchingPairs ?? emptyMatchingPairs() : undefined,
                 answer:
                   type === 'True/False' && f.answer !== 'True' && f.answer !== 'False'
                     ? 'True'
                     : f.answer,
               }));
             }}
+          />
+
+          <Select
+            variant="ais"
+            label="Competency level (optional)"
+            options={[
+              { value: '', label: 'Not set' },
+              { value: 'MLC', label: 'MLC (minimum competency)' },
+              { value: 'Advanced', label: 'Advanced' },
+            ]}
+            value={form.competencyLevel ?? ''}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                competencyLevel: e.target.value ? (e.target.value as 'MLC' | 'Advanced') : undefined,
+              }))
+            }
           />
 
           {showOptions && (
@@ -350,40 +421,88 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface">
-              Correct answer
-            </label>
-            {form.type === 'True/False' ? (
-              <Select
-                variant="ais"
-                options={[
-                  { value: 'True', label: 'True' },
-                  { value: 'False', label: 'False' },
-                ]}
-                value={form.answer}
-                onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
-              />
-            ) : form.type === 'MCQ' && (form.options ?? []).some((o) => o.trim()) ? (
-              <Select
-                variant="ais"
-                options={(form.options ?? [])
-                  .map((o) => o.trim())
-                  .filter(Boolean)
-                  .map((o) => ({ value: o, label: o }))}
-                value={form.answer}
-                onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
-              />
-            ) : (
-              <input
-                className={aisInput}
-                required
-                placeholder="Enter the correct answer"
-                value={form.answer}
-                onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
-              />
-            )}
-          </div>
+          {form.type === 'Matching' && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface">
+                Matching pairs
+              </label>
+              <div className="space-y-2">
+                {(form.matchingPairs ?? emptyMatchingPairs()).map((pair, i) => (
+                  <div key={i} className="grid grid-cols-2 gap-2">
+                    <input
+                      className={aisInput}
+                      placeholder={`Column A · ${i + 1}`}
+                      value={pair.left}
+                      onChange={(e) => {
+                        const next = [...(form.matchingPairs ?? emptyMatchingPairs())];
+                        next[i] = { ...next[i], left: e.target.value };
+                        setForm((f) => ({ ...f, matchingPairs: next }));
+                      }}
+                    />
+                    <input
+                      className={aisInput}
+                      placeholder={`Column B · ${String.fromCharCode(65 + i)}`}
+                      value={pair.right}
+                      onChange={(e) => {
+                        const next = [...(form.matchingPairs ?? emptyMatchingPairs())];
+                        next[i] = { ...next[i], right: e.target.value };
+                        setForm((f) => ({ ...f, matchingPairs: next }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="text-xs font-semibold text-ais-primary hover:underline"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    matchingPairs: [...(f.matchingPairs ?? emptyMatchingPairs()), { left: '', right: '' }],
+                  }))
+                }
+              >
+                + Add pair
+              </button>
+            </div>
+          )}
+
+          {form.type !== 'Matching' && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface">
+                Correct answer
+              </label>
+              {form.type === 'True/False' ? (
+                <Select
+                  variant="ais"
+                  options={[
+                    { value: 'True', label: 'True' },
+                    { value: 'False', label: 'False' },
+                  ]}
+                  value={form.answer}
+                  onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
+                />
+              ) : form.type === 'MCQ' && (form.options ?? []).some((o) => o.trim()) ? (
+                <Select
+                  variant="ais"
+                  options={(form.options ?? [])
+                    .map((o) => o.trim())
+                    .filter(Boolean)
+                    .map((o) => ({ value: o, label: o }))}
+                  value={form.answer}
+                  onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
+                />
+              ) : (
+                <input
+                  className={aisInput}
+                  required
+                  placeholder="Enter the correct answer"
+                  value={form.answer}
+                  onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
+                />
+              )}
+            </div>
+          )}
 
           <DialogFooter className="pt-2">
             <AisBtnSecondary type="button" onClick={closeDialog}>

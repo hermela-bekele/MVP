@@ -9,7 +9,6 @@ import {
   AisBtnSecondary,
   aisFormLabel,
   aisInput,
-  aisTextarea,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import type { LessonPlan } from '@/lib/mockData';
 import type { AnnualLessonPlanWeekRow } from '@/lib/annualLessonPlan';
@@ -66,10 +65,12 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
 }) => {
   const [annualPlanId, setAnnualPlanId] = useState('');
   const [month, setMonth] = useState('');
-  const [selectedWeekKey, setSelectedWeekKey] = useState('');
+  const [selectedWeekKeys, setSelectedWeekKeys] = useState<string[]>([]);
   const [unit, setUnit] = useState('');
-  const [contentsText, setContentsText] = useState('');
   const [page, setPage] = useState('');
+  /** Union of content items from the selected week(s) — the teacher picks which of
+   * these carry into the merged plan via checkboxes, no free typing. */
+  const [selectedContents, setSelectedContents] = useState<string[]>([]);
   const [periodsPerWeek, setPeriodsPerWeek] = useState(3);
   const [sessionDuration, setSessionDuration] = useState(45);
   const [studentLevel, setStudentLevel] = useState<string>('differentiated');
@@ -93,7 +94,39 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
     [annualDetail, month],
   );
 
-  const selectedWeek = weeksInMonth.find((w) => weekKey(w) === selectedWeekKey);
+  const selectedWeeks = weeksInMonth.filter((w) => selectedWeekKeys.includes(weekKey(w)));
+  /** First selected week — used wherever the dialog needs a single "primary" week
+   * (e.g. the calendar-week label shown in the generated plan's title). */
+  const selectedWeek = selectedWeeks[0];
+  const isMerging = selectedWeeks.length > 1;
+
+  /** Union of content bullets across every selected week, in original order, deduped. */
+  const contentPool = useMemo(() => {
+    const seen = new Set<string>();
+    const pool: string[] = [];
+    for (const w of selectedWeeks) {
+      for (const c of w.contents || []) {
+        const trimmed = c.trim();
+        if (trimmed && !seen.has(trimmed)) {
+          seen.add(trimmed);
+          pool.push(trimmed);
+        }
+      }
+    }
+    return pool;
+  }, [selectedWeeks]);
+
+  const toggleWeek = (key: string) => {
+    setSelectedWeekKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  };
+
+  const toggleContent = (item: string) => {
+    setSelectedContents((prev) =>
+      prev.includes(item) ? prev.filter((c) => c !== item) : [...prev, item],
+    );
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -109,7 +142,7 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
   useEffect(() => {
     if (!annualDetail) {
       setMonth('');
-      setSelectedWeekKey('');
+      setSelectedWeekKeys([]);
       return;
     }
     const months = getAnnualMonthOptions(annualDetail);
@@ -120,23 +153,41 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
 
   useEffect(() => {
     if (!weeksInMonth.length) {
-      setSelectedWeekKey('');
+      setSelectedWeekKeys([]);
       return;
     }
-    if (!weeksInMonth.some((w) => weekKey(w) === selectedWeekKey)) {
-      setSelectedWeekKey(weekKey(weeksInMonth[0]));
+    const stillValid = selectedWeekKeys.filter((k) => weeksInMonth.some((w) => weekKey(w) === k));
+    if (stillValid.length === 0) {
+      setSelectedWeekKeys([weekKey(weeksInMonth[0])]);
+    } else if (stillValid.length !== selectedWeekKeys.length) {
+      setSelectedWeekKeys(stillValid);
     }
-  }, [weeksInMonth, selectedWeekKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeksInMonth]);
 
+  // Merge the selected week(s) — single week behaves exactly as before; 2+ weeks
+  // combine their unit/page/periods and offer the union of content as a pick-list.
   useEffect(() => {
-    if (!selectedWeek) return;
-    setUnit(selectedWeek.unit || '');
-    setContentsText((selectedWeek.contents || []).join('\n'));
-    setPage(selectedWeek.page || '');
-    setPeriodsPerWeek(selectedWeek.periodsNeeded || annualDetail?.meta?.periodsPerWeek || 3);
+    if (selectedWeeks.length === 0) return;
+    const units = Array.from(new Set(selectedWeeks.map((w) => w.unit).filter(Boolean)));
+    const pages = Array.from(new Set(selectedWeeks.map((w) => w.page).filter(Boolean)));
+    const totalPeriods = selectedWeeks.reduce(
+      (sum, w) => sum + (w.periodsNeeded || 0),
+      0,
+    );
+    setUnit(units.join(' + '));
+    setPage(pages.join(', '));
+    setPeriodsPerWeek(totalPeriods || annualDetail?.meta?.periodsPerWeek || 3);
     setPlanTitle('');
     setAiResult(null);
-  }, [selectedWeekKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeekKeys]);
+
+  // Default every content item to selected whenever the pool changes (new week
+  // picked/unpicked); the teacher can then uncheck individual items.
+  useEffect(() => {
+    setSelectedContents(contentPool);
+  }, [contentPool]);
 
   const resetAndClose = () => {
     setAiResult(null);
@@ -145,11 +196,12 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
 
   const buildWeekContext = () => {
     if (!selectedWeek) return '';
+    const weekLabels = selectedWeeks.map((w) => `${w.month} ${w.week} (${w.date})`).join('; ');
     return [
-      `Annual week: ${selectedWeek.month} ${selectedWeek.week} (${selectedWeek.date})`,
+      isMerging ? `Merged annual weeks: ${weekLabels}` : `Annual week: ${weekLabels}`,
       unit ? `Unit: ${unit}` : '',
       page ? `Textbook pages: ${page}` : '',
-      contentsText.trim() ? `Contents:\n${contentsText.trim()}` : '',
+      selectedContents.length ? `Contents:\n${selectedContents.join('\n')}` : '',
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -157,14 +209,10 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
 
   const handleGenerate = async () => {
     if (!selectedAnnual || !selectedWeek) {
-      onNotify('Week required', 'Select an annual plan month and week first.', 'alert');
+      onNotify('Week required', 'Select an annual plan month and at least one week first.', 'alert');
       return;
     }
-    const topic =
-      contentsText.split('\n').map((l) => l.trim()).filter(Boolean)[0] ||
-      unit ||
-      selectedWeek.contents?.[0] ||
-      selectedAnnual.title;
+    const topic = selectedContents[0] || unit || selectedWeek.contents?.[0] || selectedAnnual.title;
     if (!topic.trim()) {
       onNotify('Content required', 'Add at least one content line for this week.', 'alert');
       return;
@@ -203,8 +251,9 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
             date: selectedWeek.date,
             unit,
             page,
-            contents: contentsText.split('\n').map((l) => l.trim()).filter(Boolean),
+            contents: selectedContents,
             weekContext: buildWeekContext(),
+            mergedWeeks: isMerging ? selectedWeeks.map((w) => weekKey(w)) : undefined,
           },
         } as object),
       };
@@ -228,9 +277,7 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
     if (!aiResult || !selectedAnnual || !selectedWeek) return;
 
     const objectives =
-      aiResult.objectives?.length
-        ? aiResult.objectives
-        : contentsText.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 4);
+      aiResult.objectives?.length ? aiResult.objectives : selectedContents.slice(0, 4);
 
     const activities =
       aiResult.sessions?.map((session, i) => ({
@@ -328,22 +375,36 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
               />
-              <Select
-                variant="ais"
-                label="Week"
-                options={weeksInMonth.map((w) => ({
-                  value: weekKey(w),
-                  label: weekLabel(w),
-                }))}
-                value={selectedWeekKey}
-                onChange={(e) => setSelectedWeekKey(e.target.value)}
-              />
+              <div className="space-y-1">
+                <label className={aisFormLabel}>
+                  Week(s) {isMerging ? `— ${selectedWeeks.length} selected, merging` : ''}
+                </label>
+                <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-ais-card-border p-2">
+                  {weeksInMonth.length === 0 ? (
+                    <p className="px-1 py-1 text-xs text-muted-foreground">No weeks in this month.</p>
+                  ) : (
+                    weeksInMonth.map((w) => (
+                      <label key={weekKey(w)} className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={selectedWeekKeys.includes(weekKey(w))}
+                          onChange={() => toggleWeek(weekKey(w))}
+                        />
+                        {weekLabel(w)}
+                      </label>
+                    ))
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Select more than one week to merge them into a single special-case weekly plan.
+                </p>
+              </div>
             </div>
 
             {selectedWeek && (
               <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface-variant">
-                  From annual plan (editable) — weekly generation uses only these
+                  {isMerging ? 'Merged from selected weeks (editable)' : 'From annual plan (editable)'} — weekly generation uses only these
                 </p>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="space-y-1">
@@ -356,12 +417,28 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className={aisFormLabel}>Content (one per line)</label>
-                  <textarea
-                    className={`${aisTextarea} min-h-[88px]`}
-                    value={contentsText}
-                    onChange={(e) => setContentsText(e.target.value)}
-                  />
+                  <label className={aisFormLabel}>
+                    Content — pick which items to include ({selectedContents.length}/{contentPool.length})
+                  </label>
+                  {contentPool.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      The selected week(s) have no content items in the annual plan.
+                    </p>
+                  ) : (
+                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-ais-card-border bg-background p-2">
+                      {contentPool.map((item) => (
+                        <label key={item} className="flex items-start gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={selectedContents.includes(item)}
+                            onChange={() => toggleContent(item)}
+                          />
+                          <span>{item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

@@ -1304,6 +1304,10 @@ export const generateAssessmentWithAI = async (
   questionFormat: string = 'Mixed',
   lessonPlanContext?: string,
   studentLevel: string = 'differentiated',
+  /** 0-100 = % of questions grounded only in the official Minimum Learning
+   * Competencies; the rest are grounded in advanced/enrichment content.
+   * Omit for today's unfiltered behavior. */
+  mlcPercent?: number,
 ): Promise<string> => {
   try {
     const payload: Record<string, unknown> = {
@@ -1316,6 +1320,9 @@ export const generateAssessmentWithAI = async (
     };
     if (lessonPlanContext?.trim()) {
       payload.lesson_plan_context = lessonPlanContext.trim();
+    }
+    if (typeof mlcPercent === 'number' && Number.isFinite(mlcPercent)) {
+      payload.mlc_percent = Math.min(100, Math.max(0, Math.round(mlcPercent)));
     }
 
     const cacheKey = aiService['getCacheKey']('/quiz', payload);
@@ -1409,6 +1416,10 @@ export const generateBaselineAssessmentWithAI = async (
   numQuestions: number = 10,
   questionFormat: string = 'Mixed',
   studentLevel: string = 'differentiated',
+  /** 0-100 = % of questions grounded only in the official Minimum Learning
+   * Competencies; the rest are grounded in advanced/enrichment content.
+   * Omit for today's unfiltered behavior. */
+  mlcPercent?: number,
 ): Promise<string> => {
   try {
     const payload: Record<string, unknown> = {
@@ -1421,6 +1432,9 @@ export const generateBaselineAssessmentWithAI = async (
       question_type: normalizeQuestionFormat(questionFormat),
       student_level: studentLevel,
     };
+    if (typeof mlcPercent === 'number' && Number.isFinite(mlcPercent)) {
+      payload.mlc_percent = Math.min(100, Math.max(0, Math.round(mlcPercent)));
+    }
 
     const cacheKey = aiService['getCacheKey']('/baseline-assessment', payload);
     const cached = aiService['getFromCache'](cacheKey);

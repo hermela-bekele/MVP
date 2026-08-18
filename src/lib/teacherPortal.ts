@@ -99,8 +99,11 @@ export const SECTION_FILTER_OPTIONS = ['All', ...SECTION_OPTIONS];
 
 /** Single source of truth for subject dropdowns (AI lesson plan / notes / assessment
  * generation). Keep every subject-select in the app pointed at this list so they can't
- * drift out of sync with each other again. */
-export const SUBJECT_OPTIONS = ['Mathematics', 'English', 'Biology', 'Chemistry', 'Physics'];
+ * drift out of sync with each other again.
+ * Limited to Mathematics and English — Prime AI only has ingested content (MLC,
+ * syllabus, teacher guide, textbook) for these two subjects; any other subject would
+ * silently fall through to English-shaped prompting with no matching source material. */
+export const SUBJECT_OPTIONS = ['Mathematics', 'English'];
 
 /** Normalize "Grade 11" / "11" / "G11" style labels for matching. */
 export function normalizeGradeLabel(grade: string): string {
