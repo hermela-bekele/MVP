@@ -94,7 +94,10 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
     [annualDetail, month],
   );
 
-  const selectedWeeks = weeksInMonth.filter((w) => selectedWeekKeys.includes(weekKey(w)));
+  const selectedWeeks = useMemo(
+    () => weeksInMonth.filter((w) => selectedWeekKeys.includes(weekKey(w))),
+    [weeksInMonth, selectedWeekKeys],
+  );
   /** First selected week — used wherever the dialog needs a single "primary" week
    * (e.g. the calendar-week label shown in the generated plan's title). */
   const selectedWeek = selectedWeeks[0];
