@@ -832,7 +832,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         detailPlan ? (
           <div className="space-y-4">
             {/* Lesson plan details — always at the top */}
-            <PlanSummary plan={detailPlan} />
+            <PlanSummary plan={detailPlan} editable />
 
             {/* Notes grid — 3 cards per row */}
             {detailPlanNotes.length === 0 ? (
@@ -1600,7 +1600,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   );
 };
 
-function PlanSummary({ plan }: { plan: LessonPlan }) {
+function PlanSummary({ plan, editable = false }: { plan: LessonPlan; editable?: boolean }) {
+  const { updateLessonPlan, addNotification } = useApp();
   let annual: AnnualLessonPlanResult | null = null;
   let weekly: AIDetailedLessonPlanResult | null = null;
 
@@ -1624,43 +1625,18 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
   }
 
   if (annual?.weeks?.length) {
-    return (
-      <div className="space-y-3">
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-3">
-          <AnnualLessonPlanTable plan={annual} />
-        </div>
-      </div>
-    );
+    return <EditableAnnualPlan plan={plan} initialAnnual={annual} editable={editable} updateLessonPlan={updateLessonPlan} addNotification={addNotification} />;
   }
 
   if (weekly?.sessions?.length) {
     return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className={aisBodySm}>
-            {plan.grade} · {plan.subject} · {weekly.sessions.length} sessions
-          </span>
-          <button
-            type="button"
-            onClick={() => void downloadWeeklyLessonPlanDocx(weekly!)}
-            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <Download className="h-3 w-3" />
-            Download Word
-          </button>
-        </div>
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-2">
-          <WeeklyLessonPlanTable
-            sessions={weekly.sessions}
-            meta={{
-              grade: plan.grade,
-              subject: weekly.subject || plan.subject,
-              mainTopic: weekly.mainTopic,
-              subTopic: weekly.subTopic,
-            }}
-          />
-        </div>
-      </div>
+      <EditableWeeklyPlan
+        plan={plan}
+        initialWeekly={weekly}
+        editable={editable}
+        updateLessonPlan={updateLessonPlan}
+        addNotification={addNotification}
+      />
     );
   }
 
@@ -1673,5 +1649,131 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
         ))}
       </ul>
     </details>
+  );
+}
+
+/** Annual plan view with optional inline editing — only the teacher who owns this
+ * draft can edit, and only while it's still a Draft (not yet submitted for review). */
+function EditableAnnualPlan({
+  plan,
+  initialAnnual,
+  editable,
+  updateLessonPlan,
+  addNotification,
+}: {
+  plan: LessonPlan;
+  initialAnnual: AnnualLessonPlanResult;
+  editable: boolean;
+  updateLessonPlan: ReturnType<typeof useApp>['updateLessonPlan'];
+  addNotification: ReturnType<typeof useApp>['addNotification'];
+}) {
+  const canEdit = editable && plan.status === 'Draft';
+  const [annual, setAnnual] = useState(initialAnnual);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setAnnual(initialAnnual);
+    setIsDirty(false);
+  }, [initialAnnual]);
+
+  const handleSave = () => {
+    updateLessonPlan(plan.id, plan.title, plan.objectives, plan.sessions, plan.homework, JSON.stringify(annual));
+    addNotification('Annual Plan Saved', `Your edits to "${plan.title}" were saved.`, 'success');
+    setIsDirty(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      {canEdit && (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-ais-surface-container-low px-3 py-2">
+          <span className={aisBodySm}>Draft — edit any field below, then save.</span>
+          <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
+            Save changes
+          </Button>
+        </div>
+      )}
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-3">
+        <AnnualLessonPlanTable
+          plan={annual}
+          editable={canEdit}
+          onChange={(next) => {
+            setAnnual(next);
+            setIsDirty(true);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Weekly plan view with optional inline editing — same teacher-own-draft-only rule
+ * as EditableAnnualPlan. */
+function EditableWeeklyPlan({
+  plan,
+  initialWeekly,
+  editable,
+  updateLessonPlan,
+  addNotification,
+}: {
+  plan: LessonPlan;
+  initialWeekly: AIDetailedLessonPlanResult;
+  editable: boolean;
+  updateLessonPlan: ReturnType<typeof useApp>['updateLessonPlan'];
+  addNotification: ReturnType<typeof useApp>['addNotification'];
+}) {
+  const canEdit = editable && plan.status === 'Draft';
+  const [weekly, setWeekly] = useState(initialWeekly);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setWeekly(initialWeekly);
+    setIsDirty(false);
+  }, [initialWeekly]);
+
+  const handleSave = () => {
+    updateLessonPlan(plan.id, plan.title, plan.objectives, plan.sessions, plan.homework, JSON.stringify(weekly));
+    addNotification('Weekly Plan Saved', `Your edits to "${plan.title}" were saved.`, 'success');
+    setIsDirty(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={aisBodySm}>
+          {plan.grade} · {plan.subject} · {weekly.sessions?.length ?? 0} sessions
+        </span>
+        <div className="flex items-center gap-3">
+          {canEdit && (
+            <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
+              Save changes
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={() => void downloadWeeklyLessonPlanDocx(weekly)}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Download className="h-3 w-3" />
+            Download Word
+          </button>
+        </div>
+      </div>
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-2">
+        <WeeklyLessonPlanTable
+          sessions={weekly.sessions || []}
+          meta={{
+            grade: plan.grade,
+            subject: weekly.subject || plan.subject,
+            mainTopic: weekly.mainTopic,
+            subTopic: weekly.subTopic,
+          }}
+          editable={canEdit}
+          onChange={(nextSessions) => {
+            setWeekly((prev) => ({ ...prev, sessions: nextSessions }));
+            setIsDirty(true);
+          }}
+        />
+      </div>
+    </div>
   );
 }

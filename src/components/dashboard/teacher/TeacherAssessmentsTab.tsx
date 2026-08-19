@@ -21,6 +21,7 @@ import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRend
 import {
   countQuestionsInAssessmentMarkdown,
   isGeneratedAssessmentBlob,
+  parseAssessmentQuestions,
   wrapAssessmentMarkdown,
 } from '@/lib/assessmentMarkdown';
 import type { Assessment } from '@/lib/mockData';
@@ -94,6 +95,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
   );
   const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('Mixed');
   const [assessmentStudentLevel, setAssessmentStudentLevel] = useState('differentiated');
+  const [useMlcMix, setUseMlcMix] = useState(false);
+  const [mlcPercent, setMlcPercent] = useState(70);
   const [baselineTiming, setBaselineTiming] = useState<BaselineSemesterTiming>('semester_1_start');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
@@ -194,6 +197,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
           numQuestions,
           questionFormat,
           assessmentStudentLevel,
+          useMlcMix ? mlcPercent : undefined,
         );
         setGeneratedContent(content);
         setShowPreview(true);
@@ -243,6 +247,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
           questionFormat,
           lessonPlanContext,
           assessmentStudentLevel,
+          useMlcMix ? mlcPercent : undefined,
         ),
         assessmentType: type,
         questionFormat,
@@ -266,6 +271,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
     if (!title) return;
     if (uploadMode === 'create' && !generatedContent) return;
 
+    const parsedQuestions = generatedContent ? parseAssessmentQuestions(generatedContent) : null;
+
     createAssessment({
       title,
       type,
@@ -275,6 +282,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
       questions:
         uploadMode === 'upload'
           ? [{ id: 1, question: 'Uploaded assessment file — see attachment in school records.', type: 'File', answer: 'N/A' }]
+          : parsedQuestions && parsedQuestions.length > 0
+          ? parsedQuestions
           : generatedContent
           ? [{ id: 1, question: generatedContent, type: questionFormat, answer: 'See assessment content' }]
           : [
@@ -699,6 +708,40 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 value={questionFormat}
                 onChange={(e) => setQuestionFormat(e.target.value as QuestionFormat)}
               />
+            </div>
+          )}
+
+          {uploadMode === 'create' && (
+            <div className="space-y-2 rounded-lg border border-ais-card-border p-3">
+              <label className="flex items-center gap-2 text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
+                <input
+                  type="checkbox"
+                  checked={useMlcMix}
+                  onChange={(e) => setUseMlcMix(e.target.checked)}
+                />
+                Set MLC vs. advanced mix
+              </label>
+              {useMlcMix && (
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={mlcPercent}
+                    onChange={(e) => setMlcPercent(Number(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="w-40 shrink-0 text-xs text-ais-on-surface-variant">
+                    {mlcPercent}% MLC (minimum competency) · {100 - mlcPercent}% advanced
+                  </span>
+                </div>
+              )}
+              <p className="text-[11px] text-ais-on-surface-variant">
+                Leave off to generate questions across the full range as before. Turn on to
+                control exactly how many questions test only the official Minimum Learning
+                Competencies vs. advanced/enrichment content.
+              </p>
             </div>
           )}
 

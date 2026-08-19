@@ -253,7 +253,7 @@ interface AppContextType {
   }) => void;
   disseminateTrainingMaterial: (id: string) => void;
   addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
-  updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string) => void;
+  updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
   distributeLessonPlan: (id: string) => void;
   createTeachingNote: (
     note: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>,
@@ -1377,8 +1377,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
-  const updateLessonPlan = (id: string, title: string, objectives: string[], sessions: number, homework: string) => {
-    void api.updateLessonPlan(id, { title, objectives, sessions, homework }).then((lp) => {
+  const updateLessonPlan = (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => {
+    // Update local state immediately so an edit (e.g. to planDetail) is visible right
+    // away rather than waiting on the round trip.
+    setLessonPlans((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, title, objectives, sessions, homework, ...(planDetail !== undefined ? { planDetail } : {}) }
+          : p,
+      ),
+    );
+    void api.updateLessonPlan(id, { title, objectives, sessions, homework, planDetail }).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
       addNotification('Lesson Plan Updated', `"${title}" resubmitted.`, 'info');
     }).catch(() => void refreshFromApi());

@@ -82,9 +82,9 @@ export const OverviewDashboard: React.FC = () => {
     >
       <motion.div
         variants={staggerItem}
-        className="relative rounded-xl p-6 md:p-8 overflow-hidden bg-[#C79C58] text-white shadow-md"
+        className="relative rounded-xl p-6 md:p-8 overflow-hidden bg-[hsl(var(--sidebar-bg))] text-[hsl(218_32%_14%)] shadow-md border border-[hsl(var(--primary-light)/0.4)]"
       >
-        <div className="absolute top-0 right-0 h-full w-1/2 opacity-20 bg-white/10 pointer-events-none rounded-full blur-3xl translate-x-1/4" />
+        <div className="pointer-events-none absolute top-0 right-0 h-full w-1/2 opacity-60 bg-[hsl(var(--primary-light)/0.3)] rounded-full blur-3xl translate-x-1/4" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-title">
@@ -95,14 +95,14 @@ export const OverviewDashboard: React.FC = () => {
             <Button
               size="sm"
               onClick={() => handleQuickAction("manage-students")}
-              className="text-xs h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+              className="text-xs h-9 border-[hsl(var(--primary)/0.3)] bg-white/70 text-[hsl(218_32%_14%)] hover:bg-white"
             >
               View Students
             </Button>
             <Button
               size="sm"
               onClick={scrollToPerformanceReports}
-              className="text-xs h-9 border-white/30 bg-white/10 text-white hover:bg-white/20"
+              className="text-xs h-9 border-[hsl(var(--primary)/0.3)] bg-white/70 text-[hsl(218_32%_14%)] hover:bg-white"
             >
               Performance Reports
             </Button>
@@ -176,7 +176,7 @@ export const OverviewDashboard: React.FC = () => {
           type="bar"
           dataKey="students"
           xKey="name"
-          colors={["#3478B8", "#5A95C8", "#7FB0D8", "#A4CAE8"]}
+          colors={["hsl(var(--primary))", "hsl(var(--primary-light))", "hsl(43 65% 78%)", "hsl(43 55% 90%)"]}
         />
         <ChartCard
           title="Average Mark Trend"
@@ -185,7 +185,7 @@ export const OverviewDashboard: React.FC = () => {
           type="area"
           dataKey="mark"
           xKey="name"
-          color="#3478B8"
+          color="hsl(var(--primary-light))"
         />
       </motion.div>
 

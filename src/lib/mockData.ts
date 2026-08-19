@@ -214,7 +214,17 @@ export interface Assessment {
   status: 'Draft' | 'Pending Dept Head' | 'Approved' | 'Rejected';
   comments?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
-  questions: { id: number; question: string; type: string; options?: string[]; answer: string }[];
+  questions: {
+    id: number;
+    question: string;
+    type: string;
+    options?: string[];
+    answer: string;
+    /** Paired items for Matching-type questions (Column A ↔ Column B). */
+    matchingPairs?: { left: string; right: string }[];
+    /** Set when generated under an MLC/advanced mix — tags the source competency level. */
+    competencyLevel?: 'MLC' | 'Advanced';
+  }[];
   /** Who authored the assessment — HoD-authored exams skip approval. */
   createdByRole?: 'teacher' | 'department-head';
   createdAt: string;
