@@ -99,7 +99,7 @@ export const RegistrarApplicationDetail: React.FC<RegistrarApplicationDetailProp
   };
 
   if (loading) {
-    return <Skeleton variant="card" className="max-w-4xl" height={220} />;
+    return <Skeleton variant="card" className="w-full" height={220} />;
   }
 
   if (notFound || !application) {
@@ -118,7 +118,7 @@ export const RegistrarApplicationDetail: React.FC<RegistrarApplicationDetailProp
   }
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-4">
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}

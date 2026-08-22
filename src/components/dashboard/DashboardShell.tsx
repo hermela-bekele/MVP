@@ -75,11 +75,11 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         <Navbar breadcrumbs={breadcrumbs} />
 
         <main
-          className={`flex-1 overflow-y-auto px-4 sm:px-5 lg:px-6${
+          className={`flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8${
             headerVariant === 'portal' ? ' bg-dashboard-bg' : ''
           }`}
         >
-          <div className="mx-auto w-full max-w-[1400px] py-5 sm:py-6">
+          <div className="w-full py-4 sm:py-5">
             {animateTabs ? (
               <PageTransition transitionKey={activeTab}>{content}</PageTransition>
             ) : (

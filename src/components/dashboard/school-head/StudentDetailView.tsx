@@ -36,7 +36,7 @@ export const StudentDetailView: React.FC<StudentDetailViewProps> = ({ studentId 
   }
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-4">
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
         <div className="flex items-center gap-4">
           <Avatar name={student.name} size="lg" />

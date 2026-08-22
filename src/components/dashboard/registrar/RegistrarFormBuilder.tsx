@@ -162,7 +162,7 @@ export const RegistrarFormBuilder: React.FC = () => {
 
   if (editing) {
     return (
-      <div className="max-w-3xl animate-fade-in space-y-4">
+      <div className="w-full animate-fade-in space-y-4">
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -371,7 +371,7 @@ export const RegistrarFormBuilder: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl animate-fade-in space-y-4">
+    <div className="w-full animate-fade-in space-y-4">
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}

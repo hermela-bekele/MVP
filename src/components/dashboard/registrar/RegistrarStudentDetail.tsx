@@ -146,9 +146,9 @@ export const RegistrarStudentDetail: React.FC<RegistrarStudentDetailProps> = ({
 
   if (mode === 'edit') {
     return (
-      <form onSubmit={handleSave} className="max-w-4xl space-y-4">
+      <form onSubmit={handleSave} className="w-full space-y-4">
         <div className="rounded-xl border border-border/60 bg-card p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-muted-foreground uppercase">Name</label>
               <input type="text" required value={studentName} onChange={(e) => setStudentName(e.target.value)} className={inputClass} />
@@ -193,10 +193,10 @@ export const RegistrarStudentDetail: React.FC<RegistrarStudentDetailProps> = ({
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="w-full space-y-4">
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-4">
         <h3 className="text-sm font-bold text-foreground">Student Information</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           <DetailField label="Name" value={student.name} />
           <DetailField label="Student ID" value={<span className="font-mono">{student.studentId}</span>} />
           <DetailField label="Grade" value={`${student.grade} · ${student.section}`} />

@@ -58,7 +58,7 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
   };
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-4">
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-4">
         <h3 className="text-sm font-bold text-foreground">Assessment Information</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

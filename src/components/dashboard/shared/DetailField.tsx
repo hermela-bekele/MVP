@@ -64,5 +64,5 @@ export function DetailPageContainer({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={`max-w-4xl space-y-5 ${className}`}>{children}</div>;
+  return <div className={`w-full space-y-4 ${className}`}>{children}</div>;
 }

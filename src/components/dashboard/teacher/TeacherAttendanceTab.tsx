@@ -46,7 +46,7 @@ export const TeacherAttendanceTab: React.FC = () => {
 
   return (
     <AisPage>
-      <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
         <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={section} onChange={(e) => setSection(e.target.value)} />
         <Select variant="ais" label="Teaching session" options={TEACHER_CLASS_ASSIGNMENTS.map((a) => ({ value: a.period, label: `${a.period} (${a.grade} ${a.section})` }))} value={sessionLabel} onChange={(e) => setSessionLabel(e.target.value)} />

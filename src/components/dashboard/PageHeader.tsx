@@ -34,7 +34,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   if (variant === 'portal') {
     return (
-      <div className="mb-6 flex w-full flex-col gap-4 animate-fade-in">
+      <div className="mb-4 flex w-full flex-col gap-3 animate-fade-in">
         {eyebrow && (
           <p className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-2 animate-fade-in-down">
             <span className="inline-block h-px w-6 bg-gradient-to-r from-primary to-transparent" />
@@ -57,7 +57,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   }
 
   return (
-    <div className="mb-6 flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between relative animate-fade-in-up">
+    <div className="mb-4 flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between relative animate-fade-in-up">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 blur-3xl -z-10" />
 
       <div className="min-w-0 space-y-1.5 relative">

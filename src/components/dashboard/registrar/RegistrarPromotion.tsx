@@ -45,7 +45,7 @@ export const RegistrarPromotion: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl space-y-6 animate-fade-in">
+    <div className="w-full space-y-4 animate-fade-in">
       <ContentCard
         title="Bulk Grade Promotion"
         description="Move every active student in a grade up to the next level at year-end rollover. Sections are cleared and must be reassigned afterward via Class Placement."

@@ -196,7 +196,7 @@ export const RegistrarEnrollment: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl animate-fade-in space-y-4">
+    <div className="w-full animate-fade-in space-y-4">
       <div className="flex gap-2">
         <button
           type="button"

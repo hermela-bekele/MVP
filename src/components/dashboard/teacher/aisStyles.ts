@@ -221,16 +221,16 @@ export const aisScheduleListRow =
   'flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40';
 
 export const aisBtnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary';
+  'inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0';
 
 export const aisBtnSecondary =
-  'inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-6 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted shadow-sm';
+  'inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-6 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted shadow-sm [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0';
 
 export const aisBtnGhost =
-  'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:text-accent';
+  'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:text-accent [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0';
 
 export const aisBtnGhostMuted =
-  'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground';
+  'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:shrink-0';
 
 export const aisBadgeSuccess =
   'inline-flex items-center gap-1 rounded-lg bg-success/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-success';

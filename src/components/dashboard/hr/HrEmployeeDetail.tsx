@@ -123,9 +123,9 @@ export const HrEmployeeDetail: React.FC<HrEmployeeDetailProps> = ({ employeeId }
 
   if (mode === 'edit') {
     return (
-      <form onSubmit={handleUpdate} className="max-w-4xl space-y-4">
+      <form onSubmit={handleUpdate} className="w-full space-y-4">
         <div className="rounded-xl border border-border/60 bg-card p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div><label className="text-[10px] font-bold text-muted-foreground uppercase">Full Name</label><input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required /></div>
             <div><label className="text-[10px] font-bold text-muted-foreground uppercase">Email</label><input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
             <div><label className="text-[10px] font-bold text-muted-foreground uppercase">Phone</label><input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} required /></div>
@@ -163,7 +163,7 @@ export const HrEmployeeDetail: React.FC<HrEmployeeDetailProps> = ({ employeeId }
   }
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-4">
       {/* Profile header */}
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -207,7 +207,7 @@ export const HrEmployeeDetail: React.FC<HrEmployeeDetailProps> = ({ employeeId }
       {/* Employee information grid */}
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-4">
         <h3 className="text-sm font-bold text-foreground">Employee Information</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           <DetailField icon={<IdCard />} label="Employee ID" value={<span className="font-mono">{employee.employeeId}</span>} />
           <DetailField
             icon={<CheckCircle2 />}
