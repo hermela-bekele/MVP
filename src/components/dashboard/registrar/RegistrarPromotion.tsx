@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS } from '@/lib/registrarPortal';
 import { api } from '@/lib/api';
@@ -64,15 +65,11 @@ export const RegistrarPromotion: React.FC = () => {
 
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">From grade</label>
-            <select
+            <Select
+              options={promotableGrades.map((g) => ({ value: g, label: g }))}
               value={fromGrade}
               onChange={(e) => { setFromGrade(e.target.value); setResult(null); }}
-              className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {promotableGrades.map((g) => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-4">

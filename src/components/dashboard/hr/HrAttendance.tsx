@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
+import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
@@ -15,7 +16,18 @@ const inputClass =
 
 export const HrAttendance: React.FC = () => {
   const { staffAttendance, hrEmployees, recordStaffAttendance } = useApp();
-  const [selectedDate, setSelectedDate] = useState('2026-06-05');
+  // Default to the most recent date actually on record, not a fixed literal that goes stale.
+  const latestAttendanceDate = useMemo(
+    () => staffAttendance.reduce((max, a) => (a.date > max ? a.date : max), ''),
+    [staffAttendance]
+  );
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dateTouched, setDateTouched] = useState(false);
+
+  useEffect(() => {
+    if (!dateTouched && latestAttendanceDate) setSelectedDate(latestAttendanceDate);
+  }, [dateTouched, latestAttendanceDate]);
+
   const [employeeId, setEmployeeId] = useState('');
   const [status, setStatus] = useState<StaffAttendanceStatus>('Present');
   const [checkIn, setCheckIn] = useState('08:00');
@@ -79,20 +91,11 @@ export const HrAttendance: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border border-border/60 bg-muted/20 text-center">
-          <p className="text-2xl font-bold text-primary">{presentCount}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Present / Late</p>
-        </div>
-        <div className="p-4 rounded-lg border border-border/60 bg-muted/20 text-center">
-          <p className="text-2xl font-bold text-destructive">{absentCount}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Absent</p>
-        </div>
-        <div className="p-4 rounded-lg border border-border/60 bg-muted/20 text-center">
-          <p className="text-2xl font-bold text-muted-foreground">{onLeaveCount}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">On Leave</p>
-        </div>
-      </div>
+      <KpiGrid className="sm:grid-cols-3 xl:grid-cols-3">
+        <KpiWidget label="Present / Late" value={presentCount} tone="emphasis" />
+        <KpiWidget label="Absent" value={absentCount} />
+        <KpiWidget label="On Leave" value={onLeaveCount} />
+      </KpiGrid>
 
       <TablePanel
         title="Staff Attendance"
@@ -102,7 +105,10 @@ export const HrAttendance: React.FC = () => {
             type="date"
             className="h-9 px-3 bg-muted/40 border border-border rounded-md text-xs"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              setDateTouched(true);
+              setSelectedDate(e.target.value);
+            }}
           />
         }
       >

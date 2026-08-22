@@ -450,7 +450,7 @@ export function CommunityHub() {
     threadId: activeThreadId,
   });
   const communityRail = (
-    <div className="flex h-full w-[4.5rem] shrink-0 flex-col items-center gap-2 border-r border-ais-card-border bg-ais-surface-container-low py-3">
+    <div className="flex h-full w-[4.5rem] shrink-0 flex-col items-center gap-2 border-r border-border bg-muted py-3">
       <button
         type="button"
         className={`relative ${aisNavbarIconBtn} h-10 w-10`}
@@ -469,10 +469,10 @@ export function CommunityHub() {
           </span>
         )}
       </button>
-      <div className="mb-1 h-px w-8 bg-ais-card-border" />
+      <div className="mb-1 h-px w-8 bg-border" />
       <div className="flex w-full flex-1 flex-col items-center gap-2 overflow-y-auto px-2">
         {loadingCommunities && (
-          <Loader2 className="h-5 w-5 animate-spin text-ais-outline" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         )}
         {communities.map((c) => {
           const active = c.id === activeCommunityId;
@@ -481,13 +481,14 @@ export function CommunityHub() {
               key={c.id}
               type="button"
               title={c.name}
+              aria-label={c.name}
               onClick={() => {
                 setActiveCommunityId(c.id);
                 setMobileNav("channels");
               }}
               className={`relative flex h-11 w-11 items-center justify-center rounded-xl text-xs font-bold text-white shadow-sm transition-all ${
                 active
-                  ? "ring-2 ring-ais-primary ring-offset-2 ring-offset-ais-surface-container-low"
+                  ? "ring-2 ring-primary ring-offset-2 ring-offset-muted"
                   : "opacity-90 hover:opacity-100"
               } ${avatarColor(c.id)}`}
             >
@@ -502,7 +503,7 @@ export function CommunityHub() {
                 communityInitials(c.name)
               )}
               {(c.unreadCount ?? 0) > 0 && !active && (
-                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-ais-surface-container-low bg-ais-primary" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-muted bg-primary" />
               )}
             </button>
           );
@@ -513,7 +514,7 @@ export function CommunityHub() {
           type="button"
           title="Create community"
           onClick={() => setCreateOpen(true)}
-          className="mt-1 flex h-11 w-11 items-center justify-center rounded-xl border border-dashed border-ais-outline-variant text-ais-primary transition-colors hover:border-ais-primary hover:bg-white"
+          className="mt-1 flex h-11 w-11 items-center justify-center rounded-xl border border-dashed border-border text-primary transition-colors hover:border-primary hover:bg-white"
         >
           <Plus className="h-5 w-5" />
         </button>
@@ -522,11 +523,11 @@ export function CommunityHub() {
   );
 
   const channelSidebar = (
-    <div className="flex h-full w-56 shrink-0 flex-col border-r border-ais-card-border bg-ais-surface-container-low">
-      <div className="flex h-14 items-center border-b border-ais-card-border px-3">
+    <div className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-muted">
+      <div className="flex h-14 items-center border-b border-border px-3">
         <div className="min-w-0">
           <p className={aisLabelCaps}>Community</p>
-          <h2 className="truncate text-sm font-bold text-ais-on-surface">
+          <h2 className="truncate text-sm font-bold text-foreground">
             {activeCommunity?.name ?? "Select a community"}
           </h2>
         </div>
@@ -577,25 +578,25 @@ export function CommunityHub() {
           ))}
         </div>
       </div>
-      <div className="border-t border-ais-card-border px-3 py-3">
+      <div className="border-t border-border px-3 py-3">
         <div className="flex items-center gap-2.5">
           <div
             className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(userId)}`}
           >
             {communityInitials(userName)}
             <span
-              className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-ais-surface-container-low ${
+              className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-muted ${
                 onlineIds.size === 0 || onlineIds.has(userId)
-                  ? "bg-ais-success"
-                  : "bg-ais-outline"
+                  ? "bg-success"
+                  : "bg-muted-foreground"
               }`}
             />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-xs font-bold text-ais-on-surface">
+            <p className="truncate text-xs font-bold text-foreground">
               {userName}
             </p>
-            <p className="truncate text-[10px] font-medium capitalize text-ais-on-surface-variant">
+            <p className="truncate text-[10px] font-medium capitalize text-muted-foreground">
               {activeCommunity?.memberRole ?? "member"}
             </p>
           </div>
@@ -641,7 +642,7 @@ export function CommunityHub() {
         <div className="hidden h-full md:flex">{channelSidebar}</div>
 
         <div className="flex h-full min-w-0 flex-1 flex-col bg-white">
-          <header className="flex h-14 shrink-0 items-center gap-2 border-b border-ais-card-border bg-ais-surface-container-low/40 px-3 sm:px-4">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-muted/40 px-3 sm:px-4">
             <button
               type="button"
               className={`${aisNavbarIconBtn} md:hidden`}
@@ -651,10 +652,10 @@ export function CommunityHub() {
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-ais-on-surface">
+              <p className="truncate text-sm font-bold text-foreground">
                 {activeChannel ? (
                   <>
-                    <span className="text-ais-outline">#</span>
+                    <span className="text-muted-foreground">#</span>
                     {activeChannel.name}
                   </>
                 ) : (
@@ -662,7 +663,7 @@ export function CommunityHub() {
                 )}
               </p>
               {activeChannel?.description ? (
-                <p className="truncate text-[11px] text-ais-on-surface-variant">
+                <p className="truncate text-[11px] text-muted-foreground">
                   {activeChannel.description}
                 </p>
               ) : null}
@@ -682,27 +683,27 @@ export function CommunityHub() {
               >
                 <div ref={topSentinelRef} className="h-1" />
                 {loadingOlder && (
-                  <p className="py-2 text-center text-xs text-ais-outline">
+                  <p className="py-2 text-center text-xs text-muted-foreground">
                     Loading older messages…
                   </p>
                 )}
                 {loadingMessages && (
-                  <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
+                  <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading messages…
                   </div>
                 )}
                 {!loadingMessages && error && (
-                  <p className="px-4 py-8 text-center text-sm text-ais-error">
+                  <p className="px-4 py-8 text-center text-sm text-destructive">
                     {error}
                   </p>
                 )}
                 {!loadingMessages && !error && messages.length === 0 && (
                   <div className="px-6 py-16 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ais-surface-container-low text-ais-primary">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-primary">
                       <Hash className="h-6 w-6" />
                     </div>
-                    <p className="mt-3 text-base font-semibold text-ais-on-surface">
+                    <p className="mt-3 text-base font-semibold text-foreground">
                       Welcome to #{activeChannel?.name ?? "channel"}
                     </p>
                     <p className={`${aisBodySm} mx-auto mt-1 max-w-sm`}>
@@ -728,7 +729,7 @@ export function CommunityHub() {
               </div>
 
               {typingLabel ? (
-                <p className="px-4 py-1 text-[11px] text-ais-on-surface-variant">
+                <p className="px-4 py-1 text-[11px] text-muted-foreground">
                   {typingLabel}
                 </p>
               ) : null}
@@ -773,7 +774,7 @@ export function CommunityHub() {
         {mobileNav !== "closed" && (
           <div className="fixed inset-0 z-40 flex md:hidden">
             <div
-              className="absolute inset-0 bg-ais-on-surface/40"
+              className="absolute inset-0 bg-foreground/40"
               onClick={() => setMobileNav("closed")}
               aria-hidden
             />
@@ -785,7 +786,7 @@ export function CommunityHub() {
             </div>
             <button
               type="button"
-              className="absolute right-3 top-3 z-20 rounded-lg border border-ais-card-border bg-white p-2 shadow-sm"
+              className="absolute right-3 top-3 z-20 rounded-lg border border-border bg-white p-2 shadow-sm"
               onClick={() => setMobileNav("closed")}
               aria-label="Close"
             >
@@ -864,7 +865,7 @@ export function CommunityHub() {
       >
         <div className="max-h-80 space-y-2 overflow-y-auto">
           {notifications.length === 0 ? (
-            <p className="py-6 text-center text-sm text-ais-on-surface-variant">
+            <p className="py-6 text-center text-sm text-muted-foreground">
               No mention notifications yet.
             </p>
           ) : (
@@ -874,8 +875,8 @@ export function CommunityHub() {
                 type="button"
                 className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
                   n.isRead
-                    ? "border-ais-card-border bg-white hover:bg-ais-row-hover"
-                    : "border-ais-primary/20 bg-ais-primary/5 hover:bg-ais-primary/10"
+                    ? "border-border bg-white hover:bg-muted"
+                    : "border-primary/20 bg-primary/5 hover:bg-primary/10"
                 }`}
                 onClick={() => {
                   void api.markCommunityNotificationRead(n.id);
@@ -890,10 +891,10 @@ export function CommunityHub() {
                   setNotifOpen(false);
                 }}
               >
-                <p className="text-xs font-bold text-ais-on-surface">
+                <p className="text-xs font-bold text-foreground">
                   {n.authorName ?? "Someone"} mentioned you
                 </p>
-                <p className="mt-0.5 line-clamp-2 text-xs text-ais-on-surface-variant">
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                   {n.contentPreview}
                 </p>
               </button>
@@ -904,7 +905,7 @@ export function CommunityHub() {
           <DialogFooter>
             <button
               type="button"
-              className="text-xs font-bold text-ais-primary hover:underline"
+              className="text-xs font-bold text-primary hover:underline"
               onClick={() => {
                 void api.markAllCommunityNotificationsRead();
                 setNotifications((prev) =>
@@ -939,14 +940,14 @@ function ChannelButton({
       onClick={onClick}
       className={`${aisSidebarNavItem} gap-2 px-3 py-2 ${
         active ? aisSidebarNavItemActive : aisSidebarNavItemInactive
-      } ${unread && !active ? "font-bold text-ais-on-surface" : ""}`}
+      } ${unread && !active ? "font-bold text-foreground" : ""}`}
     >
-      <span className={active ? "text-ais-primary" : "text-ais-primary/70"}>
+      <span className={active ? "text-primary" : "text-primary/70"}>
         {icon}
       </span>
       <span className="min-w-0 flex-1 truncate">{channel.name}</span>
       {unread && !active ? (
-        <span className="h-2 w-2 shrink-0 rounded-full bg-ais-primary" />
+        <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
       ) : null}
     </button>
   );

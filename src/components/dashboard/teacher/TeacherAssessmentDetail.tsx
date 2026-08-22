@@ -5,6 +5,7 @@ import { Download, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
@@ -55,7 +56,8 @@ interface TeacherAssessmentDetailProps {
 export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = ({
   assessmentId,
 }) => {
-  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers } = useApp();
+  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers, addNotification } = useApp();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(
     teachers,
@@ -91,7 +93,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
       );
     } catch (error) {
       console.error('Failed to generate PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      addNotification('PDF Generation Failed', 'Could not generate the PDF — please try again.', 'alert');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -158,9 +160,14 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
     closeDialog();
   };
 
-  const handleDelete = (questionId: number) => {
+  const handleDelete = async (questionId: number) => {
     if (!assessment) return;
-    if (!window.confirm('Delete this question?')) return;
+    const ok = await confirm('Delete this question?', {
+      description: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     const updated = assessment.questions.filter((q) => q.id !== questionId);
     updateAssessmentQuestions(assessment.id, updated);
   };
@@ -168,7 +175,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
   if (!assessment) {
     return (
       <AisPage>
-        <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-6 text-center`}>
+        <p className={`${aisBodySm} rounded-lg bg-muted p-6 text-center`}>
           Assessment not found or you do not have access to view it.
         </p>
       </AisPage>
@@ -204,7 +211,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
         }
       >
         {assessment.comments && assessment.status === 'Rejected' && (
-          <div className="mb-4 rounded-xl border border-ais-error/30 bg-ais-error/5 px-4 py-3 text-sm text-ais-on-surface">
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-foreground">
             <span className="font-semibold">Dept head feedback: </span>
             {assessment.comments}
           </div>
@@ -215,7 +222,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
             No questions yet. Click &quot;Add question&quot; to create one manually.
           </p>
         ) : isAiDocument ? (
-          <div className="rounded-xl border border-ais-card-border bg-white p-6 dark:bg-gray-900/40">
+          <div className="rounded-xl border border-border bg-white p-6 dark:bg-gray-900/40">
             <AssessmentContentRenderer
               content={assessment.questions[0].question}
               categoryLabel={`${assessment.type} · ${assessment.questions[0].type || 'Mixed'}`}
@@ -232,7 +239,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
             {assessment.questions.map((q, index) => (
               <div
                 key={q.id}
-                className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/30 p-4"
+                className="rounded-xl border border-border bg-muted/30 p-4"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -247,7 +254,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                     <button
                       type="button"
                       onClick={() => openEdit(q)}
-                      className="rounded-lg p-2 text-ais-on-surface-variant transition-colors hover:bg-ais-surface-container-low hover:text-primary"
+                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                       aria-label={`Edit question ${index + 1}`}
                     >
                       <Pencil className="h-4 w-4" />
@@ -255,7 +262,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                     <button
                       type="button"
                       onClick={() => handleDelete(q.id)}
-                      className="rounded-lg p-2 text-ais-on-surface-variant transition-colors hover:bg-ais-error/10 hover:text-ais-error"
+                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                       aria-label={`Delete question ${index + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -267,7 +274,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                   <ul className="mb-3 space-y-1 pl-1">
                     {q.options.map((opt, i) => (
                       <li key={i} className={`${aisBodySm} flex gap-2`}>
-                        <span className="font-semibold text-ais-on-surface-variant">
+                        <span className="font-semibold text-muted-foreground">
                           {String.fromCharCode(65 + i)}.
                         </span>
                         <MathRenderer content={opt} />
@@ -276,8 +283,8 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
                   </ul>
                 )}
 
-                <div className={`${aisBodySm} text-ais-on-surface-variant`}>
-                  <span className="font-semibold text-ais-on-surface">Answer: </span>
+                <div className={`${aisBodySm} text-muted-foreground`}>
+                  <span className="font-semibold text-foreground">Answer: </span>
                   <MathRenderer content={q.answer} />
                 </div>
               </div>
@@ -295,7 +302,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
       >
         <form onSubmit={handleSaveQuestion} className="space-y-4 pt-1">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface">
+            <label className="text-xs font-semibold uppercase tracking-wide text-foreground">
               Question text
             </label>
             <textarea
@@ -329,7 +336,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
 
           {showOptions && (
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface">
+              <label className="text-xs font-semibold uppercase tracking-wide text-foreground">
                 Options
               </label>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -351,7 +358,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
           )}
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface">
+            <label className="text-xs font-semibold uppercase tracking-wide text-foreground">
               Correct answer
             </label>
             {form.type === 'True/False' ? (
@@ -395,6 +402,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
           </DialogFooter>
         </form>
       </Dialog>
+      {ConfirmDialog}
     </AisPage>
   );
 };

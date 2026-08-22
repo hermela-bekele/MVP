@@ -42,7 +42,7 @@ export function MessageBubble({
     <div
       className={`group relative px-4 py-2 transition-colors ${
         message.pending ? 'opacity-70' : ''
-      } ${message.failed ? 'bg-ais-error/5' : ''} ${
+      } ${message.failed ? 'bg-destructive/5' : ''} ${
         isOwn ? 'flex justify-end' : 'flex justify-start'
       }`}
     >
@@ -67,9 +67,9 @@ export function MessageBubble({
             }`}
           >
             {!isOwn && (
-              <span className="text-sm font-bold text-ais-on-surface">{message.authorName}</span>
+              <span className="text-sm font-bold text-foreground">{message.authorName}</span>
             )}
-            <span className="text-[11px] text-ais-outline">
+            <span className="text-[11px] text-muted-foreground">
               {formatMessageTime(message.createdAt)}
               {message.editedAt ? ' · edited' : ''}
               {message.pending ? ' · sending…' : ''}
@@ -79,8 +79,8 @@ export function MessageBubble({
           <div
             className={`inline-block px-3.5 py-2.5 text-left text-sm shadow-sm ${
               isOwn
-                ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
-                : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
+                ? 'rounded-2xl rounded-br-md bg-primary/12 text-foreground ring-1 ring-primary/15'
+                : 'rounded-2xl rounded-bl-md bg-muted text-foreground ring-1 ring-border'
             }`}
           >
             <p className="whitespace-pre-wrap break-words leading-relaxed">
@@ -101,8 +101,8 @@ export function MessageBubble({
                   onClick={() => onReact(message.id, r.emoji)}
                   className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold transition-colors ${
                     r.me
-                      ? 'border-ais-primary/30 bg-ais-primary/10 text-ais-primary'
-                      : 'border-ais-card-border bg-white text-ais-on-surface-variant hover:border-ais-primary/20'
+                      ? 'border-primary/30 bg-primary/10 text-primary'
+                      : 'border-border bg-white text-muted-foreground hover:border-primary/20'
                   }`}
                 >
                   <span>{r.emoji}</span>
@@ -116,7 +116,7 @@ export function MessageBubble({
             <button
               type="button"
               onClick={() => onOpenThread?.(threadId)}
-              className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
             >
               <MessageSquare className="h-3.5 w-3.5" />
               {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
@@ -126,14 +126,14 @@ export function MessageBubble({
       </div>
 
       <div
-        className={`absolute top-1 hidden items-center gap-0.5 rounded-lg border border-ais-card-border bg-white p-0.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)] group-hover:flex ${
+        className={`absolute top-1 hidden items-center gap-0.5 rounded-lg border border-border bg-white p-0.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)] group-hover:flex ${
           isOwn ? 'left-3' : 'right-3'
         }`}
       >
         <div className="relative">
           <button
             type="button"
-            className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
             title="Add reaction"
             onClick={() => setPickerOpen((o) => !o)}
           >
@@ -141,7 +141,7 @@ export function MessageBubble({
           </button>
           {pickerOpen && (
             <div
-              className={`absolute z-20 mt-1 flex gap-0.5 rounded-lg border border-ais-card-border bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)] ${
+              className={`absolute z-20 mt-1 flex gap-0.5 rounded-lg border border-border bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)] ${
                 isOwn ? 'left-0' : 'right-0'
               }`}
             >
@@ -149,7 +149,7 @@ export function MessageBubble({
                 <button
                   key={emoji}
                   type="button"
-                  className="rounded-md p-1 text-base hover:bg-ais-row-hover"
+                  className="rounded-md p-1 text-base hover:bg-muted"
                   onClick={() => {
                     onReact(message.id, emoji);
                     setPickerOpen(false);
@@ -164,7 +164,7 @@ export function MessageBubble({
         {showThreadLink && onStartThread && !threadId && (
           <button
             type="button"
-            className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
             title="Start thread"
             onClick={() => onStartThread(message)}
           >
@@ -174,7 +174,7 @@ export function MessageBubble({
         {showThreadLink && threadId && (
           <button
             type="button"
-            className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
             title="Open thread"
             onClick={() => onOpenThread?.(threadId)}
           >
@@ -184,7 +184,7 @@ export function MessageBubble({
         {canDelete && onDelete && (
           <button
             type="button"
-            className="rounded-md p-1.5 text-ais-on-surface-variant transition-colors hover:bg-ais-error/10 hover:text-ais-error"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
             title="Delete"
             onClick={() => onDelete(message.id)}
           >

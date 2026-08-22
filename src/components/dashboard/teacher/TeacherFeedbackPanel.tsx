@@ -139,7 +139,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
         </div>
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>From</AisTh>
               <AisTh>Source</AisTh>
               <AisTh>Subject</AisTh>
@@ -216,7 +216,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
             <button
               type="submit"
               disabled={!peerId || !comment.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send feedback
             </button>

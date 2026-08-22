@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, REGISTRAR_SECTION_OPTIONS } from '@/lib/registrarPortal';
@@ -162,17 +163,14 @@ export const RegistrarClassPlacement: React.FC = () => {
           </p>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">New Section</label>
-            <select
+            <Select
+              options={REGISTRAR_SECTION_OPTIONS.map((s) => ({
+                value: s,
+                label: `Section ${s} (${sectionCounts[s] ?? 0} students)`,
+              }))}
               value={newSection}
               onChange={(e) => setNewSection(e.target.value)}
-              className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs"
-            >
-              {REGISTRAR_SECTION_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  Section {s} ({sectionCounts[s] ?? 0} students)
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <DialogFooter className="border-t border-border/20 pt-4">
             <Button variant="outline" size="sm" onClick={() => setPlacementStudentId(null)} className="text-xs h-9">Cancel</Button>

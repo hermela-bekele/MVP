@@ -13,13 +13,17 @@ import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { PublishedAcademicCalendarPanel } from '@/components/dashboard/PublishedAcademicCalendarPanel';
 import { ParentCommunicationModule } from '@/components/dashboard/parent/ParentCommunicationModule';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
+import { EmptyState } from '@/components/ui/empty-state';
+import { UserX } from 'lucide-react';
+import { generatePDFFromMarkdown, slugifyFilename } from '@/lib/pdfUtils';
 
 export default function StudentPortalPage() {
-  const { students, addNotification } = useApp();
+  const { students, addNotification, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Let's retrieve Selam Abebe as our active student
-  const activeStudent = students.find(s => s.id === 'std-1') || students[0];
+  // Resolve the logged-in student from session; fall back to the first
+  // student record only if this account has no link yet (demo/unlinked accounts).
+  const activeStudent = students.find(s => s.id === currentUser?.linkedStudentId) ?? students[0];
 
   const homeworkList = [
     { id: 'hw-1', subject: 'Biology', task: 'Write 200 words on Mitochondria cellular functions.', due: 'Tomorrow', status: 'Pending' },
@@ -55,11 +59,21 @@ export default function StudentPortalPage() {
   };
 
   const classSchedule = [
-    { time: '08:30 - 09:15', monday: 'Grade 9 Math (Abebe K.)', tuesday: 'Grade 9 English (Tigist A.)', wednesday: 'Grade 9 Math (Abebe K.)', thursday: 'Grade 9 English (Tigist A.)', friday: 'Grade 9 Math (Abebe K.)' },
-    { time: '09:15 - 10:00', monday: 'Grade 9 Biology (Martha F.)', tuesday: 'Grade 9 Chemistry (Ato Demis)', wednesday: 'Grade 9 Biology (Martha F.)', thursday: 'Grade 9 Chemistry (Ato Demis)', friday: 'Study Hall' },
-    { time: '10:00 - 10:30', monday: 'Recess', tuesday: 'Recess', wednesday: 'Recess', thursday: 'Recess', friday: 'Recess' },
-    { time: '10:30 - 11:15', monday: 'Grade 9 Chemistry (Ato Demis)', tuesday: 'Grade 9 Math (Abebe K.)', wednesday: 'Grade 9 Chemistry (Ato Demis)', thursday: 'Grade 9 Math (Abebe K.)', friday: 'Assembly' },
-  ];
+    { time: '08:30 - 09:15', monday: ['Grade 9 Math', 'Abebe K.'], tuesday: ['Grade 9 English', 'Tigist A.'], wednesday: ['Grade 9 Math', 'Abebe K.'], thursday: ['Grade 9 English', 'Tigist A.'], friday: ['Grade 9 Math', 'Abebe K.'] },
+    { time: '09:15 - 10:00', monday: ['Grade 9 Biology', 'Martha F.'], tuesday: ['Grade 9 Chemistry', 'Ato Demis'], wednesday: ['Grade 9 Biology', 'Martha F.'], thursday: ['Grade 9 Chemistry', 'Ato Demis'], friday: ['Study Hall'] },
+    { time: '10:00 - 10:30', monday: ['Recess'], tuesday: ['Recess'], wednesday: ['Recess'], thursday: ['Recess'], friday: ['Recess'] },
+    { time: '10:30 - 11:15', monday: ['Grade 9 Chemistry', 'Ato Demis'], tuesday: ['Grade 9 Math', 'Abebe K.'], wednesday: ['Grade 9 Chemistry', 'Ato Demis'], thursday: ['Grade 9 Math', 'Abebe K.'], friday: ['Assembly'] },
+  ] as const;
+
+  const TimetableCell: React.FC<{ entry: readonly string[] }> = ({ entry }) => {
+    const [subject, teacher] = entry;
+    return (
+      <div className="flex flex-col">
+        <span className="font-bold">{subject}</span>
+        {teacher && <span className="text-[10px] font-normal text-muted-foreground">{teacher}</span>}
+      </div>
+    );
+  };
 
   const tabTitles: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'My Performance', subtitle: 'Grades, attendance, and homework at a glance.' },
@@ -70,6 +84,39 @@ export default function StudentPortalPage() {
   };
   const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
 
+  if (!activeStudent) {
+    return (
+      <DashboardShell
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        title="My Performance"
+        eyebrow="Student Portal"
+      >
+        <EmptyState
+          icon={<UserX />}
+          title="No student record linked"
+          description="This account isn't linked to a student record yet. Contact your school registrar to get set up."
+        />
+      </DashboardShell>
+    );
+  }
+
+  const classmates = students.filter(s => s.grade === activeStudent.grade && s.section === activeStudent.section);
+  const classAverageGpa = classmates.length > 0
+    ? classmates.reduce((sum, s) => sum + s.gpa, 0) / classmates.length
+    : activeStudent.gpa;
+  const completedHomeworkCount = homeworkList.filter(hw => hw.status === 'Completed').length;
+  const gpaStandingHint = activeStudent.gpa >= 3.5 ? 'Excellent standing' : activeStudent.gpa >= 3.0 ? 'Good standing' : 'Needs improvement';
+
+  const handleDownloadResource = async (res: { name: string; format: string; size: string }) => {
+    await generatePDFFromMarkdown(
+      `**Format:** ${res.format}\n**Size:** ${res.size}\n\nCover page for **${res.name}**. Contact your school for the full distributed file.`,
+      `${slugifyFilename(res.name)}.pdf`,
+      res.name,
+    );
+    addNotification('Asset Downloaded', `Download started for "${res.name}".`, 'info');
+  };
+
   return (
     <DashboardShell
       activeTab={activeTab}
@@ -78,18 +125,18 @@ export default function StudentPortalPage() {
       subtitle={meta.subtitle}
       eyebrow="Student Portal"
       actions={
-        <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
+        <Badge variant="primary" badgeStyle="subtle" size="md">
           {activeStudent.name} · {activeStudent.grade} {activeStudent.section}
-        </span>
+        </Badge>
       }
     >
           {activeTab === 'dashboard' && (
             <div className="space-y-6 text-left">
               <KpiGrid>
-                <KpiWidget label="Cumulative GPA" value={activeStudent.gpa.toFixed(2)} hint="Excellent standing" tone="default" icon={<span>★</span>} />
-                <KpiWidget label="Attendance" value={`${activeStudent.attendanceRate}%`} hint="20 present days" tone="emphasis" icon={<span>✓</span>} />
-                <KpiWidget label="Tasks Done" value="12/15" hint="Assessments" tone="default" icon={<span>📋</span>} />
-                <KpiWidget label="Class Average" value="2.98" hint="Section A" tone="emphasis" icon={<span>📊</span>} />
+                <KpiWidget label="Cumulative GPA" value={activeStudent.gpa.toFixed(2)} hint={gpaStandingHint} tone="emphasis" icon={<span>★</span>} />
+                <KpiWidget label="Attendance" value={`${activeStudent.attendanceRate}%`} hint="This term" tone="emphasis" icon={<span>✓</span>} />
+                <KpiWidget label="Tasks Done" value={`${completedHomeworkCount}/${homeworkList.length}`} hint="Assessments" tone="default" icon={<span>📋</span>} />
+                <KpiWidget label="Class Average" value={classAverageGpa.toFixed(2)} hint={`Section ${activeStudent.section}`} tone="default" icon={<span>📊</span>} />
               </KpiGrid>
 
               {/* Progress and Homework details */}
@@ -144,13 +191,9 @@ export default function StudentPortalPage() {
                           <span className="text-xs font-bold text-foreground">{hw.task}</span>
                           <p className="text-[10px] text-muted-foreground mt-0.5">{hw.subject} • Due: {hw.due}</p>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          hw.status === 'Completed' 
-                            ? 'bg-primary/10 text-primary border border-primary/20' 
-                            : 'bg-muted text-muted-foreground border border-border'
-                        }`}>
+                        <Badge variant={hw.status === 'Completed' ? 'success' : 'neutral'} badgeStyle="subtle" size="sm">
                           {hw.status}
-                        </span>
+                        </Badge>
                       </div>
                     ))}
                   </CardContent>
@@ -199,8 +242,8 @@ export default function StudentPortalPage() {
                           <h4 className="text-xs font-bold text-foreground line-clamp-1">{res.name}</h4>
                           <p className="text-[10px] text-muted-foreground mt-0.5">Format: {res.format} • Size: {res.size}</p>
                         </div>
-                        <Button 
-                          onClick={() => addNotification('Asset Downloaded', `Download started for "${res.name}".`, 'info')}
+                        <Button
+                          onClick={() => void handleDownloadResource(res)}
                           className="w-full text-xxs h-8 bg-card border border-border hover:bg-muted font-semibold cursor-pointer"
                         >
                           ⬇️ Download PDF
@@ -237,11 +280,11 @@ export default function StudentPortalPage() {
                         {classSchedule.map((row, i) => (
                           <tr key={i} className="hover:bg-muted/20">
                             <td className="p-3 font-bold font-mono text-primary bg-muted/10">{row.time}</td>
-                            <td className="p-3">{row.monday}</td>
-                            <td className="p-3">{row.tuesday}</td>
-                            <td className="p-3">{row.wednesday}</td>
-                            <td className="p-3">{row.thursday}</td>
-                            <td className="p-3">{row.friday}</td>
+                            <td className="p-3"><TimetableCell entry={row.monday} /></td>
+                            <td className="p-3"><TimetableCell entry={row.tuesday} /></td>
+                            <td className="p-3"><TimetableCell entry={row.wednesday} /></td>
+                            <td className="p-3"><TimetableCell entry={row.thursday} /></td>
+                            <td className="p-3"><TimetableCell entry={row.friday} /></td>
                           </tr>
                         ))}
                       </tbody>

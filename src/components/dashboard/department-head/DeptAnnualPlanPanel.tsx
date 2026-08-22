@@ -1038,7 +1038,7 @@ export const DeptAnnualPlanPanel: React.FC<{
         description="This cannot be undone."
         size="sm"
       >
-        <p className="text-sm text-ais-on-surface">
+        <p className="text-sm text-foreground">
           Delete{' '}
           <span className="font-semibold">
             {planPendingDelete?.title ?? 'this annual lesson plan'}

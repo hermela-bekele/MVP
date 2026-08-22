@@ -55,7 +55,7 @@ export const TeacherAttendanceTab: React.FC = () => {
       <AisPanel title="Session roll call" description="Record attendance during your active teaching period" flush>
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Student</AisTh>
               <AisTh>ID</AisTh>
               <AisTh>Status</AisTh>

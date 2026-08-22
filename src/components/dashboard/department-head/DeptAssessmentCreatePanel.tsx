@@ -68,6 +68,7 @@ export function DeptAssessmentCreatePanel() {
     lessonPlans,
     teachingNotes,
     lessonDeliveries,
+    addNotification,
   } = useApp();
   const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
 
@@ -201,7 +202,7 @@ export function DeptAssessmentCreatePanel() {
         setTitle(`${grade} ${subject} — ${type}: ${selected.topic.trim()}`);
       }
     } catch {
-      alert('Failed to generate assessment. Try again.');
+      addNotification('Assessment Generation Failed', 'Could not generate the assessment — try again.', 'alert');
     } finally {
       setGenerating(false);
     }

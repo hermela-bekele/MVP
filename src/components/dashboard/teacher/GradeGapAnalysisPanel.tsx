@@ -68,19 +68,19 @@ function MissPieTooltip({
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="min-w-[160px] rounded-xl border border-ais-card-border bg-white px-3.5 py-2.5 shadow-md">
-      <p className="text-sm font-bold text-ais-on-surface">{d.name}</p>
-      <div className="mt-1.5 flex items-center gap-2 text-xs text-ais-on-surface-variant">
+    <div className="min-w-[160px] rounded-xl border border-border bg-white px-3.5 py-2.5 shadow-md">
+      <p className="text-sm font-bold text-foreground">{d.name}</p>
+      <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
         <span
           className="h-2.5 w-2.5 shrink-0 rounded-full"
           style={{ background: d.fill }}
           aria-hidden
         />
         <span className="flex-1">Students missed</span>
-        <span className="font-bold text-ais-on-surface">{d.percent}%</span>
+        <span className="font-bold text-foreground">{d.percent}%</span>
       </div>
       {d.topic && !/^Question\s+\d+$/i.test(d.topic) && (
-        <p className="mt-1 max-w-[200px] truncate text-[10px] text-ais-on-surface-variant" title={d.topic}>
+        <p className="mt-1 max-w-[200px] truncate text-[10px] text-muted-foreground" title={d.topic}>
           {d.topic}
         </p>
       )}
@@ -390,7 +390,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
           {analysisReady && (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg border border-ais-card-border px-2.5 py-1.5 text-xs font-semibold text-ais-on-surface hover:bg-ais-surface-container-low"
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
               aria-expanded={analysisExpanded}
               onClick={() => setAnalysisExpanded((v) => !v)}
             >
@@ -446,7 +446,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
           {analysisReady && analysisExpanded && (
             <>
               <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-start">
-                <div className="rounded-xl border border-ais-card-border bg-white p-3">
+                <div className="rounded-xl border border-border bg-white p-3">
                   {totalMisses === 0 ? (
                     <p className={`${aisBodySm} flex h-[220px] items-center justify-center text-center`}>
                       No misses recorded for this assessment.
@@ -483,7 +483,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
                               iconSize={8}
                               wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
                               formatter={(value) => (
-                                <span className="text-ais-on-surface-variant">{value}</span>
+                                <span className="text-muted-foreground">{value}</span>
                               )}
                             />
                           </PieChart>
@@ -519,7 +519,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
                         return (
                           <li
                             key={q.key}
-                            className="flex items-center gap-3 rounded-lg border border-ais-card-border px-3 py-2 text-sm"
+                            className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-2">
                               {slice && (
@@ -530,7 +530,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
                                 />
                               )}
                               <div className="min-w-0 flex-1" title={titleParts.join(' — ')}>
-                                <p className="truncate font-semibold text-ais-on-surface">
+                                <p className="truncate font-semibold text-foreground">
                                   Q{q.questionNumber}
                                   {topic ? ` · ${topic}` : ''}
                                 </p>
@@ -559,7 +559,7 @@ export const GradeGapAnalysisPanel: React.FC<Props> = ({
                 <p className={`${aisLabelCaps} mb-3`}>Analysis</p>
                 <MarkdownRenderer
                   content={aiAnalysis}
-                  className="prose-headings:mt-4 prose-headings:mb-2 prose-h2:text-base prose-h3:text-sm prose-p:my-2 prose-li:my-0.5 max-w-none text-ais-on-surface"
+                  className="prose-headings:mt-4 prose-headings:mb-2 prose-h2:text-base prose-h3:text-sm prose-p:my-2 prose-li:my-0.5 max-w-none text-foreground"
                 />
               </div>
             </>

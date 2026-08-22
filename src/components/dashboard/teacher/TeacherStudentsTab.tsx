@@ -110,7 +110,7 @@ export const TeacherStudentsTab: React.FC = () => {
             <AisPanel title="My students" flush>
               <AisTable>
                 <thead>
-                  <tr className="bg-ais-surface-container-low">
+                  <tr className="bg-muted">
                     <AisTh>Student</AisTh>
                     <AisTh>Section</AisTh>
                     <AisTh>ID</AisTh>
@@ -162,7 +162,7 @@ export const TeacherStudentsTab: React.FC = () => {
             <AisPanel title="Parent messages" flush>
               <AisTable>
                 <thead>
-                  <tr className="bg-ais-surface-container-low">
+                  <tr className="bg-muted">
                     <AisTh>Student</AisTh>
                     <AisTh>Parent</AisTh>
                     <AisTh>Message</AisTh>
@@ -201,7 +201,7 @@ export const TeacherStudentsTab: React.FC = () => {
             </AisBtnSecondary>
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg"
             >
               Send to parent portal
             </button>

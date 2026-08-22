@@ -98,18 +98,18 @@ export function MessageComposer({
   };
 
   return (
-    <div className="relative border-t border-ais-card-border bg-ais-surface-container-low/30 px-4 py-3">
+    <div className="relative border-t border-border bg-muted/30 px-4 py-3">
       {suggestions.length > 0 && mentionQuery != null && (
-        <div className="absolute bottom-full left-4 right-4 mb-1 max-h-40 overflow-auto rounded-lg border border-ais-card-border bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
+        <div className="absolute bottom-full left-4 right-4 mb-1 max-h-40 overflow-auto rounded-lg border border-border bg-white shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
           {suggestions.map((s) => (
             <button
               key={s.id}
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-primary"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
               onClick={() => insertMention(s)}
             >
-              <span className="font-semibold text-ais-on-surface">{s.displayName}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-ais-outline">
+              <span className="font-semibold text-foreground">{s.displayName}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {s.role}
               </span>
             </button>
@@ -131,7 +131,7 @@ export function MessageComposer({
           type="button"
           disabled={disabled || sending || !value.trim()}
           onClick={() => void submit()}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ais-primary text-white shadow-sm transition-colors hover:bg-ais-primary-container disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white shadow-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Send"
         >
           <Send className="h-4 w-4" />

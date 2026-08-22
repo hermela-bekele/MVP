@@ -131,7 +131,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
       <div className="space-y-6">
         {shortAnswerQuestions.length > 0 && (
           <div className="max-w-3xl mx-auto px-6">
-            <div className="p-4 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 text-sm text-ais-on-surface-variant dark:text-gray-300">
+            <div className="p-4 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 text-sm text-muted-foreground dark:text-gray-300">
               Part A complete
               {shortAnswerScore !== null && ` — Score: ${shortAnswerScore}%`}.
               Continue with Part B below.
@@ -164,10 +164,10 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
   return (
     <div className="max-w-3xl mx-auto py-8 px-6 space-y-6">
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+        <h2 className="text-2xl font-bold text-foreground dark:text-gray-100 mb-2">
           Reflection After Assessment
         </h2>
-        <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+        <p className="text-sm text-muted-foreground dark:text-gray-400">
           Take a moment to reflect on what you learned. Write your responses below.
         </p>
       </div>
@@ -176,9 +176,9 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
         {reflectionPrompts.map((prompt, index) => (
           <div
             key={index}
-            className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-5"
+            className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-5"
           >
-            <label className="block text-sm font-medium text-ais-on-surface dark:text-gray-100 mb-3">
+            <label className="block text-sm font-medium text-foreground dark:text-gray-100 mb-3">
               {index + 1}. {prompt}
             </label>
             <textarea
@@ -189,7 +189,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
               rows={3}
               disabled={reflectionSubmitted}
               placeholder="Write your reflection here..."
-              className="w-full p-3 rounded-lg border border-ais-card-border dark:border-gray-700 bg-ais-surface-container-low/30 dark:bg-gray-900/50 text-ais-on-surface dark:text-gray-100 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
+              className="w-full p-3 rounded-lg border border-border dark:border-gray-700 bg-muted/30 dark:bg-gray-900/50 text-foreground dark:text-gray-100 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
             />
           </div>
         ))}
@@ -198,10 +198,10 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
       {reflectionSubmitted ? (
         <div className="text-center p-6 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20">
           <CheckCircle className="w-10 h-10 text-primary dark:text-primary-light mx-auto mb-3" />
-          <p className="text-lg font-semibold text-ais-on-surface dark:text-gray-100 mb-1">
+          <p className="text-lg font-semibold text-foreground dark:text-gray-100 mb-1">
             Assessment Complete
           </p>
-          <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-gray-400">
             Your reflections have been submitted. Thank you for completing this assessment.
           </p>
         </div>
@@ -219,7 +219,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
       )}
 
       {!reflectionSubmitted && !allReflectionAnswered && (
-        <p className="text-center text-sm text-ais-on-surface-variant dark:text-gray-400">
+        <p className="text-center text-sm text-muted-foreground dark:text-gray-400">
           Answer all reflection prompts before submitting
         </p>
       )}

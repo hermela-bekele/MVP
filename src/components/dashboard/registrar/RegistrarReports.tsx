@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { ContentCard } from '@/components/dashboard/ContentCard';
+import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,23 +77,17 @@ export const RegistrarReports: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <ContentCard title="Total Active" description="Enrolled students">
-          <p className="text-3xl font-bold text-foreground">{stats.active}</p>
-        </ContentCard>
-        <ContentCard title="School Avg GPA" description="All active students">
-          <p className="text-3xl font-bold text-foreground">{stats.avgGpa.toFixed(2)}</p>
-        </ContentCard>
-        <ContentCard title="Avg Attendance" description="School-wide rate">
-          <p className="text-3xl font-bold text-foreground">{Math.round(stats.avgAttendance)}%</p>
-        </ContentCard>
-        <ContentCard title="Applications" description="Registration pipeline">
-          <p className="text-3xl font-bold text-foreground">{stats.appStats.pending}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            {stats.appStats.enrolled} enrolled · {stats.appStats.rejected} rejected
-          </p>
-        </ContentCard>
-      </div>
+      <KpiGrid>
+        <KpiWidget label="Total Active" value={stats.active} hint="Enrolled students" />
+        <KpiWidget label="School Avg GPA" value={stats.avgGpa.toFixed(2)} hint="All active students" tone="emphasis" />
+        <KpiWidget label="Avg Attendance" value={`${Math.round(stats.avgAttendance)}%`} hint="School-wide rate" />
+        <KpiWidget
+          label="Applications"
+          value={stats.appStats.pending}
+          hint={`${stats.appStats.enrolled} enrolled · ${stats.appStats.rejected} rejected`}
+          tone="emphasis"
+        />
+      </KpiGrid>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TablePanel

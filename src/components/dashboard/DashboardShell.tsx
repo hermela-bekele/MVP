@@ -21,7 +21,7 @@ export interface DashboardShellProps {
   animateTabs?: boolean;
   /** Hide the built-in page title block (e.g. when a tab has its own hero) */
   showPageHeader?: boolean;
-  /** Page header visual style */
+  /** Page header visual style — see PageHeaderProps.variant for when to use each */
   headerVariant?: 'default' | 'portal';
 }
 
@@ -75,8 +75,8 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
         <Navbar breadcrumbs={breadcrumbs} />
 
         <main
-          className={`flex-1 overflow-y-auto px-4 sm:px-5 lg:px-4${
-            headerVariant === 'portal' ? ' bg-[#f9f9ff] teacher-portal' : ''
+          className={`flex-1 overflow-y-auto px-4 sm:px-5 lg:px-6${
+            headerVariant === 'portal' ? ' bg-dashboard-bg' : ''
           }`}
         >
           <div className="mx-auto w-full max-w-[1400px] py-5 sm:py-6">

@@ -125,7 +125,7 @@ export const TeacherResourcesTab: React.FC = () => {
       >
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Title</AisTh>
               <AisTh>Type</AisTh>
               <AisTh>Grade / Subject</AisTh>
@@ -166,7 +166,7 @@ export const TeacherResourcesTab: React.FC = () => {
                         href={r.resourceUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="hover:text-ais-primary hover:underline"
+                        className="hover:text-primary hover:underline"
                       >
                         {r.title}
                       </a>
@@ -198,13 +198,13 @@ export const TeacherResourcesTab: React.FC = () => {
           <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={resGrade} onChange={(e) => setResGrade(e.target.value)} />
           <input className={aisInput} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-ais-on-surface-variant uppercase tracking-wide">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               File from device
             </label>
             <input
               type="file"
               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.txt,.csv,.zip"
-              className="w-full text-sm text-ais-on-surface file:mr-3 file:rounded-xl file:border-0 file:bg-ais-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-ais-primary hover:file:bg-ais-primary/20"
+              className="w-full text-sm text-foreground file:mr-3 file:rounded-xl file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20"
               onChange={(e) => {
                 const file = e.target.files?.[0] ?? null;
                 setResourceFile(file);
@@ -214,7 +214,7 @@ export const TeacherResourcesTab: React.FC = () => {
               }}
             />
             {resourceFile && (
-              <p className="text-xs text-ais-on-surface-variant">
+              <p className="text-xs text-muted-foreground">
                 Selected: {resourceFile.name} ({(resourceFile.size / 1024).toFixed(0)} KB)
               </p>
             )}
@@ -227,7 +227,7 @@ export const TeacherResourcesTab: React.FC = () => {
             <button
               type="submit"
               disabled={uploading || (!resourceFile && !url.trim())}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? 'Uploading…' : 'Publish to students'}
             </button>

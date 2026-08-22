@@ -1,5 +1,15 @@
 import React from 'react';
 
+/**
+ * Variant → status semantics: success (approved/active/completed), warning
+ * (pending/attention-needed), danger (rejected/inactive/overdue), info (in-progress/
+ * informational), neutral (no strong status, default), primary (highlighted/featured,
+ * not a status). Style: subtle (default — 10% fill, use for most status pills), solid
+ * (high emphasis, use sparingly e.g. a single hero status), outline (low emphasis,
+ * dense contexts like table cells). Never hand-roll a status pill with raw Tailwind
+ * palette colors (e.g. bg-amber-100 text-amber-700) — use Badge so status colors stay
+ * consistent with the success/warning/destructive tokens app-wide.
+ */
 type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'primary';
 type BadgeStyle = 'solid' | 'outline' | 'subtle';
 type BadgeSize = 'sm' | 'md';
@@ -28,16 +38,16 @@ const colorMap: Record<BadgeVariant, {
     dot: 'bg-primary',
   },
   success: {
-    solid: 'bg-primary text-primary-foreground',
-    outline: 'border-primary/40 text-primary bg-transparent',
-    subtle: 'bg-primary/10 text-primary',
-    dot: 'bg-primary',
+    solid: 'bg-success text-success-foreground',
+    outline: 'border-success/40 text-success bg-transparent',
+    subtle: 'bg-success/10 text-success',
+    dot: 'bg-success',
   },
   warning: {
-    solid: 'bg-amber-500 text-white',
-    outline: 'border-amber-500/40 text-amber-700 bg-transparent',
-    subtle: 'bg-amber-500/10 text-amber-700',
-    dot: 'bg-amber-500',
+    solid: 'bg-warning text-warning-foreground',
+    outline: 'border-warning/40 text-warning bg-transparent',
+    subtle: 'bg-warning/10 text-warning',
+    dot: 'bg-warning',
   },
   danger: {
     solid: 'bg-destructive text-destructive-foreground',

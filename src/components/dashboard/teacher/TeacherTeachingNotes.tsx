@@ -732,7 +732,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           <DropdownMenu
             align="right"
             trigger={
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted">
                 <MoreVertical className="h-4 w-4" />
                 <span className="sr-only">Note actions</span>
               </span>
@@ -767,32 +767,32 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         <p className={`${aisDataMd} font-semibold line-clamp-2`}>{note.title}</p>
         <p className={`${aisBodySm} mt-1`}>{note.topic}</p>
         <p className={`${aisBodySm} mt-0.5`}>{note.language}</p>
-        <p className={`${aisBodySm} mt-1 text-ais-on-surface-variant`}>
+        <p className={`${aisBodySm} mt-1 text-muted-foreground`}>
           Updated {note.updatedAt ?? note.createdAt}
         </p>
       </div>
-      <div className="flex w-[7.5rem] shrink-0 flex-col items-center justify-center gap-2 border-l border-ais-card-border bg-ais-surface-container-low/40 px-2 py-3">
+      <div className="flex w-[7.5rem] shrink-0 flex-col items-center justify-center gap-2 border-l border-border bg-muted/40 px-2 py-3">
         {delivery ? (
           <>
             <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
             <span className="text-center text-[11px] font-semibold leading-tight text-emerald-700">
               Delivered
             </span>
-            <span className="text-center text-[10px] leading-tight text-ais-on-surface-variant">
+            <span className="text-center text-[10px] leading-tight text-muted-foreground">
               {graspOutcomeLabel(delivery.graspOutcome)}
             </span>
           </>
         ) : note.status === 'Approved' ? (
           <button
             type="button"
-            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ais-primary transition-colors hover:bg-ais-primary/10"
+            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary transition-colors hover:bg-primary/10"
             onClick={() => setDeliverNote(note)}
           >
             <HelpCircle className="h-5 w-5" aria-hidden />
             Delivered?
           </button>
         ) : (
-          <span className="text-center text-[10px] leading-tight text-ais-on-surface-variant px-1">
+          <span className="text-center text-[10px] leading-tight text-muted-foreground px-1">
             {note.status === 'Pending Dept Head'
               ? 'Awaiting HoD approval'
               : 'Approve first'}
@@ -821,7 +821,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
 
             {/* Notes grid — 3 cards per row */}
             {detailPlanNotes.length === 0 ? (
-              <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-4`}>
+              <p className={`${aisBodySm} rounded-lg bg-muted p-4`}>
                 No teaching notes yet for this lesson plan.
               </p>
             ) : (
@@ -841,7 +841,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         )
       ) : (
         <div className="space-y-8">
-          <div className="flex flex-wrap gap-2 rounded-xl border border-ais-card-border bg-white p-1 dark:bg-ais-surface">
+          <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-white p-1 dark:bg-card">
             {(
               [
                 { id: 'annual' as const, label: 'Annual plans' },
@@ -855,8 +855,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 onClick={() => setListTab(tab.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                   listTab === tab.id
-                    ? 'bg-ais-primary text-white'
-                    : 'text-ais-on-surface-variant hover:bg-ais-row-hover'
+                    ? 'bg-primary text-white'
+                    : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
                 {tab.label}
@@ -883,7 +883,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                   >
                     <button
                       type="button"
-                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-ais-row-hover"
+                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-muted"
                       onClick={() => goToLessonPlan(plan.id)}
                     >
                       <div className="mb-2">
@@ -892,7 +892,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                         </span>
                       </div>
                       <h3 className={`${aisHeadlineSm} line-clamp-2 mb-2`}>{plan.title}</h3>
-                      <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
+                      <p className={`${aisBodySm} text-muted-foreground mb-2`}>
                         {plan.grade} · {plan.subject} · {plan.sessions} weeks
                       </p>
                       <div className="mt-auto">
@@ -937,13 +937,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           <h3 className={`${aisHeadlineSm} line-clamp-2`}>{weeklyPlanWeekLabel(plan)}</h3>
                         </button>
                         <div className="flex shrink-0 items-center gap-1">
-                          <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-ais-primary/10 px-2.5 text-xs font-bold tabular-nums text-ais-primary">
+                          <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-primary/10 px-2.5 text-xs font-bold tabular-nums text-primary">
                             {planNotes.length}
                           </span>
                           <DropdownMenu
                             align="right"
                             trigger={
-                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted">
                                 <MoreVertical className="h-4 w-4" />
                                 <span className="sr-only">Weekly plan actions</span>
                               </span>
@@ -978,13 +978,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                       </div>
                       <button
                         type="button"
-                        className="flex flex-1 flex-col px-4 pb-4 pt-2 text-left transition-colors hover:bg-ais-row-hover"
+                        className="flex flex-1 flex-col px-4 pb-4 pt-2 text-left transition-colors hover:bg-muted"
                         onClick={() => goToLessonPlan(plan.id)}
                       >
-                        <p className={`${aisBodySm} text-ais-on-surface-variant mb-1 line-clamp-1`}>
+                        <p className={`${aisBodySm} text-muted-foreground mb-1 line-clamp-1`}>
                           {plan.title}
                         </p>
-                        <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
+                        <p className={`${aisBodySm} text-muted-foreground mb-2`}>
                           {plan.subject} · {plan.sessions} {plan.sessions === 1 ? 'session' : 'sessions'}
                         </p>
                         <div className="mt-auto">
@@ -1006,19 +1006,19 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           )}
                         </div>
                       </button>
-                      <div className="flex items-center justify-between gap-2 border-t border-ais-card-border px-3 py-2">
+                      <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
                         {!hodApproved ? (
-                          <p className="text-[11px] leading-snug text-ais-on-surface-variant">
+                          <p className="text-[11px] leading-snug text-muted-foreground">
                             Notes unlock after HoD approval
                           </p>
                         ) : (
-                          <span className="text-[11px] text-ais-on-surface-variant">Add lesson notes</span>
+                          <span className="text-[11px] text-muted-foreground">Add lesson notes</span>
                         )}
                         <button
                           type="button"
                           aria-label={hodApproved ? 'Add note' : 'Weekly plan not yet approved by HoD'}
                           disabled={!hodApproved}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-ais-primary text-white shadow-md transition-all hover:bg-ais-primary-container hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-primary text-white shadow-md transition-all hover:bg-accent hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                           onClick={(e) => {
                             e.stopPropagation();
                             openCreateNote(plan.id);
@@ -1115,7 +1115,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         description="This cannot be undone."
         size="sm"
       >
-        <p className="text-sm text-ais-on-surface">
+        <p className="text-sm text-foreground">
           Delete{' '}
           <span className="font-semibold">
             {planPendingDelete ? weeklyPlanWeekLabel(planPendingDelete) : 'this weekly plan'}
@@ -1148,7 +1148,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         description="This cannot be undone."
         size="sm"
       >
-        <p className="text-sm text-ais-on-surface">
+        <p className="text-sm text-foreground">
           Delete{' '}
           <span className="font-semibold">{notePendingDelete?.title ?? 'this teaching note'}</span>?
         </p>
@@ -1280,14 +1280,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </div>
           {activePlan && !editingNoteId && (
             <div className="space-y-1">
-              <p className="text-xs text-ais-on-surface-variant">
+              <p className="text-xs text-muted-foreground">
                 Choose <strong>All sessions</strong> or one session from this week. The topic above is
                 editable. Generation uses your selection plus the weekly plan objectives.
               </p>
               {(activePlan.objectives?.length ?? 0) > 0 && (
-                <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/50 px-3 py-2">
+                <div className="rounded-xl border border-border bg-muted/50 px-3 py-2">
                   <p className={`${aisFormLabel} mb-1`}>Lesson plan objectives</p>
-                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-ais-on-surface-variant">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
                     {activePlan.objectives.slice(0, 4).map((o, i) => (
                       <li key={i}>{o}</li>
                     ))}
@@ -1318,7 +1318,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 value={notesStudentLevel}
                 onChange={(e) => setNotesStudentLevel(e.target.value)}
               />
-              <p className="text-xs text-ais-on-surface-variant">
+              <p className="text-xs text-muted-foreground">
                 All levels generates struggling, average, and advanced exercises with a labeled answer key.
               </p>
             </div>
@@ -1358,7 +1358,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </AisBtnPrimary>
           </div>
           {(editingNoteId || aiNotesResult || noteContentText.trim()) && (
-            <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+            <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className={aisFormLabel}>
                   {editingNoteId ? 'Note content — edit freely' : 'Note content'}
@@ -1369,7 +1369,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     onClick={() => setShowNoteContentPreview(false)}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${
                       !showNoteContentPreview
-                        ? 'bg-ais-primary text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
                     }`}
                   >
@@ -1381,7 +1381,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     disabled={!noteContentText.trim()}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
                       showNoteContentPreview
-                        ? 'bg-ais-primary text-white'
+                        ? 'bg-primary text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
                     }`}
                   >
@@ -1391,7 +1391,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </div>
               {showNoteContentPreview ? (
                 noteContentText.trim() ? (
-                  <div className="max-h-[400px] overflow-y-auto rounded-lg border border-ais-card-border bg-white p-4 dark:bg-gray-900">
+                  <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-white p-4 dark:bg-gray-900">
                     <Suspense fallback={<RendererLoading />}>
                       <TeachingNotesRenderer
                         content={editableTextToNotesResult(noteContentText.trim(), {
@@ -1402,7 +1402,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     </Suspense>
                   </div>
                 ) : (
-                  <p className={`${aisBodyMd} rounded-lg border border-dashed border-ais-card-border p-4 text-center`}>
+                  <p className={`${aisBodyMd} rounded-lg border border-dashed border-border p-4 text-center`}>
                     Nothing to preview yet — switch to Edit and add your content.
                   </p>
                 )
@@ -1414,13 +1414,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                   placeholder="Write or edit your teaching notes here. You can type freely or use markdown headings (##), lists, and bold text."
                 />
               )}
-              <p className="text-xs text-ais-on-surface-variant">
+              <p className="text-xs text-muted-foreground">
                 Edit the full note body — add explanations, examples, or exercises as you need.
               </p>
             </div>
           )}
           {!editingNoteId && aiNotesResult && (
-            <div className="rounded-xl border border-ais-card-border bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 p-4">
+            <div className="rounded-xl border border-border bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -1437,7 +1437,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     setShowNoteContentPreview(false);
                     setExplainMoreUsed(false);
                   }}
-                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                  className="text-xs text-destructive hover:underline flex items-center gap-1"
                 >
                   <X className="h-3 w-3" />
                   Clear & Regenerate
@@ -1613,7 +1613,7 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
   if (annual?.weeks?.length) {
     return (
       <div className="space-y-3">
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-3">
+        <div className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-background p-3">
           <AnnualLessonPlanTable plan={annual} />
         </div>
       </div>
@@ -1636,7 +1636,7 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
             Download Word
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-2">
+        <div className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-background p-2">
           <WeeklyLessonPlanTable
             sessions={weekly.sessions}
             meta={{
@@ -1652,8 +1652,8 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
   }
 
   return (
-    <details className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-3`}>
-      <summary className="cursor-pointer font-semibold text-ais-on-surface">Lesson plan details</summary>
+    <details className={`${aisBodySm} rounded-lg bg-muted p-3`}>
+      <summary className="cursor-pointer font-semibold text-foreground">Lesson plan details</summary>
       <ul className="mt-2 list-disc space-y-1 pl-4">
         {plan.objectives.map((o, i) => (
           <li key={i}>{o}</li>

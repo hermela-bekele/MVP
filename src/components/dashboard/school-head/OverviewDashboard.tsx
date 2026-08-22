@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { StatCard } from "@/components/ui/stat-card";
+import { KpiWidget } from "@/components/dashboard/KpiWidget";
 import { ChartCard } from "@/components/ui/chart-card";
 import {
   Card,
@@ -16,9 +16,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { staggerContainer, staggerItem } from "@/lib/animations";
 import { PerformanceReports } from "@/components/dashboard/school-head/PerformanceReports";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  BellOff,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  GraduationCap,
+  Briefcase,
+  ClipboardList,
+  HeartPulse,
+} from "lucide-react";
 
 export const OverviewDashboard: React.FC = () => {
-  const { students, teachers, checkIns, notifications, classes } = useApp();
+  const { students, teachers, checkIns, notifications, classes, schools, currentUser } = useApp();
+
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
 
   const totalStudents = students.length;
   const activeTeachers = teachers.filter((t) => t.status === "Active").length;
@@ -90,10 +104,10 @@ export const OverviewDashboard: React.FC = () => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-              Welcome Back, Principal
+              Welcome Back{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}
             </h1>
             <p className="text-sm text-white/80 max-w-xl leading-relaxed">
-              Empowering Bole Secondary School with AI-driven academic insights
+              Empowering {schoolName} with data-driven academic insights
               and seamless staff alignment for the 2018 Ethiopian E.C. academic
               year.
             </p>
@@ -122,33 +136,32 @@ export const OverviewDashboard: React.FC = () => {
         variants={staggerItem}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        <StatCard
-          title="Total Enrollment"
+        <KpiWidget
+          label="Total Enrollment"
           value={totalStudents}
-          subtitle="Registered Active Students"
-          trend={{ direction: "up", value: "+4.2%" }}
-          color="primary"
+          hint="Registered Active Students"
+          tone="default"
+          animated
         />
-        <StatCard
-          title="Active Instructors"
+        <KpiWidget
+          label="Active Instructors"
           value={activeTeachers}
-          subtitle="Certified Teaching Staff"
-          trend={{ direction: "neutral", value: "0.0%" }}
-          color="muted"
+          hint="Certified Teaching Staff"
+          tone="muted"
+          animated
         />
-        <StatCard
-          title="Class Sections"
+        <KpiWidget
+          label="Class Sections"
           value={totalClasses}
-          subtitle="Registered Homeroom Divisions"
-          trend={{ direction: "neutral", value: "0.0%" }}
-          color="emphasis"
+          hint="Registered Homeroom Divisions"
+          tone="emphasis"
+          animated
         />
-        <StatCard
-          title="Wellness & Satisfaction"
+        <KpiWidget
+          label="Wellness & Satisfaction"
           value={`${avgSatisfaction}%`}
-          subtitle="Teacher & Student Index"
-          trend={{ direction: "up", value: "+3.5%" }}
-          color="muted"
+          hint="Teacher & Student Index"
+          tone="muted"
         />
       </motion.div>
 
@@ -204,9 +217,11 @@ export const OverviewDashboard: React.FC = () => {
           <CardContent className="pt-4 px-0">
             <div className="divide-y divide-border/30">
               {recentNotifications.length === 0 ? (
-                <div className="text-center py-10 text-xs text-muted-foreground">
-                  No pending alerts or notifications.
-                </div>
+                <EmptyState
+                  icon={<BellOff />}
+                  title="No pending alerts"
+                  description="You're all caught up — new alerts and notifications will appear here."
+                />
               ) : (
                 recentNotifications.map((notif) => (
                   <div
@@ -215,16 +230,16 @@ export const OverviewDashboard: React.FC = () => {
                   >
                     <div className="mt-1 shrink-0">
                       {notif.type === "alert" ? (
-                        <div className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20 text-sm">
-                          ⚠️
+                        <div className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
+                          <AlertTriangle className="h-4 w-4" aria-hidden />
                         </div>
                       ) : notif.type === "success" ? (
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 text-sm">
-                          ✓
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                          <CheckCircle2 className="h-4 w-4" aria-hidden />
                         </div>
                       ) : (
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 text-sm">
-                          ℹ
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                          <Info className="h-4 w-4" aria-hidden />
                         </div>
                       )}
                     </div>
@@ -261,7 +276,7 @@ export const OverviewDashboard: React.FC = () => {
             {[
               {
                 tab: "manage-students",
-                icon: "🎓",
+                icon: <GraduationCap className="h-4 w-4" aria-hidden />,
                 title: "View Student Directory",
                 desc: "Browse enrolled student records",
                 hover: "hover:border-primary/30 group-hover:text-primary",
@@ -269,7 +284,7 @@ export const OverviewDashboard: React.FC = () => {
               },
               {
                 tab: "manage-employees",
-                icon: "💼",
+                icon: <Briefcase className="h-4 w-4" aria-hidden />,
                 title: "View Faculty Directory",
                 desc: "Browse instructional staff profiles",
                 hover: "hover:border-accent/30 group-hover:text-accent",
@@ -277,7 +292,7 @@ export const OverviewDashboard: React.FC = () => {
               },
               {
                 tab: "manage-attendance",
-                icon: "📋",
+                icon: <ClipboardList className="h-4 w-4" aria-hidden />,
                 title: "View Attendance Ledger",
                 desc: "Inspect student and staff attendance",
                 hover: "hover:border-primary/30 group-hover:text-primary",
@@ -286,7 +301,7 @@ export const OverviewDashboard: React.FC = () => {
               {
                 tab: "manage-checkins",
                 event: "open-checkin-modal",
-                icon: "❤️",
+                icon: <HeartPulse className="h-4 w-4" aria-hidden />,
                 title: "New Wellness Check-in",
                 desc: "Publish wellness survey",
                 hover: "hover:border-primary/30 group-hover:text-primary",
@@ -300,7 +315,7 @@ export const OverviewDashboard: React.FC = () => {
                 className={`w-full text-left p-3 min-h-[44px] rounded-xl border border-border/50 hover:bg-muted/40 flex items-center gap-3 transition-all duration-200 group cursor-pointer active:scale-[0.98] ${action.hover}`}
               >
                 <div
-                  className={`h-8 w-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200 text-sm font-semibold shrink-0 ${action.bg}`}
+                  className={`h-8 w-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shrink-0 ${action.bg}`}
                 >
                   {action.icon}
                 </div>

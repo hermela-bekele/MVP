@@ -275,13 +275,13 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
   const heightClass = size === 'sm' ? 'h-9 text-xs' : 'h-10 text-sm';
 
   const triggerClasses = isAis
-    ? `w-full min-w-0 overflow-hidden ${heightClass} px-3 pr-9 text-left bg-white border rounded-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ais-primary/20 focus:border-ais-primary/40 ${
+    ? `w-full min-w-0 overflow-hidden ${heightClass} px-3 pr-9 text-left bg-white border rounded-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 ${
         error
-          ? 'border-ais-error text-ais-on-surface'
+          ? 'border-destructive text-foreground'
           : isOpen
-            ? 'border-ais-primary/40 ring-2 ring-ais-primary/20'
-            : 'border-ais-card-border text-ais-on-surface hover:border-ais-primary/30'
-      } ${disabled ? 'opacity-50 cursor-not-allowed bg-ais-surface-container-low/50' : ''} ${className}`
+            ? 'border-primary/40 ring-2 ring-primary/20'
+            : 'border-border text-foreground hover:border-primary/30'
+      } ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/50' : ''} ${className}`
     : `w-full min-w-0 overflow-hidden ${heightClass} px-3 pr-9 text-left bg-card border rounded-md shadow-sm transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent ${
         error
           ? 'border-destructive text-foreground'
@@ -291,11 +291,11 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
       } ${disabled ? 'opacity-50 cursor-not-allowed bg-muted' : ''} ${className}`;
 
   const labelClasses = isAis
-    ? 'text-[10px] font-bold uppercase tracking-wider text-ais-on-surface-variant'
+    ? 'text-[10px] font-bold uppercase tracking-wider text-muted-foreground'
     : 'text-xs font-semibold text-muted-foreground uppercase tracking-wider';
 
   const panelClasses = isAis
-    ? 'overflow-hidden rounded-lg border border-ais-card-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]'
+    ? 'overflow-hidden rounded-lg border border-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)]'
     : 'overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-lg';
 
   const listbox =
@@ -318,7 +318,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
             <div className="overflow-y-auto py-1" style={{ maxHeight: panelCoords.maxHeight }}>
               {options.length === 0 ? (
                 <p
-                  className={`px-3 py-2 text-sm ${isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
+                  className={`px-3 py-2 text-sm ${isAis ? 'text-muted-foreground' : 'text-muted-foreground'}`}
                 >
                   No options available
                 </p>
@@ -348,10 +348,10 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
                         ${
                           isAis
                             ? isSelected
-                              ? 'bg-ais-primary/10 text-ais-primary font-medium'
+                              ? 'bg-primary/10 text-primary font-medium'
                               : isActive
-                                ? 'bg-ais-surface-container-low text-ais-on-surface'
-                                : 'text-ais-on-surface hover:bg-ais-surface-container-low'
+                                ? 'bg-muted text-foreground'
+                                : 'text-foreground hover:bg-muted'
                             : isSelected
                               ? 'bg-primary/10 text-primary font-medium'
                               : isActive
@@ -370,7 +370,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
                         {opt.description && (
                           <span
                             className={`mt-0.5 block truncate text-[11px] ${
-                              isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'
+                              isAis ? 'text-muted-foreground' : 'text-muted-foreground'
                             }`}
                             title={opt.description}
                           >
@@ -393,7 +393,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
       {label && (
         <label htmlFor={selectId} className={labelClasses}>
           {label}
-          {required && <span className="ml-0.5 text-ais-error">*</span>}
+          {required && <span className="ml-0.5 text-destructive">*</span>}
         </label>
       )}
 
@@ -415,7 +415,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
         >
           <span
             title={selectedOption?.title || displayLabel}
-            className={`block min-w-0 truncate ${hasSelection ? '' : isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
+            className={`block min-w-0 truncate ${hasSelection ? '' : isAis ? 'text-muted-foreground' : 'text-muted-foreground'}`}
           >
             {displayLabel}
           </span>
@@ -423,7 +423,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
 
         <span
           className={`pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 transition-transform duration-200 ${
-            isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'
+            isAis ? 'text-muted-foreground' : 'text-muted-foreground'
           } ${isOpen ? 'rotate-180' : ''}`}
           aria-hidden
         >
@@ -438,7 +438,7 @@ export const DropdownSelect: React.FC<DropdownSelectProps> = ({
       {(error || helperText) && (
         <p
           id={helperId}
-          className={`text-xxs ${error ? (isAis ? 'text-ais-error' : 'text-destructive') : isAis ? 'text-ais-on-surface-variant' : 'text-muted-foreground'}`}
+          className={`text-xxs ${error ? (isAis ? 'text-destructive' : 'text-destructive') : isAis ? 'text-muted-foreground' : 'text-muted-foreground'}`}
         >
           {error || helperText}
         </p>

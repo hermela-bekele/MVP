@@ -1,5 +1,17 @@
 import React from 'react';
 
+/**
+ * Variant → action tier: primary (the one main action on a page/panel/modal),
+ * secondary (supporting action, less emphasis than primary), outline (equal-weight
+ * alternative to a primary, e.g. "Cancel" next to "Save"), ghost (low-emphasis/
+ * inline actions, e.g. table row actions), destructive (delete/remove/reject/
+ * terminate), organic (decorative variant of primary — avoid for new work, prefer
+ * primary). Size: sm (h-8) for dense contexts — table rows, modal footers, detail-
+ * page action bars; md (h-10, default) for standalone/form-level actions; lg (h-12)
+ * for hero/landing CTAs only. Buttons on the same row/action-bar should share one
+ * size. Icons go through leftIcon/rightIcon (never manual margins) so icon+text
+ * alignment is guaranteed by the shared inline-flex/items-center/gap-* baseStyle.
+ */
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'organic';

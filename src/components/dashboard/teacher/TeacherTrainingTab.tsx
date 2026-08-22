@@ -46,9 +46,9 @@ import { VideoPlayer } from "@/components/ui/VideoPlayer";
 const CARDS_PER_PAGE = 6; // Show 6 cards: 3 per row × 2 rows
 
 const trainingSessionActive =
-  "bg-ais-primary/10 text-ais-primary shadow-[0_1px_3px_rgba(15,23,42,0.05)]";
+  "bg-primary/10 text-primary shadow-[0_1px_3px_rgba(15,23,42,0.05)]";
 const trainingSessionInactive =
-  "text-ais-on-surface hover:bg-ais-surface-container-low hover:text-ais-primary";
+  "text-foreground hover:bg-muted hover:text-primary";
 const trainingMarkdownWrap = "overflow-x-auto";
 
 export const TeacherTrainingTab: React.FC<{
@@ -68,7 +68,7 @@ export const TeacherTrainingTab: React.FC<{
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { teachers, currentUser, teacherTrainingAssignments } = useApp();
+  const { teachers, currentUser, teacherTrainingAssignments, addNotification } = useApp();
   const teacher = getDemoTeacher(teachers, currentUser?.email, currentUser?.displayName);
 
   // Select the appropriate modules based on active tab
@@ -172,8 +172,8 @@ export const TeacherTrainingTab: React.FC<{
     return (
       <AisPage>
         {assignedModules.length > 0 && (
-          <div className="rounded-2xl border border-ais-primary/30 bg-ais-primary/5 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ais-primary">
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
               <ClipboardCheck className="h-4 w-4" />
               Assigned to you by your HoD
             </div>
@@ -185,10 +185,10 @@ export const TeacherTrainingTab: React.FC<{
                     key={a.id}
                     onClick={() => mod && setSelectedModule(mod)}
                     disabled={!mod}
-                    className="flex w-full flex-col gap-0.5 rounded-lg border border-ais-card-border bg-white px-3 py-2 text-left text-sm hover:border-ais-primary/40 disabled:cursor-default disabled:opacity-70 dark:bg-ais-surface"
+                    className="flex w-full flex-col gap-0.5 rounded-lg border border-border bg-white px-3 py-2 text-left text-sm hover:border-primary/40 disabled:cursor-default disabled:opacity-70 dark:bg-card"
                   >
-                    <span className="font-semibold text-ais-on-surface">{a.moduleTitle}</span>
-                    {a.reason && <span className="text-xs text-ais-on-surface-variant">{a.reason}</span>}
+                    <span className="font-semibold text-foreground">{a.moduleTitle}</span>
+                    {a.reason && <span className="text-xs text-muted-foreground">{a.reason}</span>}
                   </button>
                 );
               })}
@@ -205,7 +205,7 @@ export const TeacherTrainingTab: React.FC<{
               <button
                 key={module.id}
                 onClick={() => setSelectedModule(module)}
-                className={`${aisCard} group relative overflow-hidden p-5 text-left transition-all duration-300 hover:shadow-md hover:border-ais-primary/30`}
+                className={`${aisCard} group relative overflow-hidden p-5 text-left transition-all duration-300 hover:shadow-md hover:border-primary/30`}
               >
                 {/* Category Badge */}
                 <div className={`${aisBadgePrimary} mb-3`}>
@@ -213,7 +213,7 @@ export const TeacherTrainingTab: React.FC<{
                 </div>
 
                 {/* Title */}
-                <h3 className={`${aisHeadlineSm} mb-2 group-hover:text-ais-primary transition-colors line-clamp-2`}>
+                <h3 className={`${aisHeadlineSm} mb-2 group-hover:text-primary transition-colors line-clamp-2`}>
                   {module.title}
                 </h3>
 
@@ -225,14 +225,14 @@ export const TeacherTrainingTab: React.FC<{
                 {/* Session and Video Count */}
                 <div className="flex items-center gap-4 mb-4">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <BookOpen className="w-4 h-4 text-ais-primary" />
-                    <span className="font-semibold text-ais-on-surface">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-foreground">
                       {module.sessions.length} Sessions
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
-                    <PlayCircle className="w-4 h-4 text-ais-primary" />
-                    <span className="font-semibold text-ais-on-surface">
+                    <PlayCircle className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-foreground">
                       {module.videoCount} Videos
                     </span>
                   </div>
@@ -241,13 +241,13 @@ export const TeacherTrainingTab: React.FC<{
                 {/* Progress Bar */}
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-ais-on-surface">
+                    <span className="text-xs font-semibold text-foreground">
                       Progress: {progress}%
                     </span>
                   </div>
-                  <div className="h-2 bg-ais-surface-container-low rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-ais-primary transition-all duration-500"
+                      className="h-full bg-primary transition-all duration-500"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -255,7 +255,7 @@ export const TeacherTrainingTab: React.FC<{
 
                 {/* CTA */}
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-sm font-semibold text-ais-primary group-hover:underline">
+                  <span className="text-sm font-semibold text-primary group-hover:underline">
                     {progress === 0
                       ? "Start"
                       : progress === 100
@@ -263,7 +263,7 @@ export const TeacherTrainingTab: React.FC<{
                         : "Continue"}
                   </span>
                   {progress === 100 && (
-                    <CheckCircle className="w-5 h-5 text-ais-success" />
+                    <CheckCircle className="w-5 h-5 text-success" />
                   )}
                 </div>
               </button>
@@ -291,7 +291,7 @@ export const TeacherTrainingTab: React.FC<{
                     onClick={() => setCurrentPage(page)}
                     className={`w-10 h-10 rounded-lg font-semibold transition-colors ${
                       currentPage === page
-                        ? "bg-ais-primary text-white"
+                        ? "bg-primary text-white"
                         : `${aisBtnSecondary} px-0 py-0 justify-center`
                     }`}
                   >
@@ -337,7 +337,7 @@ export const TeacherTrainingTab: React.FC<{
             setSelectedModule(null);
             setSelectedSession(null);
           }}
-          className="flex items-center gap-2 text-ais-on-surface-variant hover:text-ais-on-surface mb-4 transition-colors"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Modules
@@ -348,7 +348,7 @@ export const TeacherTrainingTab: React.FC<{
             <div className={`${aisBadgePrimary} mb-2`}>
               {selectedModule.category}
             </div>
-            <h1 className={`text-2xl font-bold text-ais-on-surface mb-2`}>
+            <h1 className={`text-2xl font-bold text-foreground mb-2`}>
               {selectedModule.title}
             </h1>
             <p className={aisBodyMd}>
@@ -358,7 +358,7 @@ export const TeacherTrainingTab: React.FC<{
 
           {/* Progress Badge */}
           <div className="text-right">
-            <div className="text-3xl font-bold text-ais-primary mb-1">
+            <div className="text-3xl font-bold text-primary mb-1">
               {progress}%
             </div>
             <div className={`text-xs ${aisBodyMd}`}>
@@ -404,7 +404,7 @@ export const TeacherTrainingTab: React.FC<{
           {/* Sidebar - Session Navigation */}
           <div className="lg:col-span-1 space-y-4">
             <div className={`${aisCard} p-4`}>
-              <h3 className="font-semibold text-ais-on-surface mb-4">Sessions</h3>
+              <h3 className="font-semibold text-foreground mb-4">Sessions</h3>
               <div className="space-y-2">
                 {selectedModule.sessions.map((session) => (
                   <button
@@ -428,13 +428,13 @@ export const TeacherTrainingTab: React.FC<{
                       </span>
                     </div>
                     {session.completed && (
-                      <CheckCircle className="w-4 h-4 text-ais-success flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 text-success flex-shrink-0" />
                     )}
                   </button>
                 ))}
 
                 {/* Separator */}
-                <div className="border-t border-ais-card-border my-2" />
+                <div className="border-t border-border my-2" />
 
                 {/* Assessment Button */}
                 <button
@@ -445,7 +445,7 @@ export const TeacherTrainingTab: React.FC<{
                       ? trainingSessionActive
                       : isAssessmentUnlocked(selectedModule)
                         ? trainingSessionInactive
-                        : "text-ais-on-surface-variant cursor-not-allowed opacity-50"
+                        : "text-muted-foreground cursor-not-allowed opacity-50"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -476,7 +476,7 @@ export const TeacherTrainingTab: React.FC<{
               {contentTab === "content" && selectedSession ? (
                 <>
                   {/* Session Header */}
-                  <div className="mb-6 pb-6 border-b border-ais-card-border">
+                  <div className="mb-6 pb-6 border-b border-border">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -490,7 +490,7 @@ export const TeacherTrainingTab: React.FC<{
                             </span>
                           )}
                         </div>
-                        <h2 className="text-2xl font-bold text-ais-on-surface mb-2">
+                        <h2 className="text-2xl font-bold text-foreground mb-2">
                           {selectedSession.title}
                         </h2>
                         <p className={aisBodyMd}>
@@ -579,18 +579,19 @@ export const TeacherTrainingTab: React.FC<{
                         .map((session) => session.content)
                         .join("\n\n")}
                       onComplete={(score, passed) => {
-                        console.log(
-                          `Assessment completed: ${score}% - ${passed ? "Passed" : "Failed"}`,
+                        addNotification(
+                          passed ? 'Module Assessment Passed' : 'Module Assessment Not Passed',
+                          `${selectedModule.title}: scored ${score}%.`,
+                          passed ? 'success' : 'alert',
                         );
-                        // TODO: Save score to backend
                       }}
                     />
                   ) : (
                     <div className="text-center py-12">
                       <Lock
-                        className="w-16 h-16 text-ais-on-surface-variant mx-auto mb-4"
+                        className="w-16 h-16 text-muted-foreground mx-auto mb-4"
                       />
-                      <p className="text-ais-on-surface-variant text-lg font-medium mb-2">
+                      <p className="text-muted-foreground text-lg font-medium mb-2">
                         Assessment Locked
                       </p>
                       <p className={`text-sm ${aisBodyMd}`}>
@@ -599,7 +600,7 @@ export const TeacherTrainingTab: React.FC<{
                       </p>
                       <div className="mt-6">
                         <div className="inline-flex items-center gap-2 text-sm">
-                          <span className="text-ais-primary font-semibold">
+                          <span className="text-primary font-semibold">
                             {completedCount}/{selectedModule.sessions.length}{" "}
                             completed
                           </span>
@@ -629,7 +630,7 @@ export const TeacherTrainingTab: React.FC<{
 
                 {/* Video Info */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-ais-on-surface mb-2">
+                  <h3 className="font-semibold text-foreground mb-2">
                     {video.title}
                   </h3>
                   <p className={`text-xs ${aisBodyMd}`}>
@@ -640,7 +641,7 @@ export const TeacherTrainingTab: React.FC<{
             ))
           ) : (
             <div className="col-span-3 text-center py-12">
-              <PlayCircle className="w-16 h-16 text-ais-on-surface-variant mx-auto mb-4" />
+              <PlayCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <p className={`${aisBodyMd} text-lg font-medium`}>
                 No videos available for this module yet
               </p>

@@ -63,7 +63,7 @@ export const TeacherSettingsTab: React.FC = () => {
       />
 
       <div className={`${aisCard} p-4`}>
-        <div className="mb-4 border-b border-ais-card-border pb-3">
+        <div className="mb-4 border-b border-border pb-3">
           <h3 className={aisHeadlineSm}>Personal profile</h3>
           <p className={`${aisBodyMd} mt-0.5`}>Contact details visible to department head and parents.</p>
         </div>
@@ -90,17 +90,17 @@ export const TeacherSettingsTab: React.FC = () => {
       </div>
 
       <div className={`${aisCard} p-4`}>
-        <div className="mb-4 border-b border-ais-card-border pb-3">
+        <div className="mb-4 border-b border-border pb-3">
           <h3 className={aisHeadlineSm}>General preferences</h3>
           <p className={`${aisBodyMd} mt-0.5`}>Notifications and display options.</p>
         </div>
         <form onSubmit={handleGeneralSave} className="space-y-3">
           <label className={`flex cursor-pointer items-center gap-2 ${aisBodyMd}`}>
-            <input type="checkbox" className="accent-ais-primary" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} />
+            <input type="checkbox" className="accent-primary" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} />
             Email alerts for approvals and parent messages
           </label>
           <label className={`flex cursor-pointer items-center gap-2 ${aisBodyMd}`}>
-            <input type="checkbox" className="accent-ais-primary" checked={notifySms} onChange={(e) => setNotifySms(e.target.checked)} />
+            <input type="checkbox" className="accent-primary" checked={notifySms} onChange={(e) => setNotifySms(e.target.checked)} />
             SMS for urgent attendance alerts
           </label>
           <select className={aisInput} value={language} onChange={(e) => setLanguage(e.target.value)}>

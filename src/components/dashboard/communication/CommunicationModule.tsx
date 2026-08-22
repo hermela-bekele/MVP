@@ -166,8 +166,8 @@ export function CommunicationModule({
   return (
     <AisPage>
       <div className="grid min-h-[calc(100vh-220px)] grid-cols-1 gap-4 md:grid-cols-[260px_1fr] md:items-stretch">
-        <aside className="flex h-full min-h-[calc(100vh-220px)] flex-col rounded-2xl border border-ais-card-border bg-white p-3 dark:bg-ais-surface">
-            <p className="px-2 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
+        <aside className="flex h-full min-h-[calc(100vh-220px)] flex-col rounded-2xl border border-border bg-white p-3 dark:bg-card">
+            <p className="px-2 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
               Your channels
             </p>
             <nav className="min-h-0 flex-1 space-y-1.5">
@@ -180,22 +180,22 @@ export function CommunicationModule({
                     onClick={() => setChannel(c.id)}
                     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
                       active
-                        ? 'bg-ais-primary/10 text-ais-primary'
-                        : 'text-ais-on-surface hover:bg-ais-row-hover'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground hover:bg-muted'
                     }`}
                   >
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                         active
-                          ? 'bg-ais-primary text-white'
-                          : 'bg-ais-surface-container-low text-ais-on-surface-variant'
+                          ? 'bg-primary text-white'
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       {c.icon}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">#{c.label}</span>
-                      <span className="block truncate text-[11px] text-ais-on-surface-variant">
+                      <span className="block truncate text-[11px] text-muted-foreground">
                         {c.description}
                       </span>
                     </span>
@@ -211,7 +211,7 @@ export function CommunicationModule({
                 ? 'min-h-0'
                   : channel === 'hod'
                   ? 'flex min-h-0 flex-col'
-                  : 'min-h-0 overflow-y-auto rounded-2xl border border-ais-card-border bg-white p-4 dark:bg-ais-surface'
+                  : 'min-h-0 overflow-y-auto rounded-2xl border border-border bg-white p-4 dark:bg-card'
             }
           >
             {channel === 'announcements' && (
@@ -223,7 +223,7 @@ export function CommunicationModule({
                   </p>
                 </div>
                 {canPostAnnouncement && (
-                  <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
+                  <div className="space-y-2 rounded-xl border border-border p-3">
                     <input
                       className={aisInput}
                       placeholder="Announcement title"
@@ -253,10 +253,10 @@ export function CommunicationModule({
                     {announcements.map((a) => (
                       <li
                         key={a.id}
-                        className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4"
+                        className="rounded-xl border border-border bg-muted/40 p-4"
                       >
-                        <p className="text-sm font-bold text-ais-on-surface">{a.title}</p>
-                        <p className="mt-1 text-xs text-ais-on-surface-variant">
+                        <p className="text-sm font-bold text-foreground">{a.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {a.authorName} ·{' '}
                           {new Date(a.createdAt).toLocaleString(undefined, {
                             month: 'short',

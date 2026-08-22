@@ -29,10 +29,14 @@ export const HrDashboard: React.FC = () => {
   const pendingLeave = pendingLeaveRequests(leaveRequests);
   const openJobs = jobPostings.filter((j) => j.status === 'Open');
   const newApplicants = jobApplications.filter((a) => a.status === 'New' || a.status === 'Screening');
+  // Compare against the most recent month/date actually present in the records, rather than a
+  // fixed literal, so these KPIs never go silently stale as real time passes the seed data.
+  const latestPayrollMonth = payrollRecords.reduce((max, p) => (p.month > max ? p.month : max), '');
   const monthlyPayroll = payrollRecords
-    .filter((p) => p.month === '2026-06')
+    .filter((p) => p.month === latestPayrollMonth)
     .reduce((sum, p) => sum + p.netPay, 0);
-  const todayAttendance = staffAttendance.filter((a) => a.date === '2026-06-05');
+  const latestAttendanceDate = staffAttendance.reduce((max, a) => (a.date > max ? a.date : max), '');
+  const todayAttendance = staffAttendance.filter((a) => a.date === latestAttendanceDate);
   const presentToday = todayAttendance.filter((a) => a.status === 'Present' || a.status === 'Late').length;
   const byDept = employeesByDepartment(employees);
 
@@ -61,9 +65,13 @@ export const HrDashboard: React.FC = () => {
           hint={`${newApplicants.length} new applicants`}
         />
         <KpiWidget
-          label="June Payroll"
+          label={latestPayrollMonth ? `${latestPayrollMonth} Payroll` : 'Payroll'}
           value={formatCurrency(monthlyPayroll)}
-          hint={`${presentToday}/${todayAttendance.length} present today`}
+          hint={
+            todayAttendance.length > 0
+              ? `${presentToday}/${todayAttendance.length} present (${latestAttendanceDate})`
+              : 'No attendance recorded yet'
+          }
         />
       </div>
 

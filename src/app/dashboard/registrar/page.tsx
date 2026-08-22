@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { RegistrarDashboard } from '@/components/dashboard/registrar/RegistrarDashboard';
 import { RegistrarApplications } from '@/components/dashboard/registrar/RegistrarApplications';
 import { RegistrarEnrollment } from '@/components/dashboard/registrar/RegistrarEnrollment';
@@ -80,6 +82,13 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 
 export default function RegistrarPortalPage() {
   const { activeTab, setActiveTab } = usePortalTab('registrar');
+  const { schools, currentUser } = useApp();
+
+  // Resolve the logged-in registrar's actual school from session; fall back to the
+  // first school on record only for demo/unlinked accounts.
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
+  const registrarName = currentUser?.displayName ?? 'Registrar Officer';
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -103,13 +112,13 @@ export default function RegistrarPortalPage() {
         + New Application
       </Button>
     ) : activeTab === 'enroll-student' ? (
-      <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        Registrar Office · Bole Secondary
-      </span>
+      <Badge variant="primary" badgeStyle="subtle" size="md">
+        Registrar Office · {schoolName}
+      </Badge>
     ) : (
-      <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        Tigist Haile · Registrar Officer
-      </span>
+      <Badge variant="primary" badgeStyle="subtle" size="md">
+        {registrarName} · Registrar Officer
+      </Badge>
     );
 
   return (
@@ -118,9 +127,9 @@ export default function RegistrarPortalPage() {
       setActiveTab={setActiveTab}
       title={meta.title}
       subtitle={meta.subtitle}
-      eyebrow="Bole Secondary · Registrar Portal"
+      eyebrow={`${schoolName} · Registrar Portal`}
       actions={shellActions}
-      showPageHeader={activeTab !== 'dashboard'}
+      showPageHeader
     >
       {activeTab === 'dashboard' && <RegistrarDashboard />}
       {activeTab === 'applications' && <RegistrarApplications />}

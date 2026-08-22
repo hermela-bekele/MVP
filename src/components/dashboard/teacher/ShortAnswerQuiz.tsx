@@ -146,17 +146,17 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
             <div className="w-20 h-20 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-10 h-10 text-primary dark:text-primary-light" />
             </div>
-            <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+            <h2 className="text-2xl font-bold text-foreground dark:text-gray-100 mb-2">
               {sectionTitle}
             </h2>
-            <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+            <p className="text-sm text-muted-foreground dark:text-gray-400">
               Answer all questions in your own words. Your responses will be
               evaluated against the module content.
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-6 mb-6">
-            <p className="text-xs text-ais-on-surface-variant dark:text-gray-400 mb-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-6 mb-6">
+            <p className="text-xs text-muted-foreground dark:text-gray-400 mb-1">
               Total Questions
             </p>
             <p className="text-2xl font-bold text-primary dark:text-primary-light">
@@ -193,10 +193,10 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
               <CheckCircle className="w-10 h-10 text-primary dark:text-primary-light" />
             )}
           </div>
-          <h2 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+          <h2 className="text-2xl font-bold text-foreground dark:text-gray-100 mb-2">
             {answerKeysRevealed ? "Answer Key" : "Your Results"}
           </h2>
-          <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+          <p className="text-sm text-muted-foreground dark:text-gray-400">
             {isEvaluating
               ? "Evaluating your answers against the module content..."
               : answerKeysRevealed
@@ -208,14 +208,14 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
         </div>
 
         {!isEvaluating && evaluationResults.length > 0 && !answerKeysRevealed && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-6 mb-6 text-center">
-            <p className="text-sm text-ais-on-surface-variant dark:text-gray-400 mb-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-6 mb-6 text-center">
+            <p className="text-sm text-muted-foreground dark:text-gray-400 mb-2">
               Your Score
             </p>
             <div className="text-5xl font-bold text-primary dark:text-primary-light mb-1">
               {scorePercentage}%
             </div>
-            <p className="text-sm text-ais-on-surface dark:text-gray-200">
+            <p className="text-sm text-foreground dark:text-gray-200">
               {totalEarned} of {totalPoints} points earned
             </p>
           </div>
@@ -232,7 +232,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
                     ? result.isCorrect
                       ? "border-primary/30 dark:border-primary/30"
                       : "border-red-200 dark:border-red-800"
-                    : "border-ais-card-border dark:border-gray-700"
+                    : "border-border dark:border-gray-700"
                 }`}
               >
                 <div className="flex items-start gap-2 mb-2">
@@ -243,29 +243,29 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
                       <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                     )
                   )}
-                  <p className="text-sm font-semibold text-ais-on-surface dark:text-gray-100">
+                  <p className="text-sm font-semibold text-foreground dark:text-gray-100">
                     Question {index + 1}
                     {result && !answerKeysRevealed && (
-                      <span className="ml-2 text-xs font-normal text-ais-on-surface-variant dark:text-gray-400">
+                      <span className="ml-2 text-xs font-normal text-muted-foreground dark:text-gray-400">
                         ({result.score}/{result.maxPoints} pts)
                       </span>
                     )}
                   </p>
                 </div>
-                <p className="text-sm text-ais-on-surface-variant dark:text-gray-300 mb-3">
+                <p className="text-sm text-muted-foreground dark:text-gray-300 mb-3">
                   {question.question}
                 </p>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <span className="font-medium text-ais-on-surface dark:text-gray-200">
+                    <span className="font-medium text-foreground dark:text-gray-200">
                       Your answer:
                     </span>{" "}
-                    <span className="text-ais-on-surface-variant dark:text-gray-400">
+                    <span className="text-muted-foreground dark:text-gray-400">
                       {answers[index] || "—"}
                     </span>
                   </p>
                   {result?.feedback && !answerKeysRevealed && (
-                    <p className="text-xs text-ais-on-surface-variant dark:text-gray-400 italic border-l-2 border-primary/30 pl-3">
+                    <p className="text-xs text-muted-foreground dark:text-gray-400 italic border-l-2 border-primary/30 pl-3">
                       {result.feedback}
                     </p>
                   )}
@@ -273,10 +273,10 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
                     <>
                       {result && (
                         <p>
-                          <span className="font-medium text-ais-on-surface dark:text-gray-200">
+                          <span className="font-medium text-foreground dark:text-gray-200">
                             Score:
                           </span>{" "}
-                          <span className="text-ais-on-surface-variant dark:text-gray-300">
+                          <span className="text-muted-foreground dark:text-gray-300">
                             {result.score}/{result.maxPoints} points
                           </span>
                         </p>
@@ -285,12 +285,12 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
                         <span className="font-medium text-primary dark:text-primary-light">
                           Expected answer:
                         </span>{" "}
-                        <span className="text-ais-on-surface-variant dark:text-gray-300">
+                        <span className="text-muted-foreground dark:text-gray-300">
                           {question.correctAnswer || "See module content for guidance."}
                         </span>
                       </p>
                       {(result?.feedback || question.explanation) && (
-                        <p className="text-xs text-ais-on-surface-variant dark:text-gray-400 italic border-l-2 border-primary/30 pl-3 mt-2">
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 italic border-l-2 border-primary/30 pl-3 mt-2">
                           {result?.feedback || question.explanation}
                         </p>
                       )}
@@ -306,7 +306,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
           <button
             onClick={handleRetake}
             disabled={isEvaluating}
-            className="px-6 py-2 rounded-lg border border-ais-card-border dark:border-gray-700 text-ais-on-surface dark:text-gray-300 hover:bg-ais-surface-container-low dark:hover:bg-gray-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-2 rounded-lg border border-border dark:border-gray-700 text-foreground dark:text-gray-300 hover:bg-muted dark:hover:bg-gray-700 transition-colors font-medium text-sm flex items-center gap-2 disabled:opacity-50"
           >
             <RotateCcw className="w-4 h-4" />
             Retake Part A
@@ -341,15 +341,15 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
     <div className="max-w-3xl mx-auto py-8 px-6">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-ais-on-surface dark:text-gray-300">
+          <span className="text-sm font-medium text-foreground dark:text-gray-300">
             Question {currentQuestionIndex + 1} of {totalQuestions}
           </span>
-          <span className="text-sm text-ais-on-surface-variant dark:text-gray-400">
+          <span className="text-sm text-muted-foreground dark:text-gray-400">
             {Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100)}%
             Complete
           </span>
         </div>
-        <div className="h-2 bg-ais-surface-container-low dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-2 bg-muted dark:bg-gray-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-primary to-primary-light transition-all duration-300"
             style={{
@@ -359,8 +359,8 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-ais-card-border dark:border-gray-700 p-8 mb-6">
-        <h3 className="text-lg font-semibold text-ais-on-surface dark:text-gray-100 mb-6 leading-relaxed">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-8 mb-6">
+        <h3 className="text-lg font-semibold text-foreground dark:text-gray-100 mb-6 leading-relaxed">
           {currentQuestion.question}
         </h3>
 
@@ -371,7 +371,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
           }
           rows={5}
           placeholder="Write your answer here..."
-          className="w-full p-4 rounded-lg border border-ais-card-border dark:border-gray-700 bg-ais-surface-container-low/30 dark:bg-gray-900/50 text-ais-on-surface dark:text-gray-100 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full p-4 rounded-lg border border-border dark:border-gray-700 bg-muted/30 dark:bg-gray-900/50 text-foreground dark:text-gray-100 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/50"
         />
       </div>
 
@@ -379,7 +379,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
         <button
           onClick={handlePrevious}
           disabled={currentQuestionIndex === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-ais-card-border dark:border-gray-700 text-ais-on-surface dark:text-gray-300 hover:bg-ais-surface-container-low dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border dark:border-gray-700 text-foreground dark:text-gray-300 hover:bg-muted dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ArrowLeft className="w-4 h-4" />
           Previous
@@ -395,7 +395,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
                   ? "w-6 bg-primary"
                   : (answers[index] ?? "").trim().length > 0
                     ? "bg-primary/50"
-                    : "bg-ais-surface-container-low dark:bg-gray-700"
+                    : "bg-muted dark:bg-gray-700"
               }`}
             />
           ))}
@@ -412,7 +412,7 @@ export const ShortAnswerQuiz: React.FC<ShortAnswerQuizProps> = ({
       </div>
 
       {!canProceed && (
-        <p className="text-center text-sm text-ais-on-surface-variant dark:text-gray-400 mt-4">
+        <p className="text-center text-sm text-muted-foreground dark:text-gray-400 mt-4">
           {isLastQuestion && !allQuestionsAnswered
             ? "Answer all questions before viewing results"
             : "Write an answer to continue"}

@@ -144,14 +144,14 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
         <div className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase mb-3">
           {content.type} Lesson Plan
         </div>
-        <h1 className="text-2xl font-bold text-ais-on-surface dark:text-gray-100 mb-2">
+        <h1 className="text-2xl font-bold text-foreground dark:text-gray-100 mb-2">
           {content.subject}
         </h1>
-        <p className="text-lg text-ais-on-surface-variant dark:text-gray-300">
+        <p className="text-lg text-muted-foreground dark:text-gray-300">
           {content.type === 'yearly' ? 'Annual lesson plan' : `Main Topic: ${content.mainTopic}`}
         </p>
         {content.subTopic && (
-          <p className="text-md text-ais-on-surface-variant dark:text-gray-400">
+          <p className="text-md text-muted-foreground dark:text-gray-400">
             Sub Topic: {content.subTopic}
           </p>
         )}
@@ -229,7 +229,7 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
           {/* Annual curriculum units */}
           {content.type === 'yearly' && content.units && content.units.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-ais-on-surface dark:text-gray-100 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-foreground dark:text-gray-100 flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
@@ -301,7 +301,7 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
           {/* Overview */}
           {content.overview && (
             <div className="rounded-xl bg-white dark:bg-gray-800 p-6 border border-gray-200 dark:border-gray-700">
-              <h3 className="text-sm font-bold text-ais-on-surface dark:text-gray-100 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-foreground dark:text-gray-100 mb-3 flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -334,10 +334,10 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
                       {session.sessionNumber}
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-ais-on-surface dark:text-gray-100">
+                      <h3 className="text-lg font-bold text-foreground dark:text-gray-100">
                         Session {session.sessionNumber}: {session.subTopic || session.mainTopic}
                       </h3>
-                      <p className="text-sm text-ais-on-surface-variant dark:text-gray-400">{session.subject}</p>
+                      <p className="text-sm text-muted-foreground dark:text-gray-400">{session.subject}</p>
                       {session.textbookPages && (
                         <p className="text-xs font-medium text-primary mt-1">
                           Textbook: {session.textbookPages}
@@ -383,7 +383,7 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
 
                 {/* Teaching Approach */}
                 <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-ais-on-surface dark:text-gray-100 flex items-center gap-2 border-b-2 border-primary/20 pb-2">
+                  <h4 className="text-sm font-bold text-foreground dark:text-gray-100 flex items-center gap-2 border-b-2 border-primary/20 pb-2">
                     <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>

@@ -15,7 +15,7 @@ import { aisBodySm, aisDataMd } from '@/components/dashboard/teacher/aisStyles';
 
 function TimetableCell({ value }: { value: string }) {
   if (value === '—') {
-    return <span className="text-ais-on-surface-variant">—</span>;
+    return <span className="text-muted-foreground">—</span>;
   }
 
   const [title, detail] = value.split('\n');
@@ -50,7 +50,7 @@ export const TeacherTimetableTab: React.FC = () => {
           <tbody>
             {schedule.map((row) => (
               <AisTr key={row.time}>
-                <AisTd className="whitespace-nowrap bg-ais-surface-container-low/40 font-mono text-xs font-bold text-ais-primary">
+                <AisTd className="whitespace-nowrap bg-muted/40 font-mono text-xs font-bold text-primary">
                   {row.time}
                 </AisTd>
                 <AisTd>

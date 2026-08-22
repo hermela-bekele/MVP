@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { Avatar } from '@/components/ui/avatar';
 import {
   filterTeacherStudents,
   avgAttendanceForStudents,
@@ -57,22 +58,6 @@ import {
 
 const iconSm = 'h-3.5 w-3.5 shrink-0';
 const iconMd = 'h-4 w-4 shrink-0';
-
-function studentInitials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-function avatarColor(id: string) {
-  const hues = ['#004ac6', '#2563eb', '#0891b2', '#059669', '#7c3aed'];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return hues[Math.abs(hash) % hues.length];
-}
 
 function isAtRisk(student: Student) {
   return student.attendanceRate < 90 || student.gpa < 2.5;
@@ -146,7 +131,7 @@ function ScheduleSection({
 
       <div className={aisSchedulePanel}>
         <div className="flex min-h-0 flex-1">
-          <div className="flex w-[7.5rem] shrink-0 flex-col gap-1 border-r border-ais-card-border bg-ais-surface-container-low/40 p-3">
+          <div className="flex w-[7.5rem] shrink-0 flex-col gap-1 border-r border-border bg-muted/40 p-3">
             {dayFilters.map(({ id, label }) => {
               const active = scheduleDay === id;
               const date = scheduleDateForDay(id);
@@ -162,7 +147,7 @@ function ScheduleSection({
                   <span className="block">{label}</span>
                   <span
                     className={`mt-0.5 block text-[10px] font-medium ${
-                      active ? 'text-ais-primary/70' : 'text-ais-on-surface-variant'
+                      active ? 'text-primary/70' : 'text-muted-foreground'
                     }`}
                   >
                     {formatScheduleDate(date)}
@@ -185,7 +170,7 @@ function ScheduleSection({
                 return (
                   <div key={a.id} className={aisScheduleListRow}>
                     <div className="min-w-[5.5rem] shrink-0">
-                      <p className={`${aisLabelCaps} text-ais-primary`}>
+                      <p className={`${aisLabelCaps} text-primary`}>
                         {periodLabel(a.period, idx)}
                       </p>
                       <p className={`${aisBodySm} mt-0.5 tabular-nums`}>{a.period}</p>
@@ -201,17 +186,10 @@ function ScheduleSection({
                     </div>
                     <div className="flex shrink-0 -space-x-2">
                       {visible.map((s) => (
-                        <div
-                          key={s.id}
-                          title={s.name}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white"
-                          style={{ background: avatarColor(s.id) }}
-                        >
-                          {studentInitials(s.name)}
-                        </div>
+                        <Avatar key={s.id} name={s.name} title={s.name} size="xs" className="ring-2 ring-white rounded-full" />
                       ))}
                       {overflow > 0 && (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ais-surface-container-low text-[9px] font-bold text-ais-on-surface-variant">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-muted text-[9px] font-bold text-muted-foreground">
                           +{overflow}
                         </div>
                       )}
@@ -238,7 +216,7 @@ function SectionTitle({
 }) {
   return (
     <h3 className={`${aisDisplayMd} flex items-center gap-2 ${className}`}>
-      <Icon className="h-5 w-5 shrink-0 text-ais-primary" aria-hidden />
+      <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
       {children}
     </h3>
   );
@@ -279,7 +257,7 @@ function KpiCard({
       >
         <p
           className={`${aisKpiLabel} flex min-w-0 items-center gap-2 ${
-            accent === 'error' ? '!text-ais-error' : ''
+            accent === 'error' ? '!text-destructive' : ''
           }`}
         >
           <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -289,7 +267,7 @@ function KpiCard({
       </div>
       <div className="mt-4 flex items-end gap-2">
         <span
-          className={`${aisKpiValue} ${accent === 'error' ? 'text-ais-error' : ''}`}
+          className={`${aisKpiValue} ${accent === 'error' ? 'text-destructive' : ''}`}
         >
           {value}
         </span>
@@ -303,8 +281,9 @@ export const TeacherDashboard: React.FC = () => {
   const { students } = useApp();
 
   const roster = useMemo(() => filterTeacherStudents(students), [students]);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
 
-  const atRisk = roster.filter(isAtRisk);
+  const atRisk = roster.filter(isAtRisk).filter((s) => !dismissedAlertIds.has(s.id));
   const avgGpa = avgGpaForStudents(roster);
   const avgAtt = avgAttendanceForStudents(roster);
 
@@ -333,7 +312,7 @@ export const TeacherDashboard: React.FC = () => {
           label="Average GPA"
           value={avgGpa.toFixed(2)}
           valueIcon={
-            <TrendingUp className="h-5 w-5 text-ais-success" aria-hidden />
+            <TrendingUp className="h-5 w-5 text-success" aria-hidden />
           }
           icon={TrendingUp}
         />
@@ -372,9 +351,9 @@ export const TeacherDashboard: React.FC = () => {
                           <span className={`${aisBodySm} font-normal`}>GPA</span>
                         </span>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-sm bg-ais-surface-container-low">
+                      <div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
                         <div
-                          className="progress-bar-fill h-full rounded-sm bg-ais-primary"
+                          className="progress-bar-fill h-full rounded-sm bg-primary"
                           style={{ width: `${barWidth}%` }}
                         />
                       </div>
@@ -410,24 +389,28 @@ export const TeacherDashboard: React.FC = () => {
                       key={s.id}
                       className={`${aisActivityAlertRow} flex flex-wrap items-center justify-between gap-x-3 gap-y-1`}
                     >
-                      <p className={`${aisBodyMd} min-w-0 !text-ais-on-surface`}>
+                      <p className={`${aisBodyMd} min-w-0 !text-foreground`}>
                         <AlertCircle
-                          className="-mt-px mr-1 inline h-3.5 w-3.5 shrink-0 align-middle text-ais-error"
+                          className="-mt-px mr-1 inline h-3.5 w-3.5 shrink-0 align-middle text-destructive"
                           aria-hidden
                         />
-                        <span className="font-medium text-ais-on-surface">{s.name}</span>
-                        <span className="text-ais-on-surface-variant">
+                        <span className="font-medium text-foreground">{s.name}</span>
+                        <span className="text-muted-foreground">
                           {' '}
                           · GPA {s.gpa.toFixed(2)} · {s.attendanceRate}% att. ·{' '}
                         </span>
-                        <span className="font-medium text-ais-error">{reason}</span>
+                        <span className="font-medium text-destructive">{reason}</span>
                       </p>
                       <span className="inline-flex shrink-0 items-center gap-2">
-                        <a href={`tel:${s.parentPhone}`} className={`${aisBtnGhost} !text-ais-error`}>
+                        <a href={`tel:${s.parentPhone}`} className={`${aisBtnGhost} !text-destructive`}>
                           <Phone className="h-3 w-3" aria-hidden />
                           Call
                         </a>
-                        <button type="button" className={aisBtnGhostMuted}>
+                        <button
+                          type="button"
+                          className={aisBtnGhostMuted}
+                          onClick={() => setDismissedAlertIds((prev) => new Set(prev).add(s.id))}
+                        >
                           <X className="h-3 w-3" aria-hidden />
                           Dismiss
                         </button>
@@ -442,12 +425,7 @@ export const TeacherDashboard: React.FC = () => {
                 return (
                   <div key={s.id} className={aisActivityStudentRow}>
                     <div className="mb-2 flex items-center gap-3">
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                        style={{ background: avatarColor(s.id) }}
-                      >
-                        {studentInitials(s.name)}
-                      </div>
+                      <Avatar name={s.name} size="sm" className="shrink-0" />
                       <div className="min-w-0">
                         <p className={aisDataMd}>{s.name}</p>
                         <p className={aisBodySm}>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
@@ -10,20 +11,13 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Student } from '@/lib/mockData';
+import { DetailField } from '@/components/dashboard/shared/DetailField';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
-      <p className="text-xs font-medium text-foreground">{value ?? '—'}</p>
-    </div>
-  );
-}
-
 export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
+  const router = useRouter();
   const { students, enrollStudent, updateStudent } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
@@ -199,7 +193,11 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => openStudentView(row)}
+            onClick={() =>
+              readOnly
+                ? router.push(`/dashboard/school-head/manage-students/${row.id}`)
+                : openStudentView(row)
+            }
             className="text-[10px] h-7 px-2"
           >
             View
@@ -415,27 +413,27 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
             <div className="space-y-2.5">
               <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Academic profile</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <DetailRow label="Student ID" value={<code className="font-mono text-xxs">{detailStudent.studentId}</code>} />
-                <DetailRow label="Grade & section" value={`${detailStudent.grade} · ${detailStudent.section}`} />
-                <DetailRow label="Cumulative GPA" value={detailStudent.gpa.toFixed(2)} />
-                <DetailRow label="Attendance" value={`${detailStudent.attendanceRate}%`} />
+                <DetailField label="Student ID" value={<code className="font-mono text-xxs">{detailStudent.studentId}</code>} />
+                <DetailField label="Grade & section" value={`${detailStudent.grade} · ${detailStudent.section}`} />
+                <DetailField label="Cumulative GPA" value={detailStudent.gpa.toFixed(2)} />
+                <DetailField label="Attendance" value={`${detailStudent.attendanceRate}%`} />
               </div>
             </div>
 
             <div className="space-y-2.5">
               <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">Parent / guardian</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <DetailRow label="Guardian name" value={detailStudent.parentName} />
-                <DetailRow label="Phone" value={detailStudent.parentPhone} />
-                <DetailRow label="Email" value={detailStudent.parentEmail || '—'} />
+                <DetailField label="Guardian name" value={detailStudent.parentName} />
+                <DetailField label="Phone" value={detailStudent.parentPhone} />
+                <DetailField label="Email" value={detailStudent.parentEmail || '—'} />
               </div>
             </div>
 
             <div className="space-y-2.5">
               <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Health & emergency</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DetailRow label="Emergency contact" value={detailStudent.emergencyContact || '—'} />
-                <DetailRow label="Medical notes" value={detailStudent.medicalInfo || 'None recorded'} />
+                <DetailField label="Emergency contact" value={detailStudent.emergencyContact || '—'} />
+                <DetailField label="Medical notes" value={detailStudent.medicalInfo || 'None recorded'} />
               </div>
             </div>
 

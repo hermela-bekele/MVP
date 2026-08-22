@@ -341,8 +341,8 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
             </div>
 
             {selectedWeek && (
-              <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface-variant">
+              <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   From annual plan (editable) — weekly generation uses only these
                 </p>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -421,9 +421,9 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
             </div>
 
             {aiResult && (
-              <div className="max-h-[420px] space-y-3 overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ais-card-border bg-ais-surface-container-low/90 pb-3 backdrop-blur-sm">
-                  <span className="text-xs font-semibold text-ais-on-surface">Weekly plan preview</span>
+              <div className="max-h-[420px] space-y-3 overflow-y-auto rounded-xl border border-border bg-muted/40 p-4">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-muted/90 pb-3 backdrop-blur-sm">
+                  <span className="text-xs font-semibold text-foreground">Weekly plan preview</span>
                   <div className="flex gap-3">
                     <button
                       type="button"
@@ -436,7 +436,7 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
                     <button
                       type="button"
                       onClick={() => setAiResult(null)}
-                      className="flex items-center gap-1 text-xs text-ais-error hover:underline"
+                      className="flex items-center gap-1 text-xs text-destructive hover:underline"
                     >
                       <X className="h-3 w-3" />
                       Clear

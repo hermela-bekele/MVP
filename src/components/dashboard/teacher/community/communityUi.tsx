@@ -57,7 +57,7 @@ export function renderInlineFormatting(text: string): React.ReactNode[] {
       nodes.push(
         <code
           key={key++}
-          className="rounded-md bg-ais-surface-container-low px-1 py-0.5 font-mono text-[0.85em] text-ais-primary"
+          className="rounded-md bg-muted px-1 py-0.5 font-mono text-[0.85em] text-primary"
         >
           {token.slice(1, -1)}
         </code>,
@@ -71,8 +71,8 @@ export function renderInlineFormatting(text: string): React.ReactNode[] {
 
 /** Soft AIS-tinted avatar backgrounds (matches portal badges, not Discord neon). */
 const PALETTE = [
-  'bg-ais-primary',
-  'bg-ais-primary-container',
+  'bg-primary',
+  'bg-accent',
   'bg-teal-600',
   'bg-sky-600',
   'bg-indigo-600',

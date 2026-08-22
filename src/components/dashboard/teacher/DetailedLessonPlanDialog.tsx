@@ -294,7 +294,7 @@ export const DetailedLessonPlanDialog: React.FC<DetailedLessonPlanDialogProps> =
             type="button"
             onClick={handleGenerate}
             disabled={generating || (topicRequired && !mainTopic.trim())}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Sparkles className={`h-4 w-4 ${generating ? 'animate-pulse' : ''}`} />
             {generating ? 'Generating from textbook…' : 'Generate with AI'}
@@ -302,16 +302,16 @@ export const DetailedLessonPlanDialog: React.FC<DetailedLessonPlanDialogProps> =
         </div>
 
         {aiResult && (
-          <div className="space-y-3 max-h-[500px] overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border sticky top-0 bg-ais-surface-container-low/40 backdrop-blur-sm z-10">
-              <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto rounded-xl border border-border bg-muted/40 p-4">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border sticky top-0 bg-muted/40 backdrop-blur-sm z-10">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 AI Generated {planType.charAt(0).toUpperCase() + planType.slice(1)} Lesson Plan Preview
               </label>
               <button
                 type="button"
                 onClick={() => setAiResult(null)}
-                className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                className="text-xs text-destructive hover:underline flex items-center gap-1"
               >
                 <X className="h-3 w-3" />
                 Clear & Regenerate
@@ -332,7 +332,7 @@ export const DetailedLessonPlanDialog: React.FC<DetailedLessonPlanDialogProps> =
             type="button"
             onClick={handleSave}
             disabled={!aiResult}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-4 w-4" aria-hidden />
             Save Lesson Plan

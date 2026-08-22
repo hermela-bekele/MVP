@@ -15,7 +15,7 @@ const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 export const HrPerformance: React.FC = () => {
-  const { performanceReviews, hrEmployees, addPerformanceReview, updatePerformanceReview } = useApp();
+  const { performanceReviews, hrEmployees, addPerformanceReview, updatePerformanceReview, currentUser } = useApp();
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [selected, setSelected] = useState<PerformanceReview | null>(null);
 
@@ -25,7 +25,7 @@ export const HrPerformance: React.FC = () => {
   const [goals, setGoals] = useState('');
   const [strengths, setStrengths] = useState('');
   const [improvements, setImprovements] = useState('');
-  const [reviewerName] = useState('Sara Bekele');
+  const reviewerName = currentUser?.displayName ?? 'HR Officer';
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();

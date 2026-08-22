@@ -415,18 +415,18 @@ export const TeacherGradebook: React.FC = () => {
         <div className="overflow-x-auto">
           <AisTable>
             <thead>
-              <tr className="bg-ais-surface-container-low">
-                <AisTh className="sticky left-0 z-10 bg-ais-surface-container-low min-w-[160px]">
+              <tr className="bg-muted">
+                <AisTh className="sticky left-0 z-10 bg-muted min-w-[160px]">
                   Student
                 </AisTh>
                 {columns.map((col) => (
                   <AisTh key={col.key} className="min-w-[100px] text-center whitespace-nowrap">
                     <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                         {col.entryType}
                       </span>
                       <span>{col.title}</span>
-                      <span className="text-[10px] font-normal text-ais-on-surface-variant">
+                      <span className="text-[10px] font-normal text-muted-foreground">
                         /{col.maxScore}
                       </span>
                     </div>
@@ -448,7 +448,7 @@ export const TeacherGradebook: React.FC = () => {
                   const termAvg = weightedTermAverage(entries);
                   return (
                     <AisTr key={std.id}>
-                      <AisTd className="sticky left-0 z-10 bg-white dark:bg-ais-surface font-semibold">
+                      <AisTd className="sticky left-0 z-10 bg-white dark:bg-card font-semibold">
                         <p>
                           {std.name}
                           {classSection === 'All' ? (
@@ -464,7 +464,7 @@ export const TeacherGradebook: React.FC = () => {
                             <AisTd key={col.key} className="text-center">
                               <button
                                 type="button"
-                                className="rounded-lg px-2 py-1 text-xs text-ais-on-surface-variant hover:bg-ais-row-hover hover:text-ais-primary"
+                                className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-primary"
                                 onClick={() => openAdd(std.id, col)}
                                 title="Add result"
                               >
@@ -479,7 +479,7 @@ export const TeacherGradebook: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setDetailEntry(cell)}
-                              className={`inline-flex min-w-[3.25rem] flex-col items-center rounded-xl px-2 py-1.5 text-xs font-bold tabular-nums transition-colors hover:ring-2 hover:ring-ais-primary/30 ${
+                              className={`inline-flex min-w-[3.25rem] flex-col items-center rounded-xl px-2 py-1.5 text-xs font-bold tabular-nums transition-colors hover:ring-2 hover:ring-primary/30 ${
                                 pct >= 70
                                   ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
                                   : pct >= 50
@@ -529,8 +529,8 @@ export const TeacherGradebook: React.FC = () => {
             aria-label="Close detail"
             onClick={() => setDetailEntry(null)}
           />
-          <aside className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-ais-card-border bg-white shadow-2xl dark:bg-ais-surface animate-fade-in">
-            <div className="flex items-start justify-between gap-3 border-b border-ais-card-border p-4">
+          <aside className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-2xl dark:bg-card animate-fade-in">
+            <div className="flex items-start justify-between gap-3 border-b border-border p-4">
               <div>
                 <p className={aisLabelCaps}>Result detail</p>
                 <h3 className={aisHeadlineSm}>{detailStudent?.name ?? 'Student'}</h3>
@@ -540,7 +540,7 @@ export const TeacherGradebook: React.FC = () => {
               </div>
               <button
                 type="button"
-                className="rounded-full p-2 hover:bg-ais-row-hover"
+                className="rounded-full p-2 hover:bg-muted"
                 onClick={() => setDetailEntry(null)}
                 aria-label="Close"
               >
@@ -561,14 +561,14 @@ export const TeacherGradebook: React.FC = () => {
                   <span className="text-sm tabular-nums">{detailEntry.weight}%</span>
                 </div>
                 {detailEntry.remarks && (
-                  <p className={`${aisBodySm} mt-3 border-t border-ais-card-border pt-3`}>
+                  <p className={`${aisBodySm} mt-3 border-t border-border pt-3`}>
                     {detailEntry.remarks}
                   </p>
                 )}
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ais-on-surface-variant">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                   Question results
                 </p>
                 {(detailEntry.questionResults?.length ?? 0) === 0 ? (
@@ -600,7 +600,7 @@ export const TeacherGradebook: React.FC = () => {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold">
                             Question {q.questionNumber}{' '}
-                            <span className="font-normal text-ais-on-surface-variant">
+                            <span className="font-normal text-muted-foreground">
                               — {q.correct ? 'Correct' : 'Incorrect'}
                             </span>
                           </p>
@@ -615,13 +615,13 @@ export const TeacherGradebook: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex gap-2 border-t border-ais-card-border p-4">
+            <div className="flex gap-2 border-t border-border p-4">
               <AisBtnSecondary className="flex-1 !justify-center" onClick={() => openEdit(detailEntry)}>
                 Edit result
               </AisBtnSecondary>
               <button
                 type="button"
-                className="rounded-2xl border border-ais-error/30 px-4 py-2 text-xs font-bold text-ais-error hover:bg-ais-error/10"
+                className="rounded-2xl border border-destructive/30 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
                 onClick={() => {
                   deleteStudentGradeEntry(detailEntry.id);
                   setDetailEntry(null);
@@ -743,13 +743,13 @@ export const TeacherGradebook: React.FC = () => {
                   setMaxScore(String(questionMarks.length));
                 }
               }}
-              className="rounded border-ais-card-border"
+              className="rounded border-border"
             />
             Mark each question correct / incorrect
           </label>
 
           {useQuestionMarks ? (
-            <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+            <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
               {!linkedAsm && (
                 <div className="space-y-1 max-w-[140px]">
                   <label className={aisFormLabel}>Number of questions</label>

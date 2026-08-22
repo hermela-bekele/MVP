@@ -75,7 +75,7 @@ export const MoeMessagesPanel: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
+        <div className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border bg-white dark:bg-card">
           <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" style={{ maxHeight: 420 }}>
             {messages.map((msg) => {
               const mine = msg.from === 'school-head';
@@ -84,17 +84,17 @@ export const MoeMessagesPanel: React.FC = () => {
                   <div
                     className={`max-w-[85%] px-3.5 py-2.5 text-sm shadow-sm ${
                       mine
-                        ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
-                        : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
+                        ? 'rounded-2xl rounded-br-md bg-primary/12 text-foreground ring-1 ring-primary/15'
+                        : 'rounded-2xl rounded-bl-md bg-muted text-foreground ring-1 ring-border'
                     }`}
                   >
                     {!mine && (
-                      <p className="mb-0.5 text-[11px] font-semibold text-ais-on-surface-variant">
+                      <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
                         {msg.senderName}
                       </p>
                     )}
                     <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-                    <p className="mt-1 text-right text-[10px] text-ais-on-surface-variant/80">
+                    <p className="mt-1 text-right text-[10px] text-muted-foreground/80">
                       {timeLabel(msg.createdAt)}
                     </p>
                   </div>
@@ -103,7 +103,7 @@ export const MoeMessagesPanel: React.FC = () => {
             })}
             <div ref={bottomRef} />
           </div>
-          <div className="flex gap-2 border-t border-ais-card-border p-3">
+          <div className="flex gap-2 border-t border-border p-3">
             <input
               className={`${aisInput} flex-1`}
               placeholder="Write to the MOE regional desk…"

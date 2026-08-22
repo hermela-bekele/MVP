@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { InvoiceDetailDialog } from '@/components/dashboard/billing/InvoiceDetailDialog';
 import { usePortalTab } from '@/lib/usePortalTab';
@@ -24,6 +25,7 @@ export default function FinancePortalPage() {
   const session = readStoredSession();
   const { activeTab: tab, setActiveTab: setTab } = usePortalTab('finance', 'invoices');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
   const [amount, setAmount] = useState('');
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,10 +51,12 @@ export default function FinancePortalPage() {
     Promise.all([
       api.listInvoices({ schoolId: session?.schoolId || 'sch-1' }),
       api.financeAgingReport(session?.schoolId || 'sch-1').catch(() => null),
-    ]).then(([inv, ag]) => {
-      setInvoices(inv);
-      if (ag) setAging(ag as typeof aging);
-    });
+    ])
+      .then(([inv, ag]) => {
+        setInvoices(inv);
+        if (ag) setAging(ag as typeof aging);
+      })
+      .finally(() => setInvoicesLoading(false));
 
   useEffect(() => {
     refresh();
@@ -179,7 +183,13 @@ export default function FinancePortalPage() {
           />
         }
       >
-        {invoices.length ? (
+        {invoicesLoading ? (
+          <div className="space-y-3 p-1">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} variant="card" height={110} />
+            ))}
+          </div>
+        ) : invoices.length ? (
           <div className="space-y-3 p-1">
             {invoices.map((inv) => (
               <div

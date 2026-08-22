@@ -4,17 +4,21 @@ import React from 'react';
 
 export interface PageHeaderProps {
   title: string;
-  /** @deprecated Ignored — page helper blurbs removed for a cleaner UI */
   subtitle?: string;
   eyebrow?: string;
   actions?: React.ReactNode;
   subtitleActions?: React.ReactNode;
-  /** Educator portal — large hero header without bottom rule */
+  /**
+   * 'default' — standard page header with a bottom rule (border-b), used by most
+   * list/detail pages. 'portal' — large hero header, no bottom rule, for portal
+   * landing/tab pages that want a softer, more spacious top-of-page treatment.
+   */
   variant?: 'default' | 'portal';
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
+  subtitle,
   eyebrow,
   actions,
   subtitleActions,
@@ -32,19 +36,22 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     return (
       <div className="mb-6 flex w-full flex-col gap-4 animate-fade-in">
         {eyebrow && (
-          <p className="text-[11px] font-bold uppercase tracking-widest text-ais-primary flex items-center gap-2 animate-fade-in-down">
-            <span className="inline-block h-px w-6 bg-gradient-to-r from-ais-primary to-transparent" />
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-2 animate-fade-in-down">
+            <span className="inline-block h-px w-6 bg-gradient-to-r from-primary to-transparent" />
             {eyebrow}
           </p>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold leading-tight tracking-tight bg-gradient-to-r from-ais-on-surface to-ais-on-surface-variant bg-clip-text text-transparent">
+          <h1 className="text-xl sm:text-2xl font-bold leading-tight tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             {title}
           </h1>
           {hasActions && (
             <div className="flex shrink-0 flex-nowrap items-center gap-2">{headerActions}</div>
           )}
         </div>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        )}
       </div>
     );
   }
@@ -63,6 +70,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
           {title}
         </h1>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        )}
       </div>
       {hasActions && (
         <div className="flex shrink-0 flex-nowrap items-center gap-2">{headerActions}</div>

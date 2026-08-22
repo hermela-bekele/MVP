@@ -221,7 +221,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                 <span className={getNotifTypeClass(not.type)}>{not.type}</span>
                 <span className={`${aisBodySm} shrink-0 tabular-nums`}>{not.timestamp}</span>
                 {!not.read && (
-                  <span className="inline-flex h-2 w-2 rounded-full bg-ais-primary" title="Unread" aria-hidden />
+                  <span className="inline-flex h-2 w-2 rounded-full bg-primary" title="Unread" aria-hidden />
                 )}
               </div>
 
@@ -293,7 +293,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
               className="w-full text-left cursor-pointer"
               onClick={() => handleNotifNavigate(not, footerActions[0] ?? { tab: 'dashboard' })}
             >
-              <p className="text-base font-bold leading-snug text-ais-on-surface">{not.title}</p>
+              <p className="text-base font-bold leading-snug text-foreground">{not.title}</p>
               <p className={`${aisBodyMd} mt-1.5 leading-relaxed`}>{not.description}</p>
             </button>
 
@@ -367,10 +367,10 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
           className={aisNavbarSearch}
         >
           <div className="flex items-center space-x-2 min-w-0">
-            <svg className="w-4 h-4 text-ais-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span className="truncate group-hover:text-ais-primary transition-colors duration-200">
+            <span className="truncate group-hover:text-primary transition-colors duration-200">
               Search portals, actions (Ctrl+K)...
             </span>
           </div>
@@ -412,7 +412,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                     <button
                       type="button"
                       onClick={clearNotifications}
-                      className="text-[10px] font-bold text-ais-primary hover:text-ais-primary-container cursor-pointer"
+                      className="text-[10px] font-bold text-primary hover:text-accent cursor-pointer"
                     >
                       Clear all
                     </button>
@@ -439,7 +439,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                     >
                       {label}
                       {count > 0 && (
-                        <span className="ml-1 tabular-nums text-ais-on-surface-variant">
+                        <span className="ml-1 tabular-nums text-muted-foreground">
                           ({count})
                         </span>
                       )}
@@ -500,7 +500,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
               <span className={aisNavbarProfileName}>{profileName}</span>
               <span className={aisNavbarProfileRole}>{profileRole}</span>
             </div>
-            <svg className="w-3.5 h-3.5 text-ais-on-surface-variant hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -513,11 +513,11 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
                 aria-hidden
               />
               <div className={`${aisNavbarDropdown} right-0 mt-2 w-52 p-2`}>
-                <div className="px-3 py-2 border-b border-ais-card-border">
-                  <p className="text-xs font-bold text-ais-on-surface truncate">
+                <div className="px-3 py-2 border-b border-border">
+                  <p className="text-xs font-bold text-foreground truncate">
                     {primarySchool?.name ?? profileName}
                   </p>
-                  <p className="text-[10px] text-ais-on-surface-variant truncate">
+                  <p className="text-[10px] text-muted-foreground truncate">
                     {primarySchool?.region ?? currentUser?.email ?? profileRole}
                   </p>
                 </div>

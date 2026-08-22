@@ -22,7 +22,9 @@ function describeAuditEntry(entry: AuditLogEntry): string {
 }
 
 export const RegistrarDashboard: React.FC = () => {
-  const { students, registrationApplications } = useApp();
+  const { students, registrationApplications, schools, currentUser } = useApp();
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
   const session = readStoredSession();
   const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
 
@@ -50,7 +52,7 @@ export const RegistrarDashboard: React.FC = () => {
         <KpiWidget
           label="Active Students"
           value={activeStudents.length}
-          hint={`Currently enrolled at Bole Secondary · ${currentAcademicYear()}`}
+          hint={`Currently enrolled at ${schoolName} · ${currentAcademicYear()}`}
           tone="inverse"
         />
         <KpiWidget

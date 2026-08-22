@@ -197,7 +197,7 @@ export function TeacherPracticeBank() {
       <AisPanel title="Question bank" description="Teacher-authored items for practice sets" flush>
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Use</AisTh>
               <AisTh>Grade</AisTh>
               <AisTh>Subject</AisTh>
@@ -232,7 +232,7 @@ export function TeacherPracticeBank() {
       <AisPanel title="Practice sets" description="Sets visible to students when published" flush>
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Title</AisTh>
               <AisTh>Subject</AisTh>
               <AisTh>Grade</AisTh>

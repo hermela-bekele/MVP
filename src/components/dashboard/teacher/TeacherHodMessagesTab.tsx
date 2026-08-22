@@ -84,11 +84,11 @@ export function TeacherHodMessagesTab() {
   };
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-240px)] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
-      <div className="shrink-0 border-b border-ais-card-border px-4 py-3 sm:px-5">
+    <div className="flex h-full min-h-[calc(100vh-240px)] flex-col overflow-hidden rounded-2xl border border-border bg-white dark:bg-card">
+      <div className="shrink-0 border-b border-border px-4 py-3 sm:px-5">
         <p className={aisLabelCaps}>HoD messaging</p>
         <h2 className={`${aisHeadlineSm} mt-1`}>Chat with your department head</h2>
-        <p className="mt-0.5 text-sm font-semibold text-ais-on-surface">
+        <p className="mt-0.5 text-sm font-semibold text-foreground">
           {teacher?.name ?? currentUser?.displayName ?? 'You'} ↔ Department Head
         </p>
       </div>
@@ -96,7 +96,7 @@ export function TeacherHodMessagesTab() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
           {thread.length === 0 ? (
-            <p className="py-10 text-center text-sm text-ais-on-surface-variant">
+            <p className="py-10 text-center text-sm text-muted-foreground">
               No messages yet. Say hello or share a classroom challenge.
             </p>
           ) : (
@@ -113,17 +113,17 @@ export function TeacherHodMessagesTab() {
                   <div
                     className={`max-w-[min(85%,36rem)] px-3.5 py-2.5 text-sm shadow-sm ${
                       mine
-                        ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
-                        : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
+                        ? 'rounded-2xl rounded-br-md bg-primary/12 text-foreground ring-1 ring-primary/15'
+                        : 'rounded-2xl rounded-bl-md bg-muted text-foreground ring-1 ring-border'
                     }`}
                   >
                     {!mine && (
-                      <p className="mb-0.5 text-[11px] font-semibold text-ais-on-surface-variant">
+                      <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
                         {msg.senderName}
                       </p>
                     )}
                     <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-                    <p className="mt-1 text-right text-[10px] text-ais-on-surface-variant/80">
+                    <p className="mt-1 text-right text-[10px] text-muted-foreground/80">
                       {timeLabel(msg.createdAt)}
                     </p>
                   </div>
@@ -134,7 +134,7 @@ export function TeacherHodMessagesTab() {
           <div ref={bottomRef} />
         </div>
 
-        <div className="flex shrink-0 gap-2 border-t border-ais-card-border p-3 sm:p-4">
+        <div className="flex shrink-0 gap-2 border-t border-border p-3 sm:p-4">
           <input
             className={`${aisInput} flex-1`}
             placeholder="Message your HoD…"

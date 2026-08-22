@@ -37,7 +37,7 @@ export const StudentFeedbackTab: React.FC = () => {
         ) : (
           <AisTable>
             <thead>
-              <tr className="bg-ais-surface-container-low">
+              <tr className="bg-muted">
                 <AisTh>Teacher</AisTh>
                 <AisTh>Subject</AisTh>
                 <AisTh>Comment</AisTh>

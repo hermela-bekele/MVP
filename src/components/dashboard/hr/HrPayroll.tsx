@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
+import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
@@ -12,7 +13,17 @@ import { hrStatusBadgeVariant, formatCurrency } from '@/lib/hrPortal';
 
 export const HrPayroll: React.FC = () => {
   const { payrollRecords, hrEmployees, processPayroll, updatePayrollStatus } = useApp();
-  const [selectedMonth, setSelectedMonth] = useState('2026-06');
+  // Default to the most recent month actually on record, not a fixed literal that goes stale.
+  const latestPayrollMonth = useMemo(
+    () => payrollRecords.reduce((max, p) => (p.month > max ? p.month : max), ''),
+    [payrollRecords]
+  );
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [monthTouched, setMonthTouched] = useState(false);
+
+  useEffect(() => {
+    if (!monthTouched && latestPayrollMonth) setSelectedMonth(latestPayrollMonth);
+  }, [monthTouched, latestPayrollMonth]);
 
   const monthRecords = useMemo(
     () => payrollRecords.filter((p) => p.month === selectedMonth),
@@ -83,20 +94,11 @@ export const HrPayroll: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border border-border/60 bg-muted/20">
-          <p className="text-[10px] text-muted-foreground uppercase">Total Net Payroll</p>
-          <p className="text-xl font-bold text-foreground">{formatCurrency(totalNet)}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-border/60 bg-muted/20">
-          <p className="text-[10px] text-muted-foreground uppercase">Records</p>
-          <p className="text-xl font-bold text-foreground">{monthRecords.length}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-border/60 bg-muted/20">
-          <p className="text-[10px] text-muted-foreground uppercase">Paid</p>
-          <p className="text-xl font-bold text-primary">{paidCount} / {monthRecords.length}</p>
-        </div>
-      </div>
+      <KpiGrid className="sm:grid-cols-3 xl:grid-cols-3">
+        <KpiWidget label="Total Net Payroll" value={formatCurrency(totalNet)} />
+        <KpiWidget label="Records" value={monthRecords.length} />
+        <KpiWidget label="Paid" value={`${paidCount} / ${monthRecords.length}`} tone="emphasis" />
+      </KpiGrid>
 
       <TablePanel
         title="Payroll Management"
@@ -107,7 +109,10 @@ export const HrPayroll: React.FC = () => {
               type="month"
               className="h-9 px-3 bg-muted/40 border border-border rounded-md text-xs"
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              onChange={(e) => {
+                setMonthTouched(true);
+                setSelectedMonth(e.target.value);
+              }}
             />
             {unprocessedEmployees.length > 0 && (
               <Button variant="organic" size="sm" className="text-xs h-9" onClick={handleProcessAll}>

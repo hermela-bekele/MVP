@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
+import { uploadFile } from '@/lib/api';
 import { usePortalTab } from '@/lib/usePortalTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 export default function MoePortalPage() {
@@ -49,6 +50,25 @@ export default function MoePortalPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReportOutput, setAiReportOutput] = useState<string | null>(null);
 
+  // Syllabus upload state
+  const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
+  const syllabusFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSyllabusFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingSyllabus(true);
+    uploadFile(file)
+      .then(() => {
+        addNotification('Syllabus Uploaded', `${file.name} was uploaded successfully.`, 'success');
+      })
+      .catch(() => {
+        addNotification('Upload Failed', `${file.name} could not be uploaded — try again.`, 'alert');
+      })
+      .finally(() => setUploadingSyllabus(false));
+  };
+
   const handleRegisterSchool = (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolName || !schoolPrincipal || !schoolEmail) return;
@@ -74,23 +94,36 @@ export default function MoePortalPage() {
   const handleGenerateAIReport = () => {
     setGeneratingReport(true);
     setTimeout(() => {
-      setAiReportOutput(`
-[Ethiopian MOE AI Predictive Synthesis – May 2026]
+      const worstPassRateRegion = [...regionalPerformance].sort((a, b) => a.passRate - b.passRate)[0];
+      const worstShortageRegion = [...regionalPerformance].sort((a, b) => b.teachersShortage - a.teachersShortage)[0];
+      const worstSubject = [...subjectPerformance].sort((a, b) => a.average - b.average)[0];
+      const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
 
-1. Regional Dropout Forecasting:
-   - High alert identified in Sidama Region secondary nodes. Current predictive dropout risk sits at 14.2% due to agricultural seasonal migration.
-   - Recommended Action: Launch targeted evening study sections and localized attendance tracking.
+      const lines = [
+        `[Ethiopian MOE Analytics Synthesis – generated ${generatedAt}]`,
+        '',
+        '1. Regional Pass Rate:',
+        worstPassRateRegion
+          ? `   - Lowest pass rate is ${worstPassRateRegion.name} at ${worstPassRateRegion.passRate}% across ${worstPassRateRegion.schools} registered school(s).`
+          : '   - No regional student data available yet.',
+        '',
+        '2. Teacher Shortage:',
+        worstShortageRegion && worstShortageRegion.teachersShortage > 0
+          ? `   - Largest projected teacher shortage is ${worstShortageRegion.name} at ${worstShortageRegion.teachersShortage}% of the expected staffing level.`
+          : '   - No significant teacher shortage detected in current data.',
+        '',
+        '3. Subject Performance:',
+        worstSubject
+          ? `   - ${worstSubject.subject} has the lowest national average at ${worstSubject.average}% (status: ${worstSubject.status}).`
+          : '   - No graded assessment data available yet.',
+        '',
+        `Based on ${nationalStats.schoolsCount} school(s), ${nationalStats.teachersCount} teacher(s), and ${nationalStats.studentsCount} student(s) currently on record.`,
+      ];
 
-2. Teacher Shortage Predictions:
-   - STEM teacher vacancies in Tigray region are predicted to expand by 8.5% over the next two terms.
-   - Mathematics teacher ratios require immediate optimization in Hawassa zones.
-
-3. Curriculum coverage gaps:
-   - Grade 11 Physics coverage is lagging by 18% nationwide, attributed to practical lab duration constraints.
-      `);
-      addNotification('AI Analytics Report Ready', 'Predicted national dropout and teacher shortage analysis is now available.', 'success');
+      setAiReportOutput(lines.join('\n'));
+      addNotification('Analytics Report Ready', 'Regional pass-rate, staffing, and subject performance summary is now available.', 'success');
       setGeneratingReport(false);
-    }, 1500);
+    }, 800);
   };
 
   const portalMeta: Record<string, { title: string; subtitle?: string; eyebrow?: string }> = {
@@ -123,6 +156,16 @@ export default function MoePortalPage() {
 
   const meta = portalMeta[activeTab] ?? portalMeta.dashboard;
 
+  // Region options for the filter — derived from actual schools on record, so a school
+  // registered in any region can always be filtered, not just the five originally seeded ones.
+  const regionFilterOptions = React.useMemo(() => {
+    const distinctRegions = Array.from(new Set(schools.map((sch) => sch.region))).sort();
+    const regions = distinctRegions.length > 0
+      ? distinctRegions
+      : ['Addis Ababa', 'Oromia', 'Amhara', 'Tigray', 'Sidama', 'SNNPR'];
+    return [{ value: 'All', label: 'All Regions' }, ...regions.map((region) => ({ value: region, label: region }))];
+  }, [schools]);
+
   // Filtered schools
   const filteredSchools = schools.filter(sch => {
     const matchesSearch = sch.name.toLowerCase().includes(searchSchool.toLowerCase()) || sch.code.toLowerCase().includes(searchSchool.toLowerCase());
@@ -144,9 +187,9 @@ export default function MoePortalPage() {
             + Register School
           </Button>
         ) : (
-          <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-semibold border border-primary/20">
+          <Badge variant="success" badgeStyle="subtle" size="md">
             Federal Access Active
-          </span>
+          </Badge>
         )
       }
     >
@@ -203,15 +246,13 @@ export default function MoePortalPage() {
                               <p className="text-xs font-bold text-foreground">{sub.riskIndex}%</p>
                             </div>
                             
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                              sub.status === 'Critical' 
-                                ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                                : sub.status === 'Warning' 
-                                ? 'bg-muted text-muted-foreground border border-border' 
-                                : 'bg-primary/10 text-primary border border-primary/20'
-                            }`}>
+                            <Badge
+                              variant={sub.status === 'Critical' ? 'danger' : sub.status === 'Warning' ? 'warning' : 'success'}
+                              badgeStyle="subtle"
+                              size="sm"
+                            >
                               {sub.status}
-                            </span>
+                            </Badge>
                           </div>
                         </div>
                       ))}
@@ -250,14 +291,7 @@ export default function MoePortalPage() {
                 <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                   <div className="w-36">
                     <Select
-                      options={[
-                        { value: 'All', label: 'All Regions' },
-                        { value: 'Addis Ababa', label: 'Addis Ababa' },
-                        { value: 'Sidama', label: 'Sidama' },
-                        { value: 'Amhara', label: 'Amhara' },
-                        { value: 'Tigray', label: 'Tigray' },
-                        { value: 'Oromia', label: 'Oromia' },
-                      ]}
+                      options={regionFilterOptions}
                       value={filterRegion}
                       onChange={(e) => setFilterRegion(e.target.value)}
                     />
@@ -330,13 +364,15 @@ export default function MoePortalPage() {
                             </Badge>
                           </td>
                           <td>
-                            <button
+                            <Button
                               type="button"
+                              size="sm"
+                              variant="outline"
                               onClick={() => toggleSchoolStatus(sch.id)}
-                              className="text-xs font-semibold text-foreground hover:text-primary cursor-pointer underline-offset-2 hover:underline"
+                              className="h-8 text-xs"
                             >
                               {sch.status === 'Active' ? 'Suspend' : 'Activate'}
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       ))
@@ -467,19 +503,33 @@ export default function MoePortalPage() {
                     <span className="text-[10px] bg-muted text-foreground border border-border px-3 py-1 rounded-full font-bold">
                       Academic Year: 2026 / 2027
                     </span>
-                    <Button variant="outline" className="text-xxs h-8 cursor-pointer">+ Upload Syllabus PDF</Button>
+                    <input
+                      ref={syllabusFileInputRef}
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={handleSyllabusFileSelected}
+                    />
+                    <Button
+                      variant="outline"
+                      className="text-xxs h-8 cursor-pointer"
+                      loading={uploadingSyllabus}
+                      onClick={() => syllabusFileInputRef.current?.click()}
+                    >
+                      + Upload Syllabus PDF
+                    </Button>
                   </div>
                 }
               >
                     <table className="eskooly-table">
                       <thead>
                         <tr>
-                          <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">Stream</th>
-                          <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">Grade</th>
-                          <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">Core Subjects</th>
-                          <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">Syllabus Code</th>
-                          <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">Active Version</th>
-                          <th className="p-3 uppercase text-xxs text-muted-foreground font-semibold">Status</th>
+                          <th>Stream</th>
+                          <th>Grade</th>
+                          <th>Core Subjects</th>
+                          <th>Syllabus Code</th>
+                          <th>Active Version</th>
+                          <th>Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/40 text-muted-foreground">
@@ -489,7 +539,7 @@ export default function MoePortalPage() {
                           <td className="p-3 text-foreground">Biology, Chemistry, Math, Physics, English</td>
                           <td className="p-3 font-mono">ETH-NS-09-V3</td>
                           <td className="p-3">v3.4.1 (May 2026)</td>
-                          <td className="p-3"><span className="text-foreground font-bold">✓ Approved</span></td>
+                          <td className="p-3"><Badge variant="success" badgeStyle="subtle" size="sm">Approved</Badge></td>
                         </tr>
                         <tr>
                           <td className="p-3 font-bold text-foreground">Natural Science</td>
@@ -497,7 +547,7 @@ export default function MoePortalPage() {
                           <td className="p-3 text-foreground">Biology, Chemistry, Math, Physics, English</td>
                           <td className="p-3 font-mono">ETH-NS-10-V2</td>
                           <td className="p-3">v2.1.2 (Dec 2025)</td>
-                          <td className="p-3"><span className="text-foreground font-bold">✓ Approved</span></td>
+                          <td className="p-3"><Badge variant="success" badgeStyle="subtle" size="sm">Approved</Badge></td>
                         </tr>
                         <tr>
                           <td className="p-3 font-bold text-foreground">Social Science</td>
@@ -505,7 +555,7 @@ export default function MoePortalPage() {
                           <td className="p-3 text-foreground">History, Geography, Economics, Civics, Amharic</td>
                           <td className="p-3 font-mono">ETH-SS-11-V4</td>
                           <td className="p-3">v4.0.0 (New Draft)</td>
-                          <td className="p-3"><span className="text-muted-foreground font-bold">⏳ In Review</span></td>
+                          <td className="p-3"><Badge variant="warning" badgeStyle="subtle" size="sm">In Review</Badge></td>
                         </tr>
                       </tbody>
                     </table>
@@ -524,11 +574,9 @@ export default function MoePortalPage() {
                   <Card key={tr.id} hoverGlow>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          tr.status === 'Active' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                        }`}>
+                        <Badge variant={tr.status === 'Active' ? 'success' : 'neutral'} badgeStyle="subtle" size="sm">
                           {tr.status}
-                        </span>
+                        </Badge>
                         <span className="text-[9px] text-muted-foreground">{tr.duration}</span>
                       </div>
                       <CardTitle className="text-sm font-bold text-foreground mt-2 leading-snug">{tr.title}</CardTitle>
@@ -584,7 +632,7 @@ export default function MoePortalPage() {
                   </Button>
 
                   {aiReportOutput && (
-                    <div className="p-5 bg-slate-900/60 border border-slate-800 text-slate-300 rounded-lg text-xxs font-mono leading-relaxed text-left whitespace-pre-wrap shadow-inner glass">
+                    <div className="p-5 bg-muted border border-border text-foreground rounded-lg text-xxs font-mono leading-relaxed text-left whitespace-pre-wrap shadow-inner">
                       {aiReportOutput}
                     </div>
                   )}

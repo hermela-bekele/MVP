@@ -324,7 +324,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
       >
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Title</AisTh>
               <AisTh>Type</AisTh>
               <AisTh>Grade / Subject</AisTh>
@@ -346,7 +346,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   <AisTd className="font-semibold text-primary hover:underline">
                     {a.title}
                     {a.createdByRole === 'department-head' ? (
-                      <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-ais-primary">
+                      <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-primary">
                         HoD
                       </span>
                     ) : null}
@@ -425,7 +425,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 onChange={(e) => setBaselineTiming(e.target.value as BaselineSemesterTiming)}
               />
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
+                <label className="text-xs font-semibold text-foreground uppercase tracking-wide">
                   Focus area (optional)
                 </label>
                 <input
@@ -480,14 +480,14 @@ export const TeacherAssessmentsTab: React.FC = () => {
                     value={selectedSessionScope}
                     onChange={(e) => setSelectedSessionScope(e.target.value)}
                   />
-                  <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-3 text-xs text-ais-on-surface-variant space-y-2">
-                    <p className="font-semibold text-ais-on-surface">{selectedPlan.title}</p>
+                  <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-2">
+                    <p className="font-semibold text-foreground">{selectedPlan.title}</p>
                     <p>
                       {selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions} sessions
                     </p>
                     {selectedSession && (
                       <div className="space-y-1 rounded-lg bg-white/60 p-2 dark:bg-black/20">
-                        <p className="font-semibold text-ais-on-surface">
+                        <p className="font-semibold text-foreground">
                           Quiz topic: {selectedSession.topic}
                         </p>
                         {selectedSession.subtopic?.trim() && (
@@ -509,7 +509,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </div>
           ) : !isBaseline ? (
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Topic</label>
+              <label className="text-xs font-semibold text-foreground uppercase tracking-wide">Topic</label>
               <input
                 className={aisInput}
                 required={uploadMode === 'create' && sourceType === 'topic'}
@@ -552,7 +552,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
           {uploadMode === 'create' && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
+                <label className="text-xs font-semibold text-foreground uppercase tracking-wide">
                   Number of questions ({questionLimits.min}–{questionLimits.max})
                 </label>
                 <input
@@ -587,7 +587,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
           {/* Title Input (auto-populated) */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Assessment Title</label>
+            <label className="text-xs font-semibold text-foreground uppercase tracking-wide">Assessment Title</label>
             <input
               className={aisInput}
               required
@@ -643,7 +643,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 type="button"
                 onClick={handleGenerateWithAI}
                 disabled={isGenerating || !canGenerate}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-8 py-3 text-base font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-8 py-3 text-base font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg"
               >
                 <Sparkles className="h-4 w-4 animate-pulse" />
                 {isGenerating ? 'Generating with AI...' : isBaseline ? 'Generate baseline with AI' : 'Generate with AI'}
@@ -653,9 +653,9 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
           {/* Preview Generated Content */}
           {showPreview && generatedContent && (
-            <div className="space-y-2 max-h-96 overflow-y-auto border border-ais-card-border rounded-xl p-4 bg-ais-surface-container-low/40">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
-                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
+            <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-xl p-4 bg-muted/40">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated {isBaseline ? 'Baseline Assessment' : 'Assessment'} Preview
                 </label>
@@ -663,7 +663,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={handlePrintPreview}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden />
                     Print
@@ -672,7 +672,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                     type="button"
                     onClick={handleDownloadPreviewPDF}
                     disabled={isGeneratingPDF}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline disabled:opacity-50"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden />
                     {isGeneratingPDF ? 'Generating…' : 'Download PDF'}
@@ -683,7 +683,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                       setShowPreview(false);
                       setGeneratedContent('');
                     }}
-                    className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                    className="text-xs text-destructive hover:underline flex items-center gap-1"
                   >
                     Clear & Regenerate
                   </button>
@@ -696,7 +696,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </div>
           )}
 
-          {uploadMode === 'upload' && <input type="file" className="text-xs text-ais-on-surface-variant" onChange={() => {}} />}
+          {uploadMode === 'upload' && <input type="file" className="text-xs text-muted-foreground" onChange={() => {}} />}
 
           <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
             <AisBtnSecondary type="button" onClick={resetModal}>
@@ -705,7 +705,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             {canSubmit && (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ais-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-ais-primary-container shadow-md hover:shadow-lg"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg"
               >
                 {type === 'Quiz' || type === 'Baseline'
                   ? 'Save & make available for grades'

@@ -9,6 +9,7 @@ import { ContentCard } from '@/components/dashboard/ContentCard';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { computeSubjectPerformance } from '@/lib/analytics';
+import { Badge } from '@/components/ui/badge';
 import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
 import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { departmentIdForSubject } from '@/lib/departmentHead';
@@ -22,12 +23,7 @@ import { AcademicCalendarPanel } from './AcademicCalendarPanel';
 import { ResourcesPanel } from './ResourcesPanel';
 import { TrainingPanel } from './TrainingPanel';
 
-const COVERAGE_DATA = [
-  { grade: 'Grade 9', stream: 'Natural Science', coverage: 78.4, status: 'On Track' },
-  { grade: 'Grade 10', stream: 'Natural Science', coverage: 82.1, status: 'On Track' },
-  { grade: 'Grade 11', stream: 'Natural Science', coverage: 64.8, status: 'Behind Schedule' },
-  { grade: 'Grade 12', stream: 'Natural Science', coverage: 91.2, status: 'Completed' },
-];
+const COVERAGE_TARGET = 80;
 
 export default function HeadOfAcademicsPortalApp() {
   const pathname = usePathname();
@@ -81,6 +77,20 @@ export default function HeadOfAcademicsPortalApp() {
       }))
       .sort((a, b) => a.gradeLevel.localeCompare(b.gradeLevel));
   }, [studentGradeEntries]);
+
+  // Real per-grade completion index, derived from actual recorded grade entries rather than
+  // a fixed demo array — one aggregate score per grade level so it moves as real data comes in.
+  const gradeCoverage = useMemo(() => {
+    return gradeSubjectAverages.map((grp) => {
+      const avg = grp.subjects.length > 0
+        ? grp.subjects.reduce((sum, s) => sum + s.average, 0) / grp.subjects.length
+        : 0;
+      const coverage = parseFloat(avg.toFixed(1));
+      const status: 'Completed' | 'On Track' | 'Behind Schedule' =
+        coverage >= 90 ? 'Completed' : coverage >= COVERAGE_TARGET ? 'On Track' : 'Behind Schedule';
+      return { gradeLevel: grp.gradeLevel, coverage, status };
+    });
+  }, [gradeSubjectAverages]);
 
   const curriculumResources = useMemo(
     () => trainingMaterials.filter((m) => !m.departmentId),
@@ -170,16 +180,19 @@ export default function HeadOfAcademicsPortalApp() {
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
-                  {COVERAGE_DATA.map((cov) => (
+                  {gradeCoverage.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No grade entries recorded yet.</p>
+                  )}
+                  {gradeCoverage.map((cov) => (
                     <MetricProgressRow
-                      key={cov.grade}
-                      label={`${cov.grade} (${cov.stream})`}
+                      key={cov.gradeLevel}
+                      label={cov.gradeLevel}
                       headerExtra={
                         <span className="text-xs font-medium text-muted-foreground">{cov.status}</span>
                       }
                       value={cov.coverage}
                       barClassName={cov.status === 'Behind Schedule' ? 'bg-primary/50' : 'bg-primary'}
-                      targetPercent={80}
+                      targetPercent={COVERAGE_TARGET}
                     />
                   ))}
                 </div>
@@ -193,25 +206,25 @@ export default function HeadOfAcademicsPortalApp() {
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
+                  {subjectPerformance.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No graded assessment data available yet.</p>
+                  )}
                   {subjectPerformance.map((sub) => (
-                    <div key={sub.subject} className="flex justify-between items-center p-3 bg-muted/40 border border-border/40 rounded-lg">
-                      <div className="text-left">
-                        <p className="text-xs font-semibold text-foreground">{sub.subject}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Coverage target: 80%</p>
-                      </div>
-
-                      <div className="flex items-center space-x-3">
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold text-muted-foreground">Class average</p>
-                          <p className="text-xs font-bold text-foreground">{sub.average}%</p>
-                        </div>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                          sub.status === 'Critical' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
-                        }`}>
-                          {sub.average > 70 ? 'On Track' : 'Slowing'}
-                        </span>
-                      </div>
-                    </div>
+                    <MetricProgressRow
+                      key={sub.subject}
+                      label={sub.subject}
+                      headerExtra={
+                        <Badge
+                          variant={sub.status === 'Critical' ? 'danger' : sub.status === 'Warning' ? 'warning' : 'success'}
+                          badgeStyle="subtle"
+                          size="sm"
+                        >
+                          {sub.status === 'Critical' ? 'Critical' : sub.status === 'Warning' ? 'Slowing' : 'On Track'}
+                        </Badge>
+                      }
+                      value={sub.average}
+                      targetPercent={COVERAGE_TARGET}
+                    />
                   ))}
                 </div>
               </CardContent>

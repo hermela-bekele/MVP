@@ -8,7 +8,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
-// import { generateAICalendarTimetable } from '@/lib/ai'; // TODO: Implement this function
 
 // Decomposed Sub-components
 import { OverviewDashboard } from '@/components/dashboard/school-head/OverviewDashboard';
@@ -26,6 +25,12 @@ import { CommunicationModule } from '@/components/dashboard/communication/Commun
 import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
 import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
+import { SchoolHeadAnnouncements } from '@/components/dashboard/school-head/SchoolHeadAnnouncements';
+import { SchoolHeadCalendar } from '@/components/dashboard/school-head/SchoolHeadCalendar';
+import { SchoolBillingSettings } from '@/components/dashboard/school-head/SchoolBillingSettings';
+import { PermissionsAdminPanel } from '@/components/dashboard/school-head/PermissionsAdminPanel';
+import { ApplicationFormBuilder } from '@/components/dashboard/school-head/ApplicationFormBuilder';
+import { LessonPlanReview } from '@/components/dashboard/school-head/LessonPlanReview';
 
 export default function SchoolHeadPortalPage() {
   const {
@@ -35,7 +40,15 @@ export default function SchoolHeadPortalPage() {
     addTrainingMaterial,
     attendance,
     teachers,
+    schools,
+    currentUser,
   } = useApp();
+
+  // Resolve the logged-in school head's actual school from session; fall back to the
+  // first school on record only for demo/unlinked accounts.
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const currentSchoolId = currentSchool?.id;
+  const schoolName = currentSchool?.name ?? 'your school';
 
   const pathname = usePathname();
   const router = useRouter();
@@ -71,6 +84,12 @@ export default function SchoolHeadPortalPage() {
       case 'finance-overview': return [...base, { label: 'Finance Overview' }];
       case 'moe-updates': return [...base, { label: 'MOE Updates & Compliance' }];
       case 'moe-messages': return [...base, { label: 'Message MOE' }];
+      case 'lesson-plan-review': return [...base, { label: 'Lesson Plan Review' }];
+      case 'announcements': return [...base, { label: 'Announcements' }];
+      case 'school-calendar': return [...base, { label: 'School Calendar' }];
+      case 'admissions-form-builder': return [...base, { label: 'Application Form Builder' }];
+      case 'billing-settings': return [...base, { label: 'Billing Settings' }];
+      case 'permissions-admin': return [...base, { label: 'Permissions' }];
       case 'teachers-development': return [...base, { label: 'Professional Development' }];
       case 'communication': return [...base, { label: 'Communication' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
@@ -151,6 +170,30 @@ export default function SchoolHeadPortalPage() {
       title: 'Message MOE',
       subtitle: 'Direct communication channel with the Ministry of Education regional desk.',
     },
+    'lesson-plan-review': {
+      title: 'Lesson Plan Review',
+      subtitle: 'Review lesson plans submitted for school-head approval.',
+    },
+    announcements: {
+      title: 'Announcements',
+      subtitle: 'Post and manage school-wide announcements.',
+    },
+    'school-calendar': {
+      title: 'School Calendar',
+      subtitle: 'Manage academic events and published dates for this school.',
+    },
+    'admissions-form-builder': {
+      title: 'Application Form Builder',
+      subtitle: 'Configure the fields collected on the admissions application form.',
+    },
+    'billing-settings': {
+      title: 'Billing Settings',
+      subtitle: 'Configure fee schedules and billing preferences for this school.',
+    },
+    'permissions-admin': {
+      title: 'Permissions',
+      subtitle: 'Manage staff role permissions across the portal.',
+    },
     'teachers-development': {
       title: 'Professional Development',
       subtitle: 'Monitor MOE training participation rates and upload pedagogy instructional guidelines.',
@@ -198,7 +241,7 @@ export default function SchoolHeadPortalPage() {
       setActiveTab={setActiveTab}
       breadcrumbs={getBreadcrumbs()}
       title={meta.title}
-      eyebrow="Bole Secondary School"
+      eyebrow={schoolName}
       subtitle={meta.subtitle}
       actions={shellActions}
       showPageHeader={activeTab !== 'dashboard'}
@@ -330,7 +373,7 @@ export default function SchoolHeadPortalPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40 text-muted-foreground">
-                          {teachers.filter(t => t.schoolId === 'sch-1').map((teacher) => (
+                          {teachers.filter(t => t.schoolId === currentSchoolId).map((teacher) => (
                             <tr key={teacher.id} className="hover:bg-muted/10">
                               <td className="p-3 text-foreground font-bold">{teacher.name}</td>
                               <td className="p-3">{teacher.phone}</td>
@@ -357,6 +400,14 @@ export default function SchoolHeadPortalPage() {
           {/* Regulatory Engine: MOE updates & communication */}
           {activeTab === 'moe-updates' && <MoeUpdatesPanel />}
           {activeTab === 'moe-messages' && <MoeMessagesPanel />}
+          {activeTab === 'lesson-plan-review' && <LessonPlanReview />}
+
+          {/* Announcements & calendar */}
+          {activeTab === 'announcements' && <SchoolHeadAnnouncements />}
+          {activeTab === 'school-calendar' && <SchoolHeadCalendar />}
+          {activeTab === 'admissions-form-builder' && <ApplicationFormBuilder />}
+          {activeTab === 'billing-settings' && <SchoolBillingSettings />}
+          {activeTab === 'permissions-admin' && <PermissionsAdminPanel />}
 
           {/* 11. Teacher Development */}
           {activeTab === 'teachers-development' && (
@@ -467,7 +518,7 @@ export default function SchoolHeadPortalPage() {
               ) : (
                 <TablePanel
                   title="Faculty Enrollment Course Progress"
-                  description="Track certification status of educational practitioners in Bole Community School"
+                  description={`Track certification status of educational practitioners at ${schoolName}`}
                 >
                       <table className="eskooly-table">
                         <thead>
@@ -479,7 +530,7 @@ export default function SchoolHeadPortalPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/40 text-muted-foreground">
-                          {teachers.filter(t => t.schoolId === 'sch-1').map((teacher) => (
+                          {teachers.filter(t => t.schoolId === currentSchoolId).map((teacher) => (
                             <tr key={teacher.id} className="hover:bg-muted/10">
                               <td className="p-3 text-foreground font-bold">{teacher.name}</td>
                               <td className="p-3 font-semibold text-primary">{teacher.subjects[0] ?? 'General'} Instructor</td>
@@ -513,7 +564,7 @@ export default function SchoolHeadPortalPage() {
               <PortalProfileCard
                 roleLabel="School Head"
                 fields={[
-                  { label: 'School', value: 'Bole Community School' },
+                  { label: 'School', value: schoolName },
                   { label: 'Leadership track', value: 'ELEP' },
                   { label: 'Departments overseen', value: departments.length },
                 ]}

@@ -213,13 +213,13 @@ export function CommunityChannelsPanel() {
     return (
       <div className="space-y-6">
         {loadingCommunities ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
+          <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading your communities…
           </div>
         ) : communities.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-ais-card-border bg-ais-surface-container-low/30 py-16 text-center">
-            <Users className="mx-auto h-8 w-8 text-ais-on-surface-variant" />
+          <div className="rounded-2xl border border-dashed border-border bg-muted/30 py-16 text-center">
+            <Users className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className={`${aisBodySm} mt-2`}>You aren&apos;t a member of any community yet.</p>
           </div>
         ) : (
@@ -232,7 +232,7 @@ export function CommunityChannelsPanel() {
                     key={c.id}
                     type="button"
                     onClick={() => setActiveCommunityId(c.id)}
-                    className="group flex items-start gap-3 rounded-2xl border border-ais-card-border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-ais-primary/40 hover:shadow-md dark:bg-ais-surface"
+                    className="group flex items-start gap-3 rounded-2xl border border-border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md dark:bg-card"
                   >
                     <div
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white ${avatarColor(c.id)}`}
@@ -240,14 +240,14 @@ export function CommunityChannelsPanel() {
                       {communityInitials(c.name)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-ais-on-surface group-hover:text-ais-primary">
+                      <p className="truncate text-sm font-bold text-foreground group-hover:text-primary">
                         {c.name}
                       </p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-ais-on-surface-variant">
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                         {c.description || 'No description yet.'}
                       </p>
                       {(c.unreadCount ?? 0) > 0 && (
-                        <span className="mt-2 inline-flex items-center rounded-full bg-ais-primary/10 px-2 py-0.5 text-[10px] font-bold text-ais-primary">
+                        <span className="mt-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                           {c.unreadCount} new
                         </span>
                       )}
@@ -266,23 +266,23 @@ export function CommunityChannelsPanel() {
   const announcementChannels = channels.filter((c) => c.type === 'announcement');
 
   return (
-    <div className="flex h-[min(68vh,680px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
-      <div className="flex shrink-0 items-center gap-3 border-b border-ais-card-border px-4 py-3">
+    <div className="flex h-[min(68vh,680px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-border bg-white dark:bg-card">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
         <button
           type="button"
           onClick={() => setActiveCommunityId(null)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover hover:text-ais-on-surface"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Communities
         </button>
-        <div className="h-4 w-px bg-ais-card-border" />
+        <div className="h-4 w-px bg-border" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-ais-on-surface">{activeCommunity?.name}</p>
+          <p className="truncate text-sm font-bold text-foreground">{activeCommunity?.name}</p>
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-ais-card-border px-3 py-2">
+      <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-border px-3 py-2">
         {announcementChannels.map((ch) => (
           <ChannelTab key={ch.id} channel={ch} active={ch.id === activeChannelId} icon={<Volume2 className="h-3.5 w-3.5" />} onClick={() => setActiveChannelId(ch.id)} />
         ))}
@@ -290,7 +290,7 @@ export function CommunityChannelsPanel() {
           <ChannelTab key={ch.id} channel={ch} active={ch.id === activeChannelId} icon={<Hash className="h-3.5 w-3.5" />} onClick={() => setActiveChannelId(ch.id)} />
         ))}
         {channels.length === 0 && (
-          <p className="px-1 py-1 text-xs text-ais-on-surface-variant">No channels yet.</p>
+          <p className="px-1 py-1 text-xs text-muted-foreground">No channels yet.</p>
         )}
       </div>
 
@@ -298,20 +298,20 @@ export function CommunityChannelsPanel() {
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 overflow-y-auto">
             {loadingMessages && (
-              <div className="flex items-center justify-center gap-2 py-16 text-sm text-ais-on-surface-variant">
+              <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading messages…
               </div>
             )}
             {!loadingMessages && error && (
-              <p className="px-4 py-8 text-center text-sm text-ais-error">{error}</p>
+              <p className="px-4 py-8 text-center text-sm text-destructive">{error}</p>
             )}
             {!loadingMessages && !error && messages.length === 0 && (
               <div className="px-6 py-16 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ais-surface-container-low text-ais-primary">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-primary">
                   <Hash className="h-6 w-6" />
                 </div>
-                <p className="mt-3 text-base font-semibold text-ais-on-surface">
+                <p className="mt-3 text-base font-semibold text-foreground">
                   Welcome to #{activeChannel?.name ?? 'channel'}
                 </p>
                 <p className={`${aisBodySm} mx-auto mt-1 max-w-sm`}>
@@ -351,7 +351,7 @@ export function CommunityChannelsPanel() {
         </div>
 
         {activeThreadId && activeCommunityId ? (
-          <div className="absolute inset-0 z-20 bg-white md:static md:z-auto md:w-80 md:shrink-0 md:border-l md:border-ais-card-border">
+          <div className="absolute inset-0 z-20 bg-white md:static md:z-auto md:w-80 md:shrink-0 md:border-l md:border-border">
             <ThreadPanel
               threadId={activeThreadId}
               communityId={activeCommunityId}
@@ -384,8 +384,8 @@ function ChannelTab({
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
-          ? 'bg-ais-primary text-white'
-          : 'text-ais-on-surface-variant hover:bg-ais-row-hover hover:text-ais-on-surface'
+          ? 'bg-primary text-white'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       }`}
     >
       {icon}

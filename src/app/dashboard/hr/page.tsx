@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { HrDashboard } from '@/components/dashboard/hr/HrDashboard';
 import { HrEmployeeDirectory } from '@/components/dashboard/hr/HrEmployeeDirectory';
 import { HrLeaveManagement } from '@/components/dashboard/hr/HrLeaveManagement';
@@ -23,7 +25,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   employees: {
     title: 'Employee Directory',
-    subtitle: 'Complete staff records for teaching and non-teaching personnel.',
+    subtitle: 'Manage staff records for teaching and non-teaching personnel.',
   },
   leave: {
     title: 'Leave Management',
@@ -65,6 +67,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 
 export default function HrPortalPage() {
   const { activeTab, setActiveTab } = usePortalTab('hr');
+  const { schools, currentUser } = useApp();
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
+  const hrOfficerName = currentUser?.displayName ?? 'HR Officer';
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -106,9 +112,9 @@ export default function HrPortalPage() {
         + Post Job
       </Button>
     ) : (
-      <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        Sara Bekele · HR Officer
-      </span>
+      <Badge variant="primary" badgeStyle="subtle" size="md">
+        {hrOfficerName} · HR Officer
+      </Badge>
     );
 
   return (
@@ -117,9 +123,18 @@ export default function HrPortalPage() {
       setActiveTab={setActiveTab}
       title={meta.title}
       subtitle={meta.subtitle}
-      eyebrow="Bole Secondary · HR Portal"
+      eyebrow={`${schoolName} · HR Portal`}
       actions={shellActions}
-      showPageHeader={activeTab !== 'dashboard'}
+      showPageHeader
+      breadcrumbs={
+        activeTab === 'employees'
+          ? [
+              { label: 'HR Portal', onClick: () => setActiveTab('dashboard') },
+              { label: 'Employees' },
+              { label: 'Employee Directory' },
+            ]
+          : undefined
+      }
     >
       {activeTab === 'dashboard' && <HrDashboard />}
       {activeTab === 'employees' && <HrEmployeeDirectory />}
@@ -137,7 +152,7 @@ export default function HrPortalPage() {
             roleLabel="HR Officer"
             fields={[
               { label: 'Department', value: 'Human Resources' },
-              { label: 'Scope', value: 'Bole Community School — all staff' },
+              { label: 'Scope', value: `${schoolName} — all staff` },
             ]}
           />
         </div>
