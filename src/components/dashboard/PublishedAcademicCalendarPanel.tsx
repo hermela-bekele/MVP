@@ -21,13 +21,20 @@ export const PublishedAcademicCalendarPanel: React.FC<PublishedAcademicCalendarP
   const { academicCalendars } = useApp();
   const bounds = useMemo(() => getMoeCalendarBounds(), []);
   const published = useMemo(
-    () => academicCalendars.filter((c) => c.status === 'Published' && c.schoolId === schoolId),
+    () => {
+      // First try to find a calendar for this specific school
+      const schoolCalendars = academicCalendars.filter(
+        (c) => c.status === 'Published' && c.schoolId === schoolId
+      );
+      if (schoolCalendars.length > 0) {
+        return schoolCalendars;
+      }
+      // Fallback: show any published calendar
+      return academicCalendars.filter((c) => c.status === 'Published');
+    },
     [academicCalendars, schoolId],
   );
-  const cal =
-    published[0] ??
-    academicCalendars.find((c) => c.status === 'Published') ??
-    null;
+  const cal = published[0] ?? null;
 
   if (!cal) {
     return (

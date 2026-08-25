@@ -6,7 +6,7 @@ import { FilePlus, Upload, Sparkles, Printer, Download } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS, resolveTeacherProfile } from '@/lib/teacherPortal';
+import { filterTeacherAssessments, filterTeacherLessonPlans, GRADE_OPTIONS, STUDENT_LEVEL_OPTIONS, SUBJECT_OPTIONS, resolveTeacherProfile } from '@/lib/teacherPortal';
 import {
   generateAssessmentWithAI,
   generateBaselineAssessmentWithAI,
@@ -21,6 +21,7 @@ import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRend
 import {
   countQuestionsInAssessmentMarkdown,
   isGeneratedAssessmentBlob,
+  parseAssessmentQuestions,
   wrapAssessmentMarkdown,
 } from '@/lib/assessmentMarkdown';
 import type { Assessment } from '@/lib/mockData';
@@ -42,6 +43,7 @@ import {
   AisTr,
   approvalBadgeVariant,
   aisInput,
+  aisFormLabel,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 
 const QUESTION_FORMAT_OPTIONS = [
@@ -64,6 +66,19 @@ export const TeacherAssessmentsTab: React.FC = () => {
     subjects: teacherProfile.subjects,
   });
   const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'All' | Assessment['type']>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | Assessment['status']>('All');
+  const filteredAssessments = useMemo(() => {
+    return myAssessments.filter((a) => {
+      if (typeFilter !== 'All' && a.type !== typeFilter) return false;
+      if (statusFilter !== 'All' && a.status !== statusFilter) return false;
+      const q = searchQuery.trim().toLowerCase();
+      if (q && !a.title.toLowerCase().includes(q) && !a.subject.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessments, teacherId, typeFilter, statusFilter, searchQuery]);
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState<Assessment['type']>('Quiz');
@@ -73,13 +88,15 @@ export const TeacherAssessmentsTab: React.FC = () => {
   const [uploadMode, setUploadMode] = useState<'create' | 'upload'>('create');
   const [sourceType, setSourceType] = useState<'topic' | 'lesson_plan'>('topic');
   const [selectedLessonPlanId, setSelectedLessonPlanId] = useState('');
-  const [selectedSessionScope, setSelectedSessionScope] = useState('');
+  const [selectedSessionScopes, setSelectedSessionScopes] = useState<string[]>([]);
   const [topic, setTopic] = useState('');
   const [numQuestions, setNumQuestions] = useState(
     () => questionLimitsForAssessmentType('Quiz').default,
   );
   const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('Mixed');
   const [assessmentStudentLevel, setAssessmentStudentLevel] = useState('differentiated');
+  const [useMlcMix, setUseMlcMix] = useState(false);
+  const [mlcPercent, setMlcPercent] = useState(70);
   const [baselineTiming, setBaselineTiming] = useState<BaselineSemesterTiming>('semester_1_start');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
@@ -98,29 +115,57 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
   const selectedPlan = teacherPlans.find((p) => p.id === selectedLessonPlanId);
   const sessionOptions = useMemo(
-    () => (selectedPlan ? getWeeklyPlanSessionTopicOptions(selectedPlan) : []),
+    () =>
+      (selectedPlan ? getWeeklyPlanSessionTopicOptions(selectedPlan) : []).filter(
+        (o) => o.value !== 'all',
+      ),
     [selectedPlan],
   );
-  const selectedSession = sessionOptions.find((o) => o.value === selectedSessionScope);
+  const selectedSessions = sessionOptions.filter((o) =>
+    selectedSessionScopes.includes(o.value),
+  );
+  // Merged topic/context across every selected session, used as generation input.
+  const combinedSession = useMemo(() => {
+    if (selectedSessions.length === 0) return undefined;
+    if (selectedSessions.length === 1) return selectedSessions[0];
+    return {
+      value: selectedSessions.map((s) => s.value).join(','),
+      label: `${selectedSessions.length} sessions selected`,
+      topic: selectedSessions.map((s) => s.topic).join('; '),
+      subtopic: [...new Set(selectedSessions.map((s) => s.subtopic).filter(Boolean))].join('; '),
+      context: [
+        `Focus: ${selectedSessions.length} selected sessions from this weekly lesson plan`,
+        ...selectedSessions.map((s) => s.context),
+      ].join('\n\n'),
+    };
+  }, [selectedSessions]);
 
   useEffect(() => {
-    setSelectedSessionScope('');
+    setSelectedSessionScopes([]);
     if (sourceType === 'lesson_plan' && selectedPlan) {
       setGrade(selectedPlan.grade);
       setSubject(selectedPlan.subject);
-      const options = getWeeklyPlanSessionTopicOptions(selectedPlan);
-      const firstSession = options.find((o) => o.value !== 'all') ?? options[0];
+      const options = getWeeklyPlanSessionTopicOptions(selectedPlan).filter(
+        (o) => o.value !== 'all',
+      );
+      const firstSession = options[0];
       if (firstSession) {
-        setSelectedSessionScope(firstSession.value);
+        setSelectedSessionScopes([firstSession.value]);
         setTopic(firstSession.topic);
       }
     }
   }, [sourceType, selectedPlan]);
 
   useEffect(() => {
-    if (sourceType !== 'lesson_plan' || !selectedSession) return;
-    setTopic(selectedSession.topic);
-  }, [sourceType, selectedSession]);
+    if (sourceType !== 'lesson_plan' || !combinedSession) return;
+    setTopic(combinedSession.topic);
+  }, [sourceType, combinedSession]);
+
+  const toggleSessionScope = (value: string) => {
+    setSelectedSessionScopes((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  };
 
   const isBaseline = type === 'Baseline';
 
@@ -130,14 +175,14 @@ export const TeacherAssessmentsTab: React.FC = () => {
       setTitle(`Baseline — ${grade} ${subject} (${baselineTimingLabel(baselineTiming, grade)})`);
       return;
     }
-    if (sourceType === 'lesson_plan' && selectedPlan && selectedSession && type) {
-      const pages = selectedSession.subtopic?.trim();
+    if (sourceType === 'lesson_plan' && selectedPlan && combinedSession && type) {
+      const pages = combinedSession.subtopic?.trim();
       const pageSuffix = pages && /p\.|pp\.|\d/.test(pages) ? ` (${pages})` : '';
-      setTitle(`${type} — ${selectedSession.topic}${pageSuffix}`);
+      setTitle(`${type} — ${combinedSession.topic}${pageSuffix}`);
     } else if (topic && type) {
       setTitle(`${type} on ${topic}`);
     }
-  }, [topic, type, sourceType, selectedPlan, selectedSession, isBaseline, grade, subject, baselineTiming]);
+  }, [topic, type, sourceType, selectedPlan, combinedSession, isBaseline, grade, subject, baselineTiming]);
 
   const handleGenerateWithAI = async () => {
     if (isBaseline) {
@@ -152,6 +197,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
           numQuestions,
           questionFormat,
           assessmentStudentLevel,
+          useMlcMix ? mlcPercent : undefined,
         );
         setGeneratedContent(content);
         setShowPreview(true);
@@ -172,20 +218,20 @@ export const TeacherAssessmentsTab: React.FC = () => {
       alert('Please select a lesson plan first');
       return;
     }
-    if (sourceType === 'lesson_plan' && !selectedSession) {
-      alert('Please select a session from the lesson plan');
+    if (sourceType === 'lesson_plan' && selectedSessionScopes.length === 0) {
+      alert('Please select at least one session from the lesson plan');
       return;
     }
 
-    const pages = selectedSession?.subtopic?.trim() || '';
+    const pages = combinedSession?.subtopic?.trim() || '';
     const pageHint = pages && /p\.|pp\.|\d/.test(pages) ? ` (textbook ${pages})` : '';
     const effectiveTopic =
-      sourceType === 'lesson_plan' && selectedSession
-        ? `${selectedSession.topic}${pageHint}`
+      sourceType === 'lesson_plan' && combinedSession
+        ? `${combinedSession.topic}${pageHint}`
         : topic.trim();
     const lessonPlanContext =
-      sourceType === 'lesson_plan' && selectedSession
-        ? selectedSession.context
+      sourceType === 'lesson_plan' && combinedSession
+        ? combinedSession.context
         : undefined;
     
     setIsGenerating(true);
@@ -201,6 +247,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
           questionFormat,
           lessonPlanContext,
           assessmentStudentLevel,
+          useMlcMix ? mlcPercent : undefined,
         ),
         assessmentType: type,
         questionFormat,
@@ -224,6 +271,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
     if (!title) return;
     if (uploadMode === 'create' && !generatedContent) return;
 
+    const parsedQuestions = generatedContent ? parseAssessmentQuestions(generatedContent) : null;
+
     createAssessment({
       title,
       type,
@@ -233,6 +282,8 @@ export const TeacherAssessmentsTab: React.FC = () => {
       questions:
         uploadMode === 'upload'
           ? [{ id: 1, question: 'Uploaded assessment file — see attachment in school records.', type: 'File', answer: 'N/A' }]
+          : parsedQuestions && parsedQuestions.length > 0
+          ? parsedQuestions
           : generatedContent
           ? [{ id: 1, question: generatedContent, type: questionFormat, answer: 'See assessment content' }]
           : [
@@ -246,7 +297,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setTopic('');
     setSourceType('topic');
     setSelectedLessonPlanId('');
-    setSelectedSessionScope('');
+    setSelectedSessionScopes([]);
     setNumQuestions(questionLimitsForAssessmentType('Quiz').default);
     setQuestionFormat('Mixed');
     setAssessmentStudentLevel('differentiated');
@@ -263,7 +314,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     setTopic('');
     setSourceType('topic');
     setSelectedLessonPlanId('');
-    setSelectedSessionScope('');
+    setSelectedSessionScopes([]);
     setNumQuestions(questionLimitsForAssessmentType('Quiz').default);
     setQuestionFormat('Mixed');
     setAssessmentStudentLevel('differentiated');
@@ -274,7 +325,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
     ? true
     : sourceType === 'topic'
       ? !!topic.trim()
-      : !!selectedLessonPlanId && !!selectedSessionScope;
+      : !!selectedLessonPlanId && selectedSessionScopes.length > 0;
 
   const canSubmit =
     uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
@@ -322,9 +373,46 @@ export const TeacherAssessmentsTab: React.FC = () => {
           </>
         }
       >
+        <div className="grid grid-cols-1 gap-3 p-4 pb-0 sm:grid-cols-3">
+          <input
+            type="search"
+            className={aisInput}
+            placeholder="Search by title or subject..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Select
+            variant="ais"
+            label=""
+            options={[
+              { value: 'All', label: 'All types' },
+              { value: 'Quiz', label: 'Quiz' },
+              { value: 'Mid Exam', label: 'Mid Exam' },
+              { value: 'Final Exam', label: 'Final Exam' },
+              { value: 'Assignment', label: 'Assignment' },
+              { value: 'Practical', label: 'Practical' },
+              { value: 'Baseline', label: 'Baseline' },
+            ]}
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+          />
+          <Select
+            variant="ais"
+            label=""
+            options={[
+              { value: 'All', label: 'All statuses' },
+              { value: 'Draft', label: 'Draft' },
+              { value: 'Pending Dept Head', label: 'Pending Dept Head' },
+              { value: 'Approved', label: 'Approved' },
+              { value: 'Rejected', label: 'Rejected' },
+            ]}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          />
+        </div>
         <AisTable>
           <thead>
-            <tr className="bg-muted">
+            <tr className="bg-ais-surface-container-low">
               <AisTh>Title</AisTh>
               <AisTh>Type</AisTh>
               <AisTh>Grade / Subject</AisTh>
@@ -334,10 +422,10 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {myAssessments.length === 0 ? (
-              <AisEmptyRow colSpan={6} message="No assessments created yet." />
+            {filteredAssessments.length === 0 ? (
+              <AisEmptyRow colSpan={6} message="No assessments match this filter." />
             ) : (
-              myAssessments.map((a) => (
+              filteredAssessments.map((a) => (
                 <AisTr
                   key={a.id}
                   className="cursor-pointer"
@@ -346,7 +434,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   <AisTd className="font-semibold text-primary hover:underline">
                     {a.title}
                     {a.createdByRole === 'department-head' ? (
-                      <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-ais-primary">
                         HoD
                       </span>
                     ) : null}
@@ -392,7 +480,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 setSourceType(next);
                 if (next === 'topic') {
                   setSelectedLessonPlanId('');
-                  setSelectedSessionScope('');
+                  setSelectedSessionScopes([]);
                 } else {
                   setTopic('');
                 }
@@ -425,7 +513,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 onChange={(e) => setBaselineTiming(e.target.value as BaselineSemesterTiming)}
               />
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
                   Focus area (optional)
                 </label>
                 <input
@@ -461,37 +549,75 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 value={selectedLessonPlanId}
                 onChange={(e) => {
                   setSelectedLessonPlanId(e.target.value);
-                  setSelectedSessionScope('');
+                  setSelectedSessionScopes([]);
                 }}
               />
               {selectedPlan && (
                 <>
-                  <Select
-                    variant="ais"
-                    label="Session"
-                    options={
-                      sessionOptions.length === 0
-                        ? [{ value: '', label: 'No sessions in this plan' }]
-                        : sessionOptions.map((o) => ({
-                            value: o.value,
-                            label: o.label,
-                          }))
-                    }
-                    value={selectedSessionScope}
-                    onChange={(e) => setSelectedSessionScope(e.target.value)}
-                  />
-                  <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-2">
-                    <p className="font-semibold text-foreground">{selectedPlan.title}</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className={aisFormLabel}>Session(s)</label>
+                      {sessionOptions.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-ais-primary hover:underline"
+                          onClick={() =>
+                            setSelectedSessionScopes((prev) =>
+                              prev.length === sessionOptions.length
+                                ? []
+                                : sessionOptions.map((o) => o.value),
+                            )
+                          }
+                        >
+                          {selectedSessionScopes.length === sessionOptions.length
+                            ? 'Clear all'
+                            : 'Select all'}
+                        </button>
+                      )}
+                    </div>
+                    {sessionOptions.length === 0 ? (
+                      <p className="text-xs text-ais-on-surface-variant">No sessions in this plan</p>
+                    ) : (
+                      <div
+                        className="max-h-44 overflow-y-auto rounded-xl border border-ais-card-border bg-white dark:bg-ais-surface"
+                        role="listbox"
+                        aria-multiselectable="true"
+                        aria-label="Sessions"
+                      >
+                        {sessionOptions.map((o) => {
+                          const on = selectedSessionScopes.includes(o.value);
+                          return (
+                            <label
+                              key={o.value}
+                              className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-ais-row-hover"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                onChange={() => toggleSessionScope(o.value)}
+                                className="h-3.5 w-3.5 rounded border-ais-card-border accent-ais-primary"
+                              />
+                              <span className={on ? 'font-medium text-ais-on-surface' : 'text-ais-on-surface-variant'}>
+                                {o.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-3 text-xs text-ais-on-surface-variant space-y-2">
+                    <p className="font-semibold text-ais-on-surface">{selectedPlan.title}</p>
                     <p>
                       {selectedPlan.grade} · {selectedPlan.subject} · {selectedPlan.sessions} sessions
                     </p>
-                    {selectedSession && (
+                    {combinedSession && (
                       <div className="space-y-1 rounded-lg bg-white/60 p-2 dark:bg-black/20">
-                        <p className="font-semibold text-foreground">
-                          Quiz topic: {selectedSession.topic}
+                        <p className="font-semibold text-ais-on-surface">
+                          Quiz topic: {combinedSession.topic}
                         </p>
-                        {selectedSession.subtopic?.trim() && (
-                          <p>Textbook: {selectedSession.subtopic}</p>
+                        {combinedSession.subtopic?.trim() && (
+                          <p>Textbook: {combinedSession.subtopic}</p>
                         )}
                       </div>
                     )}
@@ -509,7 +635,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </div>
           ) : !isBaseline ? (
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-foreground uppercase tracking-wide">Topic</label>
+              <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Topic</label>
               <input
                 className={aisInput}
                 required={uploadMode === 'create' && sourceType === 'topic'}
@@ -535,7 +661,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   if (next === 'Baseline') {
                     setSourceType('topic');
                     setSelectedLessonPlanId('');
-                    setSelectedSessionScope('');
+                    setSelectedSessionScopes([]);
                   }
                 }}
               />
@@ -552,7 +678,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
           {uploadMode === 'create' && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
                   Number of questions ({questionLimits.min}–{questionLimits.max})
                 </label>
                 <input
@@ -585,9 +711,43 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </div>
           )}
 
+          {uploadMode === 'create' && (
+            <div className="space-y-2 rounded-lg border border-ais-card-border p-3">
+              <label className="flex items-center gap-2 text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
+                <input
+                  type="checkbox"
+                  checked={useMlcMix}
+                  onChange={(e) => setUseMlcMix(e.target.checked)}
+                />
+                Set MLC vs. advanced mix
+              </label>
+              {useMlcMix && (
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={mlcPercent}
+                    onChange={(e) => setMlcPercent(Number(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="w-40 shrink-0 text-xs text-ais-on-surface-variant">
+                    {mlcPercent}% MLC (minimum competency) · {100 - mlcPercent}% advanced
+                  </span>
+                </div>
+              )}
+              <p className="text-[11px] text-ais-on-surface-variant">
+                Leave off to generate questions across the full range as before. Turn on to
+                control exactly how many questions test only the official Minimum Learning
+                Competencies vs. advanced/enrichment content.
+              </p>
+            </div>
+          )}
+
           {/* Title Input (auto-populated) */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-foreground uppercase tracking-wide">Assessment Title</label>
+            <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Assessment Title</label>
             <input
               className={aisInput}
               required
@@ -618,12 +778,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             <Select
               variant="ais"
               label="Subject"
-              options={[
-                { value: 'Mathematics', label: 'Mathematics' },
-                { value: 'Biology', label: 'Biology' },
-                { value: 'Chemistry', label: 'Chemistry' },
-                { value: 'Physics', label: 'Physics' },
-              ]}
+              options={SUBJECT_OPTIONS.map((s) => ({ value: s, label: s }))}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
             />
@@ -643,7 +798,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                 type="button"
                 onClick={handleGenerateWithAI}
                 disabled={isGenerating || !canGenerate}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-8 py-3 text-base font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-8 py-3 text-base font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
               >
                 <Sparkles className="h-4 w-4 animate-pulse" />
                 {isGenerating ? 'Generating with AI...' : isBaseline ? 'Generate baseline with AI' : 'Generate with AI'}
@@ -653,9 +808,9 @@ export const TeacherAssessmentsTab: React.FC = () => {
 
           {/* Preview Generated Content */}
           {showPreview && generatedContent && (
-            <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-xl p-4 bg-muted/40">
-              <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
-                <label className="text-xs font-semibold text-foreground flex items-center gap-2">
+            <div className="space-y-2 max-h-96 overflow-y-auto border border-ais-card-border rounded-xl p-4 bg-ais-surface-container-low/40">
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-ais-card-border">
+                <label className="text-xs font-semibold text-ais-on-surface flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   AI Generated {isBaseline ? 'Baseline Assessment' : 'Assessment'} Preview
                 </label>
@@ -663,7 +818,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={handlePrintPreview}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline"
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden />
                     Print
@@ -672,7 +827,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                     type="button"
                     onClick={handleDownloadPreviewPDF}
                     disabled={isGeneratingPDF}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden />
                     {isGeneratingPDF ? 'Generating…' : 'Download PDF'}
@@ -683,7 +838,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                       setShowPreview(false);
                       setGeneratedContent('');
                     }}
-                    className="text-xs text-destructive hover:underline flex items-center gap-1"
+                    className="text-xs text-ais-error hover:underline flex items-center gap-1"
                   >
                     Clear & Regenerate
                   </button>
@@ -696,7 +851,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             </div>
           )}
 
-          {uploadMode === 'upload' && <input type="file" className="text-xs text-muted-foreground" onChange={() => {}} />}
+          {uploadMode === 'upload' && <input type="file" className="text-xs text-ais-on-surface-variant" onChange={() => {}} />}
 
           <DialogFooter className="flex-wrap gap-3 pt-4 -mb-1">
             <AisBtnSecondary type="button" onClick={resetModal}>
@@ -705,7 +860,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             {canSubmit && (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-accent shadow-md hover:shadow-lg"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
               >
                 {type === 'Quiz' || type === 'Baseline'
                   ? 'Save & make available for grades'

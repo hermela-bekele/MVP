@@ -99,7 +99,6 @@ export const HrAttendance: React.FC = () => {
 
       <TablePanel
         title="Staff Attendance"
-        description="Daily attendance tracking for all personnel"
         actions={
           <input
             type="date"

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { uploadFile } from '@/lib/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Select } from '@/components/ui/select';
@@ -53,9 +53,6 @@ export const ResourcesPanel: React.FC = () => {
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle className="text-sm font-bold">Upload school resources</CardTitle>
-          <CardDescription>
-            Share pedagogy guides, policy documents, and school-wide materials with teachers and department heads.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -104,7 +101,7 @@ export const ResourcesPanel: React.FC = () => {
         </CardContent>
       </Card>
 
-      <TablePanel title="School-wide resources" description="Disseminate resources so teachers can access them in their portal.">
+      <TablePanel title="School-wide resources">
         <table className="eskooly-table w-full">
           <thead>
             <tr>

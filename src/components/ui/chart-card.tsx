@@ -6,6 +6,7 @@ import {
   Area,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,6 +24,8 @@ interface ChartCardProps {
   dataKey: string;
   xKey?: string;
   color?: string;
+  /** Bar charts only — cycles through these colors per bar/category instead of one flat color. */
+  colors?: string[];
   secondaryKey?: string;
   secondaryColor?: string;
   className?: string;
@@ -35,9 +38,10 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   type = 'area',
   dataKey,
   xKey = 'name',
-  color = 'hsl(var(--primary))',
+  color = 'hsl(var(--chart-color))',
+  colors,
   secondaryKey,
-  secondaryColor = 'hsl(var(--accent))',
+  secondaryColor = 'hsl(var(--chart-color) / 0.5)',
   className = '',
 }) => {
   const [mounted, setMounted] = useState(false);
@@ -109,7 +113,11 @@ export const ChartCard: React.FC<ChartCardProps> = ({
                     fontSize: '12px',
                   }}
                 />
-                <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={48} />
+                <Bar dataKey={dataKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={48}>
+                  {colors && data.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Bar>
                 {secondaryKey && (
                   <Bar dataKey={secondaryKey} fill={secondaryColor} radius={[4, 4, 0, 0]} maxBarSize={48} />
                 )}

@@ -109,7 +109,7 @@ export const HrOnboarding: React.FC = () => {
         </ContentCard>
       )}
 
-      <TablePanel title="Onboarding Checklists" description="Track tasks for new employee integration">
+      <TablePanel title="Onboarding Checklists">
         <div className="space-y-4">
           {Object.entries(groupedTasks).map(([empId, tasks]) => {
             const completed = tasks.filter((t) => t.completed).length;

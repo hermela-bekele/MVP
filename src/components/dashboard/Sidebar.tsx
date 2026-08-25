@@ -1,12 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { useRouter } from 'next/navigation';
 import { portalTabPath } from '@/lib/portalPaths';
 import { requiresEngineSelection, type EngineId } from '@/lib/engines';
 import { isPortalRole } from '@/lib/auth';
+import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
+import {
+  DEPT_THREAD_SELECT_EVENT,
+  HOD_THREAD_SELECT_EVENT,
+  readActiveDeptThreadId,
+  readActiveHodTeacherId,
+  writeActiveDeptThreadId,
+  writeActiveHodTeacherId,
+} from '@/lib/communitySelectionStorage';
+import { Logo } from '@/components/shared/Logo';
 import {
   aisSidebarBadge,
   aisSidebarBrand,
@@ -14,7 +24,6 @@ import {
   aisSidebarBrandTitle,
   aisSidebarCollapseBtn,
   aisSidebarFooter,
-  aisSidebarLogo,
   aisSidebarLogoutBtn,
   aisSidebarMobileShell,
   aisSidebarNavIconActive,
@@ -33,25 +42,56 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
-  const { activeRole, activeEngine, currentUser, logout } = useApp();
+  const { activeRole, activeEngine, currentUser, logout, teachers, departments } = useApp();
   const { isCollapsed, isMobileOpen, toggleCollapsed, closeMobile } = useSidebar();
   const router = useRouter();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [expandedDropdowns, setExpandedDropdowns] = useState<string[]>([]);
+  const [activeHodTeacherId, setActiveHodTeacherId] = useState<string | null>(null);
+  const [activeDeptThreadId, setActiveDeptThreadId] = useState<string | null>(null);
 
   const toggleDropdown = (id: string) => {
-    setExpandedDropdowns(prev => 
+    setExpandedDropdowns(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  const handleNavClick = (id: string) => {
+    const path = portalTabPath(activeRole, id);
+    if (typeof window !== 'undefined' && window.location.pathname !== path) {
+      router.push(path);
+    }
+    setActiveTab(id);
+    closeMobile();
+  };
+
+  useEffect(() => {
+    setActiveHodTeacherId(readActiveHodTeacherId());
+    setActiveDeptThreadId(readActiveDeptThreadId());
+  }, [activeRole]);
+
+  const selectHodTeacher = (teacherId: string, tab: string) => {
+    setActiveHodTeacherId(teacherId);
+    writeActiveHodTeacherId(teacherId);
+    window.dispatchEvent(new CustomEvent(HOD_THREAD_SELECT_EVENT, { detail: teacherId }));
+    handleNavClick(tab);
+  };
+
+  const selectDeptThread = (departmentId: string, tab: string) => {
+    setActiveDeptThreadId(departmentId);
+    writeActiveDeptThreadId(departmentId);
+    window.dispatchEvent(new CustomEvent(DEPT_THREAD_SELECT_EVENT, { detail: departmentId }));
+    handleNavClick(tab);
   };
 
   // Auto-expand dropdown when subsection is active
   React.useEffect(() => {
     const links = getNavLinks();
     
-    // Find any dropdown that has the current activeTab as a subItem
+    // Find any dropdown that has the current activeTab as a subItem (or is itself the active tab)
     links.forEach(link => {
-      if (link.subItems && link.subItems.some(sub => sub.id === activeTab)) {
+      const hasActiveSubItem = link.subItems && link.subItems.some(sub => sub.id === activeTab);
+      if ((hasActiveSubItem || link.id === activeTab) && link.subItems?.length) {
         if (!expandedDropdowns.includes(link.id!)) {
           setExpandedDropdowns(prev => [...prev, link.id!]);
         }
@@ -60,7 +100,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   }, [activeTab]); // Removed expandedDropdowns from dependencies to avoid loops
 
   // Navigation links based on role
-  const getNavLinks = (): { id?: string; label: string; icon?: React.ReactNode; type?: 'header'; badge?: number; engine?: EngineId | EngineId[]; subItems?: { id: string; label: string }[] }[] => {
+  const getNavLinks = (): {
+    id?: string;
+    label: string;
+    icon?: React.ReactNode;
+    type?: 'header';
+    badge?: number;
+    engine?: EngineId | EngineId[];
+    subItems?: { id: string; label: string; onClick?: () => void; isActive?: boolean }[];
+  }[] => {
+    const deptScope = activeRole === 'department-head' ? resolveDeptHeadScope(currentUser) : null;
+    const deptTeachers = deptScope
+      ? teachers.filter((t) => isSubjectTeacher(t, deptScope) && t.status === 'Active')
+      : [];
+    const deptDmSubItems = [
+      {
+        id: 'dm:school-head',
+        label: 'School Head',
+        onClick: () => handleNavClick('school-head-messages'),
+        isActive: activeTab === 'school-head-messages',
+      },
+      ...deptTeachers.map((t) => ({
+        id: `dm:${t.id}`,
+        label: t.name,
+        onClick: () => selectHodTeacher(t.id, 'teacher-messages'),
+        isActive: activeTab === 'teacher-messages' && activeHodTeacherId === t.id,
+      })),
+    ];
+    const schoolHeadDmSubItems = departments.map((d) => ({
+      id: `dept-dm:${d.id}`,
+      label: d.headName,
+      onClick: () => selectDeptThread(d.id, 'department-messages'),
+      isActive: activeTab === 'department-messages' && activeDeptThreadId === d.id,
+    }));
+
     switch (activeRole) {
       case 'moe':
         return [
@@ -68,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           { id: 'schools', label: 'Manage Schools', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m9 0V9a2 2 0 00-2-2M5 12h5m0 0l-2-2m2 2l-2 2"/></svg> },
           { id: 'curriculum', label: 'Curriculum Management', engine: 'curriculum', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> },
           { id: 'training', label: 'Teacher Training', engine: 'training', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> },
-          { id: 'analytics', label: 'AI Risk Analytics', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> },
+          { id: 'academic-calendar', label: 'Academic Calendar', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> },
         ];
       case 'hr':
         return [
@@ -128,6 +201,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           { id: 'manage-departments', label: 'View Departments', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m9 0V9a2 2 0 00-2-2M5 12h5m0 0l-2-2m2 2l-2 2"/></svg> },
           { id: 'manage-attendance', label: 'View Attendance', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> },
 
+          { type: 'header', label: 'Curriculum & Calendar' },
+          { id: 'academic-calendar', label: 'Academic Calendar', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> },
+
           { type: 'header', label: 'Cross-Functional Oversight' },
           { id: 'hr-overview', label: 'HR Overview', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> },
           { id: 'registrar-overview', label: 'Registrar Overview', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> },
@@ -142,6 +218,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           { id: 'announcements', label: 'Announcements', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg> },
           { id: 'school-calendar', label: 'School Calendar', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> },
           { id: 'admissions-form-builder', label: 'Application Form Builder', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 5h9a2 2 0 012 2v3M4 5v14a2 2 0 002 2h9"/></svg> },
+
+          { type: 'header', label: 'Community' },
+          { id: 'communication', label: 'Community', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-4V6a2 2 0 012-2h6l4 4v3"/></svg> },
+          { id: 'department-messages', label: 'Direct Messages', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
 
           { type: 'header', label: 'Development & Wellness' },
           { id: 'teachers-development', label: 'Teacher Development', engine: 'training', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg> },
@@ -168,8 +248,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           { id: 'attendance', label: 'Manage Attendance', engine: 'administrative', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> },
           { id: 'assessments', label: 'Manage Assessments', engine: 'academic', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg> },
 
+          { type: 'header', label: 'Community' },
+          { id: 'communication', label: 'Community', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-4V6a2 2 0 012-2h6l4 4v3"/></svg> },
+          { id: 'teacher-messages', label: 'Direct Messages', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
+
           { type: 'header', label: 'Development & Support' },
-          { id: 'teacher-messages', label: 'Messaging', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
           { id: 'training', label: 'Teacher Development', engine: 'training', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg> },
           { id: 'leadership-development', label: 'Leadership Training', engine: 'training', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222"/></svg> },
           { id: 'resources', label: 'Study Resources', engine: 'training', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> },
@@ -201,9 +284,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           { id: 'academic-calendar', label: 'Academic Calendar', engine: 'management', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> },
           { id: 'timetable', label: 'Teaching Timetable', engine: 'teaching', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> },
           { type: 'header', label: 'Instruction' },
-          { id: 'teaching-notes', label: 'Teaching Notes', engine: 'teaching', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> },
-          { id: 'community', label: 'Community', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-4V6a2 2 0 012-2h6l4 4v3"/></svg> },
-          { id: 'hod-messages', label: 'HoD Messages', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
+          { id: 'lesson-plans', label: 'Lesson Plans', engine: 'teaching', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> },
+          { id: 'lesson-notes', label: 'Lesson Notes', engine: 'teaching', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg> },
+          { id: 'communication', label: 'Community', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-1m0-4V6a2 2 0 012-2h6l4 4v3"/></svg> },
+          { id: 'hod-messages', label: 'Direct Messages', engine: 'communications', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg> },
           { id: 'assessments', label: 'Manage Assessments', engine: 'teaching', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg> },
           { id: 'resources', label: 'Resources', engine: 'teaching', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> },
           { type: 'header', label: 'Students & Classes' },
@@ -295,14 +379,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     }
   };
 
-  const handleNavClick = (id: string) => {
-    const path = portalTabPath(activeRole, id);
-    if (typeof window !== 'undefined' && window.location.pathname !== path) {
-      router.push(path);
-    }
-    setActiveTab(id);
-    closeMobile();
-  };
 
   // Sidebar content (shared between desktop and mobile)
   const sidebarContent = (
@@ -313,12 +389,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           isCollapsed ? 'px-2 justify-center' : 'px-3'
         }`}
       >
-        <div className={aisSidebarLogo}>
-          PE
-        </div>
+        <Logo className="h-9 w-9 shrink-0" />
         {!isCollapsed && (
           <div className="flex flex-col min-w-0 flex-1">
-            <span className={aisSidebarBrandTitle}>PRIME EduAI</span>
+            <span className="font-bold text-sm text-title truncate leading-tight">PRIME EduAI</span>
             <span className={aisSidebarBrandSubtitle}>
               {currentUser?.displayName ?? getRoleLabel()}
             </span>
@@ -440,11 +514,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
                   <div className="absolute left-[1.15rem] top-2 bottom-2 w-px bg-border" aria-hidden="true" />
                   
                   {link.subItems!.map((subItem) => {
-                    const isSubActive = activeTab === subItem.id;
+                    const isSubActive = subItem.isActive ?? activeTab === subItem.id;
                     return (
                       <button
                         key={subItem.id}
-                        onClick={() => handleNavClick(subItem.id)}
+                        onClick={() => (subItem.onClick ? subItem.onClick() : handleNavClick(subItem.id))}
                         className={`${aisSidebarNavItem} gap-3 px-3 py-2.5 pl-9
                           ${isSubActive ? aisSidebarNavItemActive : aisSidebarNavItemInactive}`}
                       >

@@ -100,7 +100,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
     setEmployeeName('');
     setEmployeeEmail('');
     setEmployeePhone('');
-    
+
     // Close Modal
     setIsModalOpen(false);
   };
@@ -239,7 +239,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
         size="lg"
       >
         <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2">
-          
+
           {/* Section 1 */}
           <div className="space-y-2.5">
             <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Employee Coordinates</h4>

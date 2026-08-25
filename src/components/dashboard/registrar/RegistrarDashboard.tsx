@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { KpiWidget } from '@/components/dashboard/KpiWidget';
+import { gpaToMark } from '@/lib/grading';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -67,12 +68,10 @@ export const RegistrarDashboard: React.FC = () => {
           hint="Approved applications"
         />
         <KpiWidget
-          label="Avg. GPA"
+          label="Avg. Mark"
           value={
             activeStudents.length > 0
-              ? (
-                  activeStudents.reduce((a, s) => a + s.gpa, 0) / activeStudents.length
-                ).toFixed(2)
+              ? `${Math.round(activeStudents.reduce((a, s) => a + gpaToMark(s.gpa), 0) / activeStudents.length)}%`
               : '—'
           }
           hint="School-wide average"

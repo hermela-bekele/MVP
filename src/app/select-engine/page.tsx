@@ -3,8 +3,9 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { dashboardPathForRole } from '@/lib/auth';
+import { dashboardPathForRole, roleLabel } from '@/lib/auth';
 import { ENGINE_DESCRIPTIONS, enginesForRole, engineLabel, requiresEngineSelection, type EngineId } from '@/lib/engines';
+import { Logo } from '@/components/shared/Logo';
 
 const ENGINE_ICONS: Record<EngineId, React.ReactNode> = {
   administrative: (
@@ -70,12 +71,10 @@ export default function SelectEnginePage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[hsl(var(--dashboard-bg))] p-6">
       <div className="w-full max-w-3xl">
         <div className="text-center mb-8">
-          <div className="mx-auto h-11 w-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-md mb-4">
-            PE
-          </div>
-          <h1 className="text-xl font-bold text-foreground">Choose an Engine</h1>
+          <Logo className="mx-auto h-11 w-11 mb-4" />
+          <h1 className="text-xl font-bold text-title">Choose an Engine</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Select the workspace you&apos;d like to use, {currentUser.displayName}. You can switch engines later.
+            You&apos;re logged in as a <span className="font-bold text-title">{roleLabel(currentUser.role)}</span>. Select the engine you&apos;d like to use. You can switch engines anytime.
           </p>
         </div>
 
@@ -91,7 +90,7 @@ export default function SelectEnginePage() {
                 {ENGINE_ICONS[engine]}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-foreground">{engineLabel(engine, currentUser.role)}</p>
+                <p className="font-bold text-title">{engineLabel(engine, currentUser.role)}</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   {ENGINE_DESCRIPTIONS[engine]}
                 </p>

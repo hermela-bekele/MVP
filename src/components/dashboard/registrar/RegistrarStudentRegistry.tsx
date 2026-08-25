@@ -13,6 +13,7 @@ import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Student } from '@/lib/mockData';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, statusBadgeVariant } from '@/lib/registrarPortal';
 import { toCsv, downloadCsv } from '@/lib/csvExport';
+import { gpaToMark } from '@/lib/grading';
 
 export const RegistrarStudentRegistry: React.FC = () => {
   const router = useRouter();
@@ -80,9 +81,9 @@ export const RegistrarStudentRegistry: React.FC = () => {
     },
     {
       key: 'gpa',
-      header: 'GPA',
+      header: 'Mark',
       sortable: true,
-      render: (row) => <span className="text-xs font-semibold">{row.gpa.toFixed(2)}</span>,
+      render: (row) => <span className="text-xs font-semibold">{gpaToMark(row.gpa)}%</span>,
     },
     {
       key: 'parentName',
@@ -117,7 +118,6 @@ export const RegistrarStudentRegistry: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <TablePanel
         title="Official Student Registry"
-        description="Complete roster of all enrolled students with searchable records"
       >
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="w-40">

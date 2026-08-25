@@ -126,7 +126,7 @@ export const HrRecruitment: React.FC = () => {
         </div>
       </ContentCard>
 
-      <TablePanel title="Applications Pipeline" description="Review and advance candidates through hiring stages">
+      <TablePanel title="Applications Pipeline">
         <DataTable columns={appColumns} data={jobApplications} emptyTitle="No applications yet." />
       </TablePanel>
 

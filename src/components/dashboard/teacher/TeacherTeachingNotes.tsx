@@ -20,6 +20,7 @@ import {
   resolveTeacherProfile,
   primarySubjectForTeacher,
   STUDENT_LEVEL_OPTIONS,
+  SUBJECT_OPTIONS,
   isWeeklyPlanHodApproved,
   weeklyPlanStatusLabel,
   graspOutcomeLabel,
@@ -88,7 +89,7 @@ function RendererLoading() {
 
 function noteStatusVariant(status: TeachingNote['status']) {
   if (status === 'Draft') return 'neutral' as const;
-  if (status === 'Pending Dept Head') return 'warning' as const;
+  if (status === 'Pending Dept Head') return 'success' as const; // Treat as approved
   if (status === 'Rejected') return 'error' as const;
   if (status === 'Approved') return 'success' as const;
   return 'success' as const;
@@ -144,10 +145,13 @@ function editableTextToNotesResult(
 
 interface TeacherTeachingNotesProps {
   lessonPlanId?: string;
+  /** Restricts this module to lesson plans (annual + weekly) or lesson notes only. Omit to show everything. */
+  mode?: 'plans' | 'notes';
 }
 
 export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   lessonPlanId,
+  mode,
 }) => {
   const router = useRouter();
   const {
@@ -208,7 +212,23 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [editWeeklyTitle, setEditWeeklyTitle] = useState('');
   const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
   const [notePendingDelete, setNotePendingDelete] = useState<TeachingNote | null>(null);
-  const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>('annual');
+  const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>(
+    mode === 'notes' ? 'notes' : 'annual',
+  );
+  const listTabOptions = (
+    mode === 'notes'
+      ? [{ id: 'notes' as const, label: 'Lesson notes' }]
+      : mode === 'plans'
+        ? [
+            { id: 'annual' as const, label: 'Annual plans' },
+            { id: 'weekly' as const, label: 'Weekly plans' },
+          ]
+        : [
+            { id: 'annual' as const, label: 'Annual plans' },
+            { id: 'weekly' as const, label: 'Weekly plans' },
+            { id: 'notes' as const, label: 'Lesson notes' },
+          ]
+  );
   const [presetTopics, setPresetTopics] = useState<string[]>([]);
   const [explainingMore, setExplainingMore] = useState(false);
   const [explainMoreUsed, setExplainMoreUsed] = useState(false);
@@ -614,12 +634,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       addNotification('Nothing to submit', 'Add note content or generate with AI first.', 'alert');
       return;
     }
+    // Teaching notes no longer need HOD approval - save as Approved directly
     if (editingNoteId) {
-      updateTeachingNote(editingNoteId, { ...payload, status: 'Pending Dept Head' });
-      addNotification('Submitted', 'Teaching note sent to department head for approval.', 'success');
+      updateTeachingNote(editingNoteId, { ...payload, status: 'Approved' });
+      addNotification('Saved', 'Teaching note saved and ready for delivery.', 'success');
     } else {
-      createTeachingNote(payload, 'Pending Dept Head');
-      addNotification('Submitted', 'Teaching note sent to department head for approval.', 'success');
+      createTeachingNote(payload, 'Approved');
+      addNotification('Saved', 'Teaching note saved and ready for delivery.', 'success');
     }
     closeNoteModal();
   };
@@ -732,7 +753,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           <DropdownMenu
             align="right"
             trigger={
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover">
                 <MoreVertical className="h-4 w-4" />
                 <span className="sr-only">Note actions</span>
               </span>
@@ -767,36 +788,30 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         <p className={`${aisDataMd} font-semibold line-clamp-2`}>{note.title}</p>
         <p className={`${aisBodySm} mt-1`}>{note.topic}</p>
         <p className={`${aisBodySm} mt-0.5`}>{note.language}</p>
-        <p className={`${aisBodySm} mt-1 text-muted-foreground`}>
+        <p className={`${aisBodySm} mt-1 text-ais-on-surface-variant`}>
           Updated {note.updatedAt ?? note.createdAt}
         </p>
       </div>
-      <div className="flex w-[7.5rem] shrink-0 flex-col items-center justify-center gap-2 border-l border-border bg-muted/40 px-2 py-3">
+      <div className="flex w-[7.5rem] shrink-0 flex-col items-center justify-center gap-2 border-l border-ais-card-border bg-ais-surface-container-low/40 px-2 py-3">
         {delivery ? (
           <>
             <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
             <span className="text-center text-[11px] font-semibold leading-tight text-emerald-700">
               Delivered
             </span>
-            <span className="text-center text-[10px] leading-tight text-muted-foreground">
+            <span className="text-center text-[10px] leading-tight text-ais-on-surface-variant">
               {graspOutcomeLabel(delivery.graspOutcome)}
             </span>
           </>
-        ) : note.status === 'Approved' ? (
+        ) : (
           <button
             type="button"
-            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary transition-colors hover:bg-primary/10"
+            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ais-primary transition-colors hover:bg-ais-primary/10"
             onClick={() => setDeliverNote(note)}
           >
             <HelpCircle className="h-5 w-5" aria-hidden />
             Delivered?
           </button>
-        ) : (
-          <span className="text-center text-[10px] leading-tight text-muted-foreground px-1">
-            {note.status === 'Pending Dept Head'
-              ? 'Awaiting HoD approval'
-              : 'Approve first'}
-          </span>
         )}
       </div>
     </div>
@@ -804,11 +819,11 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   };
 
   const goToLessonPlan = (planId: string) => {
-    router.push(`/dashboard/teacher/teaching-notes/${planId}`);
+    router.push(`/dashboard/teacher/lesson-plans/${planId}`);
   };
 
   const goBackToList = () => {
-    router.push('/dashboard/teacher/teaching-notes');
+    router.push('/dashboard/teacher/lesson-plans');
   };
 
   return (
@@ -817,11 +832,11 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         detailPlan ? (
           <div className="space-y-4">
             {/* Lesson plan details — always at the top */}
-            <PlanSummary plan={detailPlan} />
+            <PlanSummary plan={detailPlan} editable />
 
             {/* Notes grid — 3 cards per row */}
             {detailPlanNotes.length === 0 ? (
-              <p className={`${aisBodySm} rounded-lg bg-muted p-4`}>
+              <p className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-4`}>
                 No teaching notes yet for this lesson plan.
               </p>
             ) : (
@@ -841,30 +856,26 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         )
       ) : (
         <div className="space-y-8">
-          <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-white p-1 dark:bg-card">
-            {(
-              [
-                { id: 'annual' as const, label: 'Annual plans' },
-                { id: 'weekly' as const, label: 'Weekly plans' },
-                { id: 'notes' as const, label: 'Lesson notes' },
-              ] as const
-            ).map((tab) => (
+          {listTabOptions.length > 1 && (
+          <div className="flex flex-wrap gap-2 rounded-xl border border-ais-card-border bg-white p-1 dark:bg-ais-surface">
+            {listTabOptions.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setListTab(tab.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                   listTab === tab.id
-                    ? 'bg-primary text-white'
-                    : 'text-muted-foreground hover:bg-muted'
+                    ? 'bg-ais-primary text-white'
+                    : 'text-ais-on-surface-variant hover:bg-ais-row-hover'
                 }`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
+          )}
 
-          {listTab === 'annual' && (
+          {mode !== 'notes' && listTab === 'annual' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Published annual lesson plans</p>
             <p className={aisBodySm}>
@@ -883,7 +894,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                   >
                     <button
                       type="button"
-                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-muted"
+                      className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-ais-row-hover"
                       onClick={() => goToLessonPlan(plan.id)}
                     >
                       <div className="mb-2">
@@ -891,8 +902,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           Annual
                         </span>
                       </div>
-                      <h3 className={`${aisHeadlineSm} line-clamp-2 mb-2`}>{plan.title}</h3>
-                      <p className={`${aisBodySm} text-muted-foreground mb-2`}>
+                      <h3 className={`${aisHeadlineSm} line-clamp-2 mb-2 !text-title`}>{plan.title}</h3>
+                      <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
                         {plan.grade} · {plan.subject} · {plan.sessions} weeks
                       </p>
                       <div className="mt-auto">
@@ -906,7 +917,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </section>
           )}
 
-          {listTab === 'weekly' && (
+          {mode !== 'notes' && listTab === 'weekly' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Weekly lesson plans</p>
             <p className={aisBodySm}>
@@ -934,16 +945,16 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           className="min-w-0 flex-1 text-left"
                           onClick={() => openWeeklyPlanDialog(plan, 'view')}
                         >
-                          <h3 className={`${aisHeadlineSm} line-clamp-2`}>{weeklyPlanWeekLabel(plan)}</h3>
+                          <h3 className={`${aisHeadlineSm} line-clamp-2 !text-title`}>{weeklyPlanWeekLabel(plan)}</h3>
                         </button>
                         <div className="flex shrink-0 items-center gap-1">
-                          <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-primary/10 px-2.5 text-xs font-bold tabular-nums text-primary">
+                          <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-ais-primary/10 px-2.5 text-xs font-bold tabular-nums text-ais-primary">
                             {planNotes.length}
                           </span>
                           <DropdownMenu
                             align="right"
                             trigger={
-                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-row-hover">
                                 <MoreVertical className="h-4 w-4" />
                                 <span className="sr-only">Weekly plan actions</span>
                               </span>
@@ -978,13 +989,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                       </div>
                       <button
                         type="button"
-                        className="flex flex-1 flex-col px-4 pb-4 pt-2 text-left transition-colors hover:bg-muted"
+                        className="flex flex-1 flex-col px-4 pb-4 pt-2 text-left transition-colors hover:bg-ais-row-hover"
                         onClick={() => goToLessonPlan(plan.id)}
                       >
-                        <p className={`${aisBodySm} text-muted-foreground mb-1 line-clamp-1`}>
+                        <p className={`${aisBodySm} text-ais-on-surface-variant mb-1 line-clamp-1`}>
                           {plan.title}
                         </p>
-                        <p className={`${aisBodySm} text-muted-foreground mb-2`}>
+                        <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
                           {plan.subject} · {plan.sessions} {plan.sessions === 1 ? 'session' : 'sessions'}
                         </p>
                         <div className="mt-auto">
@@ -1006,19 +1017,19 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           )}
                         </div>
                       </button>
-                      <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
+                      <div className="flex items-center justify-between gap-2 border-t border-ais-card-border px-3 py-2">
                         {!hodApproved ? (
-                          <p className="text-[11px] leading-snug text-muted-foreground">
+                          <p className="text-[11px] leading-snug text-ais-on-surface-variant">
                             Notes unlock after HoD approval
                           </p>
                         ) : (
-                          <span className="text-[11px] text-muted-foreground">Add lesson notes</span>
+                          <span className="text-[11px] text-ais-on-surface-variant">Add lesson notes</span>
                         )}
                         <button
                           type="button"
                           aria-label={hodApproved ? 'Add note' : 'Weekly plan not yet approved by HoD'}
                           disabled={!hodApproved}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-primary text-white shadow-md transition-all hover:bg-accent hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-btn-primary text-btn-primary-foreground shadow-md transition-all hover:bg-btn-primary/90 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                           onClick={(e) => {
                             e.stopPropagation();
                             openCreateNote(plan.id);
@@ -1035,7 +1046,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </section>
           )}
 
-          {listTab === 'notes' && (
+          {mode !== 'plans' && listTab === 'notes' && (
           <section className="space-y-3">
             <p className={aisLabelCaps}>Lesson notes</p>
             <p className={aisBodySm}>
@@ -1043,7 +1054,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </p>
             {myNotes.length === 0 ? (
               <p className={aisBodyMd}>
-                No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Weekly plans tab.
+                {mode === 'notes'
+                  ? 'No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Lesson Plans module.'
+                  : 'No lesson notes yet. Approve a weekly plan with your HoD, then add notes from the Weekly plans tab.'}
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1115,7 +1128,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         description="This cannot be undone."
         size="sm"
       >
-        <p className="text-sm text-foreground">
+        <p className="text-sm text-ais-on-surface">
           Delete{' '}
           <span className="font-semibold">
             {planPendingDelete ? weeklyPlanWeekLabel(planPendingDelete) : 'this weekly plan'}
@@ -1148,7 +1161,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         description="This cannot be undone."
         size="sm"
       >
-        <p className="text-sm text-foreground">
+        <p className="text-sm text-ais-on-surface">
           Delete{' '}
           <span className="font-semibold">{notePendingDelete?.title ?? 'this teaching note'}</span>?
         </p>
@@ -1229,7 +1242,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={notesGrade} onChange={(e) => setNotesGrade(e.target.value)} />
             </div>
             <div className="min-w-0">
-              <Select variant="ais" label="Subject" options={[{ value: 'Mathematics', label: 'Mathematics' }, { value: 'Biology', label: 'Biology' }, { value: 'General Science', label: 'General Science' }]} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
+              <Select variant="ais" label="Subject" options={SUBJECT_OPTIONS.map((s) => ({ value: s, label: s }))} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
             </div>
             {activePlan && !editingNoteId ? (
               <div className="min-w-0">
@@ -1280,14 +1293,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
           </div>
           {activePlan && !editingNoteId && (
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ais-on-surface-variant">
                 Choose <strong>All sessions</strong> or one session from this week. The topic above is
                 editable. Generation uses your selection plus the weekly plan objectives.
               </p>
               {(activePlan.objectives?.length ?? 0) > 0 && (
-                <div className="rounded-xl border border-border bg-muted/50 px-3 py-2">
+                <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/50 px-3 py-2">
                   <p className={`${aisFormLabel} mb-1`}>Lesson plan objectives</p>
-                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs text-ais-on-surface-variant">
                     {activePlan.objectives.slice(0, 4).map((o, i) => (
                       <li key={i}>{o}</li>
                     ))}
@@ -1318,7 +1331,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 value={notesStudentLevel}
                 onChange={(e) => setNotesStudentLevel(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ais-on-surface-variant">
                 All levels generates struggling, average, and advanced exercises with a labeled answer key.
               </p>
             </div>
@@ -1358,7 +1371,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </AisBtnPrimary>
           </div>
           {(editingNoteId || aiNotesResult || noteContentText.trim()) && (
-            <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+            <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className={aisFormLabel}>
                   {editingNoteId ? 'Note content — edit freely' : 'Note content'}
@@ -1369,7 +1382,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     onClick={() => setShowNoteContentPreview(false)}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${
                       !showNoteContentPreview
-                        ? 'bg-primary text-white'
+                        ? 'bg-ais-primary text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
                     }`}
                   >
@@ -1381,7 +1394,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     disabled={!noteContentText.trim()}
                     className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
                       showNoteContentPreview
-                        ? 'bg-primary text-white'
+                        ? 'bg-ais-primary text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
                     }`}
                   >
@@ -1391,7 +1404,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </div>
               {showNoteContentPreview ? (
                 noteContentText.trim() ? (
-                  <div className="max-h-[400px] overflow-y-auto rounded-lg border border-border bg-white p-4 dark:bg-gray-900">
+                  <div className="max-h-[400px] overflow-y-auto rounded-lg border border-ais-card-border bg-white p-4 dark:bg-gray-900">
                     <Suspense fallback={<RendererLoading />}>
                       <TeachingNotesRenderer
                         content={editableTextToNotesResult(noteContentText.trim(), {
@@ -1402,7 +1415,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     </Suspense>
                   </div>
                 ) : (
-                  <p className={`${aisBodyMd} rounded-lg border border-dashed border-border p-4 text-center`}>
+                  <p className={`${aisBodyMd} rounded-lg border border-dashed border-ais-card-border p-4 text-center`}>
                     Nothing to preview yet — switch to Edit and add your content.
                   </p>
                 )
@@ -1414,13 +1427,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                   placeholder="Write or edit your teaching notes here. You can type freely or use markdown headings (##), lists, and bold text."
                 />
               )}
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ais-on-surface-variant">
                 Edit the full note body — add explanations, examples, or exercises as you need.
               </p>
             </div>
           )}
           {!editingNoteId && aiNotesResult && (
-            <div className="rounded-xl border border-border bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 p-4">
+            <div className="rounded-xl border border-ais-card-border bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -1437,7 +1450,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                     setShowNoteContentPreview(false);
                     setExplainMoreUsed(false);
                   }}
-                  className="text-xs text-destructive hover:underline flex items-center gap-1"
+                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
                 >
                   <X className="h-3 w-3" />
                   Clear & Regenerate
@@ -1458,8 +1471,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               Save draft
             </AisBtnSecondary>
             <AisBtnPrimary type="button" onClick={handleSubmitNoteForApproval} disabled={!hasNoteContent}>
-              <Send className="h-3.5 w-3.5" aria-hidden />
-              Submit for dept approval
+              <Save className="h-3.5 w-3.5" aria-hidden />
+              Save & ready to deliver
             </AisBtnPrimary>
           </DialogFooter>
         </div>
@@ -1587,7 +1600,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   );
 };
 
-function PlanSummary({ plan }: { plan: LessonPlan }) {
+function PlanSummary({ plan, editable = false }: { plan: LessonPlan; editable?: boolean }) {
+  const { updateLessonPlan, addNotification } = useApp();
   let annual: AnnualLessonPlanResult | null = null;
   let weekly: AIDetailedLessonPlanResult | null = null;
 
@@ -1611,54 +1625,155 @@ function PlanSummary({ plan }: { plan: LessonPlan }) {
   }
 
   if (annual?.weeks?.length) {
-    return (
-      <div className="space-y-3">
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-background p-3">
-          <AnnualLessonPlanTable plan={annual} />
-        </div>
-      </div>
-    );
+    return <EditableAnnualPlan plan={plan} initialAnnual={annual} editable={editable} updateLessonPlan={updateLessonPlan} addNotification={addNotification} />;
   }
 
   if (weekly?.sessions?.length) {
     return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className={aisBodySm}>
-            {plan.grade} · {plan.subject} · {weekly.sessions.length} sessions
-          </span>
-          <button
-            type="button"
-            onClick={() => void downloadWeeklyLessonPlanDocx(weekly!)}
-            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <Download className="h-3 w-3" />
-            Download Word
-          </button>
-        </div>
-        <div className="max-h-[70vh] overflow-auto rounded-lg border border-border bg-background p-2">
-          <WeeklyLessonPlanTable
-            sessions={weekly.sessions}
-            meta={{
-              grade: plan.grade,
-              subject: weekly.subject || plan.subject,
-              mainTopic: weekly.mainTopic,
-              subTopic: weekly.subTopic,
-            }}
-          />
-        </div>
-      </div>
+      <EditableWeeklyPlan
+        plan={plan}
+        initialWeekly={weekly}
+        editable={editable}
+        updateLessonPlan={updateLessonPlan}
+        addNotification={addNotification}
+      />
     );
   }
 
   return (
-    <details className={`${aisBodySm} rounded-lg bg-muted p-3`}>
-      <summary className="cursor-pointer font-semibold text-foreground">Lesson plan details</summary>
+    <details className={`${aisBodySm} rounded-lg bg-ais-surface-container-low p-3`}>
+      <summary className="cursor-pointer font-semibold text-ais-on-surface">Lesson plan details</summary>
       <ul className="mt-2 list-disc space-y-1 pl-4">
         {plan.objectives.map((o, i) => (
           <li key={i}>{o}</li>
         ))}
       </ul>
     </details>
+  );
+}
+
+/** Annual plan view with optional inline editing — only the teacher who owns this
+ * draft can edit, and only while it's still a Draft (not yet submitted for review). */
+function EditableAnnualPlan({
+  plan,
+  initialAnnual,
+  editable,
+  updateLessonPlan,
+  addNotification,
+}: {
+  plan: LessonPlan;
+  initialAnnual: AnnualLessonPlanResult;
+  editable: boolean;
+  updateLessonPlan: ReturnType<typeof useApp>['updateLessonPlan'];
+  addNotification: ReturnType<typeof useApp>['addNotification'];
+}) {
+  const canEdit = editable && plan.status === 'Draft';
+  const [annual, setAnnual] = useState(initialAnnual);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setAnnual(initialAnnual);
+    setIsDirty(false);
+  }, [initialAnnual]);
+
+  const handleSave = () => {
+    updateLessonPlan(plan.id, plan.title, plan.objectives, plan.sessions, plan.homework, JSON.stringify(annual));
+    addNotification('Annual Plan Saved', `Your edits to "${plan.title}" were saved.`, 'success');
+    setIsDirty(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      {canEdit && (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-ais-surface-container-low px-3 py-2">
+          <span className={aisBodySm}>Draft — edit any field below, then save.</span>
+          <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
+            Save changes
+          </Button>
+        </div>
+      )}
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-3">
+        <AnnualLessonPlanTable
+          plan={annual}
+          editable={canEdit}
+          onChange={(next) => {
+            setAnnual(next);
+            setIsDirty(true);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Weekly plan view with optional inline editing — same teacher-own-draft-only rule
+ * as EditableAnnualPlan. */
+function EditableWeeklyPlan({
+  plan,
+  initialWeekly,
+  editable,
+  updateLessonPlan,
+  addNotification,
+}: {
+  plan: LessonPlan;
+  initialWeekly: AIDetailedLessonPlanResult;
+  editable: boolean;
+  updateLessonPlan: ReturnType<typeof useApp>['updateLessonPlan'];
+  addNotification: ReturnType<typeof useApp>['addNotification'];
+}) {
+  const canEdit = editable && plan.status === 'Draft';
+  const [weekly, setWeekly] = useState(initialWeekly);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setWeekly(initialWeekly);
+    setIsDirty(false);
+  }, [initialWeekly]);
+
+  const handleSave = () => {
+    updateLessonPlan(plan.id, plan.title, plan.objectives, plan.sessions, plan.homework, JSON.stringify(weekly));
+    addNotification('Weekly Plan Saved', `Your edits to "${plan.title}" were saved.`, 'success');
+    setIsDirty(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={aisBodySm}>
+          {plan.grade} · {plan.subject} · {weekly.sessions?.length ?? 0} sessions
+        </span>
+        <div className="flex items-center gap-3">
+          {canEdit && (
+            <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
+              Save changes
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={() => void downloadWeeklyLessonPlanDocx(weekly)}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Download className="h-3 w-3" />
+            Download Word
+          </button>
+        </div>
+      </div>
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-2">
+        <WeeklyLessonPlanTable
+          sessions={weekly.sessions || []}
+          meta={{
+            grade: plan.grade,
+            subject: weekly.subject || plan.subject,
+            mainTopic: weekly.mainTopic,
+            subTopic: weekly.subTopic,
+          }}
+          editable={canEdit}
+          onChange={(nextSessions) => {
+            setWeekly((prev) => ({ ...prev, sessions: nextSessions }));
+            setIsDirty(true);
+          }}
+        />
+      </div>
+    </div>
   );
 }

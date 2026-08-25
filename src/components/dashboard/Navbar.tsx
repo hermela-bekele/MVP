@@ -8,7 +8,6 @@ import { Breadcrumb, BreadcrumbItem } from '@/components/ui/breadcrumb';
 import {
   aisBodyMd,
   aisBodySm,
-  aisLabelCaps,
   aisNavbar,
   aisNavbarAvatar,
   aisNavbarDropdown,
@@ -30,6 +29,7 @@ import {
   aisNavbarNotifIconInfo,
   aisNavbarNotifActionBtn,
   aisNavbarNotifActionBtnDanger,
+  aisNavbarNotifActions,
   aisNavbarNotifFooterBtn,
   aisNavbarNotifList,
   aisNavbarNotifPanel,
@@ -70,13 +70,13 @@ function resolveNotifDestination(
   }
   if (title.includes('lesson plan')) {
     return {
-      tab: role === 'department-head' ? 'lesson-plans' : 'teaching-notes',
+      tab: 'lesson-plans',
       label: 'Review plan',
     };
   }
   if (title.includes('teaching note') || title.includes('lesson note')) {
     return {
-      tab: role === 'department-head' ? 'teaching-notes' : 'teaching-notes',
+      tab: 'lesson-notes',
       label: 'Open lesson notes',
     };
   }
@@ -103,9 +103,10 @@ function resolveNotifDestination(
 
 interface NavbarProps {
   breadcrumbs?: BreadcrumbItem[];
+  hideSearch?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
+export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs, hideSearch = false }) => {
   const router = useRouter();
   const {
     activeRole,
@@ -218,14 +219,15 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className={getNotifTypeClass(not.type)}>{not.type}</span>
+                <span className={`${getNotifTypeClass(not.type)} capitalize`}>{not.type}</span>
+                <span className="text-ais-outline">·</span>
                 <span className={`${aisBodySm} shrink-0 tabular-nums`}>{not.timestamp}</span>
                 {!not.read && (
-                  <span className="inline-flex h-2 w-2 rounded-full bg-primary" title="Unread" aria-hidden />
+                  <span className="inline-flex h-2 w-2 rounded-full bg-ais-primary" title="Unread" aria-hidden />
                 )}
               </div>
 
-              <div className="flex shrink-0 items-center gap-0.5 opacity-80 transition-opacity group-hover:opacity-100">
+              <div className={aisNavbarNotifActions}>
                 {!not.read ? (
                   <button
                     type="button"
@@ -361,24 +363,26 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
       </div>
 
       {/* Search Input Bar (Command Palette Trigger) */}
-      <div className="w-80 max-w-full hidden md:block mx-4">
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
-          className={aisNavbarSearch}
-        >
-          <div className="flex items-center space-x-2 min-w-0">
-            <svg className="w-4 h-4 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span className="truncate group-hover:text-primary transition-colors duration-200">
-              Search portals, actions (Ctrl+K)...
-            </span>
-          </div>
-          <kbd className={aisNavbarSearchKbd}>
-            Ctrl+K
-          </kbd>
-        </button>
-      </div>
+      {!hideSearch && (
+        <div className="w-80 max-w-full hidden md:block mx-4">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+            className={aisNavbarSearch}
+          >
+            <div className="flex items-center space-x-2 min-w-0">
+              <svg className="w-4 h-4 text-ais-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span className="truncate group-hover:text-ais-primary transition-colors duration-200">
+                Search portals, actions (Ctrl+K)...
+              </span>
+            </div>
+            <kbd className={aisNavbarSearchKbd}>
+              Ctrl+K
+            </kbd>
+          </button>
+        </div>
+      )}
 
       {/* Utilities */}
       <div className="flex items-center space-x-3 ml-auto">
@@ -407,12 +411,12 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs }) => {
               />
               <div className={aisNavbarNotifPanel}>
                 <div className={aisNavbarNotifHeader}>
-                  <span className={aisLabelCaps}>Active Alerts</span>
+                  <span className="text-sm font-bold text-ais-on-surface">Notifications</span>
                   {unreadCount > 0 && (
                     <button
                       type="button"
                       onClick={clearNotifications}
-                      className="text-[10px] font-bold text-primary hover:text-accent cursor-pointer"
+                      className="text-[11px] font-semibold text-ais-primary hover:text-ais-primary-container cursor-pointer"
                     >
                       Clear all
                     </button>

@@ -14,6 +14,11 @@ import {
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
+import {
+  HOD_THREAD_SELECT_EVENT,
+  readActiveHodTeacherId,
+  writeActiveHodTeacherId,
+} from '@/lib/communitySelectionStorage';
 
 function timeLabel(iso: string) {
   try {
@@ -54,10 +59,25 @@ export function DeptHodMessagesPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!selectedTeacherId && deptTeachers[0]) {
-      setSelectedTeacherId(deptTeachers[0].id);
-    }
+    if (selectedTeacherId) return;
+    const stored = readActiveHodTeacherId();
+    const preselected = stored && deptTeachers.some((t) => t.id === stored) ? stored : deptTeachers[0]?.id;
+    if (preselected) setSelectedTeacherId(preselected);
   }, [deptTeachers, selectedTeacherId]);
+
+  // Sidebar "Direct Messages" list dispatches this when a teacher is clicked.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const teacherId = (e as CustomEvent<string>).detail;
+      if (teacherId) setSelectedTeacherId(teacherId);
+    };
+    window.addEventListener(HOD_THREAD_SELECT_EVENT, handler);
+    return () => window.removeEventListener(HOD_THREAD_SELECT_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    if (selectedTeacherId) writeActiveHodTeacherId(selectedTeacherId);
+  }, [selectedTeacherId]);
 
   useEffect(() => {
     if (!scope?.departmentId) return;
@@ -123,20 +143,20 @@ export function DeptHodMessagesPanel() {
       <div className="space-y-4">
         <div>
           <p className={aisLabelCaps}>Teacher messaging</p>
-          <h2 className={`${aisHeadlineSm} mt-1`}>Live chat with teachers</h2>
+          <h2 className={`${aisHeadlineSm} mt-1 !text-title`}>Live chat with teachers</h2>
           <p className={`${aisBodySm} mt-1`}>
             Select an active teacher to message. Conversations refresh every few seconds.
           </p>
         </div>
 
-        <div className="grid min-h-[480px] grid-cols-1 overflow-hidden rounded-2xl border border-border bg-white dark:bg-card md:grid-cols-[220px_1fr]">
-          <aside className="border-b border-border md:border-b-0 md:border-r">
-            <p className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        <div className="grid min-h-[480px] grid-cols-1 overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface md:grid-cols-[220px_1fr]">
+          <aside className="border-b border-ais-card-border md:border-b-0 md:border-r">
+            <p className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
               Active teachers
             </p>
             <div className="max-h-[200px] overflow-y-auto md:max-h-none">
               {deptTeachers.length === 0 ? (
-                <p className="px-3 py-4 text-xs text-muted-foreground">
+                <p className="px-3 py-4 text-xs text-ais-on-surface-variant">
                   No active teachers in this department.
                 </p>
               ) : (
@@ -149,12 +169,12 @@ export function DeptHodMessagesPanel() {
                     type="button"
                     onClick={() => setSelectedTeacherId(t.id)}
                     className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm ${
-                      active ? 'bg-primary/10 font-semibold text-primary' : 'hover:bg-muted'
+                      active ? 'bg-ais-primary/10 font-semibold text-ais-primary' : 'hover:bg-ais-row-hover'
                     }`}
                   >
                     <span className="truncate">{t.name}</span>
                     {unread > 0 && (
-                      <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">
+                      <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-ais-primary px-1.5 text-[10px] font-bold text-white">
                         {unread}
                       </span>
                     )}
@@ -166,18 +186,18 @@ export function DeptHodMessagesPanel() {
           </aside>
 
           <div className="flex min-h-0 flex-col">
-            <div className="border-b border-border px-4 py-3">
+            <div className="border-b border-ais-card-border px-4 py-3">
               <p className="text-sm font-semibold">
                 {selectedTeacher?.name ?? 'Select a teacher'}
               </p>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" style={{ maxHeight: 360 }}>
               {!selectedTeacherId ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
+                <p className="py-8 text-center text-sm text-ais-on-surface-variant">
                   Select a teacher to open the thread.
                 </p>
               ) : thread.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
+                <p className="py-8 text-center text-sm text-ais-on-surface-variant">
                   No messages yet with this teacher.
                 </p>
               ) : (
@@ -193,17 +213,17 @@ export function DeptHodMessagesPanel() {
                       <div
                         className={`max-w-[85%] px-3.5 py-2.5 text-sm shadow-sm ${
                           mine
-                            ? 'rounded-2xl rounded-br-md bg-primary/12 text-foreground ring-1 ring-primary/15'
-                            : 'rounded-2xl rounded-bl-md bg-muted text-foreground ring-1 ring-border'
+                            ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
+                            : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
                         }`}
                       >
                         {!mine && (
-                          <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
+                          <p className="mb-0.5 text-[11px] font-semibold text-ais-on-surface-variant">
                             {msg.senderName}
                           </p>
                         )}
                         <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
-                        <p className="mt-1 text-right text-[10px] text-muted-foreground/80">
+                        <p className="mt-1 text-right text-[10px] text-ais-on-surface-variant/80">
                           {timeLabel(msg.createdAt)}
                         </p>
                       </div>
@@ -213,7 +233,7 @@ export function DeptHodMessagesPanel() {
               )}
               <div ref={bottomRef} />
             </div>
-            <div className="flex gap-2 border-t border-border p-3">
+            <div className="flex gap-2 border-t border-ais-card-border p-3">
               <input
                 className={`${aisInput} flex-1`}
                 placeholder="Reply to teacher…"

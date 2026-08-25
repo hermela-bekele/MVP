@@ -64,7 +64,7 @@ export const FinanceOverviewPanel: React.FC = () => {
         />
       </KpiGrid>
 
-      <TablePanel title="Invoices" description="School billing status, read-only view for oversight">
+      <TablePanel title="Invoices">
         {invoices.length ? (
           <table className="eskooly-table">
             <thead>

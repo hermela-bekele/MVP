@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { FormField, formFieldInputClass } from '@/components/ui/form-field';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { SchoolCheckIn } from '@/lib/mockData';
 import { CircularProgress } from '@/components/ui/progress';
@@ -174,7 +175,6 @@ export const WellnessCheckins: React.FC = () => {
 
       <TablePanel
         title="Ecosystem Survey Filings"
-        description="Browse qualitative wellness index logs and transcripts"
       >
           <DataTable<SchoolCheckIn>
             columns={surveyColumns}
@@ -193,38 +193,35 @@ export const WellnessCheckins: React.FC = () => {
         size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          
-          <div className="space-y-1 text-left">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase">Survey Topic Title</label>
+
+          <FormField label="Survey Topic Title" className="text-left">
             <input
               type="text"
               required
               value={checkInTitle}
               onChange={(e) => setCheckInTitle(e.target.value)}
-              className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className={formFieldInputClass}
             />
-          </div>
+          </FormField>
 
           <div className="grid grid-cols-2 gap-3 text-left">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Respondent Cohort</label>
+            <FormField label="Respondent Cohort">
               <select
                 value={checkInType}
                 onChange={(e) => setCheckInType(e.target.value as any)}
-                className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none"
+                className={formFieldInputClass}
               >
                 <option value="Teacher Wellness">Teaching Faculty</option>
                 <option value="Student Satisfaction">Student Body</option>
                 <option value="Parent Feedback">Parent Roster</option>
               </select>
-            </div>
+            </FormField>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase">Satisfaction Score (1-5)</label>
+            <FormField label="Satisfaction Score (1-5)">
               <select
                 value={checkInRating}
                 onChange={(e) => setCheckInRating(Number(e.target.value))}
-                className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none"
+                className={formFieldInputClass}
               >
                 <option value={5}>5 - Strongly Satisfied</option>
                 <option value={4}>4 - Mostly Satisfied</option>
@@ -232,33 +229,31 @@ export const WellnessCheckins: React.FC = () => {
                 <option value={2}>2 - Disgruntled / Unhappy</option>
                 <option value={1}>1 - Severe Issues / Burnout</option>
               </select>
-            </div>
+            </FormField>
           </div>
 
-          <div className="space-y-1 text-left">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase">Respondent Name (Or Anonymous)</label>
+          <FormField label="Respondent Name (Or Anonymous)" className="text-left">
             <input
               type="text"
               required
               placeholder="e.g. Ato Demeke (Or Anonymous)"
               value={checkInRespondent}
               onChange={(e) => setCheckInRespondent(e.target.value)}
-              className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className={formFieldInputClass}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-1 text-left">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase">Detailed Comments & Feedback</label>
+          <FormField label="Detailed Comments & Feedback" className="text-left">
             <textarea
               required
               placeholder="Provide constructive details on resources, class loads, curriculum pacing, or facilities..."
               value={checkInComment}
               onChange={(e) => setCheckInComment(e.target.value)}
-              className="w-full h-24 p-3 bg-muted/40 border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className={`${formFieldInputClass} h-24 py-2.5 resize-none`}
             />
-          </div>
+          </FormField>
 
-          <DialogFooter className="mt-6 border-t border-border/20 pt-4">
+          <DialogFooter className="mt-2 border-t border-border/20 pt-4">
             <Button
               type="button"
               variant="outline"

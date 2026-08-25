@@ -226,7 +226,7 @@ export const api = {
     }),
   updateLessonPlan: (
     id: string,
-    body: { title: string; objectives: string[]; sessions: number; homework: string }
+    body: { title: string; objectives: string[]; sessions: number; homework: string; planDetail?: string }
   ) =>
     request(`/lesson-plans/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteLessonPlan: (id: string) =>

@@ -533,7 +533,7 @@ export const TeacherGradebook: React.FC = () => {
             <div className="flex items-start justify-between gap-3 border-b border-border p-4">
               <div>
                 <p className={aisLabelCaps}>Result detail</p>
-                <h3 className={aisHeadlineSm}>{detailStudent?.name ?? 'Student'}</h3>
+                <h3 className={`${aisHeadlineSm} !text-title`}>{detailStudent?.name ?? 'Student'}</h3>
                 <p className={aisBodySm}>
                   {detailEntry.entryType} · {detailEntry.title}
                 </p>

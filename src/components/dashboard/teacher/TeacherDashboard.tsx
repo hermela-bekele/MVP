@@ -24,6 +24,7 @@ import {
   dispatchTeacherQuickAction,
 } from '@/lib/teacherPortal';
 import type { Student } from '@/lib/mockData';
+import { gpaToMark, formatMark } from '@/lib/grading';
 import {
   aisActivityAlertRow,
   aisActivityPanel,
@@ -131,7 +132,7 @@ function ScheduleSection({
 
       <div className={aisSchedulePanel}>
         <div className="flex min-h-0 flex-1">
-          <div className="flex w-[7.5rem] shrink-0 flex-col gap-1 border-r border-border bg-muted/40 p-3">
+          <div className="flex w-[7.5rem] shrink-0 flex-col gap-1 border-r border-ais-card-border bg-ais-surface-container-low/40 p-3">
             {dayFilters.map(({ id, label }) => {
               const active = scheduleDay === id;
               const date = scheduleDateForDay(id);
@@ -147,7 +148,7 @@ function ScheduleSection({
                   <span className="block">{label}</span>
                   <span
                     className={`mt-0.5 block text-[10px] font-medium ${
-                      active ? 'text-primary/70' : 'text-muted-foreground'
+                      active ? 'text-ais-primary/70' : 'text-ais-on-surface-variant'
                     }`}
                   >
                     {formatScheduleDate(date)}
@@ -170,7 +171,7 @@ function ScheduleSection({
                 return (
                   <div key={a.id} className={aisScheduleListRow}>
                     <div className="min-w-[5.5rem] shrink-0">
-                      <p className={`${aisLabelCaps} text-primary`}>
+                      <p className={`${aisLabelCaps} text-ais-primary`}>
                         {periodLabel(a.period, idx)}
                       </p>
                       <p className={`${aisBodySm} mt-0.5 tabular-nums`}>{a.period}</p>
@@ -189,7 +190,7 @@ function ScheduleSection({
                         <Avatar key={s.id} name={s.name} title={s.name} size="xs" className="ring-2 ring-white rounded-full" />
                       ))}
                       {overflow > 0 && (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-muted text-[9px] font-bold text-muted-foreground">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ais-surface-container-low text-[9px] font-bold text-ais-on-surface-variant">
                           +{overflow}
                         </div>
                       )}
@@ -215,8 +216,8 @@ function SectionTitle({
   className?: string;
 }) {
   return (
-    <h3 className={`${aisDisplayMd} flex items-center gap-2 ${className}`}>
-      <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+    <h3 className={`${aisDisplayMd} flex items-center gap-2 ${className} !text-title`}>
+      <Icon className="h-5 w-5 shrink-0 text-ais-primary" aria-hidden />
       {children}
     </h3>
   );
@@ -234,7 +235,7 @@ function KpiCard({
   label: string;
   value: React.ReactNode;
   pill?: React.ReactNode;
-  pillVariant?: 'neutral' | 'success' | 'error';
+  pillVariant?: 'neutral' | 'success' | 'error' | 'plain';
   valueIcon?: React.ReactNode;
   icon: React.ComponentType<{ className?: string }>;
   accent?: 'primary' | 'error';
@@ -244,7 +245,9 @@ function KpiCard({
       ? aisKpiPillSuccess
       : pillVariant === 'error'
         ? aisKpiPillError
-        : aisKpiPill;
+        : pillVariant === 'plain'
+          ? 'text-[11px] font-semibold text-ais-on-surface-variant'
+          : aisKpiPill;
 
   return (
     <div className={aisKpiCard}>
@@ -257,7 +260,7 @@ function KpiCard({
       >
         <p
           className={`${aisKpiLabel} flex min-w-0 items-center gap-2 ${
-            accent === 'error' ? '!text-destructive' : ''
+            accent === 'error' ? '!text-ais-error' : ''
           }`}
         >
           <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -267,7 +270,7 @@ function KpiCard({
       </div>
       <div className="mt-4 flex items-end gap-2">
         <span
-          className={`${aisKpiValue} ${accent === 'error' ? 'text-destructive' : ''}`}
+          className={`${aisKpiValue} ${accent === 'error' ? 'text-ais-error' : ''}`}
         >
           {value}
         </span>
@@ -306,13 +309,14 @@ export const TeacherDashboard: React.FC = () => {
           label="Total Students"
           value={roster.length}
           pill="Grades 9–10"
+          pillVariant="plain"
           icon={Users}
         />
         <KpiCard
-          label="Average GPA"
-          value={avgGpa.toFixed(2)}
+          label="Average Mark"
+          value={`${gpaToMark(avgGpa)}%`}
           valueIcon={
-            <TrendingUp className="h-5 w-5 text-success" aria-hidden />
+            <TrendingUp className="h-5 w-5 text-ais-success" aria-hidden />
           }
           icon={TrendingUp}
         />
@@ -338,7 +342,7 @@ export const TeacherDashboard: React.FC = () => {
               <SectionTitle icon={BarChart3}>Academic Performance</SectionTitle>
               <div className={`${aisCard} space-y-6 p-4`}>
                 {gradeBands.map((band) => {
-                  const barWidth = Math.min(100, (band.avg / 4) * 100);
+                  const barWidth = Math.min(100, gpaToMark(band.avg));
                   return (
                     <div key={band.label} className="space-y-2">
                       <div className="flex items-end justify-between gap-4">
@@ -347,13 +351,13 @@ export const TeacherDashboard: React.FC = () => {
                           <p className={aisBodySm}>{band.students.length} students enrolled</p>
                         </div>
                         <span className={aisDataLg}>
-                          {band.avg.toFixed(2)}{' '}
-                          <span className={`${aisBodySm} font-normal`}>GPA</span>
+                          {gpaToMark(band.avg)}
+                          <span className={`${aisBodySm} font-normal`}>%</span>
                         </span>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
+                      <div className="h-2 w-full overflow-hidden rounded-sm bg-ais-surface-container-low">
                         <div
-                          className="progress-bar-fill h-full rounded-sm bg-primary"
+                          className="progress-bar-fill h-full rounded-sm bg-ais-primary"
                           style={{ width: `${barWidth}%` }}
                         />
                       </div>
@@ -383,26 +387,26 @@ export const TeacherDashboard: React.FC = () => {
               ) : (
                 atRisk.map((s) => {
                   const reason =
-                    s.attendanceRate < 90 ? 'low attendance' : 'low GPA';
+                    s.attendanceRate < 90 ? 'low attendance' : 'low mark';
                   return (
                     <div
                       key={s.id}
                       className={`${aisActivityAlertRow} flex flex-wrap items-center justify-between gap-x-3 gap-y-1`}
                     >
-                      <p className={`${aisBodyMd} min-w-0 !text-foreground`}>
+                      <p className={`${aisBodyMd} min-w-0 !text-ais-on-surface`}>
                         <AlertCircle
-                          className="-mt-px mr-1 inline h-3.5 w-3.5 shrink-0 align-middle text-destructive"
+                          className="-mt-px mr-1 inline h-3.5 w-3.5 shrink-0 align-middle text-ais-error"
                           aria-hidden
                         />
-                        <span className="font-medium text-foreground">{s.name}</span>
-                        <span className="text-muted-foreground">
+                        <span className="font-medium text-ais-on-surface">{s.name}</span>
+                        <span className="text-ais-on-surface-variant">
                           {' '}
-                          · GPA {s.gpa.toFixed(2)} · {s.attendanceRate}% att. ·{' '}
+                          · Mark {formatMark(s.gpa)} · {s.attendanceRate}% att. ·{' '}
                         </span>
-                        <span className="font-medium text-destructive">{reason}</span>
+                        <span className="font-medium text-ais-error">{reason}</span>
                       </p>
                       <span className="inline-flex shrink-0 items-center gap-2">
-                        <a href={`tel:${s.parentPhone}`} className={`${aisBtnGhost} !text-destructive`}>
+                        <a href={`tel:${s.parentPhone}`} className={`${aisBtnGhost} !text-ais-error`}>
                           <Phone className="h-3 w-3" aria-hidden />
                           Call
                         </a>
@@ -435,13 +439,13 @@ export const TeacherDashboard: React.FC = () => {
                     </div>
                     <p className={`${aisBodyMd} mb-2`}>
                       {atRiskStudent
-                        ? `GPA ${s.gpa.toFixed(2)} · Attendance ${s.attendanceRate}% — needs follow-up.`
-                        : `Enrolled · GPA ${s.gpa.toFixed(2)} · ${s.attendanceRate}% attendance.`}
+                        ? `Mark ${formatMark(s.gpa)} · Attendance ${s.attendanceRate}% — needs follow-up.`
+                        : `Enrolled · Mark ${formatMark(s.gpa)} · ${s.attendanceRate}% attendance.`}
                     </p>
                     {atRiskStudent ? (
                       <span className={aisBadgeWarning}>
                         <AlertCircle className="h-3 w-3" aria-hidden />
-                        GPA Alert
+                        Low Mark Alert
                       </span>
                     ) : (
                       <span className={aisBadgeSuccess}>

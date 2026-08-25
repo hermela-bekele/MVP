@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCa
 import { EmptyState } from '@/components/ui/empty-state';
 import { UserX } from 'lucide-react';
 import { generatePDFFromMarkdown, slugifyFilename } from '@/lib/pdfUtils';
+import { gpaToMark } from '@/lib/grading';
 
 export default function StudentPortalPage() {
   const { students, addNotification, currentUser } = useApp();
@@ -133,10 +134,10 @@ export default function StudentPortalPage() {
           {activeTab === 'dashboard' && (
             <div className="space-y-6 text-left">
               <KpiGrid>
-                <KpiWidget label="Cumulative GPA" value={activeStudent.gpa.toFixed(2)} hint={gpaStandingHint} tone="emphasis" icon={<span>★</span>} />
+                <KpiWidget label="Cumulative Mark" value={`${gpaToMark(activeStudent.gpa)}%`} hint={gpaStandingHint} tone="emphasis" icon={<span>★</span>} />
                 <KpiWidget label="Attendance" value={`${activeStudent.attendanceRate}%`} hint="This term" tone="emphasis" icon={<span>✓</span>} />
                 <KpiWidget label="Tasks Done" value={`${completedHomeworkCount}/${homeworkList.length}`} hint="Assessments" tone="default" icon={<span>📋</span>} />
-                <KpiWidget label="Class Average" value={classAverageGpa.toFixed(2)} hint={`Section ${activeStudent.section}`} tone="default" icon={<span>📊</span>} />
+                <KpiWidget label="Class Average" value={`${gpaToMark(classAverageGpa)}%`} hint={`Section ${activeStudent.section}`} tone="default" icon={<span>📊</span>} />
               </KpiGrid>
 
               {/* Progress and Homework details */}
@@ -182,7 +183,6 @@ export default function StudentPortalPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm font-semibold">Pending Class Homework Checklist</CardTitle>
-                    <CardDescription>Assignments due for submission in your active term blocks.</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-2 space-y-3">
                     {homeworkList.map((hw) => (
@@ -231,7 +231,6 @@ export default function StudentPortalPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-semibold">Government Disseminated Textbook Assets</CardTitle>
-                  <CardDescription>Syllabus books and guidelines broadcast by curriculum directors ready for download.</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-2">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -239,7 +238,7 @@ export default function StudentPortalPage() {
                       <div key={res.id} className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-3">
                         <span className="text-2xl">📚</span>
                         <div>
-                          <h4 className="text-xs font-bold text-foreground line-clamp-1">{res.name}</h4>
+                          <h4 className="text-xs font-bold text-title line-clamp-1">{res.name}</h4>
                           <p className="text-[10px] text-muted-foreground mt-0.5">Format: {res.format} • Size: {res.size}</p>
                         </div>
                         <Button
@@ -263,7 +262,6 @@ export default function StudentPortalPage() {
             <div className="space-y-6 animate-fade-in text-left">
               <TablePanel
                 title="Weekly Lecture Period Scheduler"
-                description="Synced conflict-free schedule grid for Grade 9 Section A class."
               >
                     <table className="eskooly-table">
                       <thead>
@@ -300,7 +298,7 @@ export default function StudentPortalPage() {
                 fields={[
                   { label: 'Grade / Section', value: `${activeStudent.grade} · Section ${activeStudent.section}` },
                   { label: 'Student ID', value: activeStudent.studentId },
-                  { label: 'Cumulative GPA', value: activeStudent.gpa.toFixed(2) },
+                  { label: 'Cumulative Mark', value: `${gpaToMark(activeStudent.gpa)}%` },
                   { label: 'Attendance rate', value: `${activeStudent.attendanceRate}%` },
                 ]}
               />

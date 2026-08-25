@@ -1,8 +1,9 @@
 /**
- * Teacher-portal Tailwind utility bundles. Historically built on a separate
- * "Academic Intelligence System" (AIS) color-token set (--color-ais-*); now
- * remapped onto the shared shadcn tokens (--primary, --border, --muted, etc.)
- * so the teacher portal renders with the same palette as every other portal.
+ * Teacher-portal Tailwind utility bundles, mostly remapped onto the shared
+ * shadcn tokens (--primary, --border, --muted, etc.) so the teacher portal
+ * renders with the same palette as every other portal. The notification
+ * panel/menu and primary button still use the separate "Academic
+ * Intelligence System" (AIS) color-token set (--color-ais-*, --color-btn-*).
  * Export names are kept stable — consumers (TeacherPortalUi.tsx and ~30 direct
  * importers) need no changes.
  */
@@ -86,75 +87,70 @@ export const aisNavbarDropdown =
 export const aisNavbarOverlay = 'fixed inset-0 z-20';
 
 export const aisNavbarNotifPanel =
-  'absolute right-0 z-30 mt-2 flex w-[420px] max-w-[calc(100vw-2rem)] max-h-[32rem] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[0_8px_24px_rgba(15,23,42,0.12)] animate-fade-in';
+  'absolute right-0 z-30 mt-2.5 flex w-[400px] max-w-[calc(100vw-2rem)] max-h-[34rem] flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white shadow-[0_16px_40px_rgba(15,23,42,0.16)] animate-fade-in';
 
 export const aisNavbarNotifHeader =
-  'flex shrink-0 items-center justify-between border-b border-border bg-muted/40 px-4 py-3';
+  'flex shrink-0 items-center justify-between px-4 py-3.5';
 
 export const aisNavbarNotifFilters =
-  'flex shrink-0 gap-1 border-b border-border bg-muted/20 px-3 py-2';
+  'flex shrink-0 gap-1 rounded-full bg-ais-surface-container-low p-1 mx-4 mb-3';
 
 export const aisNavbarNotifFilterBtn =
-  'rounded-lg px-2.5 py-1 text-[10px] font-bold transition-colors';
+  'flex-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-all duration-150';
 
 export const aisNavbarNotifFilterBtnActive =
-  'bg-card text-primary shadow-[0_1px_3px_rgba(15,23,42,0.05)]';
+  'bg-white text-ais-primary shadow-[0_1px_4px_rgba(15,23,42,0.12)]';
 
 export const aisNavbarNotifFilterBtnInactive =
-  'text-muted-foreground hover:bg-accent/10 hover:text-primary';
+  'text-ais-on-surface-variant hover:text-ais-primary';
 
 export const aisNavbarNotifSectionHeader =
-  'bg-muted/40 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border';
+  'px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-ais-outline';
 
 export const aisNavbarNotifList =
-  'scrollbar-none flex-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+  'scrollbar-none flex-1 overflow-y-auto border-t border-ais-card-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 export const aisNavbarNotifItem =
-  'group relative border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/40';
+  'group relative px-4 py-3.5 transition-colors hover:bg-ais-row-hover';
 
 export const aisNavbarNotifItemUnread =
-  'bg-muted/60 before:absolute before:left-0 before:top-4 before:bottom-4 before:w-1 before:rounded-r-full before:bg-primary';
+  'bg-ais-primary/[0.03] before:absolute before:left-1.5 before:top-[1.35rem] before:h-1.5 before:w-1.5 before:rounded-full before:bg-ais-primary';
 
-export const aisNavbarNotifItemInner = 'flex gap-3 pl-1';
+export const aisNavbarNotifItemInner = 'flex gap-3 pl-2';
 
 export const aisNavbarNotifIconWrap =
-  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border';
+  'flex h-10 w-10 shrink-0 items-center justify-center rounded-full';
 
-export const aisNavbarNotifIconAlert =
-  'border-destructive/20 bg-destructive/10 text-destructive';
+export const aisNavbarNotifIconAlert = 'bg-ais-error/10 text-ais-error';
 
-export const aisNavbarNotifIconSuccess =
-  'border-success/20 bg-success/10 text-success';
+export const aisNavbarNotifIconSuccess = 'bg-ais-success/10 text-ais-success';
 
-export const aisNavbarNotifIconRequest =
-  'border-primary/20 bg-primary/10 text-primary';
+export const aisNavbarNotifIconRequest = 'bg-ais-primary/10 text-ais-primary';
 
-export const aisNavbarNotifIconInfo =
-  'border-border bg-muted text-muted-foreground';
+export const aisNavbarNotifIconInfo = 'bg-ais-surface-container-low text-ais-on-surface-variant';
 
 export const aisNavbarNotifActionBtn =
-  'flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card hover:text-primary cursor-pointer';
+  'flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-surface-container-low hover:text-ais-primary cursor-pointer';
 
 export const aisNavbarNotifActionBtnDanger =
-  'flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer';
+  'flex h-7 w-7 items-center justify-center rounded-full text-ais-on-surface-variant transition-colors hover:bg-ais-error/10 hover:text-ais-error cursor-pointer';
+
+export const aisNavbarNotifActions =
+  'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100';
 
 export const aisNavbarNotifFooterBtn =
-  'inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-primary transition-colors hover:border-primary/30 hover:bg-muted cursor-pointer';
+  'inline-flex items-center gap-1.5 rounded-full bg-ais-primary/10 px-3 py-1.5 text-[11px] font-bold text-ais-primary transition-colors hover:bg-ais-primary/20 cursor-pointer';
 
-export const aisNavbarNotifTypeRequest =
-  'inline-flex rounded-lg bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary';
+export const aisNavbarNotifTypeRequest = 'text-[11px] font-semibold text-ais-primary';
 
-export const aisNavbarNotifTypeAlert =
-  'inline-flex rounded-lg bg-destructive/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-destructive';
+export const aisNavbarNotifTypeAlert = 'text-[11px] font-semibold text-ais-error';
 
-export const aisNavbarNotifTypeSuccess =
-  'inline-flex rounded-lg bg-success/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success';
+export const aisNavbarNotifTypeSuccess = 'text-[11px] font-semibold text-ais-success';
 
-export const aisNavbarNotifTypeInfo =
-  'inline-flex rounded-lg border border-border bg-muted px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground';
+export const aisNavbarNotifTypeInfo = 'text-[11px] font-semibold text-ais-on-surface-variant';
 
 export const aisNavbarNotifBadge =
-  'absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground';
+  'absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-ais-error px-1 text-[9px] font-bold text-white ring-2 ring-white';
 
 export const aisNavbarDropdownItem =
   'w-full text-left px-3 py-2 text-xs text-muted-foreground hover:text-primary hover:bg-muted rounded-md transition-colors cursor-pointer';
@@ -221,7 +217,7 @@ export const aisScheduleListRow =
   'flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40';
 
 export const aisBtnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground transition-all hover:bg-accent shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0';
+  'inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-btn-primary [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0';
 
 export const aisBtnSecondary =
   'inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-6 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted shadow-sm [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0';

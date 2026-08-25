@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { WeeklyLessonSession, WeeklyProcedureRow, WeeklySpecialNeeds } from '@/lib/ai';
+import { EditableList, EditableText, EditableTextarea } from '@/components/ui/editablePlanCells';
 
 interface WeeklyLessonPlanTableProps {
   sessions: WeeklyLessonSession[];
@@ -13,6 +14,10 @@ interface WeeklyLessonPlanTableProps {
     subTopic?: string;
     grade?: string;
   };
+  /** Allow editing procedures, objectives, teaching aids, and special-needs notes
+   * for the teacher's own draft. */
+  editable?: boolean;
+  onChange?: (next: WeeklyLessonSession[]) => void;
 }
 
 const STAGES = [
@@ -79,28 +84,78 @@ function ensureProcedures(session: WeeklyLessonSession): WeeklyProcedureRow[] {
   });
 }
 
-function SpecialNeedsCell({ needs, rowSpan }: { needs: WeeklySpecialNeeds; rowSpan: number }) {
+function SpecialNeedsCell({
+  needs,
+  rowSpan,
+  editable,
+  onEdit,
+}: {
+  needs: WeeklySpecialNeeds;
+  rowSpan: number;
+  editable: boolean;
+  onEdit: (field: keyof WeeklySpecialNeeds, next: string) => void;
+}) {
   return (
     <td
       rowSpan={rowSpan}
       className="border border-foreground/80 px-2 py-2 align-top text-[11px] leading-snug min-w-[160px]"
     >
-      <p className="mb-2 font-semibold italic">For active learners:</p>
-      <p className="mb-3">{needs.active || '—'}</p>
-      <p className="mb-2 font-semibold italic">For medium learners</p>
-      <p className="mb-3">{needs.medium || '—'}</p>
-      <p className="mb-2 font-semibold italic">For slow learners:</p>
-      <p>{needs.slow || '—'}</p>
+      <p className="mb-1 font-semibold italic">For active learners:</p>
+      {editable ? (
+        <EditableText className="mb-3 text-left" value={needs.active || ''} onChange={(v) => onEdit('active', v)} />
+      ) : (
+        <p className="mb-3">{needs.active || '—'}</p>
+      )}
+      <p className="mb-1 font-semibold italic">For medium learners</p>
+      {editable ? (
+        <EditableText className="mb-3 text-left" value={needs.medium || ''} onChange={(v) => onEdit('medium', v)} />
+      ) : (
+        <p className="mb-3">{needs.medium || '—'}</p>
+      )}
+      <p className="mb-1 font-semibold italic">For slow learners:</p>
+      {editable ? (
+        <EditableText className="text-left" value={needs.slow || ''} onChange={(v) => onEdit('slow', v)} />
+      ) : (
+        <p>{needs.slow || '—'}</p>
+      )}
     </td>
   );
 }
 
-function SessionTable({ session }: { session: WeeklyLessonSession }) {
+function SessionTable({
+  session,
+  editable,
+  onEditSession,
+}: {
+  session: WeeklyLessonSession;
+  editable: boolean;
+  onEditSession: (updater: (prev: WeeklyLessonSession) => WeeklyLessonSession) => void;
+}) {
   const rows = ensureProcedures(session);
   const needs: WeeklySpecialNeeds = session.specialNeeds || {
     active: '—',
     medium: '—',
     slow: '—',
+  };
+
+  const editProcedureField = (rowIndex: number, field: keyof WeeklyProcedureRow, value: string) => {
+    onEditSession((prev) => {
+      const nextProcedures = ensureProcedures(prev).map((row, i) =>
+        i === rowIndex ? { ...row, [field]: value } : row,
+      );
+      return { ...prev, procedures: nextProcedures };
+    });
+  };
+
+  const editSpecialNeeds = (field: keyof WeeklySpecialNeeds, value: string) => {
+    onEditSession((prev) => ({
+      ...prev,
+      specialNeeds: { ...(prev.specialNeeds || { active: '', medium: '', slow: '' }), [field]: value },
+    }));
+  };
+
+  const editObjectives = (next: string[]) => {
+    onEditSession((prev) => ({ ...prev, objectives: next }));
   };
 
   return (
@@ -116,7 +171,14 @@ function SessionTable({ session }: { session: WeeklyLessonSession }) {
           ) : null}
         </div>
       </div>
-      {session.objectives?.length ? (
+      {editable ? (
+        <div className="mb-2 space-y-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Objectives (one per line)
+          </label>
+          <EditableList items={session.objectives || []} onChange={editObjectives} placeholder="One objective per line" />
+        </div>
+      ) : session.objectives?.length ? (
         <ul className="mb-2 list-disc pl-5 text-xs text-muted-foreground">
           {session.objectives.map((o, i) => (
             <li key={i}>{o}</li>
@@ -147,14 +209,50 @@ function SessionTable({ session }: { session: WeeklyLessonSession }) {
                   {row.stage}
                 </td>
                 <td className="border border-foreground/80 px-1.5 py-2 text-center whitespace-nowrap">
-                  {row.time}
+                  {editable ? (
+                    <EditableText value={row.time} onChange={(v) => editProcedureField(i, 'time', v)} />
+                  ) : (
+                    row.time
+                  )}
                 </td>
-                <td className="border border-foreground/80 px-2 py-2">{row.lessonContents}</td>
-                <td className="border border-foreground/80 px-2 py-2">{row.teacherActivity}</td>
-                <td className="border border-foreground/80 px-2 py-2">{row.studentActivity}</td>
-                <td className="border border-foreground/80 px-2 py-2">{row.teachingAid}</td>
-                <td className="border border-foreground/80 px-2 py-2">{row.reference}</td>
-                {i === 0 ? <SpecialNeedsCell needs={needs} rowSpan={rows.length} /> : null}
+                <td className="border border-foreground/80 px-2 py-2">
+                  {editable ? (
+                    <EditableTextarea value={row.lessonContents} onChange={(v) => editProcedureField(i, 'lessonContents', v)} />
+                  ) : (
+                    row.lessonContents
+                  )}
+                </td>
+                <td className="border border-foreground/80 px-2 py-2">
+                  {editable ? (
+                    <EditableTextarea value={row.teacherActivity} onChange={(v) => editProcedureField(i, 'teacherActivity', v)} />
+                  ) : (
+                    row.teacherActivity
+                  )}
+                </td>
+                <td className="border border-foreground/80 px-2 py-2">
+                  {editable ? (
+                    <EditableTextarea value={row.studentActivity} onChange={(v) => editProcedureField(i, 'studentActivity', v)} />
+                  ) : (
+                    row.studentActivity
+                  )}
+                </td>
+                <td className="border border-foreground/80 px-2 py-2">
+                  {editable ? (
+                    <EditableText value={row.teachingAid} onChange={(v) => editProcedureField(i, 'teachingAid', v)} />
+                  ) : (
+                    row.teachingAid
+                  )}
+                </td>
+                <td className="border border-foreground/80 px-2 py-2">
+                  {editable ? (
+                    <EditableText value={row.reference} onChange={(v) => editProcedureField(i, 'reference', v)} />
+                  ) : (
+                    row.reference
+                  )}
+                </td>
+                {i === 0 ? (
+                  <SpecialNeedsCell needs={needs} rowSpan={rows.length} editable={editable} onEdit={editSpecialNeeds} />
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -168,12 +266,19 @@ export const WeeklyLessonPlanTable: React.FC<WeeklyLessonPlanTableProps> = ({
   sessions,
   className = '',
   meta,
+  editable = false,
+  onChange,
 }) => {
   if (!sessions?.length) {
     return (
       <p className="text-sm text-muted-foreground">No weekly sessions in this plan yet.</p>
     );
   }
+
+  const editSession = (sessionNumber: number, updater: (prev: WeeklyLessonSession) => WeeklyLessonSession) => {
+    if (!onChange) return;
+    onChange(sessions.map((s) => (s.sessionNumber === sessionNumber ? updater(s) : s)));
+  };
 
   return (
     <div className={`weekly-lesson-plan-table space-y-6 ${className}`}>
@@ -205,7 +310,12 @@ export const WeeklyLessonPlanTable: React.FC<WeeklyLessonPlanTableProps> = ({
         </div>
       ) : null}
       {sessions.map((s) => (
-        <SessionTable key={s.sessionNumber} session={s} />
+        <SessionTable
+          key={s.sessionNumber}
+          session={s}
+          editable={editable}
+          onEditSession={(updater) => editSession(s.sessionNumber, updater)}
+        />
       ))}
     </div>
   );

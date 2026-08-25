@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
@@ -22,7 +22,7 @@ import { RegistrarOverviewPanel } from '@/components/dashboard/school-head/Regis
 import { FinanceOverviewPanel } from '@/components/dashboard/school-head/FinanceOverviewPanel';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { CommunicationModule } from '@/components/dashboard/communication/CommunicationModule';
-import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
+import { SchoolHeadHodMessagesPanel } from '@/components/dashboard/school-head/SchoolHeadHodMessagesPanel';
 import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 import { SchoolHeadAnnouncements } from '@/components/dashboard/school-head/SchoolHeadAnnouncements';
@@ -31,7 +31,11 @@ import { SchoolBillingSettings } from '@/components/dashboard/school-head/School
 import { PermissionsAdminPanel } from '@/components/dashboard/school-head/PermissionsAdminPanel';
 import { ApplicationFormBuilder } from '@/components/dashboard/school-head/ApplicationFormBuilder';
 import { LessonPlanReview } from '@/components/dashboard/school-head/LessonPlanReview';
-
+import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
+import { TEACHER_CLASS_ASSIGNMENTS } from '@/lib/teacherPortal';
+import { formatMark } from '@/lib/grading';
+import type { SchoolClass } from '@/lib/mockData';
+import { ArrowLeft, MapPin, Clock, CalendarDays } from 'lucide-react';
 export default function SchoolHeadPortalPage() {
   const {
     departments,
@@ -42,7 +46,9 @@ export default function SchoolHeadPortalPage() {
     teachers,
     schools,
     currentUser,
+    students,
   } = useApp();
+  const [detailClass, setDetailClass] = useState<SchoolClass | null>(null);
 
   // Resolve the logged-in school head's actual school from session; fall back to the
   // first school on record only for demo/unlinked accounts.
@@ -91,11 +97,13 @@ export default function SchoolHeadPortalPage() {
       case 'billing-settings': return [...base, { label: 'Billing Settings' }];
       case 'permissions-admin': return [...base, { label: 'Permissions' }];
       case 'teachers-development': return [...base, { label: 'Professional Development' }];
-      case 'communication': return [...base, { label: 'Communication' }];
+      case 'communication': return [...base, { label: 'Community' }];
+      case 'department-messages': return [...base, { label: 'Direct Messages' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
       case 'account-settings': return [...base, { label: 'Portal Settings' }];
       case 'leadership-development': return [...base, { label: 'ELEP Leadership Development' }];
       case 'profile': return [...base, { label: 'My Profile' }];
+      case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
       default: return base;
     }
   };
@@ -125,8 +133,8 @@ export default function SchoolHeadPortalPage() {
   // Attendance Filters State
   const [attendanceTab, setAttendanceTab] = useState<'student' | 'employee'>('student');
 
-  // Communication Tab State (school head only ever browses channels — no Feedback sub-tab)
-  const [commMainTab] = useState<CommunicationMainTab>('channels');
+  // Academic Calendar Tab State
+  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
 
   const tabMeta: Record<string, { title: string; subtitle?: string }> = {
     dashboard: { title: 'Overview' },
@@ -199,8 +207,12 @@ export default function SchoolHeadPortalPage() {
       subtitle: 'Monitor MOE training participation rates and upload pedagogy instructional guidelines.',
     },
     communication: {
-      title: 'Communication',
-      subtitle: 'Post school-wide announcements and coordinate directly with heads of department.',
+      title: 'Community',
+      subtitle: 'Post school-wide announcements and browse your community channels.',
+    },
+    'department-messages': {
+      title: 'Direct Messages',
+      subtitle: 'Message your department heads.',
     },
     'manage-checkins': {
       title: 'Wellness Check-ins',
@@ -218,12 +230,18 @@ export default function SchoolHeadPortalPage() {
       title: 'My Profile',
       subtitle: 'Your school head account information.',
     },
+    'academic-calendar': {
+      title: 'Academic Calendar',
+      subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.',
+    },
   };
 
   const meta = tabMeta[activeTab] ?? { title: 'School Head Portal' };
 
   const shellActions =
-    activeTab === 'manage-checkins' ? (
+    activeTab === 'academic-calendar'
+      ? calendarHeaderActions
+      : activeTab === 'manage-checkins' ? (
       <Button
         variant="organic"
         size="sm"
@@ -249,9 +267,8 @@ export default function SchoolHeadPortalPage() {
           {activeTab === 'dashboard' && <OverviewDashboard />}
 
           {/* Communication */}
-          {activeTab === 'communication' && (
-            <CommunicationModule mode="school-head" mainTab={commMainTab} onMainTabChange={() => {}} />
-          )}
+          {activeTab === 'communication' && <CommunicationModule mode="school-head" />}
+          {activeTab === 'department-messages' && <SchoolHeadHodMessagesPanel />}
 
           {/* Student Management */}
           {activeTab === 'manage-students' && <StudentManagement readOnly />}
@@ -260,22 +277,108 @@ export default function SchoolHeadPortalPage() {
           {activeTab === 'manage-employees' && <EmployeeManagement readOnly />}
 
           {/* View Classes */}
-          {activeTab === 'manage-classes' && (
+          {activeTab === 'manage-classes' && !detailClass && (
             <div className="space-y-6 animate-fade-in text-left">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classes.map((cls) => (
-                  <Card key={cls.id} className="flex flex-col justify-between border-border/60 hover:border-primary/40 transition-colors duration-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold text-foreground">{cls.name}</CardTitle>
-                      <CardDescription className="uppercase text-[9px] font-bold">Grade Level: {cls.grade}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-xxs text-muted-foreground space-y-1 pb-4">
-                      <p>• Homeroom Teacher: <strong className="text-foreground">{cls.homeroomTeacher}</strong></p>
-                      <p>• Student Roster Count: <strong className="text-foreground">{cls.studentsCount || 40} pupils</strong></p>
-                    </CardContent>
-                  </Card>
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => setDetailClass(cls)}
+                    className="text-left"
+                  >
+                    <Card className="flex flex-col justify-between border-border/60 hover:border-primary/40 hover:shadow-md transition-all duration-200">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold text-foreground">{cls.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-xxs text-muted-foreground space-y-1 pb-4">
+                        <p>• Homeroom Teacher: <strong className="text-foreground">{cls.homeroomTeacher}</strong></p>
+                        <p>• Student Roster Count: <strong className="text-foreground">{cls.studentsCount || 40} pupils</strong></p>
+                      </CardContent>
+                    </Card>
+                  </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'manage-classes' && detailClass && (
+            <div className="space-y-6 animate-fade-in text-left">
+              <Button variant="outline" size="sm" onClick={() => setDetailClass(null)}>
+                <ArrowLeft className="h-3.5 w-3.5 mr-1.5" aria-hidden />
+                Back to classes
+              </Button>
+
+              <Card className="border-border/60">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold text-foreground">{detailClass.name}</CardTitle>
+                </CardHeader>
+              </Card>
+
+              <Card className="border-border/60">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Weekly Timetable</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const periods = TEACHER_CLASS_ASSIGNMENTS.filter(
+                      (a) => a.grade === detailClass.grade && a.section === detailClass.section,
+                    );
+                    if (periods.length === 0) {
+                      return <p className="text-xs text-muted-foreground">No timetable published for this class yet.</p>;
+                    }
+                    return (
+                      <ul className="space-y-2">
+                        {periods.map((p) => (
+                          <li key={p.id} className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground min-w-[7rem]">{p.subject}</span>
+                            <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-primary" aria-hidden /> {p.room}</span>
+                            <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-primary" aria-hidden /> {p.period}</span>
+                            <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-primary" aria-hidden /> {p.days}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold text-foreground">Class Roster</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border/60 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <th className="py-2 px-4 font-semibold">Student</th>
+                          <th className="py-2 px-4 font-semibold">ID</th>
+                          <th className="py-2 px-4 font-semibold">Attendance</th>
+                          <th className="py-2 px-4 font-semibold">Cumulative Mark</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {students
+                          .filter((s) => s.grade === detailClass.grade && s.section === detailClass.section)
+                          .map((s) => (
+                            <tr key={s.id} className="border-b border-border/40 last:border-0 hover:bg-muted/20">
+                              <td className="py-2 px-4 font-semibold text-foreground">{s.name}</td>
+                              <td className="py-2 px-4 font-mono text-muted-foreground">{s.studentId}</td>
+                              <td className="py-2 px-4 tabular-nums">{s.attendanceRate}%</td>
+                              <td className="py-2 px-4 tabular-nums font-semibold">{formatMark(s.gpa)}</td>
+                            </tr>
+                          ))}
+                        {students.filter((s) => s.grade === detailClass.grade && s.section === detailClass.section).length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="py-6 text-center text-muted-foreground">No students on record for this class.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -287,7 +390,6 @@ export default function SchoolHeadPortalPage() {
                   <Card key={dept.id} className="flex flex-col justify-between border-border/60 hover:border-primary/40 transition-colors duration-200">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-bold text-foreground">{dept.name}</CardTitle>
-                      <CardDescription className="uppercase text-[9px] font-bold">Curriculum Head: {dept.headName}</CardDescription>
                     </CardHeader>
                     <CardContent className="text-xxs text-muted-foreground space-y-1 pb-4">
                       <p>• Department ID: <code className="text-xxs font-mono">{dept.id}</code></p>
@@ -325,7 +427,6 @@ export default function SchoolHeadPortalPage() {
 
               <TablePanel
                 title={attendanceTab === 'student' ? 'Student Roster Attendance Logs' : 'Faculty Checked-in Ledger'}
-                description="Historical ledger matching official regional records"
               >
                   {attendanceTab === 'student' ? (
                       <table className="eskooly-table">
@@ -440,7 +541,6 @@ export default function SchoolHeadPortalPage() {
                   <Card className="border-border/60">
                     <CardHeader>
                       <CardTitle className="text-sm font-bold">Publish Pedagogy Training Course</CardTitle>
-                      <CardDescription>Add secondary school course resource guidelines.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <form onSubmit={handleDevFormSubmit} className="space-y-4">
@@ -493,7 +593,6 @@ export default function SchoolHeadPortalPage() {
                   <Card className="lg:col-span-2 border-border/60">
                     <CardHeader>
                       <CardTitle className="text-sm font-bold">MOE Pedagogy Catalog</CardTitle>
-                      <CardDescription>Active training guides and certifications published to instructors</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -501,7 +600,6 @@ export default function SchoolHeadPortalPage() {
                           <Card key={mat.id} className="border-border/60 hover:border-primary/40 transition-colors duration-200">
                             <CardHeader className="pb-2">
                               <CardTitle className="text-xs font-bold text-foreground truncate">{mat.title}</CardTitle>
-                              <CardDescription className="text-[9px] uppercase font-bold">{mat.category}</CardDescription>
                             </CardHeader>
                             <CardContent className="text-xxs pb-4 flex justify-between items-center">
                               <a href={mat.resourceUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">
@@ -558,7 +656,12 @@ export default function SchoolHeadPortalPage() {
             </div>
           )}
 
-          {/* 15. Profile */}
+          {/* 15. Academic Calendar & AI Timetable */}
+          {activeTab === 'academic-calendar' && (
+            <SchoolHeadAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
+          )}
+
+          {/* 16. Profile */}
           {activeTab === 'profile' && (
             <div className="space-y-6 animate-fade-in text-left">
               <PortalProfileCard

@@ -4,6 +4,7 @@ import React, { useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { uploadFile } from "@/lib/api";
+import { gpaToMark } from "@/lib/grading";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { KpiWidget, KpiGrid } from "@/components/dashboard/KpiWidget";
 import {
@@ -45,6 +46,8 @@ import { DeptWellnessCheckins } from "@/components/dashboard/department-head/Dep
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 import { CommunicationModule } from "@/components/dashboard/communication/CommunicationModule";
+import { DeptHodMessagesPanel } from "@/components/dashboard/department-head/DeptHodMessagesPanel";
+import { DeptHeadSchoolHeadMessagesTab } from "@/components/dashboard/department-head/DeptHeadSchoolHeadMessagesTab";
 import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-head/DeptAssessmentCreatePanel";
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
 import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
@@ -508,11 +511,16 @@ export default function DeptHeadPortalApp() {
       subtitle: "Review and approve weekly detailed lesson plans. Your approval is final.",
     },
     communication: {
-      title: "Communication",
+      title: "Community",
+      subtitle: "School-wide announcements and your department's community channels.",
     },
     "teacher-messages": {
-      title: "Messaging",
-      subtitle: "Live chat with teachers and review classroom challenges.",
+      title: "Direct Messages",
+      subtitle: "Live chat with teachers in your department.",
+    },
+    "school-head-messages": {
+      title: "Direct Messages",
+      subtitle: "Message the school head.",
     },
     training: {
       title: "Teacher Development",
@@ -705,19 +713,10 @@ export default function DeptHeadPortalApp() {
         <DeptLessonPlansPanel scope={scope} />
       )}
 
-      {activeTab === "teacher-messages" && (
-        <CommunicationModule
-          mode="department-head"
-          mainTab="channels"
-          onMainTabChange={() => {}}
-        />
-      )}
+      {activeTab === "teacher-messages" && <DeptHodMessagesPanel />}
+      {activeTab === "school-head-messages" && <DeptHeadSchoolHeadMessagesTab />}
       {activeTab === "communication" && (
-        <CommunicationModule
-          mode="department-head"
-          mainTab="channels"
-          onMainTabChange={() => {}}
-        />
+        <CommunicationModule mode="department-head" />
       )}
 
       {activeTab === "reports" && (
@@ -806,7 +805,7 @@ export default function DeptHeadPortalApp() {
                   <th>Student</th>
                   <th>ID</th>
                   <th>Grade / Section</th>
-                  <th>GPA</th>
+                  <th>Mark</th>
                   <th>Attendance</th>
                   <th>Status</th>
                 </tr>
@@ -829,7 +828,7 @@ export default function DeptHeadPortalApp() {
                         {std.grade} · Section {std.section}
                       </td>
                       <td className="p-3 font-mono font-bold">
-                        {std.gpa.toFixed(2)}
+                        {gpaToMark(std.gpa)}%
                       </td>
                       <td className="p-3">{std.attendanceRate}%</td>
                       <td className="p-3">
@@ -1399,7 +1398,7 @@ export default function DeptHeadPortalApp() {
                 <tr>
                   <th>Student</th>
                   <th>ID</th>
-                  <th>GPA</th>
+                  <th>Mark</th>
                   <th>Attendance</th>
                 </tr>
               </thead>
@@ -1427,7 +1426,7 @@ export default function DeptHeadPortalApp() {
                       </td>
                       <td className="p-3 font-mono text-xs">{std.studentId}</td>
                       <td className="p-3 font-mono font-bold">
-                        {std.gpa.toFixed(2)}
+                        {gpaToMark(std.gpa)}%
                       </td>
                       <td className="p-3">{std.attendanceRate}%</td>
                     </tr>
@@ -1815,6 +1814,7 @@ export default function DeptHeadPortalApp() {
       {activeTab === "assessments" && (
         <div className="space-y-6 animate-fade-in text-left">
           <DeptAssessmentCreatePanel />
+          <DeptGapAnalysisPanel />
           <TablePanel
             title="Department assessment desk"
             description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."

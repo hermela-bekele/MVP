@@ -42,7 +42,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </p>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold leading-tight tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          <h1 className="text-xl sm:text-2xl font-bold leading-tight tracking-tight text-title">
             {title}
           </h1>
           {hasActions && (
@@ -67,7 +67,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             {eyebrow}
           </p>
         )}
-        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+        <h1 className="text-xl font-bold tracking-tight text-title sm:text-2xl">
           {title}
         </h1>
         {subtitle && (

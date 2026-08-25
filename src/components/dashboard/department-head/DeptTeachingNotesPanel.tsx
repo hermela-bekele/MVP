@@ -93,7 +93,6 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
     <div className="space-y-6">
       <TablePanel
         title="Pending teaching notes"
-        description={`${pending.length} note${pending.length === 1 ? '' : 's'} awaiting review. Approve or return AI-generated notes from department teachers.`}
       >
         <table className="eskooly-table w-full">
           <thead>
@@ -157,7 +156,6 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
 
       <TablePanel
         title="Approved notes & delivery feedback"
-        description="After approval, teachers mark delivery. Grasp outcome feeds the exam topic list on Manage Assessments."
       >
         <table className="eskooly-table w-full">
           <thead>
@@ -231,7 +229,7 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
       </TablePanel>
 
       {other.length > 0 && (
-        <TablePanel title="Other notes" description="Draft, saved, and rejected notes in the department.">
+        <TablePanel title="Other notes">
           <table className="eskooly-table w-full">
             <thead>
               <tr>

@@ -117,7 +117,7 @@ export function RegistrarWaitlist() {
         />
       </KpiGrid>
 
-      <TablePanel title="Waitlist board" description="Ordered by priority score — re-applies go to the back">
+      <TablePanel title="Waitlist board">
         {waitlist.length === 0 ? (
           <EmptyState title="Waitlist is empty" description="Scored applicants appear here when waitlisted." />
         ) : (
@@ -180,7 +180,7 @@ export function RegistrarWaitlist() {
         )}
       </TablePanel>
 
-      <TablePanel title="Grade & section capacity" description="Seats reserved on accept until payment clears">
+      <TablePanel title="Grade & section capacity">
         <div className="overflow-x-auto">
           <table className="eskooly-table w-full">
             <thead>

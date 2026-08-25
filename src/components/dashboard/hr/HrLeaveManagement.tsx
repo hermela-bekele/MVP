@@ -105,7 +105,7 @@ export const HrLeaveManagement: React.FC = () => {
   ];
 
   return (
-    <TablePanel title="Leave Management" description="Submit, review, and track staff leave requests">
+    <TablePanel title="Leave Management">
       <DataTable columns={columns} data={leaveRequests} emptyTitle="No leave requests." />
 
       <Dialog isOpen={isNewOpen} onClose={() => setIsNewOpen(false)} title="New Leave Request">

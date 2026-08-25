@@ -35,12 +35,12 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyle = 'inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer relative overflow-hidden [&>svg]:shrink-0 [&>svg]:h-4 [&>svg]:w-4';
 
   const variants = {
-    primary: 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 active:scale-[0.97] before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/0 before:via-white/10 before:to-white/0 before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-700',
+    primary: 'bg-gradient-to-r from-btn-primary to-btn-primary/90 text-btn-primary-foreground hover:shadow-lg hover:shadow-btn-primary/20 active:scale-[0.97] before:absolute before:inset-0 before:bg-gradient-to-r before:from-white/0 before:via-white/10 before:to-white/0 before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-700',
     secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 active:scale-[0.98]',
     outline: 'border border-border bg-transparent hover:bg-muted text-foreground active:scale-[0.98]',
     ghost: 'hover:bg-muted text-foreground hover:text-foreground',
     destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98]',
-    organic: 'bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30 active:scale-[0.97]'
+    organic: 'bg-gradient-to-r from-btn-primary to-btn-primary/90 hover:from-btn-primary/90 hover:to-btn-primary text-btn-primary-foreground shadow-sm shadow-btn-primary/20 hover:shadow-md hover:shadow-btn-primary/30 active:scale-[0.97]'
   };
 
   const sizes = {

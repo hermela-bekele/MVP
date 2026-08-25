@@ -38,7 +38,7 @@ export const HrOverviewPanel: React.FC = () => {
         <KpiWidget label="On Leave" value={hrEmployees.filter((e) => e.status === 'On Leave').length} />
       </KpiGrid>
 
-      <TablePanel title="Leave Requests" description="Recent leave submissions across the school">
+      <TablePanel title="Leave Requests">
         <table className="eskooly-table">
           <thead>
             <tr>
@@ -65,7 +65,7 @@ export const HrOverviewPanel: React.FC = () => {
         </table>
       </TablePanel>
 
-      <TablePanel title="Payroll Status" description="Most recent payroll processing records">
+      <TablePanel title="Payroll Status">
         <table className="eskooly-table">
           <thead>
             <tr>

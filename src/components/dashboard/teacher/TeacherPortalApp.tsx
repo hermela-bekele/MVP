@@ -99,11 +99,6 @@ const TeacherTimetableTab = lazy(() =>
     default: m.TeacherTimetableTab,
   })),
 );
-const TeacherCommunityTab = lazy(() =>
-  import("@/components/dashboard/teacher/TeacherCommunityTab").then((m) => ({
-    default: m.TeacherCommunityTab,
-  })),
-);
 const TeacherHodMessagesTab = lazy(() =>
   import("@/components/dashboard/teacher/TeacherHodMessagesTab").then((m) => ({
     default: m.TeacherHodMessagesTab,
@@ -134,18 +129,20 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: "Academic Calendar",
     subtitle: "Official school calendar disseminated by the school head.",
   },
-  "teaching-notes": {
+  "lesson-plans": {
+    title: "Lesson Plans",
+    subtitle: "Annual and weekly lesson plans, paced on the school calendar.",
+  },
+  "lesson-notes": {
     title: "Lesson Notes",
-    subtitle: "Weekly plans, AI lesson notes, drafts, and classroom delivery — organized by section.",
+    subtitle: "AI lesson notes, drafts, and classroom delivery — organized by section.",
   },
   communication: {
-    title: "Communication",
-  },
-  community: {
-    title: "Teacher Community",
+    title: "Community",
+    subtitle: "School-wide announcements and your community channels.",
   },
   "hod-messages": {
-    title: "HoD Messages",
+    title: "Direct Messages",
     subtitle: "Real-time conversation with your department head.",
   },
   "manage-students": {
@@ -207,6 +204,13 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: "Settings",
     subtitle: "Personal profile and general portal preferences.",
   },
+  // The navbar's "Profile Settings" dropdown item always links to a `profile` tab (matching
+  // every other portal) — alias it to the same content as `settings` rather than renaming
+  // the teacher portal's existing sidebar "Settings" entry.
+  profile: {
+    title: "Settings",
+    subtitle: "Personal profile and general portal preferences.",
+  },
 };
 
 export function TeacherPortalApp() {
@@ -251,27 +255,26 @@ export function TeacherPortalApp() {
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
   const shellActions =
-    activeTab === "teaching-notes" ? (
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={`${aisBtnPrimary} text-xs`}
-          onClick={() =>
-            window.dispatchEvent(new Event("open-teacher-lesson-plan"))
-          }
-        >
-          + Create lesson plan
-        </button>
-        <button
-          type="button"
-          className={`${aisBtnPrimary} text-xs`}
-          onClick={() =>
-            window.dispatchEvent(new Event("open-teacher-create-note"))
-          }
-        >
-          + New lesson note
-        </button>
-      </div>
+    activeTab === "lesson-plans" ? (
+      <button
+        type="button"
+        className={`${aisBtnPrimary} text-xs`}
+        onClick={() =>
+          window.dispatchEvent(new Event("open-teacher-lesson-plan"))
+        }
+      >
+        + Create lesson plan
+      </button>
+    ) : activeTab === "lesson-notes" ? (
+      <button
+        type="button"
+        className={`${aisBtnPrimary} text-xs`}
+        onClick={() =>
+          window.dispatchEvent(new Event("open-teacher-create-note"))
+        }
+      >
+        + New lesson note
+      </button>
     ) : activeTab === "manage-students" ? (
       <button
         type="button"
@@ -294,20 +297,15 @@ export function TeacherPortalApp() {
       eyebrow="Bole Secondary · Teacher Portal"
       actions={shellActions}
       headerVariant="portal"
+      hideSearch
     >
       <Suspense fallback={<TabLoading />}>
         {activeTab === "dashboard" && <TeacherDashboard />}
         {activeTab === "academic-calendar" && <TeacherAcademicCalendarTab />}
         {activeTab === "timetable" && <TeacherTimetableTab />}
-        {activeTab === "teaching-notes" && <TeacherTeachingNotes />}
-        {activeTab === "communication" && (
-          <CommunicationModule
-            mode="teacher"
-            mainTab="channels"
-            onMainTabChange={() => {}}
-          />
-        )}
-        {activeTab === "community" && <TeacherCommunityTab />}
+        {activeTab === "lesson-plans" && <TeacherTeachingNotes mode="plans" />}
+        {activeTab === "lesson-notes" && <TeacherTeachingNotes mode="notes" />}
+        {activeTab === "communication" && <CommunicationModule mode="teacher" />}
         {activeTab === "hod-messages" && <TeacherHodMessagesTab />}
         {activeTab === "manage-students" && <TeacherStudentsTab />}
         {activeTab === "resources" && <TeacherResourcesTab />}
@@ -330,7 +328,7 @@ export function TeacherPortalApp() {
         {activeTab === "messages" && (
           <MessageCenter mode="staff" staffRoleHint="teacher" />
         )}
-        {activeTab === "settings" && <TeacherSettingsTab />}
+        {(activeTab === "settings" || activeTab === "profile") && <TeacherSettingsTab />}
       </Suspense>
     </DashboardShell>
   );

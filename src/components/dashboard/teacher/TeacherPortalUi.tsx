@@ -68,7 +68,7 @@ export function AisPanel({
       {(title || description || actions) && (
         <div className={aisPanelHeader}>
           <div className="min-w-0">
-            {title && <h3 className={aisHeadlineSm}>{title}</h3>}
+            {title && <h3 className={`${aisHeadlineSm} !text-title`}>{title}</h3>}
             {description && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -82,7 +82,7 @@ export function AisPanel({
 export function AisTable({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`overflow-x-auto ${className}`}>
-      <table className="w-full border-collapse">{children}</table>
+      <table className="ais-table w-full border-collapse">{children}</table>
     </div>
   );
 }
@@ -90,7 +90,7 @@ export function AisTable({ children, className = '' }: { children: React.ReactNo
 export function AisTableHead({ children }: { children: React.ReactNode }) {
   return (
     <thead>
-      <tr className="bg-muted">{children}</tr>
+      <tr className="bg-ais-surface-container-low">{children}</tr>
     </thead>
   );
 }
@@ -109,7 +109,7 @@ export function AisTd({
   colSpan?: number;
 }) {
   return (
-    <td colSpan={colSpan} className={`px-4 py-2 text-sm text-foreground ${className}`}>
+    <td colSpan={colSpan} className={`px-4 py-2 text-sm text-ais-on-surface ${className}`}>
       {children}
     </td>
   );
@@ -126,7 +126,7 @@ export function AisTr({
 }) {
   return (
     <tr
-      className={`border-b border-border transition-colors hover:bg-muted ${className}`}
+      className={`border-b border-ais-row-border transition-colors hover:bg-ais-row-hover ${className}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -236,7 +236,7 @@ export function AisFormCard({
   return (
     <Tag onSubmit={onSubmit} className={`${aisCard} space-y-4 p-4 ${className}`}>
       <div>
-        <h3 className={aisHeadlineSm}>{title}</h3>
+        <h3 className={`${aisHeadlineSm} !text-title`}>{title}</h3>
         {description && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
       </div>
       {children}

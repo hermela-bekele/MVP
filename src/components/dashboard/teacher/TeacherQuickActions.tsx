@@ -34,14 +34,14 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: <PenLine className="h-4 w-4" aria-hidden />,
   },
   {
-    tab: 'teaching-notes',
+    tab: 'lesson-notes',
     event: 'open-teacher-create-note',
     label: 'New teaching note',
     description: 'Create a note with AI assist',
     icon: <BookOpen className="h-4 w-4" aria-hidden />,
   },
   {
-    tab: 'teaching-notes',
+    tab: 'lesson-plans',
     event: 'open-teacher-lesson-plan',
     label: 'Create lesson plan',
     description: 'Draft a new lesson plan',
@@ -99,9 +99,9 @@ export function TeacherQuickActions({
   return (
     <div ref={containerRef} className="fixed bottom-8 right-8 z-40 flex flex-col items-end gap-3">
       {open && (
-        <div className="w-[min(320px,calc(100vw-4rem))] overflow-hidden rounded-xl border border-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] animate-fade-in">
-          <div className="border-b border-border px-4 py-3">
-            <h3 className={aisHeadlineSm}>Quick actions</h3>
+        <div className="w-[min(320px,calc(100vw-4rem))] overflow-hidden rounded-xl border border-ais-card-border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] animate-fade-in">
+          <div className="border-b border-ais-card-border px-4 py-3">
+            <h3 className={`${aisHeadlineSm} !text-title`}>Quick actions</h3>
             <p className={`${aisBodyMd} mt-0.5`}>{teacher.name}</p>
           </div>
           <div className="p-2">
@@ -110,16 +110,16 @@ export function TeacherQuickActions({
                 key={`${action.tab}-${action.event ?? action.label}`}
                 type="button"
                 onClick={() => handleAction(action)}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-ais-surface-container-low"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ais-primary/10 text-ais-primary">
                   {action.icon}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">
+                  <span className="block text-sm font-semibold text-ais-on-surface">
                     {action.label}
                   </span>
-                  <span className="block text-xs text-muted-foreground">
+                  <span className="block text-xs text-ais-on-surface-variant">
                     {action.description}
                   </span>
                 </span>

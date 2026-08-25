@@ -163,7 +163,6 @@ export function VPClassReportPanel() {
       {grade && section && term && (
         <TablePanel
           title={`${grade} - ${section} · ${term}`}
-          description={`${classStudents.length} student(s)`}
           actions={
             <Button size="sm" variant="organic" className="border-none" onClick={generateAll} disabled={!classStudents.length}>
               Generate All

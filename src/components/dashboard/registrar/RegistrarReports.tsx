@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { enrollmentByGrade, filterSchoolStudents } from '@/lib/registrarPortal';
 import { toCsv, downloadCsv } from '@/lib/csvExport';
+import { gpaToMark } from '@/lib/grading';
 
 export const RegistrarReports: React.FC = () => {
   const { students, registrationApplications } = useApp();
@@ -16,9 +17,9 @@ export const RegistrarReports: React.FC = () => {
 
   const stats = useMemo(() => {
     const active = schoolStudents.filter((s) => s.status === 'Active');
-    const avgGpa =
+    const avgMark =
       active.length > 0
-        ? active.reduce((a, s) => a + s.gpa, 0) / active.length
+        ? Math.round(active.reduce((a, s) => a + gpaToMark(s.gpa), 0) / active.length)
         : 0;
     const avgAttendance =
       active.length > 0
@@ -34,7 +35,7 @@ export const RegistrarReports: React.FC = () => {
       ).length,
     };
 
-    return { active: active.length, avgGpa, avgAttendance, appStats };
+    return { active: active.length, avgMark, avgAttendance, appStats };
   }, [schoolStudents, registrationApplications]);
 
   const lowAttendance = schoolStudents
@@ -79,7 +80,7 @@ export const RegistrarReports: React.FC = () => {
     <div className="space-y-6 animate-fade-in">
       <KpiGrid>
         <KpiWidget label="Total Active" value={stats.active} hint="Enrolled students" />
-        <KpiWidget label="School Avg GPA" value={stats.avgGpa.toFixed(2)} hint="All active students" tone="emphasis" />
+        <KpiWidget label="School Avg Mark" value={`${stats.avgMark}%`} hint="All active students" tone="emphasis" />
         <KpiWidget label="Avg Attendance" value={`${Math.round(stats.avgAttendance)}%`} hint="School-wide rate" />
         <KpiWidget
           label="Applications"

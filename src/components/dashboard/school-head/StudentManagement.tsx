@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { FormField, FormSectionHeading, formFieldInputClass } from '@/components/ui/form-field';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Student } from '@/lib/mockData';
 import { DetailField } from '@/components/dashboard/shared/DetailField';
+import { gpaToMark, markToGpa } from '@/lib/grading';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
@@ -32,7 +34,7 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
   const [parentEmail, setParentEmail] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [medicalInfo, setMedicalInfo] = useState('');
-  const [studentGpa, setStudentGpa] = useState('0');
+  const [studentMark, setStudentMark] = useState('0');
   const [studentAttendance, setStudentAttendance] = useState('100');
   const [studentStatus, setStudentStatus] = useState<Student['status']>('Active');
 
@@ -45,7 +47,7 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
     setParentEmail(student.parentEmail ?? '');
     setEmergencyContact(student.emergencyContact);
     setMedicalInfo(student.medicalInfo ?? '');
-    setStudentGpa(student.gpa.toFixed(2));
+    setStudentMark(String(gpaToMark(student.gpa)));
     setStudentAttendance(String(student.attendanceRate));
     setStudentStatus(student.status);
   };
@@ -101,7 +103,7 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
     setParentEmail('');
     setEmergencyContact('');
     setMedicalInfo('');
-    
+
     // Close Modal
     setIsModalOpen(false);
   };
@@ -119,7 +121,7 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
       parentEmail,
       emergencyContact,
       medicalInfo,
-      gpa: parseFloat(studentGpa) || 0,
+      gpa: markToGpa(parseFloat(studentMark) || 0),
       attendanceRate: parseFloat(studentAttendance) || 0,
       status: studentStatus,
     });
@@ -156,11 +158,11 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
     },
     {
       key: 'gpa',
-      header: 'Cumulative GPA',
+      header: 'Cumulative Mark',
       sortable: true,
       render: (row) => (
         <Badge variant={row.gpa >= 3.5 ? 'success' : row.gpa >= 3.0 ? 'primary' : row.gpa >= 2.0 ? 'info' : 'warning'} size="sm" className="font-semibold">
-          {row.gpa.toFixed(2)} GPA
+          {gpaToMark(row.gpa)}%
         </Badge>
       ),
     },
@@ -241,128 +243,116 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
         title="Enroll Student Registry"
         size="lg"
       >
-        <form onSubmit={handleEnrollSubmit} className="space-y-4 pt-2">
-          
+        <form onSubmit={handleEnrollSubmit} className="space-y-5 pt-2">
+
           {/* Student Info Group */}
-          <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Student Primary Profile</h4>
+          <div className="space-y-3">
+            <FormSectionHeading>Student Primary Profile</FormSectionHeading>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="md:col-span-1 space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Full Name</label>
+              <FormField label="Full Name" className="md:col-span-1">
                 <input
                   type="text"
                   required
                   placeholder="e.g. Almaz Kebede"
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={formFieldInputClass}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Grade Level</label>
+              <FormField label="Grade Level">
                 <select
                   value={studentGrade}
                   onChange={(e) => setStudentGrade(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={formFieldInputClass}
                 >
                   <option value="Grade 9">Grade 9</option>
                   <option value="Grade 10">Grade 10</option>
                   <option value="Grade 11">Grade 11</option>
                   <option value="Grade 12">Grade 12</option>
                 </select>
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Section Division</label>
+              <FormField label="Section Division">
                 <select
                   value={studentSection}
                   onChange={(e) => setStudentSection(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={formFieldInputClass}
                 >
                   <option value="A">Section A</option>
                   <option value="B">Section B</option>
                   <option value="C">Section C</option>
                   <option value="D">Section D</option>
                 </select>
-              </div>
+              </FormField>
             </div>
           </div>
 
-          <hr className="border-border/30" />
-
           {/* Parent Info Group */}
-          <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">Parent / Guardian Coordinates</h4>
+          <div className="space-y-3">
+            <FormSectionHeading>Parent / Guardian Coordinates</FormSectionHeading>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Guardian Name</label>
+              <FormField label="Guardian Name">
                 <input
                   type="text"
                   required
                   placeholder="e.g. Kebede Abebe"
                   value={parentName}
                   onChange={(e) => setParentName(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={formFieldInputClass}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Contact Phone</label>
+              <FormField label="Contact Phone">
                 <input
                   type="tel"
                   required
                   placeholder="e.g. +251-911-000000"
                   value={parentPhone}
                   onChange={(e) => setParentPhone(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={formFieldInputClass}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Parent Email (Optional)</label>
+              <FormField label="Parent Email (Optional)">
                 <input
                   type="email"
                   placeholder="e.g. parent@email.com"
                   value={parentEmail}
                   onChange={(e) => setParentEmail(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={formFieldInputClass}
                 />
-              </div>
+              </FormField>
             </div>
           </div>
 
-          <hr className="border-border/30" />
-
           {/* Auxiliary/Medical Group */}
-          <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Auxiliary & Health Variables</h4>
+          <div className="space-y-3">
+            <FormSectionHeading>Auxiliary & Health Variables</FormSectionHeading>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Alternative Emergency Contact</label>
+              <FormField label="Alternative Emergency Contact">
                 <input
                   type="text"
                   placeholder="e.g. Uncle: +251-912-111111"
                   value={emergencyContact}
                   onChange={(e) => setEmergencyContact(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
+                  className={formFieldInputClass}
                 />
-              </div>
+              </FormField>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Medical notes / comments</label>
+              <FormField label="Medical notes / comments">
                 <input
                   type="text"
                   placeholder="e.g. None or Asthma history"
                   value={medicalInfo}
                   onChange={(e) => setMedicalInfo(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
+                  className={formFieldInputClass}
                 />
-              </div>
+              </FormField>
             </div>
           </div>
 
-          <DialogFooter className="mt-6 border-t border-border/20 pt-4">
+          <DialogFooter className="mt-2 border-t border-border/20 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -415,7 +405,7 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <DetailField label="Student ID" value={<code className="font-mono text-xxs">{detailStudent.studentId}</code>} />
                 <DetailField label="Grade & section" value={`${detailStudent.grade} · ${detailStudent.section}`} />
-                <DetailField label="Cumulative GPA" value={detailStudent.gpa.toFixed(2)} />
+                <DetailField label="Cumulative Mark" value={`${gpaToMark(detailStudent.gpa)}%`} />
                 <DetailField label="Attendance" value={`${detailStudent.attendanceRate}%`} />
               </div>
             </div>
@@ -484,8 +474,8 @@ export const StudentManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly =
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase">GPA</label>
-                  <input type="number" step="0.01" min="0" max="4" value={studentGpa} onChange={(e) => setStudentGpa(e.target.value)} className={inputClass} />
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Cumulative Mark (%)</label>
+                  <input type="number" step="1" min="0" max="100" value={studentMark} onChange={(e) => setStudentMark(e.target.value)} className={inputClass} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Attendance %</label>

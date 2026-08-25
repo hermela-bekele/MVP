@@ -101,7 +101,6 @@ export const HrPerformance: React.FC = () => {
   return (
     <TablePanel
       title="Performance Reviews"
-      description="Employee evaluations, goals tracking, and appraisal cycles"
       actions={
         <Button variant="organic" size="sm" className="text-xs h-9" onClick={() => setIsNewOpen(true)}>
           + New Review

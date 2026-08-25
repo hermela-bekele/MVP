@@ -51,7 +51,6 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
     <div className="space-y-6">
       <TablePanel
         title="Pending weekly plans"
-        description={`${pending.length} plan${pending.length === 1 ? '' : 's'} awaiting review. Your approval is final — no school head step.`}
       >
         <table className="eskooly-table w-full">
           <thead>
@@ -94,7 +93,7 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
         </table>
       </TablePanel>
 
-      <TablePanel title="Recent lesson plans" description="Approved / returned plans remain available.">
+      <TablePanel title="Recent lesson plans">
         <table className="eskooly-table w-full">
           <thead>
             <tr>
