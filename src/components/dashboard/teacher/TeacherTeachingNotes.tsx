@@ -163,6 +163,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     updateTeachingNote,
     deleteTeachingNote,
     deleteLessonPlan,
+    updateLessonPlan,
     addNotification,
     resolveTeacherId,
     lessonDeliveries,
@@ -194,7 +195,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [notesGrade, setNotesGrade] = useState(defaultGrade);
   const [notesSubject, setNotesSubject] = useState(defaultSubject);
   const [notesTopic, setNotesTopic] = useState('');
-  const [selectedSessionScopes, setSelectedSessionScopes] = useState<string[]>([]);
+  const [selectedSessionScope, setSelectedSessionScope] = useState('');
   const [notesLanguage, setNotesLanguage] = useState('English');
   const [noteTitle, setNoteTitle] = useState('');
   const [generatingNotes, setGeneratingNotes] = useState(false);
@@ -206,7 +207,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [deliverNote, setDeliverNote] = useState<TeachingNote | null>(null);
   const [weeklyPlanDialog, setWeeklyPlanDialog] = useState<{
     plan: LessonPlan;
+    mode: 'view' | 'edit';
   } | null>(null);
+  const [editWeeklyTitle, setEditWeeklyTitle] = useState('');
   const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
   const [notePendingDelete, setNotePendingDelete] = useState<TeachingNote | null>(null);
   const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>(
@@ -268,7 +271,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     return approvedWeeklyPlans;
   })();
   const sessionTopicOptions = activePlan
-    ? getWeeklyPlanSessionTopicOptions(activePlan).filter((o) => o.value !== 'all')
+    ? getWeeklyPlanSessionTopicOptions(activePlan)
     : [];
   const detailPlan = lessonPlanId
     ? teacherPlans.find((p) => p.id === lessonPlanId)
@@ -277,26 +280,21 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     ? notesForLessonPlan(myNotes, detailPlan.id)
     : [];
 
-  /** Real per-session options only (drops the synthetic "all" aggregate — "select
-   * all" is now a toggle over these instead of its own list entry). */
-  const realSessionOptions = (plan: LessonPlan) =>
-    getWeeklyPlanSessionTopicOptions(plan).filter((o) => o.value !== 'all');
-
-  const applySessionTopics = (plan: LessonPlan, scopes: string[]) => {
-    const options = realSessionOptions(plan);
-    const matches = options.filter((o) => scopes.includes(o.value));
-    if (matches.length === 0) {
-      setSelectedSessionScopes([]);
+  const applySessionTopic = (plan: LessonPlan, scope: string) => {
+    const options = getWeeklyPlanSessionTopicOptions(plan);
+    const match = options.find((o) => o.value === scope) ?? options[0];
+    if (!match) {
+      setSelectedSessionScope('');
       setNotesTopic('');
       setNoteTitle('');
       return;
     }
-    setSelectedSessionScopes(matches.map((m) => m.value));
-    setNotesTopic(matches.map((m) => m.topic).filter(Boolean).join('; ') || matches[0].topic || matches[0].label);
+    setSelectedSessionScope(match.value);
+    setNotesTopic(match.topic || match.label);
     setNoteTitle(
-      matches.length > 1
-        ? `${weeklyPlanWeekLabel(plan)} — Sessions ${matches.map((m) => m.value).join(', ')} notes`
-        : `${matches[0].label} — Notes`,
+      match.value === 'all'
+        ? `${weeklyPlanWeekLabel(plan)} — All sessions notes`
+        : `${match.label} — Notes`,
     );
   };
 
@@ -321,9 +319,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     setShowNoteContentPreview(false);
     setExplainMoreUsed(false);
     if (plan) {
-      applySessionTopics(plan, realSessionOptions(plan).map((o) => o.value));
+      applySessionTopic(plan, 'all');
     } else {
-      setSelectedSessionScopes([]);
+      setSelectedSessionScope('');
       setNotesTopic('');
     }
     setNoteModalOpen(true);
@@ -357,8 +355,9 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     };
   }, [ownWeeklyPlans]); // openCreateNote closes over latest weekly plans via rebind each render
 
-  const openWeeklyPlanDialog = (plan: LessonPlan) => {
-    setWeeklyPlanDialog({ plan });
+  const openWeeklyPlanDialog = (plan: LessonPlan, mode: 'view' | 'edit') => {
+    setWeeklyPlanDialog({ plan, mode });
+    setEditWeeklyTitle(plan.title);
   };
 
   const closeNoteModal = () => {
@@ -406,8 +405,8 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       return;
     }
     if (activePlan && !editingNoteId) {
-      if (selectedSessionScopes.length === 0) {
-        addNotification('Session required', 'Choose at least one session.', 'alert');
+      if (!selectedSessionScope) {
+        addNotification('Session required', 'Choose a week session (or All sessions).', 'alert');
         return;
       }
       if (!notesTopic.trim()) {
@@ -426,34 +425,29 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       let sessionContext: string | undefined;
 
       if (activePlan && !editingNoteId) {
-        const matches = sessionTopicOptions.filter((o) => selectedSessionScopes.includes(o.value));
+        const match = sessionTopicOptions.find((o) => o.value === selectedSessionScope);
         const weekly = parseWeeklyPlanDetail(activePlan);
         const planObjectives = [
           ...(activePlan.objectives || []),
           ...(weekly?.objectives || []),
         ].filter(Boolean);
         const uniqueObjectives = [...new Set(planObjectives)];
-        const isMultiple = matches.length > 1;
 
-        topic =
-          notesTopic.trim() ||
-          matches.map((m) => m.topic).filter(Boolean).join('; ') ||
-          activePlan.title;
-        subtopic = isMultiple
-          ? weekly?.subTopic || 'Selected sessions this week'
-          : matches[0]?.subtopic || matches[0]?.label || '';
+        topic = notesTopic.trim() || match?.topic || activePlan.title;
+        subtopic =
+          match?.value === 'all'
+            ? weekly?.subTopic || 'All sessions this week'
+            : match?.subtopic || match?.label || '';
 
         sessionContext = [
-          matches.map((m) => m.context).filter(Boolean).join('\n\n---\n\n'),
+          match?.context || '',
           `Teacher-selected topic (editable): ${topic}`,
           uniqueObjectives.length
             ? `Lesson plan objectives to cover:\n${uniqueObjectives.map((o) => `- ${o}`).join('\n')}`
             : '',
-          isMultiple
-            ? `Generate lesson notes that cover Session${matches.length > 1 ? 's' : ''} ${matches
-                .map((m) => m.value)
-                .join(', ')} of this weekly plan, organized by session, while honouring the lesson plan objectives.`
-            : 'Generate lesson notes focused on this session while honouring the weekly lesson plan objectives.',
+          selectedSessionScope === 'all'
+            ? 'Generate lesson notes that cover every session in this weekly plan, organized by session, while honouring the lesson plan objectives.'
+            : `Generate lesson notes focused on this session while honouring the weekly lesson plan objectives.`,
         ]
           .filter(Boolean)
           .join('\n\n');
@@ -555,8 +549,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         subject: notesSubject,
         language: notesLanguage,
         studentLevel: notesStudentLevel,
-        deepDive: true,
-        sessionContext: current.slice(0, 4000),
+        sessionContext: [
+          'EXPLAIN MORE REQUEST: Expand the following lesson notes with clearer explanations,',
+          'worked examples, common misconceptions, and step-by-step reasoning suitable for classroom delivery.',
+          'Keep useful existing content; deepen explanations rather than replacing everything.',
+          '',
+          'EXISTING NOTES:',
+          current.slice(0, 6000),
+        ].join('\n'),
       });
       let expanded = '';
       if (typeof response.content === 'string') {
@@ -943,7 +943,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                         <button
                           type="button"
                           className="min-w-0 flex-1 text-left"
-                          onClick={() => openWeeklyPlanDialog(plan)}
+                          onClick={() => openWeeklyPlanDialog(plan, 'view')}
                         >
                           <h3 className={`${aisHeadlineSm} line-clamp-2 !text-title`}>{weeklyPlanWeekLabel(plan)}</h3>
                         </button>
@@ -966,13 +966,13 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                                     id: 'view',
                                     label: 'View',
                                     icon: <Eye className="h-4 w-4" />,
-                                    onClick: () => openWeeklyPlanDialog(plan),
+                                    onClick: () => openWeeklyPlanDialog(plan, 'view'),
                                   },
                                   {
                                     id: 'edit',
                                     label: 'Edit',
                                     icon: <Pencil className="h-4 w-4" />,
-                                    onClick: () => goToLessonPlan(plan.id),
+                                    onClick: () => openWeeklyPlanDialog(plan, 'edit'),
                                   },
                                   {
                                     id: 'delete',
@@ -1071,23 +1071,51 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
       <Dialog
         isOpen={Boolean(weeklyPlanDialog)}
         onClose={() => setWeeklyPlanDialog(null)}
-        title="Weekly lesson plan"
+        title={
+          weeklyPlanDialog?.mode === 'edit'
+            ? 'Edit weekly lesson plan'
+            : 'Weekly lesson plan'
+        }
         size="2xl"
         largeTitle
       >
         {weeklyPlanDialog && (
           <div className="space-y-4 pt-1">
-            <p className={aisBodySm}>
-              {weeklyPlanDialog.plan.grade} · {weeklyPlanDialog.plan.subject} ·{' '}
-              {weeklyPlanStatusLabel(weeklyPlanDialog.plan.status)}
-            </p>
+            {weeklyPlanDialog.mode === 'edit' ? (
+              <div>
+                <label className={aisFormLabel} htmlFor="edit-weekly-title">
+                  Title
+                </label>
+                <input
+                  id="edit-weekly-title"
+                  className={aisInput}
+                  value={editWeeklyTitle}
+                  onChange={(e) => setEditWeeklyTitle(e.target.value)}
+                />
+              </div>
+            ) : (
+              <p className={aisBodySm}>
+                {weeklyPlanDialog.plan.grade} · {weeklyPlanDialog.plan.subject} ·{' '}
+                {weeklyPlanStatusLabel(weeklyPlanDialog.plan.status)}
+              </p>
+            )}
             <PlanSummary plan={weeklyPlanDialog.plan} />
             <DialogFooter className="pt-2 -mb-1">
               <AisBtnSecondary onClick={() => setWeeklyPlanDialog(null)}>Close</AisBtnSecondary>
-              <AisBtnPrimary onClick={() => goToLessonPlan(weeklyPlanDialog.plan.id)}>
-                <Pencil className="h-3.5 w-3.5" aria-hidden />
-                Edit
-              </AisBtnPrimary>
+              {weeklyPlanDialog.mode === 'edit' && (
+                <AisBtnPrimary
+                  onClick={() => {
+                    const p = weeklyPlanDialog.plan;
+                    const title = editWeeklyTitle.trim() || p.title;
+                    updateLessonPlan(p.id, title, p.objectives, p.sessions, p.homework);
+                    addNotification('Weekly plan updated', `"${title}" saved.`, 'success');
+                    setWeeklyPlanDialog(null);
+                  }}
+                >
+                  <Save className="h-3.5 w-3.5" aria-hidden />
+                  Save
+                </AisBtnPrimary>
+              )}
             </DialogFooter>
           </div>
         )}
@@ -1185,10 +1213,10 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 setNotesGrade(p.grade);
                 setNotesSubject(p.subject);
                 if (!editingNoteId) {
-                  applySessionTopics(p, realSessionOptions(p).map((o) => o.value));
+                  applySessionTopic(p, 'all');
                 }
               } else {
-                setSelectedSessionScopes([]);
+                setSelectedSessionScope('');
                 setNotesTopic('');
               }
             }}
@@ -1217,67 +1245,16 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               <Select variant="ais" label="Subject" options={SUBJECT_OPTIONS.map((s) => ({ value: s, label: s }))} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
             </div>
             {activePlan && !editingNoteId ? (
-              <div className="min-w-0 sm:col-span-2 space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className={`${aisFormLabel} block min-h-[14px] leading-[14px]`}>
-                    Session(s)
-                  </label>
-                  {sessionTopicOptions.length > 0 && (
-                    <button
-                      type="button"
-                      className="text-[11px] font-semibold text-ais-primary hover:underline"
-                      onClick={() =>
-                        applySessionTopics(
-                          activePlan,
-                          selectedSessionScopes.length === sessionTopicOptions.length
-                            ? []
-                            : sessionTopicOptions.map((o) => o.value),
-                        )
-                      }
-                    >
-                      {selectedSessionScopes.length === sessionTopicOptions.length
-                        ? 'Clear all'
-                        : 'Select all'}
-                    </button>
-                  )}
-                </div>
-                <div
-                  className="max-h-40 overflow-y-auto rounded-xl border border-ais-card-border bg-white dark:bg-ais-surface"
-                  role="listbox"
-                  aria-multiselectable="true"
-                  aria-label="Sessions"
-                >
-                  {sessionTopicOptions.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">No sessions in this plan</p>
-                  ) : (
-                    sessionTopicOptions.map((o) => {
-                      const on = selectedSessionScopes.includes(o.value);
-                      return (
-                        <label
-                          key={o.value}
-                          className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-ais-row-hover"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() =>
-                              applySessionTopics(
-                                activePlan,
-                                on
-                                  ? selectedSessionScopes.filter((v) => v !== o.value)
-                                  : [...selectedSessionScopes, o.value],
-                              )
-                            }
-                            className="h-3.5 w-3.5 rounded border-ais-card-border accent-ais-primary"
-                          />
-                          <span className={on ? 'font-medium text-ais-on-surface' : 'text-ais-on-surface-variant'}>
-                            {o.label}
-                          </span>
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
+              <div className="min-w-0">
+                <Select
+                  variant="ais"
+                  label="Session"
+                  options={sessionTopicOptions.map((o) => ({ value: o.value, label: o.label }))}
+                  value={selectedSessionScope}
+                  onChange={(e) => {
+                    applySessionTopic(activePlan, e.target.value);
+                  }}
+                />
               </div>
             ) : null}
             <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
@@ -1385,7 +1362,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 generatingNotes ||
                 explainingMore ||
                 !notesTopic.trim() ||
-                (!!activePlan && !editingNoteId && selectedSessionScopes.length === 0) ||
+                (!!activePlan && !editingNoteId && !selectedSessionScope) ||
                 (!!activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan))
               }
             >
@@ -1676,8 +1653,7 @@ function PlanSummary({ plan, editable = false }: { plan: LessonPlan; editable?: 
 }
 
 /** Annual plan view with optional inline editing — only the teacher who owns this
- * plan can edit; allowed both before and after submission/publish so mistakes can
- * still be corrected later, per explicit product decision (not gated on status). */
+ * draft can edit, and only while it's still a Draft (not yet submitted for review). */
 function EditableAnnualPlan({
   plan,
   initialAnnual,
@@ -1691,15 +1667,13 @@ function EditableAnnualPlan({
   updateLessonPlan: ReturnType<typeof useApp>['updateLessonPlan'];
   addNotification: ReturnType<typeof useApp>['addNotification'];
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const canEdit = editable && isEditing;
+  const canEdit = editable && plan.status === 'Draft';
   const [annual, setAnnual] = useState(initialAnnual);
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     setAnnual(initialAnnual);
     setIsDirty(false);
-    setIsEditing(false);
   }, [initialAnnual]);
 
   const handleSave = () => {
@@ -1710,26 +1684,12 @@ function EditableAnnualPlan({
 
   return (
     <div className="space-y-3">
-      {editable && (
+      {canEdit && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-ais-surface-container-low px-3 py-2">
-          <span className={aisBodySm}>
-            {isEditing ? 'Edit any field below, then save.' : 'Click Edit to adjust any field.'}
-          </span>
-          <div className="flex items-center gap-2">
-            {isEditing && (
-              <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
-                Save changes
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant={isEditing ? 'primary' : 'outline'}
-              onClick={() => setIsEditing((v) => !v)}
-              leftIcon={<Pencil className="h-3.5 w-3.5" />}
-            >
-              {isEditing ? 'Done editing' : 'Edit'}
-            </Button>
-          </div>
+          <span className={aisBodySm}>Draft — edit any field below, then save.</span>
+          <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
+            Save changes
+          </Button>
         </div>
       )}
       <div className="max-h-[70vh] overflow-auto rounded-lg border border-ais-card-border bg-background p-3">
@@ -1746,8 +1706,8 @@ function EditableAnnualPlan({
   );
 }
 
-/** Weekly plan view with optional inline editing — same teacher-own-plan rule as
- * EditableAnnualPlan (editable both before and after submission/publish). */
+/** Weekly plan view with optional inline editing — same teacher-own-draft-only rule
+ * as EditableAnnualPlan. */
 function EditableWeeklyPlan({
   plan,
   initialWeekly,
@@ -1761,15 +1721,13 @@ function EditableWeeklyPlan({
   updateLessonPlan: ReturnType<typeof useApp>['updateLessonPlan'];
   addNotification: ReturnType<typeof useApp>['addNotification'];
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const canEdit = editable && isEditing;
+  const canEdit = editable && plan.status === 'Draft';
   const [weekly, setWeekly] = useState(initialWeekly);
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     setWeekly(initialWeekly);
     setIsDirty(false);
-    setIsEditing(false);
   }, [initialWeekly]);
 
   const handleSave = () => {
@@ -1785,19 +1743,9 @@ function EditableWeeklyPlan({
           {plan.grade} · {plan.subject} · {weekly.sessions?.length ?? 0} sessions
         </span>
         <div className="flex items-center gap-3">
-          {isEditing && (
+          {canEdit && (
             <Button size="sm" onClick={handleSave} disabled={!isDirty} leftIcon={<Save className="h-3.5 w-3.5" />}>
               Save changes
-            </Button>
-          )}
-          {editable && (
-            <Button
-              size="sm"
-              variant={isEditing ? 'primary' : 'outline'}
-              onClick={() => setIsEditing((v) => !v)}
-              leftIcon={<Pencil className="h-3.5 w-3.5" />}
-            >
-              {isEditing ? 'Done editing' : 'Edit'}
             </Button>
           )}
           <button

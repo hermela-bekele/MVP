@@ -54,6 +54,8 @@ import {
   GraspOutcome,
   TeacherSelfAssessment,
   TeacherTrainingAssignment,
+  TrainingPlan,
+  TrainingPlanAssignment,
   mockSchools,
   mockTeachers,
   mockStudents,
@@ -96,7 +98,6 @@ import {
   mockPerformanceReviews,
   mockOnboardingTasks,
   mockStaffAttendance,
-  generateEmployeeId,
 } from '@/lib/hrPortal';
 import { DEMO_TEACHER_ID, percentToGpa } from '@/lib/teacherPortal';
 import { readStoredCalendars, writeStoredCalendars } from '@/lib/calendarStorage';
@@ -152,6 +153,8 @@ interface AppContextType {
   classes: SchoolClass[];
   exams: ExamPaper[];
   trainingMaterials: TrainingMaterial[];
+  trainingPlans: TrainingPlan[];
+  trainingPlanAssignments: TrainingPlanAssignment[];
   teachingNotes: TeachingNote[];
   academicCalendars: AcademicCalendar[];
   moeCalendar: MoeCalendarDraft | null;
@@ -209,7 +212,7 @@ interface AppContextType {
     reviewerNotes?: string
   ) => void;
   enrollFromApplication: (applicationId: string) => void;
-  addHrEmployee: (employee: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>) => string;
+  addHrEmployee: (employee: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>) => Promise<HrEmployee>;
   updateHrEmployee: (id: string, updates: Partial<HrEmployee>) => void;
   toggleHrEmployeeStatus: (id: string) => void;
   submitLeaveRequest: (request: Omit<LeaveRequest, 'id' | 'status' | 'submittedAt'>) => void;
@@ -252,6 +255,22 @@ interface AppContextType {
     subject?: string;
   }) => void;
   disseminateTrainingMaterial: (id: string) => void;
+  addTrainingPlan: (data: {
+    title: string;
+    description?: string;
+    type: TrainingPlan['type'];
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    facilitator?: string;
+    createdByName: string;
+  }) => void;
+  updateTrainingPlanStatus: (id: string, status: TrainingPlan['status']) => void;
+  assignTrainingPlan: (
+    planId: string,
+    data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+  ) => void;
+  removeTrainingPlanAssignment: (id: string) => void;
   addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
   updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
   distributeLessonPlan: (id: string) => void;
@@ -425,6 +444,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [exams, setExams] = useState<ExamPaper[]>([]);
   const [trainingMaterials, setTrainingMaterials] = useState<TrainingMaterial[]>([]);
+  const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([]);
+  const [trainingPlanAssignments, setTrainingPlanAssignments] = useState<TrainingPlanAssignment[]>([]);
   const [teachingNotes, setTeachingNotes] = useState<TeachingNote[]>([]);
   const [academicCalendars, setAcademicCalendars] = useState<AcademicCalendar[]>(() =>
     typeof window !== 'undefined' ? readStoredCalendars() : [],
@@ -476,6 +497,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setClasses(mockClasses);
     setExams(mockExams);
     setTrainingMaterials(mockTrainingMaterials);
+    setTrainingPlans([]);
+    setTrainingPlanAssignments([]);
     setTeachingNotes(mockTeachingNotes);
     setAcademicCalendars(readStoredCalendars());
     setMoeCalendar(readStoredMoeCalendar());
@@ -522,6 +545,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setClasses(data.classes ?? []);
     setExams(data.exams ?? []);
     setTrainingMaterials(data.trainingMaterials ?? []);
+    setTrainingPlans(data.trainingPlans ?? []);
+    setTrainingPlanAssignments(data.trainingPlanAssignments ?? []);
     setTeachingNotes(data.teachingNotes ?? []);
     const apiCalendars = data.academicCalendars ?? [];
     const storedCalendars = readStoredCalendars();
@@ -546,14 +571,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeacherTrainingAssignments(data.teacherTrainingAssignments ?? []);
     setNotifications((data.notifications ?? []) as AppNotification[]);
     setRegistrationApplications(mockRegistrationApplications);
-    setHrEmployees(mockHrEmployees);
-    setLeaveRequests(mockLeaveRequests);
-    setPayrollRecords(mockPayrollRecords);
-    setJobPostings(mockJobPostings);
-    setJobApplications(mockJobApplications);
-    setPerformanceReviews(mockPerformanceReviews);
-    setOnboardingTasks(mockOnboardingTasks);
-    setStaffAttendance(mockStaffAttendance);
+    setHrEmployees(data.hrEmployees ?? []);
+    setLeaveRequests(data.leaveRequests ?? []);
+    setPayrollRecords(data.payrollRecords ?? []);
+    setJobPostings(data.jobPostings ?? []);
+    setJobApplications(data.jobApplications ?? []);
+    setPerformanceReviews(data.performanceReviews ?? []);
+    setOnboardingTasks(data.onboardingTasks ?? []);
+    setStaffAttendance(data.staffAttendance ?? []);
     setDataSource(source);
     writeOfflineMeta({ dataSource: source });
   }, []);
@@ -577,6 +602,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       checkIns,
       exams,
       trainingMaterials,
+      trainingPlans,
+      trainingPlanAssignments,
       teachingNotes,
       academicCalendars,
       studentGradeEntries,
@@ -590,6 +617,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       staffMessages,
       teacherSelfAssessments,
       teacherTrainingAssignments,
+      hrEmployees,
+      leaveRequests,
+      payrollRecords,
+      jobPostings,
+      jobApplications,
+      performanceReviews,
+      onboardingTasks,
+      staffAttendance,
       notifications: notifications.map(({ id, title, description, timestamp, read, type }) => ({
         id,
         title,
@@ -612,6 +647,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checkIns,
     exams,
     trainingMaterials,
+    trainingPlans,
+    trainingPlanAssignments,
     teachingNotes,
     academicCalendars,
     studentGradeEntries,
@@ -625,6 +662,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     staffMessages,
     teacherSelfAssessments,
     teacherTrainingAssignments,
+    hrEmployees,
+    leaveRequests,
+    payrollRecords,
+    jobPostings,
+    jobApplications,
+    performanceReviews,
+    onboardingTasks,
+    staffAttendance,
     notifications,
   ]);
 
@@ -1070,179 +1115,132 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   };
 
-  const addHrEmployee = (employeeData: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>): string => {
-    // eslint-disable-next-line react-hooks/purity
-    const timestamp = Date.now();
-    const employee: HrEmployee = {
-      ...employeeData,
-      id: `emp-${timestamp}`,
-      employeeId: generateEmployeeId(hrEmployees),
-      schoolId: 'sch-1',
-    };
-    setHrEmployees((prev) => [...prev, employee]);
-    addNotification('Employee Added', `${employee.name} onboarded as ${employee.position}.`, 'success');
-    return employee.id;
+  const addHrEmployee = (employeeData: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>): Promise<HrEmployee> => {
+    return api
+      .createHrEmployee(employeeData as unknown as Record<string, unknown>)
+      .then((emp) => {
+        const employee = emp as HrEmployee;
+        setHrEmployees((prev) => [...prev, employee]);
+        addNotification('Employee Added', `${employee.name} onboarded as ${employee.position}.`, 'success');
+        return employee;
+      })
+      .catch((err) => {
+        void refreshFromApi();
+        throw err;
+      });
   };
 
   const updateHrEmployee = (id: string, updates: Partial<HrEmployee>) => {
-    setHrEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+    void api.updateHrEmployee(id, updates as Record<string, unknown>).then((emp) => {
+      setHrEmployees((prev) => prev.map((e) => (e.id === id ? (emp as HrEmployee) : e)));
+      addNotification('Employee Updated', `Profile for ${(emp as HrEmployee).name} saved.`, 'success');
+    }).catch(() => void refreshFromApi());
   };
 
   const toggleHrEmployeeStatus = (id: string) => {
-    setHrEmployees((prev) =>
-      prev.map((e) => {
-        if (e.id !== id) return e;
-        const nextStatus =
-          e.status === 'Active' ? 'Terminated' : e.status === 'Terminated' ? 'Active' : e.status;
-        return { ...e, status: nextStatus };
-      })
-    );
+    void api.toggleHrEmployeeStatus(id).then((emp) => {
+      const updated = emp as HrEmployee;
+      setHrEmployees((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      addNotification('Employee Status Updated', `${updated.name} is now ${updated.status}.`, 'success');
+    }).catch(() => void refreshFromApi());
   };
 
   const submitLeaveRequest = (requestData: Omit<LeaveRequest, 'id' | 'status' | 'submittedAt'>) => {
-    // eslint-disable-next-line react-hooks/purity
-    const timestamp = Date.now();
-    const request: LeaveRequest = {
-      ...requestData,
-      id: `leave-${timestamp}`,
-      status: 'Pending',
-      submittedAt: new Date().toISOString().slice(0, 10),
-    };
-    setLeaveRequests((prev) => [request, ...prev]);
-    addNotification('Leave Request', `${request.employeeName} submitted ${request.type} leave.`, 'request');
+    void api.submitLeaveRequest(requestData as unknown as Record<string, unknown>).then((req) => {
+      const request = req as LeaveRequest;
+      setLeaveRequests((prev) => [request, ...prev]);
+      addNotification('Leave Request', `${request.employeeName} submitted ${request.type} leave.`, 'request');
+    }).catch(() => void refreshFromApi());
   };
 
   const reviewLeaveRequest = (id: string, status: LeaveStatus, reviewerNotes?: string) => {
-    setLeaveRequests((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, status, reviewerNotes, reviewedAt: new Date().toISOString().slice(0, 10) }
-          : r
-      )
-    );
-    if (status === 'Approved') {
-      const req = leaveRequests.find((r) => r.id === id);
-      if (req) {
-        setHrEmployees((prev) =>
-          prev.map((e) => (e.id === req.employeeId ? { ...e, status: 'On Leave' } : e))
-        );
-      }
-    }
-    addNotification('Leave Reviewed', `Leave request ${status.toLowerCase()}.`, status === 'Approved' ? 'success' : 'info');
+    void api.reviewLeaveRequest(id, status, reviewerNotes).then(() => {
+      // Approval also flips the employee's (and any linked teacher's) status server-side —
+      // refetch rather than re-deriving those cross-entity effects from stale local state.
+      void refreshFromApi();
+      addNotification('Leave Reviewed', `Leave request ${status.toLowerCase()}.`, status === 'Approved' ? 'success' : 'info');
+    }).catch(() => void refreshFromApi());
   };
 
   const processPayroll = (employeeId: string, month: string) => {
-    const employee = hrEmployees.find((e) => e.id === employeeId);
-    if (!employee) return;
-    const existing = payrollRecords.find((p) => p.employeeId === employeeId && p.month === month);
-    if (existing) return;
-
-    // eslint-disable-next-line react-hooks/purity
-    const timestamp = Date.now();
-    const allowances = Math.round(employee.salary * 0.12);
-    const deductions = Math.round(employee.salary * 0.17);
-    const record: PayrollRecord = {
-      id: `pay-${timestamp}`,
-      employeeId,
-      employeeName: employee.name,
-      month,
-      baseSalary: employee.salary,
-      allowances,
-      deductions,
-      netPay: employee.salary + allowances - deductions,
-      status: 'Processed',
-      processedAt: new Date().toISOString().slice(0, 10),
-    };
-    setPayrollRecords((prev) => [record, ...prev]);
-    addNotification('Payroll Processed', `Payroll for ${employee.name} (${month}) processed.`, 'success');
+    void api.processPayroll(employeeId, month).then((rec) => {
+      const record = rec as PayrollRecord;
+      setPayrollRecords((prev) => (prev.some((p) => p.id === record.id) ? prev : [record, ...prev]));
+      addNotification('Payroll Processed', `Payroll for ${record.employeeName} (${month}) processed.`, 'success');
+    }).catch(() => void refreshFromApi());
   };
 
   const updatePayrollStatus = (id: string, status: PayrollStatus) => {
-    setPayrollRecords((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
+    void api.updatePayrollStatus(id, status).then((rec) => {
+      setPayrollRecords((prev) => prev.map((p) => (p.id === id ? (rec as PayrollRecord) : p)));
+    }).catch(() => void refreshFromApi());
   };
 
   const addJobPosting = (postingData: Omit<JobPosting, 'id' | 'postedAt' | 'applicantCount'>) => {
-    // eslint-disable-next-line react-hooks/purity
-    const timestamp = Date.now();
-    const posting: JobPosting = {
-      ...postingData,
-      id: `job-${timestamp}`,
-      postedAt: new Date().toISOString().slice(0, 10),
-      applicantCount: 0,
-    };
-    setJobPostings((prev) => [posting, ...prev]);
-    addNotification('Job Posted', `${posting.title} is now live.`, 'info');
+    void api.createJobPosting(postingData as unknown as Record<string, unknown>).then((posting) => {
+      setJobPostings((prev) => [posting as JobPosting, ...prev]);
+      addNotification('Job Posted', `${(posting as JobPosting).title} is now live.`, 'info');
+    }).catch(() => void refreshFromApi());
   };
 
   const updateJobPosting = (id: string, updates: Partial<JobPosting>) => {
-    setJobPostings((prev) => prev.map((j) => (j.id === id ? { ...j, ...updates } : j)));
+    void api.updateJobPosting(id, updates as Record<string, unknown>).then((posting) => {
+      setJobPostings((prev) => prev.map((j) => (j.id === id ? (posting as JobPosting) : j)));
+    }).catch(() => void refreshFromApi());
   };
 
   const updateJobApplication = (id: string, status: ApplicationStatus, notes?: string) => {
-    setJobApplications((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status, notes: notes ?? a.notes } : a))
-    );
-    if (status === 'Hired') {
-      const app = jobApplications.find((a) => a.id === id);
-      if (app) {
-        addHrEmployee({
-          name: app.applicantName,
-          email: app.email,
-          phone: app.phone,
-          position: app.jobTitle.split('—')[0]?.trim() ?? 'Staff',
-          department: jobPostings.find((j) => j.id === app.jobId)?.department ?? 'Administration',
-          employmentType: 'Full-time',
-          hireDate: new Date().toISOString().slice(0, 10),
-          salary: 12000,
-          status: 'Probation',
-        });
+    void api.updateJobApplication(id, status, notes).then((app) => {
+      setJobApplications((prev) => prev.map((a) => (a.id === id ? (app as JobApplication) : a)));
+      if (status === 'Hired') {
+        // The server auto-creates the HrEmployee record when a hire happens — refetch to pick it up.
+        void refreshFromApi();
+        addNotification('Employee Hired', `${(app as JobApplication).applicantName} added to HR records.`, 'success');
       }
-    }
+    }).catch(() => void refreshFromApi());
   };
 
   const addPerformanceReview = (reviewData: Omit<PerformanceReview, 'id' | 'status'>) => {
-    const review: PerformanceReview = {
-      ...reviewData,
-      id: `perf-${Date.now()}`,
-      status: 'In Progress',
-    };
-    setPerformanceReviews((prev) => [review, ...prev]);
+    void api.createPerformanceReview(reviewData as unknown as Record<string, unknown>).then((review) => {
+      setPerformanceReviews((prev) => [review as PerformanceReview, ...prev]);
+    }).catch(() => void refreshFromApi());
   };
 
   const updatePerformanceReview = (id: string, updates: Partial<PerformanceReview>) => {
-    setPerformanceReviews((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)));
+    void api.updatePerformanceReview(id, updates as Record<string, unknown>).then((review) => {
+      setPerformanceReviews((prev) => prev.map((r) => (r.id === id ? (review as PerformanceReview) : r)));
+    }).catch(() => void refreshFromApi());
   };
 
   const addOnboardingTask = (taskData: Omit<OnboardingTask, 'id' | 'completed'>) => {
-    const task: OnboardingTask = {
-      ...taskData,
-      id: `onb-${Date.now()}`,
-      completed: false,
-    };
-    setOnboardingTasks((prev) => [...prev, task]);
+    void api.createOnboardingTask(taskData as unknown as Record<string, unknown>).then((task) => {
+      setOnboardingTasks((prev) => [...prev, task as OnboardingTask]);
+    }).catch(() => void refreshFromApi());
   };
 
   const toggleOnboardingTask = (id: string) => {
-    setOnboardingTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+    void api.toggleOnboardingTask(id).then((task) => {
+      setOnboardingTasks((prev) => prev.map((t) => (t.id === id ? (task as OnboardingTask) : t)));
+    }).catch(() => void refreshFromApi());
   };
 
   const recordStaffAttendance = (
     recordData: Omit<StaffAttendanceRecord, 'id' | 'employeeName'> & { employeeName?: string }
   ) => {
     const employee = hrEmployees.find((e) => e.id === recordData.employeeId);
-    const record: StaffAttendanceRecord = {
-      ...recordData,
-      id: `satt-${Date.now()}`,
-      employeeName: recordData.employeeName ?? employee?.name ?? 'Unknown',
-    };
-    setStaffAttendance((prev) => {
-      const filtered = prev.filter(
-        (r) => !(r.employeeId === record.employeeId && r.date === record.date)
-      );
-      return [record, ...filtered];
-    });
+    void api
+      .recordStaffAttendance({
+        ...recordData,
+        employeeName: recordData.employeeName ?? employee?.name ?? 'Unknown',
+      } as Record<string, unknown>)
+      .then((record) => {
+        const rec = record as StaffAttendanceRecord;
+        setStaffAttendance((prev) => {
+          const filtered = prev.filter((r) => !(r.employeeId === rec.employeeId && r.date === rec.date));
+          return [rec, ...filtered];
+        });
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
@@ -1276,8 +1274,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleTeacherStatus = (id: string) => {
     void api.toggleTeacherStatus(id).then((tch) => {
-      setTeachers((prev) => prev.map((t) => (t.id === id ? (tch as Teacher) : t)));
-      addNotification('Teacher Status Updated', `${(tch as Teacher).name} is now ${(tch as Teacher).status}.`, 'success');
+      const updated = tch as Teacher;
+      setTeachers((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      addNotification('Teacher Status Updated', `${updated.name} is now ${updated.status}.`, 'success');
+
+      // Mirror into the linked HR record, if one exists — but only flip an employee
+      // back to Active if they were On Leave because of this link, not e.g. Terminated.
+      setHrEmployees((prev) =>
+        prev.map((e) => {
+          if (e.teacherId !== id) return e;
+          if (updated.status === 'On Leave') return { ...e, status: 'On Leave' };
+          if (updated.status === 'Active' && e.status === 'On Leave') return { ...e, status: 'Active' };
+          return e;
+        })
+      );
     }).catch(() => void refreshFromApi());
   };
 
@@ -1368,6 +1378,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'success'
       );
     }).catch(() => void refreshFromApi());
+  };
+
+  const addTrainingPlan = (data: {
+    title: string;
+    description?: string;
+    type: TrainingPlan['type'];
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    facilitator?: string;
+    createdByName: string;
+  }) => {
+    void api.createTrainingPlan(data).then((plan) => {
+      setTrainingPlans((prev) => [plan as TrainingPlan, ...prev]);
+      addNotification('Training Plan Created', `"${data.title}" scheduled.`, 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const updateTrainingPlanStatus = (id: string, status: TrainingPlan['status']) => {
+    setTrainingPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
+
+    if (!isBrowserOnline()) {
+      void enqueueOutbox('updateTrainingPlan', { id, status });
+      void refreshPendingCount();
+      return;
+    }
+
+    void api.updateTrainingPlan(id, { status }).then((plan) => {
+      setTrainingPlans((prev) => prev.map((p) => (p.id === id ? (plan as TrainingPlan) : p)));
+    }).catch(() => {
+      void enqueueOutbox('updateTrainingPlan', { id, status });
+      void refreshPendingCount();
+    });
+  };
+
+  const assignTrainingPlan = (
+    planId: string,
+    data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+  ) => {
+    void api.assignTrainingPlan(planId, data).then((a) => {
+      setTrainingPlanAssignments((prev) => [a as TrainingPlanAssignment, ...prev]);
+      addNotification('Training Assigned', 'Assignment recorded for the training plan.', 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const removeTrainingPlanAssignment = (id: string) => {
+    setTrainingPlanAssignments((prev) => prev.filter((a) => a.id !== id));
+    void api.removeTrainingPlanAssignment(id).catch(() => void refreshFromApi());
   };
 
   const addCheckInTemplate = (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
@@ -2167,6 +2225,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         classes,
         exams,
         trainingMaterials,
+        trainingPlans,
+        trainingPlanAssignments,
         teachingNotes,
         academicCalendars,
         moeCalendar,
@@ -2235,6 +2295,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rejectExam,
         addTrainingMaterial,
         disseminateTrainingMaterial,
+        addTrainingPlan,
+        updateTrainingPlanStatus,
+        assignTrainingPlan,
+        removeTrainingPlanAssignment,
         addCheckInTemplate,
         updateLessonPlan,
         distributeLessonPlan,

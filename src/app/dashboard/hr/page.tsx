@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { HrDashboard } from '@/components/dashboard/hr/HrDashboard';
 import { HrEmployeeDirectory } from '@/components/dashboard/hr/HrEmployeeDirectory';
 import { HrLeaveManagement } from '@/components/dashboard/hr/HrLeaveManagement';
@@ -12,6 +14,8 @@ import { HrRecruitment } from '@/components/dashboard/hr/HrRecruitment';
 import { HrPerformance } from '@/components/dashboard/hr/HrPerformance';
 import { HrOnboarding } from '@/components/dashboard/hr/HrOnboarding';
 import { HrReports } from '@/components/dashboard/hr/HrReports';
+import { HrTrainingPanel } from '@/components/dashboard/hr/HrTrainingPanel';
+import { HrTrainingPlanningPanel } from '@/components/dashboard/hr/HrTrainingPlanningPanel';
 import { usePortalTab } from '@/lib/usePortalTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
@@ -22,7 +26,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   employees: {
     title: 'Employee Directory',
-    subtitle: 'Complete staff records for teaching and non-teaching personnel.',
+    subtitle: 'Manage staff records for teaching and non-teaching personnel.',
   },
   leave: {
     title: 'Leave Management',
@@ -52,6 +56,14 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'HR Reports',
     subtitle: 'Headcount, payroll, leave, recruitment, and workforce analytics.',
   },
+  training: {
+    title: 'Trainings',
+    subtitle: 'Every training type available to staff — leadership, subject-matter, induction, and continuous development.',
+  },
+  'training-planning': {
+    title: 'Training Planning',
+    subtitle: 'Plan new Continuous Development tracks or In-Person sessions, and assign them to teachers or academic teams.',
+  },
   profile: {
     title: 'My Profile',
     subtitle: 'Your HR account information.',
@@ -60,6 +72,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 
 export default function HrPortalPage() {
   const { activeTab, setActiveTab } = usePortalTab('hr');
+  const { schools, currentUser } = useApp();
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
+  const hrOfficerName = currentUser?.displayName ?? 'HR Officer';
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -100,10 +116,19 @@ export default function HrPortalPage() {
       >
         + Post Job
       </Button>
+    ) : activeTab === 'training-planning' ? (
+      <Button
+        variant="organic"
+        size="sm"
+        className="text-xs h-9 border-none"
+        onClick={() => window.dispatchEvent(new Event('open-hr-training-plan'))}
+      >
+        + Plan Training
+      </Button>
     ) : (
-      <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        Sara Bekele · HR Officer
-      </span>
+      <Badge variant="primary" badgeStyle="subtle" size="md">
+        {hrOfficerName} · HR Officer
+      </Badge>
     );
 
   return (
@@ -112,9 +137,18 @@ export default function HrPortalPage() {
       setActiveTab={setActiveTab}
       title={meta.title}
       subtitle={meta.subtitle}
-      eyebrow="Bole Secondary · HR Portal"
+      eyebrow={`${schoolName} · HR Portal`}
       actions={shellActions}
-      showPageHeader={activeTab !== 'dashboard'}
+      showPageHeader
+      breadcrumbs={
+        activeTab === 'employees'
+          ? [
+              { label: 'HR Portal', onClick: () => setActiveTab('dashboard') },
+              { label: 'Employees' },
+              { label: 'Employee Directory' },
+            ]
+          : undefined
+      }
     >
       {activeTab === 'dashboard' && <HrDashboard />}
       {activeTab === 'employees' && <HrEmployeeDirectory />}
@@ -125,13 +159,15 @@ export default function HrPortalPage() {
       {activeTab === 'performance' && <HrPerformance />}
       {activeTab === 'onboarding' && <HrOnboarding />}
       {activeTab === 'reports' && <HrReports />}
+      {activeTab === 'training' && <HrTrainingPanel />}
+      {activeTab === 'training-planning' && <HrTrainingPlanningPanel />}
       {activeTab === 'profile' && (
         <div className="space-y-6 animate-fade-in text-left">
           <PortalProfileCard
             roleLabel="HR Officer"
             fields={[
               { label: 'Department', value: 'Human Resources' },
-              { label: 'Scope', value: 'Bole Community School — all staff' },
+              { label: 'Scope', value: `${schoolName} — all staff` },
             ]}
           />
         </div>

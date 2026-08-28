@@ -191,10 +191,10 @@ export function InvoiceDetailDialog({
                 </tr>
                 {invoice.lateFeeTotal > 0 && (
                   <tr className="border-t border-border/50">
-                    <td className="px-3 py-2.5 text-amber-700" colSpan={2}>
+                    <td className="px-3 py-2.5 text-warning" colSpan={2}>
                       Late fees
                     </td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-amber-700">
+                    <td className="px-3 py-2.5 text-right font-semibold text-warning">
                       {formatMoney(invoice.lateFeeTotal, invoice.currency)}
                     </td>
                   </tr>

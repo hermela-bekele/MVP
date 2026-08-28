@@ -7,6 +7,7 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
+import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { Student } from '@/lib/mockData';
 import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
@@ -154,16 +155,16 @@ export const RegistrarTransfers: React.FC = () => {
             </p>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-muted-foreground uppercase">New Status</label>
-              <select
+              <Select
+                options={[
+                  { value: 'Active', label: 'Active — Currently enrolled' },
+                  { value: 'Suspended', label: 'Suspended — Temporarily removed' },
+                  { value: 'Transferred', label: 'Transferred — Moved to another school (proration credit)' },
+                  { value: 'Graduated', label: 'Graduated — Completed studies (proration credit)' },
+                ]}
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value as Student['status'])}
-                className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs"
-              >
-                <option value="Active">Active — Currently enrolled</option>
-                <option value="Suspended">Suspended — Temporarily removed</option>
-                <option value="Transferred">Transferred — Moved to another school (proration credit)</option>
-                <option value="Graduated">Graduated — Completed studies (proration credit)</option>
-              </select>
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-muted-foreground uppercase">Notes (Optional)</label>

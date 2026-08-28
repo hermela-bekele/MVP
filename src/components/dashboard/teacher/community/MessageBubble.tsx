@@ -49,69 +49,101 @@ export function MessageBubble({
 
   return (
     <div
-      className={`group relative flex gap-3 px-4 py-2 transition-colors hover:bg-ais-row-hover/60 ${
+      className={`group relative px-4 py-2 transition-colors hover:bg-ais-row-hover/60 ${
         message.pending ? 'opacity-70' : ''
-      } ${message.failed ? 'bg-ais-error/5' : ''}`}
+      } ${message.failed ? 'bg-ais-error/5' : ''} ${
+        isOwn ? 'flex justify-end' : 'flex justify-start'
+      }`}
     >
       <div
-        className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(
-          message.authorId,
-        )}`}
+        className={`flex max-w-[min(88%,36rem)] gap-2.5 ${
+          isOwn ? 'flex-row-reverse' : 'flex-row'
+        }`}
       >
-        {communityInitials(message.authorName)}
-      </div>
-      <div className="min-w-0 flex-1 text-left">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-sm font-bold text-ais-on-surface">{message.authorName}</span>
-          {roleTag && (
-            <span className="rounded-full bg-ais-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-ais-primary">
-              {roleTag}
-            </span>
-          )}
-          <span className="text-[11px] text-ais-outline">
-            {formatMessageTime(message.createdAt)}
-            {message.editedAt ? ' · edited' : ''}
-            {message.pending ? ' · sending…' : ''}
-            {message.failed ? ' · failed' : ''}
-          </span>
-        </div>
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ais-on-surface">
-          {renderInlineFormatting(message.content)}
-        </p>
-
-        {message.reactions.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {message.reactions.map((r) => (
-              <button
-                key={r.emoji}
-                type="button"
-                onClick={() => onReact(message.id, r.emoji)}
-                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
-                  r.me
-                    ? 'border-ais-primary/30 bg-ais-primary/10 text-ais-primary'
-                    : 'border-ais-card-border bg-white text-ais-on-surface-variant hover:border-ais-primary/20'
-                }`}
-              >
-                <span>{r.emoji}</span>
-                <span>{r.count}</span>
-              </button>
-            ))}
+        {!isOwn && (
+          <div
+            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${avatarColor(
+              message.authorId,
+            )}`}
+          >
+            {communityInitials(message.authorName)}
           </div>
         )}
-
-        {showThreadLink && threadId && replyCount > 0 && (
-          <button
-            type="button"
-            onClick={() => onOpenThread?.(threadId)}
-            className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
+        <div className={`min-w-0 ${isOwn ? 'text-right' : 'text-left'}`}>
+          <div
+            className={`mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 ${
+              isOwn ? 'justify-end' : 'justify-start'
+            }`}
           >
-            <MessageSquare className="h-3.5 w-3.5" />
-            {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
-          </button>
-        )}
+            {!isOwn && (
+              <span className="text-sm font-bold text-ais-on-surface">{message.authorName}</span>
+            )}
+            {!isOwn && roleTag && (
+              <span className="rounded-full bg-ais-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-ais-primary">
+                {roleTag}
+              </span>
+            )}
+            <span className="text-[11px] text-ais-outline">
+              {formatMessageTime(message.createdAt)}
+              {message.editedAt ? ' · edited' : ''}
+              {message.pending ? ' · sending…' : ''}
+              {message.failed ? ' · failed' : ''}
+            </span>
+          </div>
+          <div
+            className={`inline-block px-3.5 py-2.5 text-left text-sm shadow-sm ${
+              isOwn
+                ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
+                : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
+            }`}
+          >
+            <p className="whitespace-pre-wrap break-words leading-relaxed">
+              {renderInlineFormatting(message.content)}
+            </p>
+          </div>
+
+          {message.reactions.length > 0 && (
+            <div
+              className={`mt-1.5 flex flex-wrap gap-1.5 ${
+                isOwn ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              {message.reactions.map((r) => (
+                <button
+                  key={r.emoji}
+                  type="button"
+                  onClick={() => onReact(message.id, r.emoji)}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors ${
+                    r.me
+                      ? 'border-ais-primary/30 bg-ais-primary/10 text-ais-primary'
+                      : 'border-ais-card-border bg-white text-ais-on-surface-variant hover:border-ais-primary/20'
+                  }`}
+                >
+                  <span>{r.emoji}</span>
+                  <span>{r.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showThreadLink && threadId && replyCount > 0 && (
+            <button
+              type="button"
+              onClick={() => onOpenThread?.(threadId)}
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="absolute right-3 top-1 hidden items-center gap-0.5 rounded-lg border border-ais-card-border bg-white p-0.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)] group-hover:flex">
+      <div
+        className={`absolute top-1 hidden items-center gap-0.5 rounded-lg border border-ais-card-border bg-white p-0.5 shadow-[0_1px_3px_rgba(15,23,42,0.08)] group-hover:flex ${
+          isOwn ? 'left-3' : 'right-3'
+        }`}
+      >
         <div className="relative">
           <button
             type="button"
@@ -122,7 +154,11 @@ export function MessageBubble({
             <Smile className="h-3.5 w-3.5" />
           </button>
           {pickerOpen && (
-            <div className="absolute right-0 z-20 mt-1 flex gap-0.5 rounded-lg border border-ais-card-border bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)]">
+            <div
+              className={`absolute z-20 mt-1 flex gap-0.5 rounded-lg border border-ais-card-border bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.08)] ${
+                isOwn ? 'left-0' : 'right-0'
+              }`}
+            >
               {QUICK_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}

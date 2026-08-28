@@ -1,19 +1,16 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
-import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import { api, type AdmissionApplication, type Invoice } from '@/lib/api';
 import { readStoredSession } from '@/lib/auth';
 
-const inputClass =
-  'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
-
-function statusVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' | 'info' {
+export function statusVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' | 'info' {
   if (['enrolled', 'accepted_pending_payment'].includes(status)) return 'success';
   if (['submitted', 'under_review', 'info_requested', 'waitlisted'].includes(status)) return 'warning';
   if (['rejected', 'expired_unpaid'].includes(status)) return 'danger';
@@ -28,15 +25,12 @@ function deadlineBadge(color?: string) {
 }
 
 export const RegistrarApplications: React.FC = () => {
+  const router = useRouter();
   const session = readStoredSession();
   const schoolId = session?.schoolId || 'sch-1';
   const [apps, setApps] = useState<AdmissionApplication[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [selected, setSelected] = useState<AdmissionApplication | null>(null);
-  const [notes, setNotes] = useState('');
-  const [score, setScore] = useState('70');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -54,20 +48,6 @@ export const RegistrarApplications: React.FC = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true);
-    setError('');
-    try {
-      await fn();
-      await refresh();
-      setSelected(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const columns: DataTableColumn<AdmissionApplication>[] = [
     {
@@ -126,9 +106,7 @@ export const RegistrarApplications: React.FC = () => {
           className="text-xs h-8"
           onClick={(e) => {
             e.stopPropagation();
-            setSelected(row);
-            setNotes(row.reviewerNotes || '');
-            setScore(String(row.priorityScore || 70));
+            router.push(`/dashboard/registrar/applications/${row.id}`);
           }}
         >
           Review
@@ -154,51 +132,6 @@ export const RegistrarApplications: React.FC = () => {
       >
         <DataTable columns={columns} data={apps} />
       </TablePanel>
-
-      <Dialog
-        isOpen={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.applicantName || 'Application'}
-      >
-        {selected && (
-          <div className="space-y-3 text-sm">
-            <p className="text-xs text-muted-foreground">
-              {selected.referenceCode} · {selected.gradeApplied} · {selected.sourceChannel}
-            </p>
-            <p>
-              Parent: {selected.parentName} ({selected.parentPhone})
-            </p>
-            <label className="block text-xs space-y-1">
-              Priority score
-              <input className={inputClass} value={score} onChange={(e) => setScore(e.target.value)} />
-            </label>
-            <label className="block text-xs space-y-1">
-              Notes / reason
-              <textarea className={`${inputClass} h-20 py-2`} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </label>
-            <DialogFooter className="flex-wrap gap-2">
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.scoreApplication(selected.id, Number(score), notes))}>
-                Save score
-              </Button>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.requestInfoApplication(selected.id, notes || 'Please provide more information'))}>
-                Request info
-              </Button>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.waitlistApplication(selected.id, notes))}>
-                Waitlist
-              </Button>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.rejectApplication(selected.id, notes || 'Not selected'))}>
-                Reject
-              </Button>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api.withdrawApplication(selected.id, notes || 'Withdrawn'))}>
-                Withdraw
-              </Button>
-              <Button size="sm" disabled={busy} onClick={() => run(() => api.acceptApplication(selected.id, { section: selected.sectionRequested, notes }))}>
-                Accept + invoice
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
-      </Dialog>
     </div>
   );
 };

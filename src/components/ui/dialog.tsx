@@ -65,15 +65,15 @@ export const Dialog: React.FC<DialogProps> = ({
               initial="hidden"
               animate="visible"
               exit="exit"
-              className={`relative w-full ${sizeClasses[size]} bg-white text-ais-on-surface border border-ais-card-border rounded-2xl shadow-[0_8px_24px_rgba(15,23,42,0.12)] overflow-hidden z-10 flex flex-col max-h-[min(90vh,100dvh)]`}
+              className={`relative w-full ${sizeClasses[size]} bg-card text-card-foreground border border-border rounded-2xl shadow-[0_8px_24px_rgba(15,23,42,0.12)] overflow-hidden z-10 flex flex-col max-h-[min(90vh,100dvh)]`}
               role="dialog"
               aria-modal="true"
               aria-labelledby="dialog-title"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-6 py-5 border-b border-ais-card-border bg-ais-surface-container-low/50 shrink-0">
+              <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-muted/50 shrink-0">
                 <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ais-primary text-white shadow-sm">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
@@ -84,14 +84,14 @@ export const Dialog: React.FC<DialogProps> = ({
                       id="dialog-title"
                       className={
                         largeTitle
-                          ? 'text-lg sm:text-xl font-bold tracking-tight text-ais-on-surface truncate'
-                          : 'text-base font-semibold tracking-tight text-ais-on-surface truncate'
+                          ? 'text-lg sm:text-xl font-bold tracking-tight text-foreground truncate'
+                          : 'text-base font-semibold tracking-tight text-foreground truncate'
                       }
                     >
                       {title}
                     </h2>
                     {description && (
-                      <p className="text-xs text-ais-on-surface-variant truncate">{description}</p>
+                      <p className="text-xs text-muted-foreground truncate">{description}</p>
                     )}
                   </div>
                 </div>
@@ -99,7 +99,7 @@ export const Dialog: React.FC<DialogProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-ais-on-surface-variant hover:text-ais-on-surface hover:bg-ais-surface-container-low p-2.5 rounded-xl transition-all duration-200 cursor-pointer shrink-0"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted p-2.5 rounded-xl transition-all duration-200 cursor-pointer shrink-0"
                   aria-label="Close"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@ export const Dialog: React.FC<DialogProps> = ({
                 </button>
               </div>
 
-              <div className="p-5 sm:p-6 overflow-y-auto flex-1 leading-relaxed bg-white text-ais-on-surface">{children}</div>
+              <div className="p-5 sm:p-6 overflow-y-auto flex-1 leading-relaxed bg-card text-card-foreground">{children}</div>
             </motion.div>
           </div>
         )}
@@ -122,7 +122,7 @@ export const DialogFooter: React.FC<{ children: React.ReactNode; className?: str
   className = '',
 }) => (
   <div
-    className={`flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-ais-surface-container-low/30 border-t border-ais-card-border ${className}`}
+    className={`flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-muted/30 border-t border-border ${className}`}
   >
     {children}
   </div>

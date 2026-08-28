@@ -10,6 +10,8 @@ export interface ContentCardProps {
   actions?: React.ReactNode;
   className?: string;
   noPadding?: boolean;
+  /** Show the pulsing "live" dot next to the title — only set this for genuinely polling/streaming data */
+  live?: boolean;
 }
 
 /** Modern card with glassmorphism and gradient accents */
@@ -20,6 +22,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   actions,
   className = '',
   noPadding = false,
+  live = false,
 }) => (
   <Card className={`group relative overflow-hidden border-border/70 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md ${className}`}>
     {/* Decorative gradient accent */}
@@ -32,7 +35,9 @@ export const ContentCard: React.FC<ContentCardProps> = ({
       <div className="min-w-0 relative z-10">
         <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
           {title}
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
+          {live && (
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" aria-hidden="true" />
+          )}
         </CardTitle>
       </div>
       {actions && <div className="shrink-0 relative z-10">{actions}</div>}

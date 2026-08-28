@@ -179,7 +179,7 @@ export function VPReportTemplateBuilder() {
         >
           <div className="space-y-2">
             {template.gradingScale.map((band, idx) => (
-              <div key={idx} className="grid grid-cols-5 gap-2 items-end rounded-lg border border-border/60 p-2">
+              <div key={idx} className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end rounded-lg border border-border/60 p-2">
                 <Input
                   label="Min %"
                   type="number"

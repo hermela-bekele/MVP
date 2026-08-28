@@ -161,10 +161,51 @@
   --color-portal-secondary-container: #f0f3ff;
   --color-portal-error-container: #ffdad6;
   --color-portal-error: #ba1a1a;
-  
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+
+  --text-xxs: 0.65rem;
+
+  /* Type scale — app-wide, use instead of arbitrary text-[Npx] values.
+     Each pairs a size with its line-height (and weight/tracking where meaningful);
+     apply text-transform/uppercase separately where needed (e.g. text-label-caps uppercase). */
+  --text-display-lg: 2rem;
+  --text-display-lg--line-height: 2.5rem;
+  --text-display-lg--font-weight: 700;
+  --text-display-lg--letter-spacing: -0.02em;
+
+  --text-display-md: 1.5rem;
+  --text-display-md--line-height: 2rem;
+  --text-display-md--font-weight: 600;
+  --text-display-md--letter-spacing: -0.01em;
+
+  --text-headline-sm: 1.25rem;
+  --text-headline-sm--line-height: 1.75rem;
+  --text-headline-sm--font-weight: 600;
+
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+
+  --text-body-md: 0.875rem;
+  --text-body-md--line-height: 1.25rem;
+
+  --text-body-sm: 0.75rem;
+  --text-body-sm--line-height: 1rem;
+
+  --text-data-lg: 1.125rem;
+  --text-data-lg--line-height: 1.5rem;
+  --text-data-lg--font-weight: 600;
+
+  --text-data-md: 0.875rem;
+  --text-data-md--line-height: 1.25rem;
+  --text-data-md--font-weight: 500;
+
+  --text-label-caps: 0.6875rem;
+  --text-label-caps--line-height: 1rem;
+  --text-label-caps--font-weight: 700;
+  --text-label-caps--letter-spacing: 0.05em;
 }
 
 /* ====================================

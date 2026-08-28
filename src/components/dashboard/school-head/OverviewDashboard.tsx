@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
-import { StatCard } from "@/components/ui/stat-card";
+import { KpiWidget } from "@/components/dashboard/KpiWidget";
 import { ChartCard } from "@/components/ui/chart-card";
 import {
   Card,
@@ -16,9 +16,23 @@ import { Badge } from "@/components/ui/badge";
 import { staggerContainer, staggerItem } from "@/lib/animations";
 import { gpaToMark } from "@/lib/grading";
 import { PerformanceReports } from "@/components/dashboard/school-head/PerformanceReports";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  BellOff,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  GraduationCap,
+  Briefcase,
+  ClipboardList,
+  HeartPulse,
+} from "lucide-react";
 
 export const OverviewDashboard: React.FC = () => {
-  const { students, teachers, checkIns, notifications, classes } = useApp();
+  const { students, teachers, checkIns, notifications, classes, schools, currentUser } = useApp();
+
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
 
   const totalStudents = students.length;
   const activeTeachers = teachers.filter((t) => t.status === "Active").length;
@@ -87,9 +101,14 @@ export const OverviewDashboard: React.FC = () => {
         <div className="pointer-events-none absolute top-0 right-0 h-full w-1/2 opacity-60 bg-[hsl(var(--primary-light)/0.3)] rounded-full blur-3xl translate-x-1/4" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-title">
-              Welcome Back, Principal
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+              Welcome Back{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}
             </h1>
+            <p className="text-sm text-white/80 max-w-xl leading-relaxed">
+              Empowering {schoolName} with data-driven academic insights
+              and seamless staff alignment for the 2018 Ethiopian E.C. academic
+              year.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button
@@ -114,12 +133,13 @@ export const OverviewDashboard: React.FC = () => {
         variants={staggerItem}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
-        <StatCard
-          title="Total Enrollment"
+        <KpiWidget
+          label="Total Enrollment"
           value={totalStudents}
-          subtitle="Registered Active Students"
+          hint="Registered Active Students"
+          tone="default"
+          animated
           trend={{ direction: "up", value: "+4.2%" }}
-          color="primary"
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 017.731-4.41 60.437 60.437 0 00-.491-6.347M4.26 10.147a48.47 48.47 0 017.741-4.153 48.47 48.47 0 017.741 4.153m-15.482 0a48.53 48.53 0 013.44 1.598m11.052-1.598a48.53 48.53 0 00-3.44 1.598" />
@@ -127,36 +147,38 @@ export const OverviewDashboard: React.FC = () => {
             </svg>
           }
         />
-        <StatCard
-          title="Active Instructors"
+        <KpiWidget
+          label="Active Instructors"
           value={activeTeachers}
-          subtitle="Certified Teaching Staff"
+          hint="Certified Teaching Staff"
+          tone="muted"
+          animated
           trend={{ direction: "neutral", value: "0.0%" }}
-          color="muted"
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.964 0a9 9 0 10-11.964 0m11.964 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           }
         />
-        <StatCard
-          title="Class Sections"
+        <KpiWidget
+          label="Class Sections"
           value={totalClasses}
-          subtitle="Registered Homeroom Divisions"
+          hint="Registered Homeroom Divisions"
+          tone="emphasis"
+          animated
           trend={{ direction: "neutral", value: "0.0%" }}
-          color="emphasis"
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
             </svg>
           }
         />
-        <StatCard
-          title="Wellness & Satisfaction"
+        <KpiWidget
+          label="Wellness & Satisfaction"
           value={`${avgSatisfaction}%`}
-          subtitle="Teacher & Student Index"
+          hint="Teacher & Student Index"
+          tone="muted"
           trend={{ direction: "up", value: "+3.5%" }}
-          color="muted"
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -214,9 +236,11 @@ export const OverviewDashboard: React.FC = () => {
           <CardContent className="pt-4 px-0">
             <div className="divide-y divide-border/30">
               {recentNotifications.length === 0 ? (
-                <div className="text-center py-10 text-xs text-muted-foreground">
-                  No pending alerts or notifications.
-                </div>
+                <EmptyState
+                  icon={<BellOff />}
+                  title="No pending alerts"
+                  description="You're all caught up — new alerts and notifications will appear here."
+                />
               ) : (
                 recentNotifications.map((notif) => (
                   <div
@@ -225,16 +249,16 @@ export const OverviewDashboard: React.FC = () => {
                   >
                     <div className="mt-1 shrink-0">
                       {notif.type === "alert" ? (
-                        <div className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20 text-sm">
-                          ⚠️
+                        <div className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
+                          <AlertTriangle className="h-4 w-4" aria-hidden />
                         </div>
                       ) : notif.type === "success" ? (
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 text-sm">
-                          ✓
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                          <CheckCircle2 className="h-4 w-4" aria-hidden />
                         </div>
                       ) : (
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 text-sm">
-                          ℹ
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                          <Info className="h-4 w-4" aria-hidden />
                         </div>
                       )}
                     </div>
@@ -268,7 +292,7 @@ export const OverviewDashboard: React.FC = () => {
             {[
               {
                 tab: "manage-students",
-                icon: "🎓",
+                icon: <GraduationCap className="h-4 w-4" aria-hidden />,
                 title: "View Student Directory",
                 desc: "Browse enrolled student records",
                 hover: "hover:border-primary/30 group-hover:text-primary",
@@ -276,7 +300,7 @@ export const OverviewDashboard: React.FC = () => {
               },
               {
                 tab: "manage-employees",
-                icon: "💼",
+                icon: <Briefcase className="h-4 w-4" aria-hidden />,
                 title: "View Faculty Directory",
                 desc: "Browse instructional staff profiles",
                 hover: "hover:border-accent/30 group-hover:text-accent",
@@ -284,7 +308,7 @@ export const OverviewDashboard: React.FC = () => {
               },
               {
                 tab: "manage-attendance",
-                icon: "📋",
+                icon: <ClipboardList className="h-4 w-4" aria-hidden />,
                 title: "View Attendance Ledger",
                 desc: "Inspect student and staff attendance",
                 hover: "hover:border-primary/30 group-hover:text-primary",
@@ -293,7 +317,7 @@ export const OverviewDashboard: React.FC = () => {
               {
                 tab: "manage-checkins",
                 event: "open-checkin-modal",
-                icon: "❤️",
+                icon: <HeartPulse className="h-4 w-4" aria-hidden />,
                 title: "New Wellness Check-in",
                 desc: "Publish wellness survey",
                 hover: "hover:border-primary/30 group-hover:text-primary",
@@ -307,7 +331,7 @@ export const OverviewDashboard: React.FC = () => {
                 className={`w-full text-left p-3 min-h-[44px] rounded-xl border border-border/50 hover:bg-muted/40 flex items-center gap-3 transition-all duration-200 group cursor-pointer active:scale-[0.98] ${action.hover}`}
               >
                 <div
-                  className={`h-8 w-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200 text-sm font-semibold shrink-0 ${action.bg}`}
+                  className={`h-8 w-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200 shrink-0 ${action.bg}`}
                 >
                   {action.icon}
                 </div>

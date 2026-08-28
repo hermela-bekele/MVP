@@ -183,7 +183,7 @@ export function NoteDeliveryDialog({
         {note && (
           <p className={aisBodySm}>
             How did the class respond to{' '}
-            <span className="font-semibold text-ais-on-surface">{note.title}</span>?
+            <span className="font-semibold text-foreground">{note.title}</span>?
           </p>
         )}
 
@@ -198,20 +198,20 @@ export function NoteDeliveryDialog({
                 onClick={() => void handleOutcomeSelect(item.value)}
                 className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
                   selected
-                    ? 'border-ais-primary bg-ais-primary/5'
-                    : 'border-ais-card-border hover:bg-ais-row-hover'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:bg-muted'
                 } disabled:opacity-60`}
               >
                 <CheckCircle2
                   className={`mt-0.5 h-4 w-4 shrink-0 ${
-                    selected ? 'text-ais-primary' : 'text-ais-on-surface-variant'
+                    selected ? 'text-primary' : 'text-muted-foreground'
                   }`}
                 />
                 <span>
-                  <span className="block text-sm font-semibold text-ais-on-surface">
+                  <span className="block text-sm font-semibold text-foreground">
                     {graspOutcomeLabel(item.value)}
                   </span>
-                  <span className="mt-0.5 block text-xs text-ais-on-surface-variant">
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
                     {item.hint}
                   </span>
                 </span>
@@ -221,7 +221,7 @@ export function NoteDeliveryDialog({
         </div>
 
         {outcome === 'challenged' && (
-          <div className="space-y-3 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
+          <div className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
             <label className={aisFormLabel}>Describe the challenge or opportunity</label>
             <textarea
               className={`${aisTextarea} min-h-[110px]`}
@@ -232,7 +232,7 @@ export function NoteDeliveryDialog({
             />
 
             <div className="space-y-2">
-              <p className="text-xs text-ais-on-surface-variant">Share this with:</p>
+              <p className="text-xs text-muted-foreground">Share this with:</p>
               <div className="flex flex-wrap gap-2">
                 {(
                   [
@@ -248,8 +248,8 @@ export function NoteDeliveryDialog({
                     onClick={() => setPostTarget(value)}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                       postTarget === value
-                        ? 'border-ais-primary bg-ais-primary/10 text-ais-primary'
-                        : 'border-ais-card-border text-ais-on-surface hover:bg-ais-row-hover'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-foreground hover:bg-muted'
                     }`}
                   >
                     {label}
@@ -259,17 +259,17 @@ export function NoteDeliveryDialog({
             </div>
 
             {needsCommunity && (
-              <div className="space-y-3 rounded-lg border border-ais-card-border bg-white p-3 dark:bg-ais-surface">
-                <p className="text-xs font-semibold text-ais-on-surface">
+              <div className="space-y-3 rounded-lg border border-border bg-white p-3 dark:bg-card">
+                <p className="text-xs font-semibold text-foreground">
                   Choose a community you belong to
                 </p>
                 {loadingCommunities ? (
-                  <p className="flex items-center gap-2 text-xs text-ais-on-surface-variant">
+                  <p className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Loading your communities…
                   </p>
                 ) : communities.length === 0 ? (
-                  <p className="text-xs text-ais-on-surface-variant">
+                  <p className="text-xs text-muted-foreground">
                     You are not a member of any community yet. Post to HoD only, or join a community
                     first.
                   </p>
@@ -306,7 +306,7 @@ export function NoteDeliveryDialog({
         )}
 
         {submitting && outcome !== 'challenged' && (
-          <div className="flex items-center gap-2 text-sm text-ais-on-surface-variant">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Saving delivery feedback…
           </div>

@@ -128,11 +128,11 @@ export function ThreadPanel({
   };
 
   return (
-    <aside className="flex h-full w-full flex-col border-l border-ais-card-border bg-white md:w-80 lg:w-96">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-ais-card-border bg-ais-surface-container-low/40 px-4">
+    <aside className="flex h-full w-full flex-col border-l border-border bg-white md:w-80 lg:w-96">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-muted/40 px-4">
         <div className="min-w-0">
           <p className={aisLabelCaps}>Thread</p>
-          <p className="truncate text-sm font-bold text-ais-on-surface">
+          <p className="truncate text-sm font-bold text-foreground">
             {thread?.title || 'Discussion'}
           </p>
         </div>
@@ -154,13 +154,13 @@ export function ThreadPanel({
         }}
       >
         {loading && (
-          <p className="px-4 py-6 text-sm text-ais-on-surface-variant">Loading thread…</p>
+          <p className="px-4 py-6 text-sm text-muted-foreground">Loading thread…</p>
         )}
-        {error && <p className="px-4 py-6 text-sm text-ais-error">{error}</p>}
+        {error && <p className="px-4 py-6 text-sm text-destructive">{error}</p>}
         {!loading && !error && (
           <>
             {root && (
-              <div className="border-b border-ais-card-border bg-ais-surface-container-low/50">
+              <div className="border-b border-border bg-muted/50">
                 <MessageBubble
                   message={root}
                   currentUserId={currentUserId}
@@ -173,7 +173,7 @@ export function ThreadPanel({
             )}
             <div>
               {messages.length === 0 ? (
-                <p className="px-4 py-6 text-center text-xs text-ais-on-surface-variant">
+                <p className="px-4 py-6 text-center text-xs text-muted-foreground">
                   No replies yet — start the discussion.
                 </p>
               ) : (

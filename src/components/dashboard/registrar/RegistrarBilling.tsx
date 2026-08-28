@@ -22,6 +22,7 @@ export const RegistrarBilling: React.FC = () => {
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [feePlans, setFeePlans] = useState<{ id: string; grade: string; registrationFee: number; monthlyTuition: number }[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -35,6 +36,13 @@ export const RegistrarBilling: React.FC = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    api
+      .listFeePlans(schoolId)
+      .then(setFeePlans)
+      .catch(() => setFeePlans([]));
+  }, [schoolId]);
 
   const open = invoices.filter((i) => i.balanceDue > 0).length;
   const red = invoices.filter((i) => i.deadlineColor === 'red' && i.balanceDue > 0).length;
@@ -163,8 +171,16 @@ export const RegistrarBilling: React.FC = () => {
             variant="outline"
             onClick={async () => {
               try {
-                await api.runBillingJobs();
-                setOk('Billing jobs completed.');
+                const result = (await api.runBillingJobs()) as {
+                  reminders: number;
+                  expiredAdmissions: number;
+                  lateFees: number;
+                  monthlyInvoices: number;
+                  overdueNotices: number;
+                };
+                setOk(
+                  `Billing jobs completed — ${result.monthlyInvoices} invoice(s) generated, ${result.reminders} reminder(s), ${result.lateFees} late fee(s), ${result.overdueNotices} overdue notice(s), ${result.expiredAdmissions} expired admission(s).`
+                );
                 await refresh();
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Jobs failed');
@@ -175,6 +191,31 @@ export const RegistrarBilling: React.FC = () => {
           </Button>
         </div>
       </ContentCard>
+
+      {feePlans.length > 0 && (
+        <ContentCard title="Grade Fee Schedule" description="Read-only — edited by school administration under School Settings">
+          <div className="overflow-x-auto">
+            <table className="eskooly-table w-full">
+              <thead>
+                <tr>
+                  <th className="p-2 text-left text-[10px] font-semibold text-muted-foreground">Grade</th>
+                  <th className="p-2 text-left text-[10px] font-semibold text-muted-foreground">Registration Fee</th>
+                  <th className="p-2 text-left text-[10px] font-semibold text-muted-foreground">Monthly Tuition</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {feePlans.map((plan) => (
+                  <tr key={plan.id}>
+                    <td className="p-2 text-xs font-medium">{plan.grade}</td>
+                    <td className="p-2 text-xs">{plan.registrationFee.toLocaleString()} ETB</td>
+                    <td className="p-2 text-xs">{plan.monthlyTuition.toLocaleString()} ETB</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ContentCard>
+      )}
 
       <TablePanel
         title="Invoices & deadlines"

@@ -6,6 +6,8 @@ import { MonthCalendarBlock } from '@/components/dashboard/MonthCalendarBlock';
 import { CalendarColorLegend } from '@/components/dashboard/CalendarColorLegend';
 import { WorkingDaysAnalysis } from '@/components/dashboard/WorkingDaysAnalysis';
 import { getMoeCalendarBounds } from '@/lib/moeCalendarData';
+import { EmptyState } from '@/components/ui/empty-state';
+import { CalendarX } from 'lucide-react';
 
 interface PublishedAcademicCalendarPanelProps {
   schoolId?: string;
@@ -36,11 +38,11 @@ export const PublishedAcademicCalendarPanel: React.FC<PublishedAcademicCalendarP
 
   if (!cal) {
     return (
-      <div className="rounded-xl border border-border/60 bg-card p-10 text-center">
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          No academic calendar has been disseminated yet. Your school head will publish the calendar when ready.
-        </p>
-      </div>
+      <EmptyState
+        icon={<CalendarX />}
+        title="No calendar published yet"
+        description="No academic calendar has been disseminated yet. Your school head will publish the calendar when ready."
+      />
     );
   }
 

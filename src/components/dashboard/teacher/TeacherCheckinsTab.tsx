@@ -34,7 +34,7 @@ export const TeacherCheckinsTab: React.FC = () => {
       <AisPanel title="Wellness & feedback check-ins" description="Respond to surveys assigned to instructional staff" flush>
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Survey</AisTh>
               <AisTh>Type</AisTh>
               <AisTh>Due date</AisTh>
@@ -52,9 +52,9 @@ export const TeacherCheckinsTab: React.FC = () => {
                 <AisTd className={aisBodyMd}>{p.dueDate}</AisTd>
                 <AisTd className="max-w-sm text-xs">
                   {p.teacherResponse ? (
-                    <span className="text-ais-on-surface">{p.teacherResponse}</span>
+                    <span className="text-foreground">{p.teacherResponse}</span>
                   ) : (
-                    <span className="italic text-ais-on-surface-variant">Not submitted</span>
+                    <span className="italic text-muted-foreground">Not submitted</span>
                   )}
                 </AisTd>
                 <AisTd>

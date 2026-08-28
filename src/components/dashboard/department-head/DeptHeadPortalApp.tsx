@@ -11,6 +11,7 @@ import {
   Card,
   CardHeader,
   CardTitle,
+  CardDescription,
   CardContent,
 } from "@/components/ui/card";
 import { ContentCard } from "@/components/dashboard/ContentCard";
@@ -22,7 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import type { Teacher, SchoolClass, LessonPlan } from "@/lib/mockData";
 import { MetricProgressRow } from "@/components/ui/metric-progress-row";
-import { ArrowLeft, BarChart3, ClipboardList, Users, AlertTriangle } from "lucide-react";
+import { ArrowLeft, BarChart3, ClipboardList, Users, AlertTriangle, School, Inbox } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { computeSubjectPerformance } from "@/lib/analytics";
 import {
   classSectionKey,
@@ -49,15 +51,7 @@ import { DeptHeadSchoolHeadMessagesTab } from "@/components/dashboard/department
 import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-head/DeptAssessmentCreatePanel";
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
 import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
-
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
-      <p className="text-xs font-medium text-foreground">{value ?? "—"}</p>
-    </div>
-  );
-}
+import { DetailField } from "@/components/dashboard/shared/DetailField";
 
 function studentReportStatus(gpa: number): "Excellent" | "On Track" | "At Risk" {
   if (gpa >= 3.5) return "Excellent";
@@ -135,12 +129,19 @@ export default function DeptHeadPortalApp() {
     disseminateTrainingMaterial,
     addNotification,
     currentUser,
+    schools,
   } = useApp();
 
   const scope = useMemo(
     () => resolveDeptHeadScope(currentUser),
     [currentUser],
   );
+
+  const currentSchool = useMemo(
+    () => schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0],
+    [schools, currentUser],
+  );
+  const schoolName = currentSchool?.name ?? 'your school';
 
   const department = useMemo(
     () =>
@@ -149,11 +150,6 @@ export default function DeptHeadPortalApp() {
         : undefined,
     [departments, scope],
   );
-
-  // Assessment Modal State
-  const [selectedAsmId, setSelectedAsmId] = useState<string | null>(null);
-  const [isAsmOpen, setIsAsmOpen] = useState(false);
-  const [deptComments, setDeptComments] = useState("");
 
   // Teacher Detail View State
   const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
@@ -371,10 +367,6 @@ export default function DeptHeadPortalApp() {
       asm.status === "Pending Dept Head" &&
       assessmentNeedsApproval(asm.type, asm.createdByRole),
   );
-  const selectedAsm = departmentAssessments.find(
-    (asm) => asm.id === selectedAsmId,
-  );
-
   const avgDeptGrade =
     subjectMetrics.length > 0
       ? (
@@ -451,26 +443,6 @@ export default function DeptHeadPortalApp() {
 
   const handleDisseminateResource = (id: string) => {
     disseminateTrainingMaterial(id);
-  };
-
-  const handleApproveAsm = () => {
-    if (!selectedAsmId) return;
-    approveAssessment(
-      selectedAsmId,
-      deptComments || "Verified layout and syllabus alignment.",
-    );
-    setDeptComments("");
-    setIsAsmOpen(false);
-  };
-
-  const handleRejectAsm = () => {
-    if (!selectedAsmId) return;
-    rejectAssessment(
-      selectedAsmId,
-      deptComments || "Needs questions aligned with secondary difficulty.",
-    );
-    setDeptComments("");
-    setIsAsmOpen(false);
   };
 
   const handleOnboardTeacher = (e: React.FormEvent) => {
@@ -581,7 +553,7 @@ export default function DeptHeadPortalApp() {
       setActiveTab={setActiveTab}
       title={meta.title}
       subtitle={meta.subtitle}
-      eyebrow={`${scope?.subject ?? "Subject"} Department · Bole Secondary`}
+      eyebrow={`${scope?.subject ?? "Subject"} Department · ${schoolName}`}
       actions={
         <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
           {currentUser?.displayName ?? department?.headName ?? "Department Head"}
@@ -669,6 +641,9 @@ export default function DeptHeadPortalApp() {
                 <CardTitle className="text-sm font-semibold">
                   Verification Desk Inbox
                 </CardTitle>
+                <CardDescription>
+                  Tests and quizzes submitted by teachers awaiting department head endorsement.
+                </CardDescription>
               </CardHeader>
               <CardContent className="pt-2 space-y-3">
                 {pendingAssessments.length === 0 ? (
@@ -692,10 +667,7 @@ export default function DeptHeadPortalApp() {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => {
-                          setSelectedAsmId(asm.id);
-                          setIsAsmOpen(true);
-                        }}
+                        onClick={() => router.push(`/dashboard/department-head/assessments/${asm.id}`)}
                         className="text-xxs cursor-pointer h-8"
                       >
                         Review
@@ -707,73 +679,24 @@ export default function DeptHeadPortalApp() {
             </Card>
           </div>
 
-          {/* Department Analysis (merged) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {subjectMetrics.map((sub) => (
-              <Card key={sub.subject}>
-                <CardContent className="pt-5 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    {sub.subject}
-                  </p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {sub.average}%
-                  </p>
-                  <p className="text-xxs text-muted-foreground">
-                    Risk index: {sub.riskIndex}%
-                  </p>
-                  <Badge
-                    variant={
-                      sub.status === "Critical"
-                        ? "danger"
-                        : sub.status === "Warning"
-                          ? "warning"
-                          : "success"
-                    }
-                    size="sm"
-                  >
-                    {sub.status}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Department snapshot — the per-subject average/status breakdown above already
+              covers subject performance, so this only covers headcount, not duplicate stats. */}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold">
                 Department snapshot
               </CardTitle>
+              <CardDescription>
+                {department?.name ?? `${scope?.subject ?? "Subject"} Department`} · {schoolName}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <p className="text-2xl font-bold text-primary">
-                  {departmentTeachers.length}
-                </p>
-                <p className="text-xxs text-muted-foreground mt-1">
-                  Instructors
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <p className="text-2xl font-bold text-primary">
-                  {departmentClasses.length}
-                </p>
-                <p className="text-xxs text-muted-foreground mt-1">
-                  Class sections
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <p className="text-2xl font-bold text-primary">
-                  {departmentStudents.length}
-                </p>
-                <p className="text-xxs text-muted-foreground mt-1">Students</p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <p className="text-2xl font-bold text-primary">
-                  {pendingAssessments.length}
-                </p>
-                <p className="text-xxs text-muted-foreground mt-1">
-                  Pending tests
-                </p>
-              </div>
+            <CardContent>
+              <KpiGrid>
+                <KpiWidget label="Instructors" value={departmentTeachers.length} />
+                <KpiWidget label="Class sections" value={departmentClasses.length} />
+                <KpiWidget label="Students" value={departmentStudents.length} />
+                <KpiWidget label="Pending tests" value={pendingAssessments.length} tone="emphasis" />
+              </KpiGrid>
             </CardContent>
           </Card>
         </div>
@@ -792,7 +715,9 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "teacher-messages" && <DeptHodMessagesPanel />}
       {activeTab === "school-head-messages" && <DeptHeadSchoolHeadMessagesTab />}
-      {activeTab === "communication" && <CommunicationModule mode="department-head" />}
+      {activeTab === "communication" && (
+        <CommunicationModule mode="department-head" />
+      )}
 
       {activeTab === "reports" && (
         <div className="space-y-6 animate-fade-in">
@@ -872,6 +797,7 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Class Performance Reports"
+            description={`Showing ${filteredReportStudents.length} of ${departmentStudents.length} students for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -887,8 +813,8 @@ export default function DeptHeadPortalApp() {
               <tbody>
                 {filteredReportStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
-                      No students match these filters.
+                    <td colSpan={6} className="p-0">
+                      <EmptyState icon={<Inbox />} title="No students match these filters." className="py-8" />
                     </td>
                   </tr>
                 ) : (
@@ -926,6 +852,7 @@ export default function DeptHeadPortalApp() {
         <div className="space-y-6 animate-fade-in">
           <TablePanel
             title="Plan progress by class"
+            description="Weekly and annual lesson plan progress for each department class section"
           >
             <table className="eskooly-table">
               <thead>
@@ -940,8 +867,12 @@ export default function DeptHeadPortalApp() {
               <tbody>
                 {classPlanProgress.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
-                      No class sections assigned to {scope?.subject ?? "subject"} instructors yet.
+                    <td colSpan={5} className="p-0">
+                      <EmptyState
+                        icon={<Inbox />}
+                        title={`No class sections assigned to ${scope?.subject ?? "subject"} instructors yet.`}
+                        className="py-8"
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -974,6 +905,7 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Plan progress by teacher"
+            description="Weekly plan approval rate and annual plan approval stage, paced against the department average"
           >
             <table className="eskooly-table">
               <thead>
@@ -988,8 +920,8 @@ export default function DeptHeadPortalApp() {
               <tbody>
                 {teacherPlanProgress.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
-                      No instructors on the department roster yet.
+                    <td colSpan={5} className="p-0">
+                      <EmptyState icon={<Inbox />} title="No instructors on the department roster yet." className="py-8" />
                     </td>
                   </tr>
                 ) : (
@@ -1107,6 +1039,7 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Department attendance log"
+            description={`Showing ${filteredDepartmentAttendance.length} of ${departmentAttendance.length} entries for ${scope?.subject ?? "subject"} class sections`}
           >
             <table className="eskooly-table">
               <thead>
@@ -1121,8 +1054,8 @@ export default function DeptHeadPortalApp() {
               <tbody>
                 {filteredDepartmentAttendance.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
-                      No attendance entries match these filters.
+                    <td colSpan={5} className="p-0">
+                      <EmptyState icon={<Inbox />} title="No attendance entries match these filters." className="py-8" />
                     </td>
                   </tr>
                 ) : (
@@ -1183,6 +1116,7 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title="Study & pedagogy resources"
+            description={`Upload materials for ${scope?.subject ?? "subject"} staff and disseminate to all teacher resource libraries`}
           >
             <table className="eskooly-table">
               <thead>
@@ -1198,8 +1132,8 @@ export default function DeptHeadPortalApp() {
               <tbody>
                 {departmentStudyResources.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
-                      No study resources uploaded yet.
+                    <td colSpan={6} className="p-0">
+                      <EmptyState icon={<Inbox />} title="No study resources uploaded yet." className="py-8" />
                     </td>
                   </tr>
                 ) : (
@@ -1373,6 +1307,9 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 Department portal settings
               </CardTitle>
+              <CardDescription>
+                {scope?.subject ?? "Subject"} department preferences at {schoolName}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div className="flex justify-between py-2 border-b border-border/40">
@@ -1383,7 +1320,7 @@ export default function DeptHeadPortalApp() {
               </div>
               <div className="flex justify-between py-2 border-b border-border/40">
                 <span className="text-muted-foreground">School</span>
-                <span className="font-semibold">Bole Community School</span>
+                <span className="font-semibold">{schoolName}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-border/40">
                 <span className="text-muted-foreground">Subject overseen</span>
@@ -1440,17 +1377,21 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 {detailClass.grade} · Section {detailClass.section}
               </CardTitle>
+              <CardDescription>
+                {detailClass.name} · Homeroom: {detailClass.homeroomTeacher}
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-              <DetailRow label="Class" value={detailClass.name} />
-              <DetailRow label="Homeroom teacher" value={detailClass.homeroomTeacher} />
-              <DetailRow label="Subject block" value={scope?.subject ?? "—"} />
-              <DetailRow label="Enrollment" value={detailClass.studentsCount} />
+              <DetailField label="Class" value={detailClass.name} />
+              <DetailField label="Homeroom teacher" value={detailClass.homeroomTeacher} />
+              <DetailField label="Subject block" value={scope?.subject ?? "—"} />
+              <DetailField label="Enrollment" value={detailClass.studentsCount} />
             </CardContent>
           </Card>
 
           <TablePanel
             title="Student roster"
+            description={`${scope?.subject ?? "Subject"} class roster for ${detailClass.grade} · Section ${detailClass.section}`}
           >
             <table className="eskooly-table">
               <thead>
@@ -1472,9 +1413,9 @@ export default function DeptHeadPortalApp() {
                   if (roster.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={4} className="p-6 text-center text-sm text-muted-foreground">
-                          No students on record for this class.
-                        </td>
+                        <td colSpan={4} className="p-0">
+                      <EmptyState icon={<Inbox />} title="No students on record for this class." className="py-8" />
+                    </td>
                       </tr>
                     );
                   }
@@ -1504,12 +1445,17 @@ export default function DeptHeadPortalApp() {
               <CardTitle className="text-sm font-semibold">
                 Class room view
               </CardTitle>
+              <CardDescription>
+                Browse {scope?.subject ?? "subject"} class sections. Click a class to view its
+                roster and classroom detail.
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
               {departmentClasses.length === 0 ? (
-                <p className="text-center py-8 text-sm text-muted-foreground">
-                  No class sections assigned to {scope?.subject ?? "subject"} instructors yet.
-                </p>
+                <EmptyState
+                  icon={<Inbox />}
+                  title={`No class sections assigned to ${scope?.subject ?? "subject"} instructors yet.`}
+                />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {departmentClasses.map((cls) => (
@@ -1519,8 +1465,8 @@ export default function DeptHeadPortalApp() {
                       onClick={() => setDetailClass(cls)}
                       className="text-left p-4 bg-muted/40 border border-border/40 rounded-xl space-y-2 cursor-pointer hover:bg-muted/60 hover:border-primary/40 transition-colors"
                     >
-                      <span className="text-lg">🏫</span>
-                      <h4 className="text-xs font-bold text-title">
+                      <School className="h-5 w-5 text-primary" />
+                      <h4 className="text-xs font-bold text-foreground">
                         {cls.grade} · Section {cls.section}
                       </h4>
                       <p className="text-xxs text-muted-foreground">
@@ -1563,6 +1509,7 @@ export default function DeptHeadPortalApp() {
 
           <TablePanel
             title={`${scope?.subject ?? "Subject"} Instructors`}
+            description="Training sync, certification, and roster status"
           >
             <table className="eskooly-table">
               <thead>
@@ -1615,15 +1562,9 @@ export default function DeptHeadPortalApp() {
                       {tch.certification}
                     </td>
                     <td className="p-3">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          tch.status === "Active"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : "bg-muted text-muted-foreground border border-border"
-                        }`}
-                      >
+                      <Badge variant={tch.status === "Active" ? "success" : "neutral"} badgeStyle="subtle" size="sm">
                         {tch.status}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="p-3">
                       <button
@@ -1786,8 +1727,8 @@ export default function DeptHeadPortalApp() {
                     Contact
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <DetailRow label="Email" value={detailTeacher.email} />
-                    <DetailRow label="Phone" value={detailTeacher.phone} />
+                    <DetailField label="Email" value={detailTeacher.email} />
+                    <DetailField label="Phone" value={detailTeacher.phone} />
                   </div>
                 </div>
 
@@ -1796,14 +1737,14 @@ export default function DeptHeadPortalApp() {
                     Academic profile
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <DetailRow label="Subjects" value={detailTeacher.subjects.join(", ")} />
-                    <DetailRow label="Grades" value={detailTeacher.grades.join(", ")} />
-                    <DetailRow label="Certification" value={detailTeacher.certification} />
-                    <DetailRow
+                    <DetailField label="Subjects" value={detailTeacher.subjects.join(", ")} />
+                    <DetailField label="Grades" value={detailTeacher.grades.join(", ")} />
+                    <DetailField label="Certification" value={detailTeacher.certification} />
+                    <DetailField
                       label="Years of experience"
                       value={detailTeacher.yearsOfExperience}
                     />
-                    <DetailRow
+                    <DetailField
                       label="Training course sync"
                       value={`${detailTeacher.trainingProgress}%`}
                     />
@@ -1815,7 +1756,7 @@ export default function DeptHeadPortalApp() {
                     Department activity
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <DetailRow
+                    <DetailField
                       label="Homeroom classes"
                       value={
                         departmentClasses.filter(
@@ -1823,7 +1764,7 @@ export default function DeptHeadPortalApp() {
                         ).length || "—"
                       }
                     />
-                    <DetailRow
+                    <DetailField
                       label="Lesson plans"
                       value={
                         departmentLessonPlans.filter(
@@ -1831,7 +1772,7 @@ export default function DeptHeadPortalApp() {
                         ).length || "—"
                       }
                     />
-                    <DetailRow
+                    <DetailField
                       label="Assessments"
                       value={
                         departmentAssessments.filter(
@@ -1839,7 +1780,7 @@ export default function DeptHeadPortalApp() {
                         ).length || "—"
                       }
                     />
-                    <DetailRow
+                    <DetailField
                       label="Wellness check-ins"
                       value={
                         departmentCheckIns.filter(
@@ -1876,6 +1817,7 @@ export default function DeptHeadPortalApp() {
           <DeptGapAnalysisPanel />
           <TablePanel
             title="Department assessment desk"
+            description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."
           >
             <table className="eskooly-table">
               <thead>
@@ -1916,9 +1858,9 @@ export default function DeptHeadPortalApp() {
                     <td className="p-3">{asm.grade}</td>
                     <td className="p-3 text-foreground">{asm.teacherName}</td>
                     <td className="p-3">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted text-foreground border border-border">
+                      <Badge variant="neutral" badgeStyle="subtle" size="sm">
                         {asm.difficulty}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="p-3">
                       {(() => {
@@ -1930,26 +1872,25 @@ export default function DeptHeadPortalApp() {
                             ? "Approved"
                             : asm.status;
                         return (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          <Badge
+                            variant={
                               displayStatus === "Approved"
-                                ? "bg-primary/10 text-primary border border-primary/20"
+                                ? "success"
                                 : displayStatus === "Rejected"
-                                  ? "bg-muted text-muted-foreground border border-border"
-                                  : "bg-muted text-foreground border border-border"
-                            }`}
+                                  ? "danger"
+                                  : "neutral"
+                            }
+                            badgeStyle="subtle"
+                            size="sm"
                           >
                             {displayStatus}
-                          </span>
+                          </Badge>
                         );
                       })()}
                     </td>
                     <td className="p-3">
                       <button
-                        onClick={() => {
-                          setSelectedAsmId(asm.id);
-                          setIsAsmOpen(true);
-                        }}
+                        onClick={() => router.push(`/dashboard/department-head/assessments/${asm.id}`)}
                         className="text-primary hover:underline font-semibold cursor-pointer"
                       >
                         View Details
@@ -1960,127 +1901,6 @@ export default function DeptHeadPortalApp() {
               </tbody>
             </table>
           </TablePanel>
-
-          {/* Assessment Review Dialog */}
-          <Dialog
-            isOpen={isAsmOpen}
-            onClose={() => setIsAsmOpen(false)}
-            title={
-              selectedAsm ? `Review Assessment: ${selectedAsm.title}` : "Review"
-            }
-            size="xl"
-          >
-            {selectedAsm && (
-              <div className="space-y-5 text-left text-xxs leading-relaxed">
-                <div className="grid grid-cols-3 gap-4 border-b border-border/40 pb-3">
-                  <div>
-                    <span className="text-muted-foreground uppercase font-bold text-[9px]">
-                      Subject / Grade
-                    </span>
-                    <p className="text-foreground font-semibold mt-0.5">
-                      {selectedAsm.subject} ({selectedAsm.grade})
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground uppercase font-bold text-[9px]">
-                      Submitted By
-                    </span>
-                    <p className="text-foreground font-semibold mt-0.5">
-                      {selectedAsm.teacherName}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground uppercase font-bold text-[9px]">
-                      Assessment Level
-                    </span>
-                    <p className="text-foreground font-semibold mt-0.5">
-                      {selectedAsm.difficulty} Level
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-bold text-title text-xs">
-                    Test Questions Blueprint
-                  </h4>
-                  <div className="space-y-3 max-h-56 overflow-y-auto border border-border/40 p-4 rounded-lg bg-muted/20">
-                    {selectedAsm.questions.map((q, idx) => (
-                      <div
-                        key={q.id}
-                        className="border-b border-border/30 pb-2 last:border-0 last:pb-0"
-                      >
-                        <p className="font-bold text-foreground">
-                          Question {idx + 1}: {q.question}
-                        </p>
-                        {q.options && (
-                          <ul className="list-disc pl-5 mt-1 text-muted-foreground font-semibold">
-                            {q.options.map((opt, i) => (
-                              <li key={i}>{opt}</li>
-                            ))}
-                          </ul>
-                        )}
-                        <p className="text-primary font-bold mt-1 text-[10px]">
-                          Expected Answer: {q.answer}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="font-bold text-foreground text-xs uppercase tracking-wider">
-                    Evaluation Comments
-                  </label>
-                  <textarea
-                    value={deptComments}
-                    onChange={(e) => setDeptComments(e.target.value)}
-                    placeholder="Add review directive notes or improvement recommendations..."
-                    className="w-full h-20 p-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
-                  />
-                </div>
-
-                <DialogFooter className="mt-6 border-t border-border/40 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsAsmOpen(false)}
-                    className="text-xs h-10 cursor-pointer"
-                  >
-                    Close
-                  </Button>
-
-                  {selectedAsm.status === "Pending Dept Head" &&
-                    assessmentNeedsApproval(
-                      selectedAsm.type,
-                      selectedAsm.createdByRole,
-                    ) && (
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="destructive"
-                        onClick={handleRejectAsm}
-                        className="text-xs h-10 cursor-pointer"
-                      >
-                        Reject Draft
-                      </Button>
-                      <Button
-                        variant="organic"
-                        onClick={handleApproveAsm}
-                        className="text-xs h-10 border-none cursor-pointer"
-                      >
-                        Approve & Circulate
-                      </Button>
-                    </div>
-                  )}
-                  {(selectedAsm.type === "Quiz" ||
-                    selectedAsm.type === "Baseline") && (
-                    <p className="text-xs text-muted-foreground">
-                      Quizzes and baselines do not require department head
-                      approval — they are ready for teachers immediately.
-                    </p>
-                  )}
-                </DialogFooter>
-              </div>
-            )}
-          </Dialog>
         </div>
       )}
     </DashboardShell>

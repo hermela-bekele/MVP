@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Megaphone, Plus, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { CommunityChannelsPanel } from '@/components/dashboard/communication/CommunityChannelsPanel';
+import { StudentFeedbackTab } from '@/components/dashboard/student/StudentFeedbackTab';
+import type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
 import {
   AisPage,
   aisInput,
@@ -19,6 +21,8 @@ import { departmentIdForSubject, resolveDeptHeadScope } from '@/lib/departmentHe
 import type { Community } from '@/lib/communityTypes';
 import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 
+export type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
+
 type Announcement = {
   id: string;
   title: string;
@@ -31,13 +35,19 @@ type Announcement = {
  * Communication surface for a school: the school-wide announcements board,
  * plus a card grid of the user's Communities. Picking a card opens that
  * community's channel workspace; opening a channel takes over the page.
+ * Students get a dedicated Feedback tab (selected via mainTab) instead of
+ * the channel/community view.
  */
 export function CommunicationModule({
   mode,
+  mainTab,
+  onMainTabChange: _onMainTabChange,
 }: {
-  mode: 'teacher' | 'department-head' | 'school-head';
+  mode: 'teacher' | 'department-head' | 'school-head' | 'student';
+  mainTab?: CommunicationMainTab;
+  onMainTabChange?: (tab: CommunicationMainTab) => void;
 }) {
-  const { currentUser, departments, communityPosts, refreshFromApi, teachers, resolveTeacherId } = useApp();
+  const { currentUser, communityPosts, refreshFromApi, teachers, resolveTeacherId } = useApp();
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loadingCommunities, setLoadingCommunities] = useState(true);
@@ -56,7 +66,8 @@ export function CommunicationModule({
     [currentUser, mode],
   );
 
-  const canPostAnnouncement = currentUser?.role === 'school-head';
+  const canPostAnnouncement =
+    mode === 'school-head' || currentUser?.role === 'school-head';
 
   // A subject teacher (or their department head) only sees their own department's
   // communities, plus any school-wide ones. School-head sees everything.
@@ -86,8 +97,6 @@ export function CommunicationModule({
   useEffect(() => {
     void loadCommunities();
   }, [loadCommunities]);
-
-  // Removed department grouping - now showing all communities in a flat grid
 
   useEffect(() => {
     // Seed announcements from challenge/community posts tagged as announcements,
@@ -171,6 +180,14 @@ export function CommunicationModule({
       setCreating(false);
     }
   };
+
+  if (mainTab === 'students' && mode === 'student') {
+    return (
+      <AisPage>
+        <StudentFeedbackTab />
+      </AisPage>
+    );
+  }
 
   if (communityId) {
     return (

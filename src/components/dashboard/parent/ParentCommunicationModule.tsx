@@ -269,8 +269,8 @@ export function ParentCommunicationModule({
   return (
     <AisPage className="!space-y-0 h-[calc(100vh-220px)]">
       <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[260px_1fr] md:items-stretch">
-        <aside className="flex h-full min-h-0 flex-col rounded-2xl border border-ais-card-border bg-white p-3 dark:bg-ais-surface">
-          <p className="px-2 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
+        <aside className="flex h-full min-h-0 flex-col rounded-2xl border border-border bg-white p-3 dark:bg-card">
+          <p className="px-2 pb-2 pt-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
             Your channels
           </p>
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
@@ -279,34 +279,34 @@ export function ParentCommunicationModule({
               onClick={() => setActiveId('announcements')}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
                 activeId === 'announcements'
-                  ? 'bg-ais-primary/10 text-ais-primary'
-                  : 'text-ais-on-surface hover:bg-ais-row-hover'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-foreground hover:bg-muted'
               }`}
             >
               <span
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                   activeId === 'announcements'
-                    ? 'bg-ais-primary text-white'
-                    : 'bg-ais-surface-container-low text-ais-on-surface-variant'
+                    ? 'bg-primary text-white'
+                    : 'bg-muted text-muted-foreground'
                 }`}
               >
                 <Megaphone className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">#announcements</span>
-                <span className="block truncate text-[11px] text-ais-on-surface-variant">
+                <span className="block truncate text-[11px] text-muted-foreground">
                   From the school head
                 </span>
               </span>
             </button>
 
-            <p className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
+            <p className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
               Teachers
             </p>
             {loadingTeachers ? (
-              <p className="px-3 py-2 text-xs text-ais-on-surface-variant">Loading…</p>
+              <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
             ) : teachers.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-ais-on-surface-variant">No teachers yet</p>
+              <p className="px-3 py-2 text-xs text-muted-foreground">No teachers yet</p>
             ) : (
               teachers.map((t) => {
                 const active = activeId === t.userId;
@@ -317,15 +317,15 @@ export function ParentCommunicationModule({
                     onClick={() => setActiveId(t.userId)}
                     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
                       active
-                        ? 'bg-ais-primary/10 text-ais-primary'
-                        : 'text-ais-on-surface hover:bg-ais-row-hover'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground hover:bg-muted'
                     }`}
                   >
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                         active
-                          ? 'bg-ais-primary text-white'
-                          : 'bg-ais-surface-container-low text-ais-on-surface-variant'
+                          ? 'bg-primary text-white'
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       <GraduationCap className="h-4 w-4" aria-hidden />
@@ -334,7 +334,7 @@ export function ParentCommunicationModule({
                       <span className="block truncate text-sm font-semibold">{t.displayName}</span>
                       <span
                         className={`block truncate text-[11px] ${
-                          active ? 'text-ais-primary/80' : 'text-ais-on-surface-variant'
+                          active ? 'text-primary/80' : 'text-muted-foreground'
                         }`}
                       >
                         {subjectLabel(t.subjects)}
@@ -347,7 +347,7 @@ export function ParentCommunicationModule({
           </nav>
         </aside>
 
-        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-white dark:bg-card">
           {activeId === 'announcements' && (
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
               <div>
@@ -361,10 +361,10 @@ export function ParentCommunicationModule({
                   {mergedAnnouncements.map((a) => (
                     <li
                       key={a.id}
-                      className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4"
+                      className="rounded-xl border border-border bg-muted/40 p-4"
                     >
-                      <p className="text-sm font-bold text-ais-on-surface">{a.title}</p>
-                      <p className="mt-1 text-xs text-ais-on-surface-variant">
+                      <p className="text-sm font-bold text-foreground">{a.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {a.authorName || 'School Head'}
                         {a.publishedAt ? ` · ${timeLabel(a.publishedAt)}` : ''}
                       </p>
@@ -378,18 +378,18 @@ export function ParentCommunicationModule({
 
           {selectedTeacher && (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex shrink-0 items-start gap-3 border-b border-ais-card-border px-4 py-3">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ais-primary/10 text-ais-primary">
+              <div className="flex shrink-0 items-start gap-3 border-b border-border px-4 py-3">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <GraduationCap className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ais-on-surface">
+                  <p className="text-sm font-semibold text-foreground">
                     {selectedTeacher.displayName}
                   </p>
-                  <p className="text-xs font-medium text-ais-primary">
+                  <p className="text-xs font-medium text-primary">
                     {subjectLabel(selectedTeacher.subjects)}
                   </p>
-                  <p className="text-[11px] text-ais-on-surface-variant">
+                  <p className="text-[11px] text-muted-foreground">
                     Direct message
                     {mode === 'parent' ? ' · about your child' : ''}
                   </p>
@@ -398,7 +398,7 @@ export function ParentCommunicationModule({
 
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
                 {messages.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-ais-on-surface-variant">
+                  <p className="py-8 text-center text-sm text-muted-foreground">
                     No messages yet with {selectedTeacher.displayName}. Send the first one below.
                   </p>
                 ) : (
@@ -412,17 +412,17 @@ export function ParentCommunicationModule({
                         <div
                           className={`max-w-[85%] px-3.5 py-2.5 text-sm shadow-sm ${
                             mine
-                              ? 'rounded-2xl rounded-br-md bg-ais-primary/12 text-ais-on-surface ring-1 ring-ais-primary/15'
-                              : 'rounded-2xl rounded-bl-md bg-ais-surface-container-low text-ais-on-surface ring-1 ring-ais-card-border'
+                              ? 'rounded-2xl rounded-br-md bg-primary/12 text-foreground ring-1 ring-primary/15'
+                              : 'rounded-2xl rounded-bl-md bg-muted text-foreground ring-1 ring-border'
                           }`}
                         >
                           {!mine && (
-                            <p className="mb-0.5 text-[11px] font-semibold text-ais-on-surface-variant">
+                            <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">
                               {m.sender_role || 'teacher'}
                             </p>
                           )}
                           <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
-                          <p className="mt-1 text-right text-[10px] text-ais-on-surface-variant/80">
+                          <p className="mt-1 text-right text-[10px] text-muted-foreground/80">
                             {timeLabel(m.created_at)}
                           </p>
                         </div>
@@ -435,7 +435,7 @@ export function ParentCommunicationModule({
 
               {error && <p className="shrink-0 px-4 pb-1 text-xs text-red-600">{error}</p>}
 
-              <div className="mt-auto shrink-0 space-y-2 border-t border-ais-card-border bg-white p-3 dark:bg-ais-surface">
+              <div className="mt-auto shrink-0 space-y-2 border-t border-border bg-white p-3 dark:bg-card">
                 {!teacherThread && mode === 'parent' && childrenOptions.length > 0 && (
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Select
@@ -449,7 +449,7 @@ export function ParentCommunicationModule({
                       }))}
                     />
                     <div className="min-w-0">
-                      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-ais-on-surface-variant">
+                      <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Topic
                       </label>
                       <input

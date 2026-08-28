@@ -16,8 +16,10 @@ export const HrReports: React.FC = () => {
 
   const employees = useMemo(() => filterSchoolEmployees(hrEmployees), [hrEmployees]);
   const byDept = employeesByDepartment(employees);
+  // Compare against the most recent month actually on record, not a fixed literal that goes stale.
+  const latestPayrollMonth = payrollRecords.reduce((max, p) => (p.month > max ? p.month : max), '');
   const totalPayroll = payrollRecords
-    .filter((p) => p.month === '2026-06')
+    .filter((p) => p.month === latestPayrollMonth)
     .reduce((sum, p) => sum + p.netPay, 0);
   const avgSalary =
     employees.length > 0
@@ -45,7 +47,12 @@ export const HrReports: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiWidget label="Headcount" value={employees.length} hint="All staff categories" tone="inverse" />
         <KpiWidget label="Avg. Salary" value={formatCurrency(avgSalary)} hint="Monthly base average" />
-        <KpiWidget label="June Payroll" value={formatCurrency(totalPayroll)} hint="Total net disbursement" tone="emphasis" />
+        <KpiWidget
+          label={latestPayrollMonth ? `${latestPayrollMonth} Payroll` : 'Payroll'}
+          value={formatCurrency(totalPayroll)}
+          hint="Total net disbursement"
+          tone="emphasis"
+        />
         <KpiWidget label="Avg. Performance" value={avgRating} hint="Completed reviews only" />
       </div>
 

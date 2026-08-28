@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { readStoredSession } from '@/lib/auth';
-import { ContentCard } from '@/components/dashboard/ContentCard';
+import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,29 +95,27 @@ export function RegistrarWaitlist() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <ContentCard title="Waiting" description="Active waitlist">
-          <p className="text-3xl font-bold tabular-nums text-primary">{waitlist.length}</p>
-        </ContentCard>
-        <ContentCard title="Seats reserved" description="Across grades">
-          <p className="text-3xl font-bold tabular-nums">
-            {capacity.reduce((s, r) => s + Number(r.reserved_count || 0), 0)}
-          </p>
-        </ContentCard>
-        <ContentCard title="Open seats" description="Capacity − enrolled − reserved">
-          <p className="text-3xl font-bold tabular-nums text-success">
-            {capacity.reduce(
-              (s, r) =>
-                s +
-                Math.max(
-                  0,
-                  Number(r.capacity) - Number(r.enrolled_count || 0) - Number(r.reserved_count || 0)
-                ),
-              0
-            )}
-          </p>
-        </ContentCard>
-      </div>
+      <KpiGrid className="sm:grid-cols-3 xl:grid-cols-3">
+        <KpiWidget label="Waiting" value={waitlist.length} hint="Active waitlist" tone="emphasis" />
+        <KpiWidget
+          label="Seats reserved"
+          value={capacity.reduce((s, r) => s + Number(r.reserved_count || 0), 0)}
+          hint="Across grades"
+        />
+        <KpiWidget
+          label="Open seats"
+          value={capacity.reduce(
+            (s, r) =>
+              s +
+              Math.max(
+                0,
+                Number(r.capacity) - Number(r.enrolled_count || 0) - Number(r.reserved_count || 0)
+              ),
+            0
+          )}
+          hint="Capacity − enrolled − reserved"
+        />
+      </KpiGrid>
 
       <TablePanel title="Waitlist board">
         {waitlist.length === 0 ? (

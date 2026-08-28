@@ -19,13 +19,13 @@ export function TrainingTypeFilter({
         <span
           className={`relative flex h-10 w-10 items-center justify-center rounded-lg border bg-white transition-colors ${
             value !== 'All'
-              ? 'border-ais-primary/40 text-ais-primary bg-ais-primary/5'
-              : 'border-ais-card-border text-ais-on-surface-variant hover:border-ais-primary/30 hover:text-ais-primary'
+              ? 'border-primary/40 text-primary bg-primary/5'
+              : 'border-border text-muted-foreground hover:border-primary/30 hover:text-primary'
           }`}
         >
           <Filter className="h-5 w-5" aria-hidden />
           {value !== 'All' && (
-            <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-ais-primary" aria-hidden />
+            <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
           )}
           <span className="sr-only">
             Filter training materials{value !== 'All' ? ` (${value})` : ''}

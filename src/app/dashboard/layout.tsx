@@ -37,9 +37,11 @@ function DashboardCommandPalette() {
         { id: 'applications', label: 'Applications Queue' },
         { id: 'enroll-student', label: 'New Enrollment' },
         { id: 'student-registry', label: 'Student Registry' },
-        { id: 'grade-management', label: 'Grade Management' },
+        { id: 'reenrollment', label: 'Re-enrollment' },
+        { id: 'promotion', label: 'Grade Promotion' },
         { id: 'class-placement', label: 'Class Placement' },
         { id: 'transfers', label: 'Transfers & Status' },
+        { id: 'transcripts', label: 'Transcripts' },
         { id: 'reports', label: 'Enrollment Reports' },
       ];
 

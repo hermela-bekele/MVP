@@ -12,6 +12,7 @@ import { gpaToMark } from '@/lib/grading';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
@@ -67,6 +68,9 @@ export default function ParentPortalPage() {
     'all' | 'upcoming' | 'partial' | 'overdue' | 'paid'
   >('all');
   const [invoiceChildFilter, setInvoiceChildFilter] = useState<'all' | string>('all');
+  const [editingApplication, setEditingApplication] = useState<AdmissionApplication | null>(null);
+  const [editApplicantName, setEditApplicantName] = useState('');
+  const [savingApplication, setSavingApplication] = useState(false);
 
   const child = useMemo(
     () => children.find((c) => c.id === childId) || children[0],
@@ -295,10 +299,17 @@ export default function ParentPortalPage() {
         </div>
       )}
 
-      {loading && (
+      {loading && tab === 'dashboard' && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+          ))}
+        </div>
+      )}
+      {loading && tab !== 'dashboard' && (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-14 animate-pulse rounded-xl bg-muted" />
           ))}
         </div>
       )}
@@ -690,12 +701,9 @@ export default function ParentPortalPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={async () => {
-                        const name = window.prompt('Update student name', a.applicantName);
-                        if (!name) return;
-                        await api.updateApplication(a.id, { applicantName: name });
-                        setApplications(await api.myApplications());
-                        setToast({ type: 'ok', text: 'Application updated.' });
+                      onClick={() => {
+                        setEditingApplication(a);
+                        setEditApplicantName(a.applicantName);
                       }}
                     >
                       Edit
@@ -747,6 +755,48 @@ export default function ParentPortalPage() {
           />
         </div>
       )}
+
+      <Dialog
+        isOpen={editingApplication !== null}
+        onClose={() => setEditingApplication(null)}
+        title="Update Student Name"
+        description="Edit the applicant name on this admission application."
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!editingApplication || !editApplicantName.trim()) return;
+            setSavingApplication(true);
+            try {
+              await api.updateApplication(editingApplication.id, { applicantName: editApplicantName.trim() });
+              setApplications(await api.myApplications());
+              setToast({ type: 'ok', text: 'Application updated.' });
+              setEditingApplication(null);
+            } catch {
+              setToast({ type: 'err', text: 'Could not update the application — try again.' });
+            } finally {
+              setSavingApplication(false);
+            }
+          }}
+          className="space-y-4"
+        >
+          <Input
+            label="Student name"
+            value={editApplicantName}
+            onChange={(e) => setEditApplicantName(e.target.value)}
+            required
+            autoFocus
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setEditingApplication(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={savingApplication}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
     </DashboardShell>
   );
 }

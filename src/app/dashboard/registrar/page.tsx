@@ -1,18 +1,23 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { RegistrarDashboard } from '@/components/dashboard/registrar/RegistrarDashboard';
 import { RegistrarApplications } from '@/components/dashboard/registrar/RegistrarApplications';
 import { RegistrarEnrollment } from '@/components/dashboard/registrar/RegistrarEnrollment';
 import { RegistrarStudentRegistry } from '@/components/dashboard/registrar/RegistrarStudentRegistry';
-import { RegistrarGradeManagement } from '@/components/dashboard/registrar/RegistrarGradeManagement';
 import { RegistrarClassPlacement } from '@/components/dashboard/registrar/RegistrarClassPlacement';
 import { RegistrarTransfers } from '@/components/dashboard/registrar/RegistrarTransfers';
 import { RegistrarReports } from '@/components/dashboard/registrar/RegistrarReports';
 import { RegistrarBilling } from '@/components/dashboard/registrar/RegistrarBilling';
 import { RegistrarWaitlist } from '@/components/dashboard/registrar/RegistrarWaitlist';
+import { RegistrarPromotion } from '@/components/dashboard/registrar/RegistrarPromotion';
+import { RegistrarFormBuilder } from '@/components/dashboard/registrar/RegistrarFormBuilder';
+import { ReenrollmentCampaignPanel } from '@/components/dashboard/school-head/ReenrollmentCampaignPanel';
+import { VPTranscriptPanel } from '@/components/dashboard/head-of-academics/VPTranscriptPanel';
 import { usePortalTab } from '@/lib/usePortalTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
@@ -29,13 +34,21 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'New Enrollment',
     subtitle: 'Direct student registration and onboarding — assign grade, section, and parent contacts.',
   },
+  'registration-forms': {
+    title: 'Registration Forms',
+    subtitle: 'Configure what information and documents to collect, then generate a shareable registration link.',
+  },
   'student-registry': {
     title: 'Student Registry',
     subtitle: 'Official roster of all enrolled students with searchable records.',
   },
-  'grade-management': {
-    title: 'Grade Management',
-    subtitle: 'View and manage assessment grades, recalculate GPAs across all classes.',
+  reenrollment: {
+    title: 'Re-enrollment',
+    subtitle: 'Launch annual re-registration campaigns and track parent confirmations.',
+  },
+  promotion: {
+    title: 'Grade Promotion',
+    subtitle: 'Bulk-promote an entire grade to the next level at year-end rollover.',
   },
   'class-placement': {
     title: 'Class Placement',
@@ -44,6 +57,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   transfers: {
     title: 'Transfers & Status',
     subtitle: 'Process student transfers, suspensions, graduations, and reinstatements.',
+  },
+  transcripts: {
+    title: 'Transcripts',
+    subtitle: 'Generate cumulative transcripts for a student.',
   },
   billing: {
     title: 'Invoices & Fees',
@@ -65,6 +82,13 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
 
 export default function RegistrarPortalPage() {
   const { activeTab, setActiveTab } = usePortalTab('registrar');
+  const { schools, currentUser } = useApp();
+
+  // Resolve the logged-in registrar's actual school from session; fall back to the
+  // first school on record only for demo/unlinked accounts.
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
+  const registrarName = currentUser?.displayName ?? 'Registrar Officer';
 
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -88,22 +112,13 @@ export default function RegistrarPortalPage() {
         + New Application
       </Button>
     ) : activeTab === 'enroll-student' ? (
-      <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        Registrar Office · Bole Secondary
-      </span>
-    ) : activeTab === 'grade-management' ? (
-      <Button
-        variant="organic"
-        size="sm"
-        className="text-xs h-9 border-none"
-        onClick={() => window.dispatchEvent(new Event('open-registrar-grade-entry'))}
-      >
-        + Record Grade
-      </Button>
+      <Badge variant="primary" badgeStyle="subtle" size="md">
+        Registrar Office · {schoolName}
+      </Badge>
     ) : (
-      <span className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-        Tigist Haile · Registrar Officer
-      </span>
+      <Badge variant="primary" badgeStyle="subtle" size="md">
+        {registrarName} · Registrar Officer
+      </Badge>
     );
 
   return (
@@ -112,17 +127,20 @@ export default function RegistrarPortalPage() {
       setActiveTab={setActiveTab}
       title={meta.title}
       subtitle={meta.subtitle}
-      eyebrow="Bole Secondary · Registrar Portal"
+      eyebrow={`${schoolName} · Registrar Portal`}
       actions={shellActions}
-      showPageHeader={activeTab !== 'dashboard'}
+      showPageHeader
     >
       {activeTab === 'dashboard' && <RegistrarDashboard />}
       {activeTab === 'applications' && <RegistrarApplications />}
       {activeTab === 'enroll-student' && <RegistrarEnrollment />}
+      {activeTab === 'registration-forms' && <RegistrarFormBuilder />}
       {activeTab === 'student-registry' && <RegistrarStudentRegistry />}
-      {activeTab === 'grade-management' && <RegistrarGradeManagement />}
+      {activeTab === 'reenrollment' && <ReenrollmentCampaignPanel />}
+      {activeTab === 'promotion' && <RegistrarPromotion />}
       {activeTab === 'class-placement' && <RegistrarClassPlacement />}
       {activeTab === 'transfers' && <RegistrarTransfers />}
+      {activeTab === 'transcripts' && <VPTranscriptPanel />}
       {activeTab === 'billing' && <RegistrarBilling />}
       {activeTab === 'waitlist' && <RegistrarWaitlist />}
       {activeTab === 'reports' && <RegistrarReports />}

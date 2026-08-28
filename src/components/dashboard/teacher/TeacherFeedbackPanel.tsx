@@ -140,7 +140,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
         <AisTable>
           <thead>
             <tr className="bg-ais-surface-container-low">
-              <AisTh>Source</AisTh>
+              <AisTh>From</AisTh>
               <AisTh>Source</AisTh>
               <AisTh>Subject</AisTh>
               <AisTh>Comment</AisTh>

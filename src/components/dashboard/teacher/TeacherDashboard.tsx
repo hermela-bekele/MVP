@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { Avatar } from '@/components/ui/avatar';
 import {
   filterTeacherStudents,
   avgAttendanceForStudents,
@@ -58,22 +59,6 @@ import {
 
 const iconSm = 'h-3.5 w-3.5 shrink-0';
 const iconMd = 'h-4 w-4 shrink-0';
-
-function studentInitials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-function avatarColor(id: string) {
-  const hues = ['#004ac6', '#2563eb', '#0891b2', '#059669', '#7c3aed'];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return hues[Math.abs(hash) % hues.length];
-}
 
 function isAtRisk(student: Student) {
   return student.attendanceRate < 90 || student.gpa < 2.5;
@@ -202,14 +187,7 @@ function ScheduleSection({
                     </div>
                     <div className="flex shrink-0 -space-x-2">
                       {visible.map((s) => (
-                        <div
-                          key={s.id}
-                          title={s.name}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-white"
-                          style={{ background: avatarColor(s.id) }}
-                        >
-                          {studentInitials(s.name)}
-                        </div>
+                        <Avatar key={s.id} name={s.name} title={s.name} size="xs" className="ring-2 ring-white rounded-full" />
                       ))}
                       {overflow > 0 && (
                         <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-ais-surface-container-low text-[9px] font-bold text-ais-on-surface-variant">
@@ -306,8 +284,9 @@ export const TeacherDashboard: React.FC = () => {
   const { students } = useApp();
 
   const roster = useMemo(() => filterTeacherStudents(students), [students]);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
 
-  const atRisk = roster.filter(isAtRisk);
+  const atRisk = roster.filter(isAtRisk).filter((s) => !dismissedAlertIds.has(s.id));
   const avgGpa = avgGpaForStudents(roster);
   const avgAtt = avgAttendanceForStudents(roster);
 
@@ -431,7 +410,11 @@ export const TeacherDashboard: React.FC = () => {
                           <Phone className="h-3 w-3" aria-hidden />
                           Call
                         </a>
-                        <button type="button" className={aisBtnGhostMuted}>
+                        <button
+                          type="button"
+                          className={aisBtnGhostMuted}
+                          onClick={() => setDismissedAlertIds((prev) => new Set(prev).add(s.id))}
+                        >
                           <X className="h-3 w-3" aria-hidden />
                           Dismiss
                         </button>
@@ -446,12 +429,7 @@ export const TeacherDashboard: React.FC = () => {
                 return (
                   <div key={s.id} className={aisActivityStudentRow}>
                     <div className="mb-2 flex items-center gap-3">
-                      <div
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                        style={{ background: avatarColor(s.id) }}
-                      >
-                        {studentInitials(s.name)}
-                      </div>
+                      <Avatar name={s.name} size="sm" className="shrink-0" />
                       <div className="min-w-0">
                         <p className={aisDataMd}>{s.name}</p>
                         <p className={aisBodySm}>

@@ -3,10 +3,10 @@
 import React from 'react';
 import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
 
-export function LeadershipTrainingPanel() {
+export function TrainingPanel() {
   return (
     <div className="animate-fade-in text-left">
-      <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
+      <TeacherTrainingTab typeFilter="all" activeTabType="all" />
     </div>
   );
 }
