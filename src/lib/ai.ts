@@ -859,6 +859,15 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     school_name?: string;
     academic_year?: string;
     reference_materials?: string;
+    /** Pacing/continuity instructions for this batch of a multi-batch annual plan. Kept
+     * separate from `topic` — `topic` is embedded as the retrieval query on the backend, and
+     * a paragraph of scheduling instructions there degrades retrieval relevance. */
+    continuation_notes?: string;
+    /** 0-based index of this batch and the total batch count, for a multi-batch annual plan —
+     * lets the backend hand back a distinct slice of source material per batch instead of
+     * every batch retrieving the same top-K chunks. */
+    batch_index?: number;
+    total_batches?: number;
   }): Promise<{ plan: AIDetailedLessonPlanResult; sources: { page?: number; topic?: string }[] }> {
     const result = await this.callPrimeAI('/detailed-lesson-plan', {
       plan_type: params.plan_type,
@@ -879,6 +888,9 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       school_name: params.school_name ?? '',
       academic_year: params.academic_year ?? '',
       reference_materials: params.reference_materials ?? 'TEXT BOOK',
+      continuation_notes: params.continuation_notes ?? '',
+      batch_index: params.batch_index ?? 0,
+      total_batches: params.total_batches ?? 1,
     });
 
     const plan = (result.plan ?? result) as AIDetailedLessonPlanResult;
@@ -918,25 +930,12 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       console.log('✅ Prime AI returned lesson plan');
       return { content: result.content || JSON.stringify(result) };
     } catch (error) {
-      console.error('❌ generateLessonPlan failed, using fallback:', error);
-      console.warn('⚠️ Using fallback lesson plan generation');
-      
-      await delay(1500);
-      
-      // Extract parameters
-      const gradeMatch = prompt.match(/grade:\s*([^\n]+)/i);
-      const subjectMatch = prompt.match(/subject:\s*(\w+)/i);
-      const sessionsMatch = prompt.match(/sessions:\s*(\d+)/i);
-      const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
-      
-      const grade = gradeMatch ? gradeMatch[1].trim() : 'Grade 9';
-      const subject = subjectMatch ? subjectMatch[1] : 'Biology';
-      const sessions = sessionsMatch ? parseInt(sessionsMatch[1]) : 4;
-      const topic = topicMatch ? topicMatch[1].trim() : subject;
-      
-      return {
-        content: JSON.stringify(await generateLessonPlanAI(grade, subject, topic, sessions))
-      };
+      // Previously fell back to a hardcoded mock lesson plan (fake page numbers, fake
+      // exercises) indistinguishable from a real textbook-grounded response. Surface the
+      // real failure instead so the caller shows an actual error rather than fabricated
+      // content presented as if it were generated from the textbook.
+      console.error('❌ generateLessonPlan failed:', error);
+      throw error;
     }
   }
 
@@ -948,6 +947,9 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     language?: string;
     sessionContext?: string;
     studentLevel?: string;
+    /** "Explain more": ask for one thorough deep-dive on the concept instead of a
+     * full objectives/practice/wrap-up note. */
+    deepDive?: boolean;
   } | string): Promise<{ content: string }> {
     const normalized =
       typeof params === 'string'
@@ -961,6 +963,7 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
             sessionContext:
               params.match(/session_context:\s*([\s\S]+)/i)?.[1]?.trim() ?? '',
             studentLevel: 'differentiated',
+            deepDive: false,
           }
         : params;
 
@@ -972,6 +975,7 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       language = 'English',
       sessionContext = '',
       studentLevel = 'differentiated',
+      deepDive = false,
     } = normalized;
 
     try {
@@ -983,21 +987,19 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
         subtopic,
         session_context: sessionContext,
         student_level: studentLevel,
+        grade,
+        subject,
+        deep_dive: deepDive,
       });
 
       console.log('✅ Prime AI returned teaching notes');
       return { content: result.content || JSON.stringify(result) };
     } catch (error) {
-      console.error('❌ generateTeachingNotes failed, using fallback:', error);
-      console.warn('⚠️ Using fallback teaching notes generation');
-
-      await delay(1200);
-
-      return {
-        content: JSON.stringify(
-          await generateTeachingNotesAI(grade, subject, topic, language),
-        ),
-      };
+      // Previously fell back to a hardcoded mock (generic content unrelated to the
+      // requested topic/textbook) presented as a real generation. Surface the real
+      // failure instead so the caller shows an actual error.
+      console.error('❌ generateTeachingNotes failed:', error);
+      throw error;
     }
   }
 }
@@ -1317,6 +1319,8 @@ export const generateAssessmentWithAI = async (
       num_questions: Math.min(60, Math.max(3, Number(numQuestions) || 10)),
       question_type: normalizeQuestionFormat(questionFormat),
       student_level: studentLevel,
+      subject,
+      grade,
     };
     if (lessonPlanContext?.trim()) {
       payload.lesson_plan_context = lessonPlanContext.trim();

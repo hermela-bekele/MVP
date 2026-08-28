@@ -21,7 +21,7 @@ import {
   AisBtnSecondary,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { wrapAssessmentMarkdown } from '@/lib/assessmentMarkdown';
+import { parseAssessmentQuestions, wrapAssessmentMarkdown } from '@/lib/assessmentMarkdown';
 
 const EXAM_TYPES: Assessment['type'][] = ['Mid Exam', 'Final Exam', 'Assignment', 'Practical'];
 
@@ -102,6 +102,8 @@ export function DeptAssessmentCreatePanel() {
     () => questionLimitsForAssessmentType('Mid Exam').default,
   );
   const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('Mixed');
+  const [useMlcMix, setUseMlcMix] = useState(false);
+  const [mlcPercent, setMlcPercent] = useState(70);
   const [generating, setGenerating] = useState(false);
   const [content, setContent] = useState('');
 
@@ -202,6 +204,8 @@ export function DeptAssessmentCreatePanel() {
     setType('Mid Exam');
     setNumQuestions(questionLimitsForAssessmentType('Mid Exam').default);
     setQuestionFormat('Mixed');
+    setUseMlcMix(false);
+    setMlcPercent(70);
   };
 
   const handleGenerate = async () => {
@@ -235,7 +239,7 @@ export function DeptAssessmentCreatePanel() {
           const planId = t.planId;
           const selectedSessions = planId ? selectedSessionsByPlan[planId] : undefined;
           
-          let contextParts = [
+          const contextParts = [
             `Classroom delivery: ${graspOutcomeLabel(t.delivery.graspOutcome)}`,
             t.delivery.challengeText ? `Teacher challenge note: ${t.delivery.challengeText}` : '',
           ];
@@ -269,6 +273,7 @@ export function DeptAssessmentCreatePanel() {
           questionFormat,
           combinedContext,
           'differentiated',
+          useMlcMix ? mlcPercent : undefined,
         ),
         assessmentType: type,
         questionFormat,
@@ -293,6 +298,7 @@ export function DeptAssessmentCreatePanel() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content) return;
+    const parsedQuestions = parseAssessmentQuestions(content);
     createAssessment({
       title: title.trim(),
       type,
@@ -302,14 +308,17 @@ export function DeptAssessmentCreatePanel() {
       createdByRole: 'department-head',
       teacherName: currentUser?.displayName || 'Department Head',
       teacherId: deptTeacherId,
-      questions: [
-        {
-          id: 1,
-          question: content,
-          type: questionFormat,
-          answer: 'See assessment content',
-        },
-      ],
+      questions:
+        parsedQuestions && parsedQuestions.length > 0
+          ? parsedQuestions
+          : [
+              {
+                id: 1,
+                question: content,
+                type: questionFormat,
+                answer: 'See assessment content',
+              },
+            ],
     });
     reset();
   };
@@ -401,6 +410,37 @@ export function DeptAssessmentCreatePanel() {
               value={questionFormat}
               onChange={(e) => setQuestionFormat(e.target.value as QuestionFormat)}
             />
+          </div>
+          <div className="space-y-2 rounded-lg border border-border/60 p-3">
+            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-foreground">
+              <input
+                type="checkbox"
+                checked={useMlcMix}
+                onChange={(e) => setUseMlcMix(e.target.checked)}
+                className="rounded border-input text-primary focus:ring-ring"
+              />
+              Set MLC vs. advanced mix
+            </label>
+            {useMlcMix && (
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={mlcPercent}
+                  onChange={(e) => setMlcPercent(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="w-40 shrink-0 text-xs text-muted-foreground">
+                  {mlcPercent}% MLC (minimum competency) · {100 - mlcPercent}% advanced
+                </span>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Leave off to generate questions across the full range as before. Turn on to control
+              how many questions are grounded in the official minimum competencies vs. advanced content.
+            </p>
           </div>
           <input
             className={aisInput}

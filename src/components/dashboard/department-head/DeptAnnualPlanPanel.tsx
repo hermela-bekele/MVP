@@ -199,6 +199,7 @@ export const DeptAnnualPlanPanel: React.FC<{
   const [generating, setGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [annualPlan, setAnnualPlan] = useState<AnnualLessonPlanResult | null>(null);
+  const [isEditingAnnual, setIsEditingAnnual] = useState(false);
   const publishedSectionRef = React.useRef<HTMLDivElement | null>(null);
   const generatedSectionRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -335,14 +336,18 @@ export const DeptAnnualPlanPanel: React.FC<{
       });
 
       const { aiService } = await import('@/lib/ai');
-      const WEEK_BATCH_SIZE = 4;
+      // 8 (up from 4): the backend's yearly token ceiling comfortably covers 8 weeks of soft
+      // fields per call (even on Groq's smaller budget) — this halves the number of sequential
+      // HTTP round-trips for a ~36-40 week year without raising truncation risk.
+      const WEEK_BATCH_SIZE = 8;
       const allAiWeeks: NonNullable<AIDetailedLessonPlanResult['weeks']> = [];
       let combined: AIDetailedLessonPlanResult | null = null;
       let continuationHint = '';
 
       for (let i = 0; i < weeks.length; i += WEEK_BATCH_SIZE) {
         const batch = weeks.slice(i, i + WEEK_BATCH_SIZE);
-        const batchNum = Math.floor(i / WEEK_BATCH_SIZE) + 1;
+        const batchIndex = Math.floor(i / WEEK_BATCH_SIZE);
+        const batchNum = batchIndex + 1;
         const totalBatches = Math.ceil(weeks.length / WEEK_BATCH_SIZE);
         const isFirstBatch = i === 0;
 
@@ -354,7 +359,18 @@ export const DeptAnnualPlanPanel: React.FC<{
           durationMs: 15000,
         });
 
-        const topicHint = isFirstBatch
+        // Sent as `topic` — the backend embeds this directly as the retrieval query, so it
+        // must stay a short, genuinely curriculum-relevant phrase. Pacing/scheduling
+        // instructions go in `continuationNotes` below instead; mixing the two here was
+        // degrading retrieval relevance (a paragraph of scheduling text embeds poorly as a
+        // search query) for subjects with no unit map, most visibly English.
+        const retrievalTopic = isFirstBatch
+          ? `${planSubject} ${grade} textbook curriculum sequence`
+          : continuationHint || `${planSubject} ${grade} textbook curriculum sequence`;
+
+        // Pacing/continuity instructions only — never used for retrieval, only injected into
+        // the prompt's calendar/header notes on the backend.
+        const continuationNotes = isFirstBatch
           ? [
               'MANDATORY: Begin with Unit-1 of the teaching textbook on the first TEACHING week.',
               'Skip content on weeks with periodsAvailable = 0 (no school / exams / breaks).',
@@ -381,8 +397,11 @@ export const DeptAnnualPlanPanel: React.FC<{
               plan_type: 'yearly',
               grade,
               subject: planSubject,
-              topic: topicHint,
+              topic: retrievalTopic,
               subtopic: '',
+              continuation_notes: continuationNotes,
+              batch_index: batchIndex,
+              total_batches: totalBatches,
               student_level: 'differentiated',
               periods_per_week: effectivePeriods,
               session_duration: effectiveMinutes,
@@ -474,6 +493,7 @@ export const DeptAnnualPlanPanel: React.FC<{
 
       dismissToast(batchToastId);
       setAnnualPlan(result);
+      setIsEditingAnnual(false);
       addNotification(
         'Annual plan ready',
         `${grade} ${planSubject} — ${teachingWeeksCount} teaching weeks from the school calendar.`,
@@ -533,6 +553,7 @@ export const DeptAnnualPlanPanel: React.FC<{
     setGrade(plan.grade || detail.meta.grade || 'Grade 11');
     setPlanSubject(plan.subject || detail.meta.subject || subject);
     setAnnualPlan(detail);
+    setIsEditingAnnual(true);
     setEditingPublishedId(plan.id);
     setViewingPublishedId(null);
     addNotification(
@@ -940,6 +961,14 @@ export const DeptAnnualPlanPanel: React.FC<{
         {annualPlan && (
           <>
             <Button
+              variant={isEditingAnnual ? 'organic' : 'outline'}
+              onClick={() => setIsEditingAnnual((v) => !v)}
+              leftIcon={<Pencil className="h-4 w-4" />}
+              className="whitespace-nowrap"
+            >
+              {isEditingAnnual ? 'Done editing' : 'Edit'}
+            </Button>
+            <Button
               variant="outline"
               onClick={handleDownload}
               loading={downloading}
@@ -974,12 +1003,17 @@ export const DeptAnnualPlanPanel: React.FC<{
                   : 'Annual Lesson Plan'
             }
             description={
-              editingPublishedId
-                ? 'Update the plan below, then click Save changes.'
-                : 'Table layout matches the school annual lesson plan template. Scroll horizontally on smaller screens.'
+              isEditingAnnual
+                ? 'Edit any cell below, then click Done editing.'
+                : 'Click Edit above to adjust any cell, or publish as generated. Scroll horizontally on smaller screens.'
             }
           >
-            <AnnualLessonPlanTable plan={annualPlan} showTitle={false} />
+            <AnnualLessonPlanTable
+              plan={annualPlan}
+              showTitle={false}
+              editable={isEditingAnnual}
+              onChange={setAnnualPlan}
+            />
           </ContentCard>
         </div>
       )}

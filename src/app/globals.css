@@ -68,6 +68,26 @@
   }
 }
 
+/* Autofilled <input>s (login/register) render the browser's own yellow/blue tint on just
+   the <input> element — but that element sits inset inside its wrapper's icon padding
+   (see components/ui/input.tsx), so the tint shows as a smaller patch floating inside the
+   real bordered box instead of covering it. Painting the tint over with the input's own
+   background makes it blend seamlessly across the whole box instead of leaving a mismatched
+   inset patch. The 9999px inset spread is the standard technique for this since browsers
+   don't allow overriding autofill's background-color directly. */
+@layer base {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:autofill {
+    -webkit-box-shadow: 0 0 0 9999px hsl(var(--card)) inset;
+    box-shadow: 0 0 0 9999px hsl(var(--card)) inset;
+    -webkit-text-fill-color: hsl(var(--card-foreground));
+    caret-color: hsl(var(--card-foreground));
+    transition: background-color 9999s ease-in-out 0s;
+  }
+}
+
 /* School Head Portal — Dashboard module primary color override (dark gold) */
 .school-head-dashboard {
   --primary: 37 50% 56%;

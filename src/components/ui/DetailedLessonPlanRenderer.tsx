@@ -10,6 +10,10 @@ import { WeeklyLessonPlanTable } from './WeeklyLessonPlanTable';
 interface DetailedLessonPlanRendererProps {
   content: AIDetailedLessonPlanResult | string;
   className?: string;
+  /** Lets the teacher edit the just-generated weekly plan before submitting it —
+   * only meaningful when `content` is an object with `type: 'weekly'`. */
+  editable?: boolean;
+  onChange?: (next: AIDetailedLessonPlanResult) => void;
 }
 
 function asAnnualTablePlan(content: AIDetailedLessonPlanResult): AnnualLessonPlanResult | null {
@@ -42,9 +46,11 @@ function asAnnualTablePlan(content: AIDetailedLessonPlanResult): AnnualLessonPla
   };
 }
 
-export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProps> = ({ 
-  content, 
-  className = '' 
+export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProps> = ({
+  content,
+  className = '',
+  editable = false,
+  onChange,
 }) => {
   // If content is a string (markdown), render it directly
   if (typeof content === 'string') {
@@ -129,6 +135,8 @@ export const DetailedLessonPlanRenderer: React.FC<DetailedLessonPlanRendererProp
             mainTopic: content.mainTopic,
             subTopic: content.subTopic,
           }}
+          editable={editable}
+          onChange={onChange ? (nextSessions) => onChange({ ...content, sessions: nextSessions }) : undefined}
         />
       </div>
     );

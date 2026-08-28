@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Sparkles, X } from 'lucide-react';
+import { Download, Pencil, Sparkles, X } from 'lucide-react';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
 import {
@@ -77,6 +77,7 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
   const [planTitle, setPlanTitle] = useState('');
   const [generating, setGenerating] = useState(false);
   const [aiResult, setAiResult] = useState<AIDetailedLessonPlanResult | null>(null);
+  const [isEditingResult, setIsEditingResult] = useState(false);
 
   const selectedAnnual = annualPlans.find((p) => p.id === annualPlanId);
   const annualDetail = useMemo(
@@ -200,11 +201,30 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
   const buildWeekContext = () => {
     if (!selectedWeek) return '';
     const weekLabels = selectedWeeks.map((w) => `${w.month} ${w.week} (${w.date})`).join('; ');
+
+    const perWeekBlocks = isMerging
+      ? selectedWeeks
+          .map((w) => {
+            const items = (w.contents || [])
+              .map((c) => c.trim())
+              .filter((c) => c && selectedContents.includes(c));
+            return items.length
+              ? `${w.month} ${w.week} (${w.date}):\n${items.map((i) => `- ${i}`).join('\n')}`
+              : '';
+          })
+          .filter(Boolean)
+          .join('\n\n')
+      : '';
+
     return [
       isMerging ? `Merged annual weeks: ${weekLabels}` : `Annual week: ${weekLabels}`,
       unit ? `Unit: ${unit}` : '',
       page ? `Textbook pages: ${page}` : '',
-      selectedContents.length ? `Contents:\n${selectedContents.join('\n')}` : '',
+      isMerging && perWeekBlocks
+        ? `SESSION ALLOCATION ACROSS MERGED WEEKS (${periodsPerWeek} sessions total, teacher-specified):\n${perWeekBlocks}\n\nDistribute the ${periodsPerWeek} sessions across these weeks IN THE ORDER LISTED ABOVE — fully cover one week's content before moving to the next week's. Do not interleave or mix topics from different weeks within the same session.`
+        : selectedContents.length
+          ? `Contents:\n${selectedContents.join('\n')}`
+          : '',
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -262,6 +282,7 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
       };
 
       setAiResult(withContext);
+      setIsEditingResult(false);
       if (!planTitle) {
         setPlanTitle(
           `${selectedAnnual.grade} ${selectedAnnual.subject} — ${selectedWeek.month} ${selectedWeek.week}`,
@@ -448,15 +469,23 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-1">
-                <label className={aisFormLabel}>Sessions per week *</label>
+                <label className={aisFormLabel}>
+                  {isMerging ? 'Total sessions to cover these weeks *' : 'Sessions per week *'}
+                </label>
                 <input
                   type="number"
-                  min={1}
-                  max={10}
+                  min={isMerging ? selectedWeeks.length : 1}
+                  max={20}
                   className={aisInput}
                   value={periodsPerWeek}
                   onChange={(e) => setPeriodsPerWeek(Number(e.target.value))}
                 />
+                {isMerging && (
+                  <p className="text-[11px] text-muted-foreground">
+                    How many sessions total will you use across the {selectedWeeks.length} merged
+                    weeks? Topics are covered week by week, in the order selected.
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <label className={aisFormLabel}>Minutes per session *</label>
@@ -503,8 +532,20 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
             {aiResult && (
               <div className="max-h-[420px] space-y-3 overflow-y-auto rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4">
                 <div className="sticky top-0 z-10 flex items-center justify-between border-b border-ais-card-border bg-ais-surface-container-low/90 pb-3 backdrop-blur-sm">
-                  <span className="text-xs font-semibold text-ais-on-surface">Weekly plan preview</span>
+                  <span className="text-xs font-semibold text-ais-on-surface">
+                    {isEditingResult ? 'Weekly plan preview — editing' : 'Weekly plan preview'}
+                  </span>
                   <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingResult((v) => !v)}
+                      className={`flex items-center gap-1 text-xs hover:underline ${
+                        isEditingResult ? 'font-semibold text-ais-primary' : 'text-primary'
+                      }`}
+                    >
+                      <Pencil className="h-3 w-3" />
+                      {isEditingResult ? 'Done editing' : 'Edit'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => void downloadWeeklyLessonPlanDocx(aiResult)}
@@ -523,7 +564,11 @@ export const TeacherWeeklyPlanDialog: React.FC<TeacherWeeklyPlanDialogProps> = (
                     </button>
                   </div>
                 </div>
-                <DetailedLessonPlanRenderer content={aiResult} />
+                <DetailedLessonPlanRenderer
+                  content={aiResult}
+                  editable={isEditingResult}
+                  onChange={setAiResult}
+                />
               </div>
             )}
           </>

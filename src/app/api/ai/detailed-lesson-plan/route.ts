@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
       school_name = '',
       academic_year = '',
       reference_materials = 'TEXT BOOK',
+      continuation_notes = '',
+      batch_index = 0,
+      total_batches = 1,
     } = body;
 
     if (plan_type !== 'yearly' && !topic?.trim()) {
@@ -64,6 +67,9 @@ export async function POST(request: NextRequest) {
       school_name,
       academic_year,
       reference_materials,
+      continuation_notes: continuation_notes?.trim?.() ?? continuation_notes ?? '',
+      batch_index,
+      total_batches,
     };
 
     const cacheKey = createCacheKey('detailed-lesson-plan', payload);

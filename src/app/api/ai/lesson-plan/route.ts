@@ -14,7 +14,7 @@ function getCacheKey(payload: any): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, duration_minutes = 80 } = body;
+    const { topic, duration_minutes = 80, subject = 'Mathematics', grade = 'Grade 11' } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -23,8 +23,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create cache key
-    const cacheKey = getCacheKey({ topic, duration_minutes });
+    // Create cache key — subject/grade must be part of the key, otherwise a Math and an
+    // English request for the same topic name would collide on the same cached response.
+    const cacheKey = getCacheKey({ topic, duration_minutes, subject, grade });
 
     // Check cache first
     const cached = cache.get(cacheKey);
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Cache miss - call Prime AI backend
     console.log(`🚀 [Cache MISS] Calling Prime AI for: ${topic}`);
-    const response = await fetchPrimeAI('/lesson-plan', { topic, duration_minutes });
+    const response = await fetchPrimeAI('/lesson-plan', { topic, duration_minutes, subject, grade });
 
     if (!response.ok) {
       const errorText = await response.text();
