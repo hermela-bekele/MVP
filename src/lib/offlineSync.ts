@@ -38,6 +38,9 @@ export async function flushOfflineOutbox(): Promise<{ flushed: number; remaining
             op.payload.status as import('@/lib/mockData').TeacherTrainingAssignment['status'],
           );
           break;
+        case 'updateTrainingPlan':
+          await api.updateTrainingPlan(String(op.payload.id), { status: op.payload.status });
+          break;
         default:
           break;
       }

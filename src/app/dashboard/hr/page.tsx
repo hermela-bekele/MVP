@@ -15,6 +15,7 @@ import { HrPerformance } from '@/components/dashboard/hr/HrPerformance';
 import { HrOnboarding } from '@/components/dashboard/hr/HrOnboarding';
 import { HrReports } from '@/components/dashboard/hr/HrReports';
 import { HrTrainingPanel } from '@/components/dashboard/hr/HrTrainingPanel';
+import { HrTrainingPlanningPanel } from '@/components/dashboard/hr/HrTrainingPlanningPanel';
 import { usePortalTab } from '@/lib/usePortalTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 
@@ -58,6 +59,10 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   training: {
     title: 'Trainings',
     subtitle: 'Every training type available to staff — leadership, subject-matter, induction, and continuous development.',
+  },
+  'training-planning': {
+    title: 'Training Planning',
+    subtitle: 'Plan new Continuous Development tracks or In-Person sessions, and assign them to teachers or academic teams.',
   },
   profile: {
     title: 'My Profile',
@@ -111,6 +116,15 @@ export default function HrPortalPage() {
       >
         + Post Job
       </Button>
+    ) : activeTab === 'training-planning' ? (
+      <Button
+        variant="organic"
+        size="sm"
+        className="text-xs h-9 border-none"
+        onClick={() => window.dispatchEvent(new Event('open-hr-training-plan'))}
+      >
+        + Plan Training
+      </Button>
     ) : (
       <Badge variant="primary" badgeStyle="subtle" size="md">
         {hrOfficerName} · HR Officer
@@ -146,6 +160,7 @@ export default function HrPortalPage() {
       {activeTab === 'onboarding' && <HrOnboarding />}
       {activeTab === 'reports' && <HrReports />}
       {activeTab === 'training' && <HrTrainingPanel />}
+      {activeTab === 'training-planning' && <HrTrainingPlanningPanel />}
       {activeTab === 'profile' && (
         <div className="space-y-6 animate-fade-in text-left">
           <PortalProfileCard

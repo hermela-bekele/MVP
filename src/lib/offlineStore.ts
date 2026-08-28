@@ -28,7 +28,8 @@ export type OutboxOpType =
   | 'updateTeachingNote'
   | 'deleteTeachingNote'
   | 'saveAttendance'
-  | 'updateTrainingAssignmentStatus';
+  | 'updateTrainingAssignmentStatus'
+  | 'updateTrainingPlan';
 
 export type OutboxOp = {
   id: string;
@@ -226,6 +227,8 @@ export function emptyBootstrapPayload(): BootstrapPayload {
     checkIns: [],
     exams: [],
     trainingMaterials: [],
+    trainingPlans: [],
+    trainingPlanAssignments: [],
     teachingNotes: [],
     academicCalendars: [],
     studentGradeEntries: [],

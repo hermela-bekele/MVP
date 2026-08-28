@@ -54,6 +54,8 @@ import {
   GraspOutcome,
   TeacherSelfAssessment,
   TeacherTrainingAssignment,
+  TrainingPlan,
+  TrainingPlanAssignment,
   mockSchools,
   mockTeachers,
   mockStudents,
@@ -151,6 +153,8 @@ interface AppContextType {
   classes: SchoolClass[];
   exams: ExamPaper[];
   trainingMaterials: TrainingMaterial[];
+  trainingPlans: TrainingPlan[];
+  trainingPlanAssignments: TrainingPlanAssignment[];
   teachingNotes: TeachingNote[];
   academicCalendars: AcademicCalendar[];
   moeCalendar: MoeCalendarDraft | null;
@@ -251,6 +255,22 @@ interface AppContextType {
     subject?: string;
   }) => void;
   disseminateTrainingMaterial: (id: string) => void;
+  addTrainingPlan: (data: {
+    title: string;
+    description?: string;
+    type: TrainingPlan['type'];
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    facilitator?: string;
+    createdByName: string;
+  }) => void;
+  updateTrainingPlanStatus: (id: string, status: TrainingPlan['status']) => void;
+  assignTrainingPlan: (
+    planId: string,
+    data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+  ) => void;
+  removeTrainingPlanAssignment: (id: string) => void;
   addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
   updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
   distributeLessonPlan: (id: string) => void;
@@ -424,6 +444,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [exams, setExams] = useState<ExamPaper[]>([]);
   const [trainingMaterials, setTrainingMaterials] = useState<TrainingMaterial[]>([]);
+  const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([]);
+  const [trainingPlanAssignments, setTrainingPlanAssignments] = useState<TrainingPlanAssignment[]>([]);
   const [teachingNotes, setTeachingNotes] = useState<TeachingNote[]>([]);
   const [academicCalendars, setAcademicCalendars] = useState<AcademicCalendar[]>(() =>
     typeof window !== 'undefined' ? readStoredCalendars() : [],
@@ -475,6 +497,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setClasses(mockClasses);
     setExams(mockExams);
     setTrainingMaterials(mockTrainingMaterials);
+    setTrainingPlans([]);
+    setTrainingPlanAssignments([]);
     setTeachingNotes(mockTeachingNotes);
     setAcademicCalendars(readStoredCalendars());
     setMoeCalendar(readStoredMoeCalendar());
@@ -521,6 +545,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setClasses(data.classes ?? []);
     setExams(data.exams ?? []);
     setTrainingMaterials(data.trainingMaterials ?? []);
+    setTrainingPlans(data.trainingPlans ?? []);
+    setTrainingPlanAssignments(data.trainingPlanAssignments ?? []);
     setTeachingNotes(data.teachingNotes ?? []);
     const apiCalendars = data.academicCalendars ?? [];
     const storedCalendars = readStoredCalendars();
@@ -576,6 +602,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       checkIns,
       exams,
       trainingMaterials,
+      trainingPlans,
+      trainingPlanAssignments,
       teachingNotes,
       academicCalendars,
       studentGradeEntries,
@@ -619,6 +647,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     checkIns,
     exams,
     trainingMaterials,
+    trainingPlans,
+    trainingPlanAssignments,
     teachingNotes,
     academicCalendars,
     studentGradeEntries,
@@ -1348,6 +1378,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'success'
       );
     }).catch(() => void refreshFromApi());
+  };
+
+  const addTrainingPlan = (data: {
+    title: string;
+    description?: string;
+    type: TrainingPlan['type'];
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    facilitator?: string;
+    createdByName: string;
+  }) => {
+    void api.createTrainingPlan(data).then((plan) => {
+      setTrainingPlans((prev) => [plan as TrainingPlan, ...prev]);
+      addNotification('Training Plan Created', `"${data.title}" scheduled.`, 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const updateTrainingPlanStatus = (id: string, status: TrainingPlan['status']) => {
+    setTrainingPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
+
+    if (!isBrowserOnline()) {
+      void enqueueOutbox('updateTrainingPlan', { id, status });
+      void refreshPendingCount();
+      return;
+    }
+
+    void api.updateTrainingPlan(id, { status }).then((plan) => {
+      setTrainingPlans((prev) => prev.map((p) => (p.id === id ? (plan as TrainingPlan) : p)));
+    }).catch(() => {
+      void enqueueOutbox('updateTrainingPlan', { id, status });
+      void refreshPendingCount();
+    });
+  };
+
+  const assignTrainingPlan = (
+    planId: string,
+    data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+  ) => {
+    void api.assignTrainingPlan(planId, data).then((a) => {
+      setTrainingPlanAssignments((prev) => [a as TrainingPlanAssignment, ...prev]);
+      addNotification('Training Assigned', 'Assignment recorded for the training plan.', 'success');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const removeTrainingPlanAssignment = (id: string) => {
+    setTrainingPlanAssignments((prev) => prev.filter((a) => a.id !== id));
+    void api.removeTrainingPlanAssignment(id).catch(() => void refreshFromApi());
   };
 
   const addCheckInTemplate = (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
@@ -2147,6 +2225,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         classes,
         exams,
         trainingMaterials,
+        trainingPlans,
+        trainingPlanAssignments,
         teachingNotes,
         academicCalendars,
         moeCalendar,
@@ -2215,6 +2295,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rejectExam,
         addTrainingMaterial,
         disseminateTrainingMaterial,
+        addTrainingPlan,
+        updateTrainingPlanStatus,
+        assignTrainingPlan,
+        removeTrainingPlanAssignment,
         addCheckInTemplate,
         updateLessonPlan,
         distributeLessonPlan,

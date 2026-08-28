@@ -15,6 +15,7 @@ import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { departmentIdForSubject } from '@/lib/departmentHead';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 import { FileText, GraduationCap, Settings2, Users } from 'lucide-react';
+import { TeacherOverviewPanel } from './TeacherOverviewPanel';
 import { VPClassReportPanel } from './VPClassReportPanel';
 import { VPTranscriptPanel } from './VPTranscriptPanel';
 import { VPReportTemplateBuilder } from './VPReportTemplateBuilder';
@@ -107,6 +108,8 @@ export default function HeadOfAcademicsPortalApp() {
         return { title: 'Class Reports', subtitle: 'Generate term report cards for a class' };
       case 'transcripts':
         return { title: 'Transcripts', subtitle: 'Generate cumulative transcripts for a student' };
+      case 'teachers':
+        return { title: 'Teacher Progress', subtitle: 'School-wide lesson plan pace and attendance for every teacher' };
       case 'template-builder':
         return { title: 'Student Report Card Builder', subtitle: 'Configure this school’s report card and transcript layout' };
       case 'annual-plans':
@@ -285,6 +288,7 @@ export default function HeadOfAcademicsPortalApp() {
         </div>
       )}
 
+      {activeTab === 'teachers' && <TeacherOverviewPanel />}
       {activeTab === 'class-reports' && <VPClassReportPanel />}
       {activeTab === 'transcripts' && <VPTranscriptPanel />}
       {activeTab === 'template-builder' && <VPReportTemplateBuilder />}
