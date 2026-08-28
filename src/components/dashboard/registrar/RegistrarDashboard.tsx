@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { KpiWidget } from '@/components/dashboard/KpiWidget';
 import { gpaToMark } from '@/lib/grading';
@@ -13,9 +13,28 @@ import {
   pendingApplications,
   statusBadgeVariant,
 } from '@/lib/registrarPortal';
+import { api, type AuditLogEntry } from '@/lib/api';
+import { readStoredSession } from '@/lib/auth';
+import { currentAcademicYear } from '@/lib/academicYear';
+
+function describeAuditEntry(entry: AuditLogEntry): string {
+  const who = entry.actorName || entry.actorEmail || 'Someone';
+  return `${who} · ${entry.action.replace(/[._]/g, ' ')}`;
+}
 
 export const RegistrarDashboard: React.FC = () => {
-  const { students, registrationApplications } = useApp();
+  const { students, registrationApplications, schools, currentUser } = useApp();
+  const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
+  const schoolName = currentSchool?.name ?? 'your school';
+  const session = readStoredSession();
+  const [recentActivity, setRecentActivity] = useState<AuditLogEntry[]>([]);
+
+  useEffect(() => {
+    api
+      .listAuditLogs({ limit: 8 })
+      .then(setRecentActivity)
+      .catch(() => setRecentActivity([]));
+  }, [session?.schoolId]);
 
   const schoolStudents = useMemo(() => filterSchoolStudents(students), [students]);
   const activeStudents = schoolStudents.filter((s) => s.status === 'Active');
@@ -34,7 +53,7 @@ export const RegistrarDashboard: React.FC = () => {
         <KpiWidget
           label="Active Students"
           value={activeStudents.length}
-          hint="Currently enrolled at Bole Secondary"
+          hint={`Currently enrolled at ${schoolName} · ${currentAcademicYear()}`}
           tone="inverse"
         />
         <KpiWidget
@@ -100,6 +119,37 @@ export const RegistrarDashboard: React.FC = () => {
           </div>
         </ContentCard>
       </div>
+
+      <ContentCard title="Recent Activity" description="Latest registrar-relevant actions across the school">
+        {recentActivity.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">No recent activity recorded.</p>
+        ) : (
+          <div className="space-y-2">
+            {recentActivity.map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/20"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-foreground truncate">{describeAuditEntry(entry)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {entry.entityType}
+                    {entry.entityId ? ` · ${entry.entityId}` : ''}
+                  </p>
+                </div>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                  {new Date(entry.createdAt).toLocaleString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ContentCard>
     </div>
   );
 };

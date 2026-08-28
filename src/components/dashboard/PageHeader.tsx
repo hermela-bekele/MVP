@@ -4,17 +4,21 @@ import React from 'react';
 
 export interface PageHeaderProps {
   title: string;
-  /** @deprecated Ignored — page helper blurbs removed for a cleaner UI */
   subtitle?: string;
   eyebrow?: string;
   actions?: React.ReactNode;
   subtitleActions?: React.ReactNode;
-  /** Educator portal — large hero header without bottom rule */
+  /**
+   * 'default' — standard page header with a bottom rule (border-b), used by most
+   * list/detail pages. 'portal' — large hero header, no bottom rule, for portal
+   * landing/tab pages that want a softer, more spacious top-of-page treatment.
+   */
   variant?: 'default' | 'portal';
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
+  subtitle,
   eyebrow,
   actions,
   subtitleActions,
@@ -30,10 +34,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   if (variant === 'portal') {
     return (
-      <div className="mb-6 flex w-full flex-col gap-4 animate-fade-in">
+      <div className="mb-4 flex w-full flex-col gap-3 animate-fade-in">
         {eyebrow && (
-          <p className="text-[11px] font-bold uppercase tracking-widest text-ais-primary flex items-center gap-2 animate-fade-in-down">
-            <span className="inline-block h-px w-6 bg-gradient-to-r from-ais-primary to-transparent" />
+          <p className="text-[11px] font-bold uppercase tracking-widest text-primary flex items-center gap-2 animate-fade-in-down">
+            <span className="inline-block h-px w-6 bg-gradient-to-r from-primary to-transparent" />
             {eyebrow}
           </p>
         )}
@@ -45,12 +49,15 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <div className="flex shrink-0 flex-nowrap items-center gap-2">{headerActions}</div>
           )}
         </div>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="mb-6 flex flex-col gap-4 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between relative animate-fade-in-up">
+    <div className="mb-4 flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between relative animate-fade-in-up">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 blur-3xl -z-10" />
 
       <div className="min-w-0 space-y-1.5 relative">
@@ -63,6 +70,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         <h1 className="text-xl font-bold tracking-tight text-title sm:text-2xl">
           {title}
         </h1>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        )}
       </div>
       {hasActions && (
         <div className="flex shrink-0 flex-nowrap items-center gap-2">{headerActions}</div>

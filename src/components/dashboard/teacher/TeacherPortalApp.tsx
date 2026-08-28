@@ -2,14 +2,22 @@
 
 import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { PenLine } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { Skeleton } from "@/components/ui/skeleton";
 import { aisBtnPrimary } from "@/components/dashboard/teacher/aisStyles";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 
 function TabLoading() {
   return (
-    <div className="flex min-h-[200px] items-center justify-center text-sm text-muted-foreground">
-      Loading…
+    <div className="space-y-4 py-2" role="status" aria-label="Loading">
+      <Skeleton variant="rectangular" height={40} className="max-w-sm" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} variant="card" height={110} />
+        ))}
+      </div>
+      <Skeleton variant="card" height={220} />
     </div>
   );
 }
@@ -266,6 +274,17 @@ export function TeacherPortalApp() {
         }
       >
         + New lesson note
+      </button>
+    ) : activeTab === "manage-students" ? (
+      <button
+        type="button"
+        className={`${aisBtnPrimary} text-xs gap-1.5`}
+        onClick={() =>
+          window.dispatchEvent(new Event("open-teacher-grade-entry"))
+        }
+      >
+        <PenLine className="h-3.5 w-3.5" aria-hidden />
+        Record grade
       </button>
     ) : null;
 

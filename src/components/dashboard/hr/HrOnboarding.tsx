@@ -13,20 +13,21 @@ const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 export const HrOnboarding: React.FC = () => {
-  const { onboardingTasks, hrEmployees, addOnboardingTask, toggleOnboardingTask, addHrEmployee } = useApp();
+  const { onboardingTasks, hrEmployees, addOnboardingTask, toggleOnboardingTask, addHrEmployee, currentUser } = useApp();
+  const hrOfficerName = currentUser?.displayName ?? 'HR Officer';
   const [isNewEmployeeOpen, setIsNewEmployeeOpen] = useState(false);
   const [isTaskOpen, setIsTaskOpen] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [position, setPosition] = useState('Administrative Assistant');
+  const [position, setPosition] = useState('Teacher Assistant');
   const [department, setDepartment] = useState('Administration');
   const [salary, setSalary] = useState('12000');
 
   const [taskEmployeeId, setTaskEmployeeId] = useState('');
   const [taskName, setTaskName] = useState('');
-  const [taskAssignee, setTaskAssignee] = useState('Sara Bekele');
+  const [taskAssignee, setTaskAssignee] = useState(hrOfficerName);
   const [taskDueDate, setTaskDueDate] = useState('');
 
   const probationEmployees = useMemo(
@@ -44,16 +45,16 @@ export const HrOnboarding: React.FC = () => {
   }, [onboardingTasks]);
 
   const defaultOnboardingTasks = (employeeId: string, employeeName: string) => [
-    { employeeId, employeeName, task: 'Employment contract signing', assignee: 'Sara Bekele', dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
-    { employeeId, employeeName, task: 'IT systems access setup', assignee: 'Yonas Girma', dueDate: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) },
+    { employeeId, employeeName, task: 'Employment contract signing', assignee: hrOfficerName, dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
+    { employeeId, employeeName, task: 'IT systems access setup', assignee: 'IT Support', dueDate: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) },
     { employeeId, employeeName, task: 'Department orientation', assignee: 'Department Head', dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) },
-    { employeeId, employeeName, task: '90-day probation review', assignee: 'Sara Bekele', dueDate: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10) },
+    { employeeId, employeeName, task: '90-day probation review', assignee: hrOfficerName, dueDate: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10) },
   ];
 
   const handleOnboard = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !phone) return;
-    const empId = addHrEmployee({
+    void addHrEmployee({
       name,
       email,
       phone,
@@ -63,8 +64,9 @@ export const HrOnboarding: React.FC = () => {
       hireDate: new Date().toISOString().slice(0, 10),
       salary: Number(salary) || 0,
       status: 'Probation',
+    }).then((employee) => {
+      defaultOnboardingTasks(employee.id, name).forEach((t) => addOnboardingTask(t));
     });
-    defaultOnboardingTasks(empId, name).forEach((t) => addOnboardingTask(t));
     setIsNewEmployeeOpen(false);
     setName('');
     setEmail('');

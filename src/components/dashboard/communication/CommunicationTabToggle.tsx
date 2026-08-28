@@ -22,13 +22,13 @@ export function CommunicationTabToggle({
 }) {
   const SecondaryIcon = secondaryLabel === 'Feedback' ? MessageCircle : Users;
   return (
-    <div className="inline-flex rounded-xl border border-ais-card-border bg-white p-1 shadow-sm dark:bg-ais-surface">
+    <div className="inline-flex rounded-xl border border-border bg-white p-1 shadow-sm dark:bg-card">
       <button
         type="button"
         className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
           value === 'channels'
-            ? 'bg-ais-primary text-white shadow-sm'
-            : 'text-ais-on-surface-variant hover:text-ais-on-surface'
+            ? 'bg-primary text-white shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
         }`}
         onClick={() => onChange('channels')}
       >
@@ -38,8 +38,8 @@ export function CommunicationTabToggle({
         type="button"
         className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${
           value === 'students'
-            ? 'bg-ais-primary text-white shadow-sm'
-            : 'text-ais-on-surface-variant hover:text-ais-on-surface'
+            ? 'bg-primary text-white shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
         }`}
         onClick={() => onChange('students')}
       >

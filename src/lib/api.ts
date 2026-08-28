@@ -100,6 +100,8 @@ export interface BootstrapPayload {
   checkIns: import('@/lib/mockData').SchoolCheckIn[];
   exams: import('@/lib/mockData').ExamPaper[];
   trainingMaterials: import('@/lib/mockData').TrainingMaterial[];
+  trainingPlans: import('@/lib/mockData').TrainingPlan[];
+  trainingPlanAssignments: import('@/lib/mockData').TrainingPlanAssignment[];
   teachingNotes: import('@/lib/mockData').TeachingNote[];
   academicCalendars: import('@/lib/mockData').AcademicCalendar[];
   studentGradeEntries: import('@/lib/mockData').StudentGradeEntry[];
@@ -113,6 +115,14 @@ export interface BootstrapPayload {
   staffMessages: import('@/lib/mockData').StaffMessage[];
   teacherSelfAssessments: import('@/lib/mockData').TeacherSelfAssessment[];
   teacherTrainingAssignments: import('@/lib/mockData').TeacherTrainingAssignment[];
+  hrEmployees: import('@/lib/hrPortal').HrEmployee[];
+  leaveRequests: import('@/lib/hrPortal').LeaveRequest[];
+  payrollRecords: import('@/lib/hrPortal').PayrollRecord[];
+  jobPostings: import('@/lib/hrPortal').JobPosting[];
+  jobApplications: import('@/lib/hrPortal').JobApplication[];
+  performanceReviews: import('@/lib/hrPortal').PerformanceReview[];
+  onboardingTasks: import('@/lib/hrPortal').OnboardingTask[];
+  staffAttendance: import('@/lib/hrPortal').StaffAttendanceRecord[];
   notifications: {
     id: string;
     title: string;
@@ -167,6 +177,39 @@ export const api = {
     request(`/teachers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   toggleTeacherStatus: (id: string) =>
     request(`/teachers/${id}/toggle-status`, { method: 'PATCH' }),
+  createHrEmployee: (body: Record<string, unknown>) =>
+    request('/hr/employees', { method: 'POST', body: JSON.stringify(body) }),
+  updateHrEmployee: (id: string, body: Record<string, unknown>) =>
+    request(`/hr/employees/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  toggleHrEmployeeStatus: (id: string) =>
+    request(`/hr/employees/${id}/toggle-status`, { method: 'PATCH' }),
+  submitLeaveRequest: (body: Record<string, unknown>) =>
+    request('/hr/leave-requests', { method: 'POST', body: JSON.stringify(body) }),
+  reviewLeaveRequest: (id: string, status: string, reviewerNotes?: string) =>
+    request(`/hr/leave-requests/${id}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reviewerNotes }),
+    }),
+  processPayroll: (employeeId: string, month: string) =>
+    request('/hr/payroll/process', { method: 'POST', body: JSON.stringify({ employeeId, month }) }),
+  updatePayrollStatus: (id: string, status: string) =>
+    request(`/hr/payroll/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  createJobPosting: (body: Record<string, unknown>) =>
+    request('/hr/job-postings', { method: 'POST', body: JSON.stringify(body) }),
+  updateJobPosting: (id: string, body: Record<string, unknown>) =>
+    request(`/hr/job-postings/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  updateJobApplication: (id: string, status: string, notes?: string) =>
+    request(`/hr/job-applications/${id}`, { method: 'PATCH', body: JSON.stringify({ status, notes }) }),
+  createPerformanceReview: (body: Record<string, unknown>) =>
+    request('/hr/performance-reviews', { method: 'POST', body: JSON.stringify(body) }),
+  updatePerformanceReview: (id: string, body: Record<string, unknown>) =>
+    request(`/hr/performance-reviews/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  createOnboardingTask: (body: Record<string, unknown>) =>
+    request('/hr/onboarding-tasks', { method: 'POST', body: JSON.stringify(body) }),
+  toggleOnboardingTask: (id: string) =>
+    request(`/hr/onboarding-tasks/${id}/toggle`, { method: 'PATCH' }),
+  recordStaffAttendance: (body: Record<string, unknown>) =>
+    request('/hr/attendance', { method: 'POST', body: JSON.stringify(body) }),
   createStudent: (body: Record<string, unknown>) =>
     request('/students', { method: 'POST', body: JSON.stringify(body) }),
   updateStudent: (id: string, body: Record<string, unknown>) =>
@@ -243,6 +286,29 @@ export const api = {
     }),
   disseminateTrainingMaterial: (id: string) =>
     request(`/training-materials/${id}/disseminate`, { method: 'PATCH' }),
+  createTrainingPlan: (body: {
+    title: string;
+    description?: string;
+    type: string;
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    facilitator?: string;
+    createdByName: string;
+  }) =>
+    request('/training-plans', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateTrainingPlan: (id: string, body: Record<string, unknown>) =>
+    request(`/training-plans/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  assignTrainingPlan: (
+    planId: string,
+    body: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+  ) =>
+    request(`/training-plans/${planId}/assignments`, { method: 'POST', body: JSON.stringify(body) }),
+  removeTrainingPlanAssignment: (id: string) =>
+    request(`/training-plan-assignments/${id}`, { method: 'DELETE' }),
   createCheckIn: (body: Record<string, unknown>) =>
     request('/check-ins', { method: 'POST', body: JSON.stringify(body) }),
   submitSelfAssessment: (body: Record<string, unknown>) =>
@@ -501,12 +567,45 @@ export const api = {
   listWaitlist: (schoolId?: string) =>
     request(`/admissions/waitlist${schoolId ? `?schoolId=${schoolId}` : ''}`),
   listCapacity: (schoolId?: string) =>
-    request(`/admissions/capacity${schoolId ? `?schoolId=${schoolId}` : ''}`),
+    request<GradeSectionCapacity[]>(`/admissions/capacity${schoolId ? `?schoolId=${schoolId}` : ''}`),
   updateCapacity: (id: string, body: { capacity: number }) =>
     request(`/admissions/capacity/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   getSchoolSettings: (schoolId: string) => request(`/admissions/settings/${schoolId}`),
   updateSchoolSettings: (schoolId: string, body: Record<string, unknown>) =>
     request(`/admissions/settings/${schoolId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listRegistrationForms: (schoolId: string) =>
+    request<RegistrationFormTemplate[]>(`/admissions/registration-forms?schoolId=${schoolId}`),
+  createRegistrationForm: (body: {
+    schoolId: string;
+    name: string;
+    description?: string;
+    fields: RegistrationFormField[];
+    requiredDocuments: string[];
+  }) =>
+    request<RegistrationFormTemplate>(`/admissions/registration-forms`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateRegistrationForm: (id: string, body: Record<string, unknown>) =>
+    request<RegistrationFormTemplate>(`/admissions/registration-forms/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  getPublicRegistrationForm: (code: string) =>
+    request<{
+      school: { id: string; name: string; slug: string; code: string };
+      formName: string;
+      formDescription?: string;
+      formSchema: RegistrationFormField[];
+      requiredDocuments: string[];
+      branding?: { primaryColor?: string; tagline?: string; logoUrl?: string; schoolDisplayName?: string };
+    }>(`/admissions/public/forms/${code}`),
+  submitPublicRegistrationForm: (code: string, body: Record<string, unknown>) =>
+    request(`/admissions/public/forms/${code}/applications`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   listInvoices: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params);
@@ -538,6 +637,178 @@ export const api = {
   financeAgingReport: (schoolId?: string) =>
     request(`/billing/reports/aging${schoolId ? `?schoolId=${schoolId}` : ''}`),
   runBillingJobs: () => request('/billing/jobs/run', { method: 'POST' }),
+
+  getFinanceDashboardSummary: (schoolId?: string) =>
+    request<FinanceDashboardSummary>(`/finance/dashboard-summary${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  listFinancialYears: (schoolId?: string) =>
+    request<FinancialYear[]>(`/finance/financial-years${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  createFinancialYear: (body: { schoolId?: string; name: string; startDate: string; endDate: string }) =>
+    request<FinancialYear>('/finance/financial-years', { method: 'POST', body: JSON.stringify(body) }),
+  activateFinancialYear: (id: string) =>
+    request<FinancialYear>(`/finance/financial-years/${id}/activate`, { method: 'POST' }),
+  closeFinancialYear: (id: string) =>
+    request<FinancialYear>(`/finance/financial-years/${id}/close`, { method: 'POST' }),
+  listFinancialPeriods: (params?: { schoolId?: string; financialYearId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.schoolId) q.set('schoolId', params.schoolId);
+    if (params?.financialYearId) q.set('financialYearId', params.financialYearId);
+    const s = q.toString();
+    return request<FinancialPeriod[]>(`/finance/financial-periods${s ? `?${s}` : ''}`);
+  },
+  closeFinancialPeriod: (id: string) =>
+    request<FinancialPeriod>(`/finance/financial-periods/${id}/close`, { method: 'POST' }),
+  reopenFinancialPeriod: (id: string) =>
+    request<FinancialPeriod>(`/finance/financial-periods/${id}/reopen`, { method: 'POST' }),
+  listAccounts: (schoolId?: string) =>
+    request<FinanceAccount[]>(`/finance/accounts${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  createAccount: (body: {
+    schoolId?: string;
+    code: string;
+    name: string;
+    accountType: FinanceAccount['accountType'];
+    parentId?: string | null;
+    description?: string;
+  }) => request<FinanceAccount>('/finance/accounts', { method: 'POST', body: JSON.stringify(body) }),
+  updateAccount: (id: string, body: { name?: string; description?: string; isActive?: boolean }) =>
+    request<FinanceAccount>(`/finance/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  seedChartOfAccounts: (schoolId?: string) =>
+    request<{ accounts: FinanceAccount[]; insertedCount: number }>(
+      `/finance/accounts/seed-defaults${schoolId ? `?schoolId=${schoolId}` : ''}`,
+      { method: 'POST' }
+    ),
+
+  listBudgets: (params?: { schoolId?: string; financialYearId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.schoolId) q.set('schoolId', params.schoolId);
+    if (params?.financialYearId) q.set('financialYearId', params.financialYearId);
+    const s = q.toString();
+    return request<Budget[]>(`/finance/budgets${s ? `?${s}` : ''}`);
+  },
+  getBudget: (id: string) => request<BudgetWithLines>(`/finance/budgets/${id}`),
+  getBudgetUtilization: (id: string) => request<BudgetUtilization>(`/finance/budgets/${id}/utilization`),
+  createBudget: (body: { schoolId?: string; financialYearId: string; name: string }) =>
+    request<BudgetWithLines>('/finance/budgets', { method: 'POST', body: JSON.stringify(body) }),
+  addBudgetLine: (
+    budgetId: string,
+    body: { department: string; accountId: string; allocatedAmount: number; notes?: string }
+  ) => request<BudgetWithLines>(`/finance/budgets/${budgetId}/lines`, { method: 'POST', body: JSON.stringify(body) }),
+  updateBudgetLine: (lineId: string, body: { allocatedAmount?: number; notes?: string }) =>
+    request<BudgetWithLines>(`/finance/budget-lines/${lineId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  removeBudgetLine: (lineId: string) =>
+    request<BudgetWithLines>(`/finance/budget-lines/${lineId}`, { method: 'DELETE' }),
+  submitBudget: (id: string) => request<Budget>(`/finance/budgets/${id}/submit`, { method: 'POST' }),
+  approveBudget: (id: string) => request<Budget>(`/finance/budgets/${id}/approve`, { method: 'POST' }),
+  rejectBudget: (id: string, reason: string) =>
+    request<Budget>(`/finance/budgets/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  returnBudget: (id: string, reason: string) =>
+    request<Budget>(`/finance/budgets/${id}/return`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  reviseBudget: (id: string) => request<BudgetWithLines>(`/finance/budgets/${id}/revise`, { method: 'POST' }),
+  createBudgetTransfer: (body: {
+    schoolId?: string;
+    budgetId: string;
+    fromLineId: string;
+    toLineId: string;
+    amount: number;
+    reason: string;
+  }) => request<BudgetTransfer>('/finance/budget-transfers', { method: 'POST', body: JSON.stringify(body) }),
+  approveBudgetTransfer: (id: string) =>
+    request<BudgetTransfer>(`/finance/budget-transfers/${id}/approve`, { method: 'POST' }),
+  rejectBudgetTransfer: (id: string, reason: string) =>
+    request<BudgetTransfer>(`/finance/budget-transfers/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  listExpenses: (params?: { schoolId?: string; status?: string; department?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.schoolId) q.set('schoolId', params.schoolId);
+    if (params?.status) q.set('status', params.status);
+    if (params?.department) q.set('department', params.department);
+    const s = q.toString();
+    return request<Expense[]>(`/finance/expenses${s ? `?${s}` : ''}`);
+  },
+  getExpense: (id: string) => request<Expense>(`/finance/expenses/${id}`),
+  createExpense: (body: {
+    schoolId?: string;
+    department: string;
+    accountId: string;
+    vendor?: string;
+    description: string;
+    amount: number;
+    expenseDate: string;
+    notes?: string;
+    attachmentUrl?: string;
+  }) => request<Expense>('/finance/expenses', { method: 'POST', body: JSON.stringify(body) }),
+  updateExpense: (
+    id: string,
+    body: Partial<{ vendor: string; description: string; amount: number; expenseDate: string; notes: string; attachmentUrl: string }>
+  ) => request<Expense>(`/finance/expenses/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  removeExpense: (id: string) => request<void>(`/finance/expenses/${id}`, { method: 'DELETE' }),
+  submitExpense: (id: string) => request<Expense>(`/finance/expenses/${id}/submit`, { method: 'POST' }),
+  approveExpense: (id: string) => request<Expense>(`/finance/expenses/${id}/approve`, { method: 'POST' }),
+  rejectExpense: (id: string, reason: string) =>
+    request<Expense>(`/finance/expenses/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  returnExpense: (id: string, reason: string) =>
+    request<Expense>(`/finance/expenses/${id}/return`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  cancelExpense: (id: string, reason: string) =>
+    request<Expense>(`/finance/expenses/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  payExpense: (id: string, body: { paymentMethod: PaymentMethod; paymentReference?: string }) =>
+    request<Expense>(`/finance/expenses/${id}/pay`, { method: 'POST', body: JSON.stringify(body) }),
+
+  listSuppliers: (schoolId?: string) => request<Supplier[]>(`/finance/suppliers${schoolId ? `?schoolId=${schoolId}` : ''}`),
+  createSupplier: (body: {
+    schoolId?: string;
+    name: string;
+    contactName?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    taxId?: string;
+    bankDetails?: string;
+  }) => request<Supplier>('/finance/suppliers', { method: 'POST', body: JSON.stringify(body) }),
+  updateSupplier: (id: string, body: Partial<Omit<Supplier, 'id' | 'schoolId' | 'createdAt'>>) =>
+    request<Supplier>(`/finance/suppliers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listSupplierInvoices: (params?: { schoolId?: string; status?: string; supplierId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.schoolId) q.set('schoolId', params.schoolId);
+    if (params?.status) q.set('status', params.status);
+    if (params?.supplierId) q.set('supplierId', params.supplierId);
+    const s = q.toString();
+    return request<SupplierInvoice[]>(`/finance/supplier-invoices${s ? `?${s}` : ''}`);
+  },
+  getSupplierInvoice: (id: string) => request<SupplierInvoice>(`/finance/supplier-invoices/${id}`),
+  createSupplierInvoice: (body: {
+    schoolId?: string;
+    supplierId: string;
+    department: string;
+    accountId: string;
+    invoiceNumber: string;
+    poReference?: string;
+    invoiceDate: string;
+    dueDate: string;
+    subtotal: number;
+    taxAmount?: number;
+    currency?: string;
+    notes?: string;
+    attachmentUrl?: string;
+  }) => request<SupplierInvoice>('/finance/supplier-invoices', { method: 'POST', body: JSON.stringify(body) }),
+  submitSupplierInvoice: (id: string) =>
+    request<SupplierInvoice>(`/finance/supplier-invoices/${id}/submit`, { method: 'POST' }),
+  approveSupplierInvoice: (id: string) =>
+    request<SupplierInvoice>(`/finance/supplier-invoices/${id}/approve`, { method: 'POST' }),
+  rejectSupplierInvoice: (id: string, reason: string) =>
+    request<SupplierInvoice>(`/finance/supplier-invoices/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  cancelSupplierInvoice: (id: string, reason: string) =>
+    request<SupplierInvoice>(`/finance/supplier-invoices/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  recordSupplierPayment: (id: string, body: { amount: number; method: PaymentMethod; reference?: string; notes?: string }) =>
+    request<SupplierInvoice>(`/finance/supplier-invoices/${id}/payments`, { method: 'POST', body: JSON.stringify(body) }),
 
   portalChildren: () => request<Record<string, unknown>[]>('/portal/children'),
   portalAnnouncements: (schoolId?: string) =>
@@ -571,6 +842,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ verified }),
     }),
+
+  // Registrar Engine additions: audit trail, bulk import, grade promotion
+  listAuditLogs: (params?: {
+    entityType?: string;
+    entityTypes?: string;
+    entityId?: string;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.entityType) q.set('entityType', params.entityType);
+    if (params?.entityTypes) q.set('entityTypes', params.entityTypes);
+    if (params?.entityId) q.set('entityId', params.entityId);
+    if (params?.limit) q.set('limit', String(params.limit));
+    const s = q.toString();
+    return request<AuditLogEntry[]>(`/registrar/audit-logs${s ? `?${s}` : ''}`);
+  },
+  bulkCreateStudents: (body: { schoolId: string; rows: Record<string, unknown>[] }) =>
+    request<{
+      created: import('@/lib/mockData').Student[];
+      errors: { row: number; message: string }[];
+    }>('/registrar/students/bulk', { method: 'POST', body: JSON.stringify(body) }),
+  promoteStudents: (body: { schoolId: string; fromGrade: string; toGrade: string; studentIds?: string[] }) =>
+    request<{ promoted: number; students: import('@/lib/mockData').Student[] }>(
+      '/registrar/students/promote',
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
   listReenrollmentCampaigns: (schoolId?: string) =>
     request<{ id: string; title: string; inviteCount: number; confirmedCount: number; status: string }[]>(
       `/portal/reenroll/campaigns${schoolId ? `?schoolId=${schoolId}` : ''}`
@@ -703,6 +1000,280 @@ export interface AdmissionApplication {
   editLocked?: boolean;
   waitlistRank?: number | null;
   waitlistStatus?: string | null;
+  documents?: ApplicationDocument[];
+  formTemplateId?: string;
+}
+
+export interface RegistrationFormField {
+  key: string;
+  label: string;
+  type?: string;
+  required?: boolean;
+}
+
+export interface RegistrationFormTemplate {
+  id: string;
+  schoolId: string;
+  name: string;
+  description?: string;
+  code: string;
+  fields: RegistrationFormField[];
+  requiredDocuments: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApplicationDocument {
+  id: string;
+  docType: string;
+  fileName: string;
+  fileUrl: string;
+  verified: boolean;
+  scanStatus?: string;
+  uploadedAt?: string;
+}
+
+export interface GradeSectionCapacity {
+  id: string;
+  grade: string;
+  section: string;
+  capacity: number;
+  reserved_count: number;
+  enrolled_count: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorName?: string;
+  actorEmail?: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface FinancialYear {
+  id: string;
+  schoolId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'draft' | 'active' | 'closed';
+  createdAt: string;
+}
+
+export interface FinancialPeriod {
+  id: string;
+  financialYearId: string;
+  schoolId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'open' | 'closed';
+  closedAt?: string | null;
+  closedBy?: string | null;
+}
+
+export interface FinanceAccount {
+  id: string;
+  schoolId: string;
+  code: string;
+  name: string;
+  accountType: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+  normalBalance: 'debit' | 'credit';
+  parentId?: string | null;
+  isActive: boolean;
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface FinanceDashboardSummary {
+  schoolId: string;
+  activeFinancialYear: FinancialYear | null;
+  revenue: {
+    total: number;
+    monthlyTrend: { name: string; total: number }[];
+  };
+  receivables: {
+    outstandingAmount: number;
+    overdueAmount: number;
+    overdueCount: number;
+    collectionRate: number;
+    buckets: {
+      d0_30: { count: number; amount: number };
+      d31_60: { count: number; amount: number };
+      d61_90: { count: number; amount: number };
+      d90_plus: { count: number; amount: number };
+    };
+  };
+  payroll: {
+    currentMonth: string;
+    totalNetPay: number;
+  };
+}
+
+export type BudgetStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'returned' | 'closed';
+
+export interface Budget {
+  id: string;
+  schoolId: string;
+  financialYearId: string;
+  name: string;
+  status: BudgetStatus;
+  version: number;
+  revisedFromBudgetId?: string | null;
+  notes?: string | null;
+  createdBy?: string | null;
+  submittedAt?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  decisionReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BudgetLine {
+  id: string;
+  budgetId: string;
+  schoolId: string;
+  department: string;
+  accountId: string;
+  accountCode?: string;
+  accountName?: string;
+  allocatedAmount: number;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface BudgetTransfer {
+  id: string;
+  schoolId: string;
+  budgetId: string;
+  fromLineId: string;
+  toLineId: string;
+  amount: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requestedBy?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  decisionReason?: string | null;
+  createdAt: string;
+}
+
+export interface BudgetWithLines extends Budget {
+  lines: BudgetLine[];
+  transfers: BudgetTransfer[];
+}
+
+export interface BudgetLineUtilization extends BudgetLine {
+  committed: number;
+  actual: number;
+  remaining: number;
+  variance: number;
+  utilizationPct: number;
+  actualTrackingAvailable: boolean;
+}
+
+export interface BudgetUtilization {
+  budget: Budget & { transfers: BudgetTransfer[] };
+  lines: BudgetLineUtilization[];
+  totals: {
+    allocated: number;
+    committed: number;
+    actual: number;
+    remaining: number;
+    utilizationPct: number;
+  };
+}
+
+export type ExpenseStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'returned' | 'paid' | 'cancelled';
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque';
+
+export interface Expense {
+  id: string;
+  schoolId: string;
+  financialYearId?: string | null;
+  department: string;
+  accountId: string;
+  accountCode?: string;
+  accountName?: string;
+  budgetLineId?: string | null;
+  vendor?: string | null;
+  description: string;
+  amount: number;
+  expenseDate: string;
+  status: ExpenseStatus;
+  attachmentUrl?: string | null;
+  notes?: string | null;
+  requestedBy?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  decisionReason?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  paymentReference?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Supplier {
+  id: string;
+  schoolId: string;
+  name: string;
+  contactName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  taxId?: string | null;
+  bankDetails?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type SupplierInvoiceStatus = 'draft' | 'submitted' | 'approved' | 'rejected' | 'partially_paid' | 'paid' | 'cancelled';
+
+export interface SupplierPayment {
+  id: string;
+  schoolId: string;
+  supplierInvoiceId: string;
+  amount: number;
+  method: PaymentMethod;
+  reference?: string | null;
+  paidAt: string;
+  recordedBy?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface SupplierInvoice {
+  id: string;
+  schoolId: string;
+  supplierId: string;
+  supplierName?: string;
+  financialYearId?: string | null;
+  department: string;
+  accountId: string;
+  accountCode?: string;
+  accountName?: string;
+  budgetLineId?: string | null;
+  invoiceNumber: string;
+  poReference?: string | null;
+  invoiceDate: string;
+  dueDate: string;
+  currency: string;
+  subtotal: number;
+  taxAmount: number;
+  amountPaid: number;
+  balanceDue: number;
+  status: SupplierInvoiceStatus;
+  attachmentUrl?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  payments?: SupplierPayment[];
 }
 
 export interface Invoice {

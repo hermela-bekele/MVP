@@ -16,7 +16,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function statusDot(status?: string) {
   if (status === 'Present') return 'bg-primary shadow-sm shadow-primary/30';
-  if (status === 'Late') return 'bg-amber-500';
+  if (status === 'Late') return 'bg-warning';
   if (status === 'Absent') return 'bg-destructive';
   return 'bg-transparent';
 }
@@ -82,7 +82,7 @@ export function ParentAttendanceCalendar({
         </div>
         <div className="rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Late</p>
-          <p className="mt-1 text-2xl font-bold text-amber-600">{late}</p>
+          <p className="mt-1 text-2xl font-bold text-warning">{late}</p>
         </div>
         <div className="rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Absent</p>
@@ -111,7 +111,7 @@ export function ParentAttendanceCalendar({
               <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Present
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Late
+              <span className="h-2.5 w-2.5 rounded-full bg-warning" /> Late
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-destructive" /> Absent

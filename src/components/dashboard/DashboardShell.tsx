@@ -21,7 +21,7 @@ export interface DashboardShellProps {
   animateTabs?: boolean;
   /** Hide the built-in page title block (e.g. when a tab has its own hero) */
   showPageHeader?: boolean;
-  /** Page header visual style */
+  /** Page header visual style — see PageHeaderProps.variant for when to use each */
   headerVariant?: 'default' | 'portal';
   /** Hide the top navbar's global search / command-palette trigger */
   hideSearch?: boolean;
@@ -82,7 +82,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             headerVariant === 'portal' ? ' bg-dashboard-bg teacher-portal' : ''
           }`}
         >
-          <div className="mx-auto w-full max-w-[1400px] py-5 sm:py-6">
+          <div className="w-full py-4 sm:py-5">
             {animateTabs ? (
               <PageTransition transitionKey={activeTab}>{content}</PageTransition>
             ) : (

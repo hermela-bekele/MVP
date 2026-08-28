@@ -177,7 +177,7 @@ export const TeacherAttendanceTab: React.FC = () => {
       >
         <AisTable>
           <thead>
-            <tr className="bg-ais-surface-container-low">
+            <tr className="bg-muted">
               <AisTh>Student</AisTh>
               <AisTh>Grade</AisTh>
               <AisTh>Section</AisTh>

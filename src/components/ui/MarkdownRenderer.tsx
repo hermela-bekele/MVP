@@ -33,39 +33,39 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             <h2 className="text-xl font-semibold text-title mb-3 mt-6 first:mt-0 pb-1 border-b border-ais-card-border/60" {...props} />
           ),
           h3: ({ node: _node, ...props }) => (
-            <h3 className="text-lg font-semibold text-ais-primary mb-2 mt-4" {...props} />
+            <h3 className="text-lg font-semibold text-primary mb-2 mt-4" {...props} />
           ),
           h4: ({ node: _node, ...props }) => (
             <h4 className="text-base font-semibold text-title mb-2 mt-3" {...props} />
           ),
           p: ({ node: _node, ...props }) => (
-            <p className="text-sm text-ais-on-surface-variant leading-relaxed mb-3" {...props} />
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3" {...props} />
           ),
           ul: ({ node: _node, ...props }) => (
-            <ul className="list-disc list-outside ml-5 space-y-1.5 mb-4 text-sm text-ais-on-surface-variant" {...props} />
+            <ul className="list-disc list-outside ml-5 space-y-1.5 mb-4 text-sm text-muted-foreground" {...props} />
           ),
           ol: ({ node: _node, ...props }) => (
-            <ol className="list-decimal list-outside ml-5 space-y-1.5 mb-4 text-sm text-ais-on-surface-variant" {...props} />
+            <ol className="list-decimal list-outside ml-5 space-y-1.5 mb-4 text-sm text-muted-foreground" {...props} />
           ),
           li: ({ node: _node, ...props }) => (
             <li className="leading-relaxed pl-1" {...props} />
           ),
           strong: ({ node: _node, ...props }) => (
-            <strong className="font-bold text-ais-on-surface" {...props} />
+            <strong className="font-bold text-foreground" {...props} />
           ),
           em: ({ node: _node, ...props }) => (
-            <em className="italic text-ais-on-surface" {...props} />
+            <em className="italic text-foreground" {...props} />
           ),
           code: ({ node: _node, inline, className: _className, children, ...props }: any) => {
             if (inline) {
               return (
-                <code className="px-1.5 py-0.5 rounded bg-ais-surface-container-low text-ais-primary text-xs font-mono" {...props}>
+                <code className="px-1.5 py-0.5 rounded bg-muted text-primary text-xs font-mono" {...props}>
                   {children}
                 </code>
               );
             }
             return (
-              <code className="block p-4 rounded-lg bg-ais-surface-container-low text-ais-on-surface text-xs font-mono overflow-x-auto border border-ais-card-border my-3" {...props}>
+              <code className="block p-4 rounded-lg bg-muted text-foreground text-xs font-mono overflow-x-auto border border-border my-3" {...props}>
                 {children}
               </code>
             );
@@ -74,10 +74,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             <pre className="my-3" {...props} />
           ),
           blockquote: ({ node: _node, ...props }) => (
-            <blockquote className="border-l-4 border-ais-primary pl-4 py-2 my-4 bg-ais-primary/5 rounded-r-lg" {...props} />
+            <blockquote className="border-l-4 border-primary pl-4 py-2 my-4 bg-primary/5 rounded-r-lg" {...props} />
           ),
           a: ({ node: _node, ...props }) => (
-            <a className="text-ais-primary hover:text-ais-primary/80 underline" {...props} />
+            <a className="text-primary hover:text-primary/80 underline" {...props} />
           ),
           table: ({ node: _node, ...props }) => (
             <div className="overflow-x-auto my-6">
@@ -85,22 +85,22 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, cla
             </div>
           ),
           thead: ({ node: _node, ...props }) => (
-            <thead className="bg-ais-primary/10" {...props} />
+            <thead className="bg-primary/10" {...props} />
           ),
           th: ({ node: _node, ...props }) => (
-            <th className="px-6 py-4 text-left text-sm font-bold text-ais-primary border-b-2 border-ais-primary/20" {...props} />
+            <th className="px-6 py-4 text-left text-sm font-bold text-primary border-b-2 border-primary/20" {...props} />
           ),
           tbody: ({ node: _node, ...props }) => (
-            <tbody className="bg-white" {...props} />
+            <tbody className="bg-card" {...props} />
           ),
           tr: ({ node: _node, ...props }) => (
-            <tr className="border-b border-ais-card-border hover:bg-ais-surface-container-low/50 transition-colors" {...props} />
+            <tr className="border-b border-border hover:bg-muted/50 transition-colors" {...props} />
           ),
           td: ({ node: _node, ...props }) => (
-            <td className="px-6 py-4 text-sm text-ais-on-surface-variant" {...props} />
+            <td className="px-6 py-4 text-sm text-muted-foreground" {...props} />
           ),
           hr: ({ node: _node, ...props }) => (
-            <hr className="my-6 border-t border-ais-card-border" {...props} />
+            <hr className="my-6 border-t border-border" {...props} />
           ),
         }}
       >

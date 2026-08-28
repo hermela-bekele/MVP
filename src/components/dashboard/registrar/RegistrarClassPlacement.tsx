@@ -1,22 +1,37 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, REGISTRAR_SECTION_OPTIONS } from '@/lib/registrarPortal';
+import { api, type GradeSectionCapacity } from '@/lib/api';
+import { readStoredSession } from '@/lib/auth';
 import { gpaToMark } from '@/lib/grading';
+
+const DEFAULT_SECTION_CAPACITY = 40; // matches grade_section_capacity's DB column default
 
 export const RegistrarClassPlacement: React.FC = () => {
   const { students, updateStudent } = useApp();
   const schoolStudents = filterSchoolStudents(students).filter((s) => s.status === 'Active');
+  const session = readStoredSession();
+  const schoolId = session?.schoolId || 'sch-1';
 
   const [selectedGrade, setSelectedGrade] = useState('Grade 9');
   const [placementStudentId, setPlacementStudentId] = useState<string | null>(null);
   const [newSection, setNewSection] = useState('A');
+  const [capacityRows, setCapacityRows] = useState<GradeSectionCapacity[]>([]);
+
+  useEffect(() => {
+    api
+      .listCapacity(schoolId)
+      .then(setCapacityRows)
+      .catch(() => setCapacityRows([]));
+  }, [schoolId]);
 
   const gradeStudents = useMemo(
     () => schoolStudents.filter((s) => s.grade === selectedGrade),
@@ -30,6 +45,10 @@ export const RegistrarClassPlacement: React.FC = () => {
     }
     return counts;
   }, [gradeStudents]);
+
+  const capacityFor = (section: string): number =>
+    capacityRows.find((r) => r.grade === selectedGrade && r.section === section)?.capacity ??
+    DEFAULT_SECTION_CAPACITY;
 
   const handlePlacement = () => {
     if (!placementStudentId) return;
@@ -59,7 +78,7 @@ export const RegistrarClassPlacement: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {REGISTRAR_SECTION_OPTIONS.map((section) => {
           const count = sectionCounts[section] ?? 0;
-          const capacity = 45;
+          const capacity = capacityFor(section);
           const utilization = Math.round((count / capacity) * 100);
           return (
             <Card key={section} className="border-border/60">
@@ -138,17 +157,14 @@ export const RegistrarClassPlacement: React.FC = () => {
           </p>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">New Section</label>
-            <select
+            <Select
+              options={REGISTRAR_SECTION_OPTIONS.map((s) => ({
+                value: s,
+                label: `Section ${s} (${sectionCounts[s] ?? 0} students)`,
+              }))}
               value={newSection}
               onChange={(e) => setNewSection(e.target.value)}
-              className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs"
-            >
-              {REGISTRAR_SECTION_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  Section {s} ({sectionCounts[s] ?? 0} students)
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <DialogFooter className="border-t border-border/20 pt-4">
             <Button variant="outline" size="sm" onClick={() => setPlacementStudentId(null)} className="text-xs h-9">Cancel</Button>

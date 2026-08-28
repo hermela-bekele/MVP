@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
@@ -10,18 +11,10 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Teacher } from '@/lib/mockData';
+import { DetailField } from '@/components/dashboard/shared/DetailField';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
-
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
-      <p className="text-xs font-medium text-foreground">{value ?? '—'}</p>
-    </div>
-  );
-}
 
 function subjectToDeptId(subject: string) {
   if (subject === 'Mathematics') return 'dept-math';
@@ -30,6 +23,7 @@ function subjectToDeptId(subject: string) {
 }
 
 export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
+  const router = useRouter();
   const { teachers, addTeacher, updateTeacher, toggleTeacherStatus } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
@@ -106,7 +100,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
     setEmployeeName('');
     setEmployeeEmail('');
     setEmployeePhone('');
-    
+
     // Close Modal
     setIsModalOpen(false);
   };
@@ -196,7 +190,11 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => openEmployeeView(row)}
+            onClick={() =>
+              readOnly
+                ? router.push(`/dashboard/school-head/manage-employees/${row.id}`)
+                : openEmployeeView(row)
+            }
             className="text-[10px] h-7 px-2"
           >
             View
@@ -221,6 +219,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
     <div className="space-y-6 animate-fade-in">
       <TablePanel
         title="Instructional Staff Roster"
+        description="Monitor educational practitioners and curriculum licenses"
       >
           <DataTable<Teacher>
             columns={employeeColumns}
@@ -240,7 +239,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
         size="lg"
       >
         <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2">
-          
+
           {/* Section 1 */}
           <div className="space-y-2.5">
             <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Employee Coordinates</h4>
@@ -380,18 +379,18 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
             <div className="space-y-2.5">
               <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Contact & credentials</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <DetailRow label="Email" value={detailTeacher.email} />
-                <DetailRow label="Mobile phone" value={detailTeacher.phone} />
-                <DetailRow label="MOE license" value={detailTeacher.certification} />
+                <DetailField label="Email" value={detailTeacher.email} />
+                <DetailField label="Mobile phone" value={detailTeacher.phone} />
+                <DetailField label="MOE license" value={detailTeacher.certification} />
               </div>
             </div>
 
             <div className="space-y-2.5">
               <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">Instructional allocation</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <DetailRow label="Primary subject" value={detailTeacher.subjects.join(', ')} />
-                <DetailRow label="Grade levels" value={detailTeacher.grades.join(', ')} />
-                <DetailRow label="MOE training progress" value={`${detailTeacher.trainingProgress}%`} />
+                <DetailField label="Primary subject" value={detailTeacher.subjects.join(', ')} />
+                <DetailField label="Grade levels" value={detailTeacher.grades.join(', ')} />
+                <DetailField label="MOE training progress" value={`${detailTeacher.trainingProgress}%`} />
               </div>
             </div>
 

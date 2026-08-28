@@ -1,66 +1,51 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select } from '@/components/ui/select';
 import { Avatar } from '@/components/ui/avatar';
 import { DataTable } from '@/components/ui/data-table';
-import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Student } from '@/lib/mockData';
-import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
+import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, statusBadgeVariant } from '@/lib/registrarPortal';
+import { toCsv, downloadCsv } from '@/lib/csvExport';
 import { gpaToMark } from '@/lib/grading';
 
-const inputClass =
-  'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
-
 export const RegistrarStudentRegistry: React.FC = () => {
-  const { students, updateStudent } = useApp();
+  const router = useRouter();
+  const { students } = useApp();
   const schoolStudents = filterSchoolStudents(students);
 
-  const [detailStudent, setDetailStudent] = useState<Student | null>(null);
-  const [detailMode, setDetailMode] = useState<'view' | 'edit' | null>(null);
+  const [statusFilter, setStatusFilter] = useState<Student['status'] | 'All'>('All');
+  const [gradeFilter, setGradeFilter] = useState<string>('All');
 
-  const [studentName, setStudentName] = useState('');
-  const [studentGrade, setStudentGrade] = useState('Grade 9');
-  const [studentSection, setStudentSection] = useState('A');
-  const [parentName, setParentName] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
-  const [parentEmail, setParentEmail] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState('');
-  const [medicalInfo, setMedicalInfo] = useState('');
-  const [studentStatus, setStudentStatus] = useState<Student['status']>('Active');
+  const filteredStudents = useMemo(
+    () =>
+      schoolStudents.filter(
+        (s) =>
+          (statusFilter === 'All' || s.status === statusFilter) &&
+          (gradeFilter === 'All' || s.grade === gradeFilter)
+      ),
+    [schoolStudents, statusFilter, gradeFilter]
+  );
 
-  const loadForm = (student: Student) => {
-    setStudentName(student.name);
-    setStudentGrade(student.grade);
-    setStudentSection(student.section);
-    setParentName(student.parentName);
-    setParentPhone(student.parentPhone);
-    setParentEmail(student.parentEmail ?? '');
-    setEmergencyContact(student.emergencyContact);
-    setMedicalInfo(student.medicalInfo ?? '');
-    setStudentStatus(student.status);
-  };
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!detailStudent) return;
-    updateStudent(detailStudent.id, {
-      name: studentName,
-      grade: studentGrade,
-      section: studentSection,
-      parentName,
-      parentPhone,
-      parentEmail,
-      emergencyContact,
-      medicalInfo,
-      status: studentStatus,
-    });
-    setDetailStudent(null);
-    setDetailMode(null);
+  const handleExport = () => {
+    const csv = toCsv(filteredStudents, [
+      { key: 'studentId', header: 'Student ID' },
+      { key: 'name', header: 'Name' },
+      { key: 'grade', header: 'Grade' },
+      { key: 'section', header: 'Section' },
+      { key: 'status', header: 'Status' },
+      { key: 'gpa', header: 'GPA' },
+      { key: 'attendanceRate', header: 'Attendance %' },
+      { key: 'parentName', header: 'Parent' },
+      { key: 'parentPhone', header: 'Parent Phone' },
+    ]);
+    downloadCsv('student-registry.csv', csv);
   };
 
   const columns: DataTableColumn<Student>[] = [
@@ -119,19 +104,10 @@ export const RegistrarStudentRegistry: React.FC = () => {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => { setDetailStudent(row); loadForm(row); setDetailMode('view'); }}
+            onClick={() => router.push(`/dashboard/registrar/student-registry/${row.id}`)}
             className="text-[10px] h-7 px-2"
           >
-            View
-          </Button>
-          <Button
-            type="button"
-            variant="organic"
-            size="sm"
-            onClick={() => { setDetailStudent(row); loadForm(row); setDetailMode('edit'); }}
-            className="text-[10px] h-7 px-2 border-none"
-          >
-            Edit
+            View / Edit
           </Button>
         </div>
       ),
@@ -143,81 +119,51 @@ export const RegistrarStudentRegistry: React.FC = () => {
       <TablePanel
         title="Official Student Registry"
       >
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="w-40">
+            <Select
+              options={[
+                { value: 'All', label: 'All statuses' },
+                { value: 'Active', label: 'Active' },
+                { value: 'Suspended', label: 'Suspended' },
+                { value: 'Transferred', label: 'Transferred' },
+                { value: 'Graduated', label: 'Graduated' },
+              ]}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as Student['status'] | 'All')}
+            />
+          </div>
+          <div className="w-36">
+            <Select
+              options={[
+                { value: 'All', label: 'All grades' },
+                ...REGISTRAR_GRADE_OPTIONS.map((g) => ({ value: g, label: g })),
+              ]}
+              value={gradeFilter}
+              onChange={(e) => setGradeFilter(e.target.value)}
+            />
+          </div>
+          {(statusFilter !== 'All' || gradeFilter !== 'All') && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-9"
+              onClick={() => { setStatusFilter('All'); setGradeFilter('All'); }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
         <DataTable<Student>
           columns={columns}
-          data={schoolStudents}
+          data={filteredStudents}
           searchable
           searchKeys={['name', 'studentId', 'parentName', 'grade']}
           pageSize={12}
+          onExport={handleExport}
         />
       </TablePanel>
-
-      <Dialog
-        isOpen={!!detailStudent && !!detailMode}
-        onClose={() => { setDetailStudent(null); setDetailMode(null); }}
-        title={detailMode === 'view' ? 'Student Record' : 'Edit Student Record'}
-        size="lg"
-      >
-        {detailStudent && detailMode === 'view' && (
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Name</p><p className="text-xs font-medium">{detailStudent.name}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Student ID</p><p className="text-xs font-mono">{detailStudent.studentId}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Grade</p><p className="text-xs font-medium">{detailStudent.grade} · {detailStudent.section}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Status</p><Badge variant={statusBadgeVariant(detailStudent.status)} size="sm">{detailStudent.status}</Badge></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Mark</p><p className="text-xs font-medium">{gpaToMark(detailStudent.gpa)}%</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Attendance</p><p className="text-xs font-medium">{detailStudent.attendanceRate}%</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Parent</p><p className="text-xs font-medium">{detailStudent.parentName}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Phone</p><p className="text-xs font-medium">{detailStudent.parentPhone}</p></div>
-              <div><p className="text-[10px] font-bold text-muted-foreground uppercase">Email</p><p className="text-xs font-medium">{detailStudent.parentEmail || '—'}</p></div>
-            </div>
-            <DialogFooter className="border-t border-border/20 pt-4">
-              <Button variant="outline" size="sm" onClick={() => setDetailMode('edit')} className="text-xs h-9">Edit Record</Button>
-              <Button variant="outline" size="sm" onClick={() => { setDetailStudent(null); setDetailMode(null); }} className="text-xs h-9">Close</Button>
-            </DialogFooter>
-          </div>
-        )}
-
-        {detailStudent && detailMode === 'edit' && (
-          <form onSubmit={handleSave} className="space-y-4 pt-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Name</label>
-                <input type="text" required value={studentName} onChange={(e) => setStudentName(e.target.value)} className={inputClass} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>
-                <select value={studentStatus} onChange={(e) => setStudentStatus(e.target.value as Student['status'])} className={inputClass}>
-                  <option value="Active">Active</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Transferred">Transferred</option>
-                  <option value="Graduated">Graduated</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Grade</label>
-                <select value={studentGrade} onChange={(e) => setStudentGrade(e.target.value)} className={inputClass}>
-                  {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Section</label>
-                <select value={studentSection} onChange={(e) => setStudentSection(e.target.value)} className={inputClass}>
-                  {['A', 'B', 'C', 'D'].map((s) => (
-                    <option key={s} value={s}>Section {s}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <DialogFooter className="border-t border-border/20 pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDetailMode('view')} className="text-xs h-9">Cancel</Button>
-              <Button type="submit" variant="organic" size="sm" className="text-xs h-9 border-none">Save Changes</Button>
-            </DialogFooter>
-          </form>
-        )}
-      </Dialog>
     </div>
   );
 };

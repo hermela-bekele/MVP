@@ -29,12 +29,12 @@ import {
   AisTr,
   aisTextarea,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { aisBodySm } from '@/components/dashboard/teacher/aisStyles';
+import { aisBodyMd, aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 
-type SubTab = 'roster' | 'gradebook';
+type SubTab = 'roster' | 'gradebook' | 'parents';
 
 export const TeacherStudentsTab: React.FC = () => {
-  const { students, sendParentMessage, studentGradeEntries, resolveTeacherId } = useApp();
+  const { students, sendParentMessage, parentMessages, studentGradeEntries, resolveTeacherId } = useApp();
   const teacherId = resolveTeacherId();
 
   const [subTab, setSubTab] = useState<SubTab>('roster');
@@ -57,6 +57,7 @@ export const TeacherStudentsTab: React.FC = () => {
     if (!query) return base;
     return base.filter((std) => std.name.toLowerCase().includes(query));
   }, [students, grade, section, nameQuery]);
+  const myMessages = parentMessages.filter((m) => m.teacherId === teacherId);
   const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries, teacherId);
   const selectedStudent = roster.find((s) => s.id === messageStudentId);
 
@@ -81,6 +82,7 @@ export const TeacherStudentsTab: React.FC = () => {
         tabs={[
           { id: 'roster', label: 'Class roster' },
           { id: 'gradebook', label: 'Gradebook' },
+          { id: 'parents', label: 'Parent messages' },
         ]}
       />
 
@@ -178,6 +180,34 @@ export const TeacherStudentsTab: React.FC = () => {
             </AisPanel>
           )}
 
+          {subTab === 'parents' && (
+            <AisPanel title="Parent messages" flush>
+              <AisTable>
+                <thead>
+                  <tr className="bg-ais-surface-container-low">
+                    <AisTh>Student</AisTh>
+                    <AisTh>Parent</AisTh>
+                    <AisTh>Message</AisTh>
+                    <AisTh>Sent</AisTh>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myMessages.length === 0 ? (
+                    <AisEmptyRow colSpan={4} message="No messages sent yet." />
+                  ) : (
+                    myMessages.map((m) => (
+                      <AisTr key={m.id}>
+                        <AisTd className="font-semibold">{m.studentName}</AisTd>
+                        <AisTd>{m.parentName}</AisTd>
+                        <AisTd className="max-w-md text-xs">{m.message}</AisTd>
+                        <AisTd className={aisBodyMd}>{m.sentAt}</AisTd>
+                      </AisTr>
+                    ))
+                  )}
+                </tbody>
+              </AisTable>
+            </AisPanel>
+          )}
         </>
       )}
 

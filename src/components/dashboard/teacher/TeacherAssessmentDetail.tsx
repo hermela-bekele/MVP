@@ -5,6 +5,7 @@ import { Download, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
@@ -62,7 +63,8 @@ interface TeacherAssessmentDetailProps {
 export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = ({
   assessmentId,
 }) => {
-  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers } = useApp();
+  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers, addNotification } = useApp();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(
     teachers,
@@ -98,7 +100,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
       );
     } catch (error) {
       console.error('Failed to generate PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      addNotification('PDF Generation Failed', 'Could not generate the PDF — please try again.', 'alert');
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -179,9 +181,14 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
     closeDialog();
   };
 
-  const handleDelete = (questionId: number) => {
+  const handleDelete = async (questionId: number) => {
     if (!assessment) return;
-    if (!window.confirm('Delete this question?')) return;
+    const ok = await confirm('Delete this question?', {
+      description: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     const updated = assessment.questions.filter((q) => q.id !== questionId);
     updateAssessmentQuestions(assessment.id, updated);
   };
@@ -514,6 +521,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
           </DialogFooter>
         </form>
       </Dialog>
+      {ConfirmDialog}
     </AisPage>
   );
 };

@@ -85,6 +85,9 @@ export interface Student {
   attendanceRate: number;
   medicalInfo?: string;
   emergencyContact: string;
+  dateOfBirth?: string;
+  academicYear?: string;
+  promotedAt?: string;
 }
 
 export type RegistrationApplicationStatus =
@@ -1078,6 +1081,35 @@ export interface TrainingMaterial {
   subject?: string;
   disseminated?: boolean;
   uploadedAt: string;
+}
+
+export type TrainingPlanType = 'continuous_development' | 'in_person';
+export type TrainingPlanStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+
+// A training HR has scheduled — a Continuous Development track or an In-Person
+// session — assignable to individual teachers or a whole academic team (department).
+export interface TrainingPlan {
+  id: string;
+  title: string;
+  description?: string;
+  type: TrainingPlanType;
+  startDate: string;
+  endDate?: string;
+  location?: string;
+  facilitator?: string;
+  status: TrainingPlanStatus;
+  createdByName: string;
+  createdAt: string;
+}
+
+export interface TrainingPlanAssignment {
+  id: string;
+  trainingPlanId: string;
+  targetType: 'teacher' | 'department';
+  teacherId?: string;
+  departmentId?: string;
+  assignedByName: string;
+  createdAt: string;
 }
 
 export interface TeachingNote {

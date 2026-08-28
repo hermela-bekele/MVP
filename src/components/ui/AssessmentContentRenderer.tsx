@@ -84,7 +84,7 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
           {categoryLabel.split('·').map((part) => (
             <span
               key={part}
-              className="inline-flex items-center rounded-full bg-ais-primary/10 px-2.5 py-0.5 text-xs font-semibold text-ais-primary"
+              className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
             >
               {part.trim()}
             </span>
@@ -97,7 +97,7 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
         components={{
           h1: ({ ...props }) => (
             <h1
-              className="mb-4 mt-2 border-b border-ais-card-border pb-3 text-2xl font-bold text-ais-on-surface"
+              className="mb-4 mt-2 border-b border-border pb-3 text-2xl font-bold text-foreground"
               {...props}
             />
           ),
@@ -109,7 +109,7 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
                 className={`mb-3 mt-8 flex items-center gap-2 border-b pb-2 text-xl font-bold first:mt-0 ${
                   answerKey
                     ? 'border-emerald-500/40 text-emerald-800 dark:text-emerald-300'
-                    : 'border-ais-card-border/60 text-ais-on-surface'
+                    : 'border-border/60 text-foreground'
                 }`}
                 {...props}
               >
@@ -124,8 +124,8 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
               <h3
                 className={`mb-3 mt-6 text-base font-bold ${
                   isSection
-                    ? 'rounded-lg bg-ais-primary/10 px-3 py-2 text-ais-primary'
-                    : 'text-ais-on-surface'
+                    ? 'rounded-lg bg-primary/10 px-3 py-2 text-primary'
+                    : 'text-foreground'
                 }`}
                 {...props}
               >
@@ -138,7 +138,7 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
             if (isFillBlankLine(text)) {
               return (
                 <div
-                  className="my-3 min-h-[2rem] border-b-2 border-dashed border-ais-on-surface-variant/40"
+                  className="my-3 min-h-[2rem] border-b-2 border-dashed border-muted-foreground/40"
                   aria-label="Answer blank"
                 />
               );
@@ -155,7 +155,7 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
             if (isQuestionLead(text)) {
               return (
                 <p
-                  className="mb-2 mt-5 rounded-lg border border-ais-card-border/70 bg-ais-surface-container-low/40 px-3 py-2.5 text-sm font-medium leading-relaxed text-ais-on-surface"
+                  className="mb-2 mt-5 rounded-lg border border-border/70 bg-muted/40 px-3 py-2.5 text-sm font-medium leading-relaxed text-foreground"
                   {...props}
                 >
                   {children}
@@ -165,7 +165,7 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
             if (isOptionLine(text)) {
               return (
                 <p
-                  className="mb-1 ml-3 rounded-md border border-transparent px-2 py-1 text-sm text-ais-on-surface-variant hover:border-ais-card-border/50"
+                  className="mb-1 ml-3 rounded-md border border-transparent px-2 py-1 text-sm text-muted-foreground hover:border-border/50"
                   {...props}
                 >
                   {children}
@@ -183,16 +183,16 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
               );
             }
             return (
-              <p className="mb-2 text-sm leading-relaxed text-ais-on-surface-variant" {...props}>
+              <p className="mb-2 text-sm leading-relaxed text-muted-foreground" {...props}>
                 {children}
               </p>
             );
           },
           ol: ({ ...props }) => (
-            <ol className="mb-4 list-decimal space-y-4 pl-6 text-sm text-ais-on-surface" {...props} />
+            <ol className="mb-4 list-decimal space-y-4 pl-6 text-sm text-foreground" {...props} />
           ),
           ul: ({ ...props }) => (
-            <ul className="mb-4 list-disc space-y-1.5 pl-5 text-sm text-ais-on-surface-variant" {...props} />
+            <ul className="mb-4 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground" {...props} />
           ),
           li: ({ children, ...props }) => (
             <li className="mb-4 leading-relaxed [&>.katex-display]:my-3 [&_p]:mb-2" {...props}>
@@ -210,23 +210,23 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
             }
             if (/^q(?:uestion)?\s*\d+$/i.test(text.trim())) {
               return (
-                <strong className="mr-1 font-bold text-ais-primary" {...props}>
+                <strong className="mr-1 font-bold text-primary" {...props}>
                   {children}
                 </strong>
               );
             }
             return (
-              <strong className="font-semibold text-ais-on-surface" {...props}>
+              <strong className="font-semibold text-foreground" {...props}>
                 {children}
               </strong>
             );
           },
           hr: ({ ...props }) => (
-            <hr className="my-6 border-t border-ais-card-border" {...props} />
+            <hr className="my-6 border-t border-border" {...props} />
           ),
           blockquote: ({ ...props }) => (
             <blockquote
-              className="my-4 rounded-r-lg border-l-4 border-ais-primary bg-ais-primary/5 py-2 pl-4 text-sm"
+              className="my-4 rounded-r-lg border-l-4 border-primary bg-primary/5 py-2 pl-4 text-sm"
               {...props}
             />
           ),
@@ -248,8 +248,8 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
               <th
                 className={`w-1/2 px-1 py-1.5 text-left font-normal ${
                   isOpt
-                    ? 'rounded-md border border-ais-card-border/60 bg-ais-surface-container-low/50 px-2.5 py-2 text-sm text-ais-on-surface-variant'
-                    : 'text-ais-on-surface-variant'
+                    ? 'rounded-md border border-border/60 bg-muted/50 px-2.5 py-2 text-sm text-muted-foreground'
+                    : 'text-muted-foreground'
                 }`}
                 {...props}
               >
@@ -264,8 +264,8 @@ export const AssessmentContentRenderer: React.FC<AssessmentContentRendererProps>
               <td
                 className={`w-1/2 px-1 py-1.5 ${
                   isOpt
-                    ? 'rounded-md border border-ais-card-border/60 bg-ais-surface-container-low/50 px-2.5 py-2 text-ais-on-surface-variant'
-                    : 'text-ais-on-surface-variant'
+                    ? 'rounded-md border border-border/60 bg-muted/50 px-2.5 py-2 text-muted-foreground'
+                    : 'text-muted-foreground'
                 }`}
                 {...props}
               >

@@ -1,5 +1,15 @@
 import React from 'react';
 
+/**
+ * Radius tiers (app-wide convention, not enforced by types): rounded-md for small
+ * inline elements (inputs, small buttons, table-row pills), rounded-lg (this
+ * component's default, matches --radius) for standard cards/panels/sections,
+ * rounded-xl for elevated content blocks that need more visual weight (detail-page
+ * info sections, modal surfaces), rounded-2xl reserved for modals/dialogs only
+ * (see dialog.tsx). Prefer importing Card/CardHeader/CardTitle/CardContent over
+ * hand-rolling `rounded-lg border bg-card` divs — that duplication is the largest
+ * source of visual drift found in the audit.
+ */
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   glass?: boolean;

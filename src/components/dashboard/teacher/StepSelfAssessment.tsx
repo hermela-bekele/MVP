@@ -73,8 +73,8 @@ export const StepSelfAssessment: React.FC = () => {
             </AisBtnSecondary>
           }
         >
-          <div className="mb-6 flex items-center gap-4 rounded-xl border border-ais-card-border bg-ais-surface-container-low p-4">
-            <div className="text-3xl font-bold text-ais-primary">{latest.overallScore}%</div>
+          <div className="mb-6 flex items-center gap-4 rounded-xl border border-border bg-muted p-4">
+            <div className="text-3xl font-bold text-primary">{latest.overallScore}%</div>
             <div>
               <p className={aisLabelCaps}>Overall self-rating</p>
               <p className={aisBodySm}>
@@ -92,10 +92,10 @@ export const StepSelfAssessment: React.FC = () => {
                     return (
                       <div
                         key={c.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-ais-card-border px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
                       >
                         <div>
-                          <p className="text-sm font-semibold text-ais-on-surface">{c.label}</p>
+                          <p className="text-sm font-semibold text-foreground">{c.label}</p>
                           <p className={aisBodySm}>{c.description}</p>
                         </div>
                         <span
@@ -133,8 +133,8 @@ export const StepSelfAssessment: React.FC = () => {
               <p className={`${aisLabelCaps} mb-3`}>{category}</p>
               <div className="space-y-3">
                 {items.map((c) => (
-                  <div key={c.id} className="rounded-xl border border-ais-card-border p-3">
-                    <p className="text-sm font-semibold text-ais-on-surface">{c.label}</p>
+                  <div key={c.id} className="rounded-xl border border-border p-3">
+                    <p className="text-sm font-semibold text-foreground">{c.label}</p>
                     <p className={`${aisBodySm} mb-2.5`}>{c.description}</p>
                     <div className="flex flex-wrap gap-2">
                       {[1, 2, 3, 4, 5].map((n) => (
@@ -144,8 +144,8 @@ export const StepSelfAssessment: React.FC = () => {
                           onClick={() => setRatings((prev) => ({ ...prev, [c.id]: n }))}
                           className={`flex flex-col items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                             ratings[c.id] === n
-                              ? 'border-ais-primary bg-ais-primary text-white'
-                              : 'border-ais-card-border text-ais-on-surface-variant hover:border-ais-primary/50'
+                              ? 'border-primary bg-primary text-white'
+                              : 'border-border text-muted-foreground hover:border-primary/50'
                           }`}
                         >
                           <span>{n}</span>
@@ -159,7 +159,7 @@ export const StepSelfAssessment: React.FC = () => {
             </div>
           ))}
 
-          <div className="flex items-center justify-between border-t border-ais-card-border pt-4">
+          <div className="flex items-center justify-between border-t border-border pt-4">
             <p className={aisBodyMd}>
               {Object.keys(ratings).length}/{SELF_ASSESSMENT_COMPETENCIES.length} rated
             </p>

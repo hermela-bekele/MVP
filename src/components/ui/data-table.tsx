@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { EmptyState } from './empty-state';
+import { Select } from './select';
 
 /* ───────────── Types ───────────── */
 
@@ -19,6 +20,10 @@ export interface DataTableProps<T> {
   searchable?: boolean;
   searchKeys?: string[];
   pageSize?: number;
+  /** When provided, renders a "N per page" selector and lets the viewer change page size. */
+  pageSizeOptions?: number[];
+  /** Noun appended to the "Showing X to Y of Z" count, e.g. "employees". */
+  entityLabel?: string;
   loading?: boolean;
   emptyIcon?: React.ReactNode;
   emptyTitle?: string;
@@ -85,6 +90,8 @@ export function DataTable<T extends object>({
   searchable = false,
   searchKeys,
   pageSize = 10,
+  pageSizeOptions,
+  entityLabel = '',
   loading = false,
   emptyIcon,
   emptyTitle = 'No data found',
@@ -97,6 +104,8 @@ export function DataTable<T extends object>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [page, setPage] = useState(1);
+  const [pageSizeState, setPageSizeState] = useState(pageSize);
+  const effectivePageSize = pageSizeOptions ? pageSizeState : pageSize;
 
   /* ── Search ── */
   const keys = searchKeys ?? columns.map((c) => c.key);
@@ -129,9 +138,9 @@ export function DataTable<T extends object>({
   }, [filtered, sortKey, sortDir]);
 
   /* ── Pagination ── */
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / effectivePageSize));
   const currentPage = Math.min(page, totalPages);
-  const paged = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paged = sorted.slice((currentPage - 1) * effectivePageSize, currentPage * effectivePageSize);
 
   const handleSort = useCallback(
     (key: string) => {
@@ -225,7 +234,7 @@ export function DataTable<T extends object>({
             </tr>
           </thead>
           <tbody>
-            {loading && <SkeletonRows cols={columns.length} rows={pageSize} />}
+            {loading && <SkeletonRows cols={columns.length} rows={effectivePageSize} />}
 
             {!loading && paged.length === 0 && (
               <tr>
@@ -249,7 +258,7 @@ export function DataTable<T extends object>({
                 >
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-foreground/90">
-                      {renderCell(row, col, (currentPage - 1) * pageSize + rIdx)}
+                      {renderCell(row, col, (currentPage - 1) * effectivePageSize + rIdx)}
                     </td>
                   ))}
                 </tr>
@@ -300,12 +309,28 @@ export function DataTable<T extends object>({
       </div>
 
       {/* Pagination */}
-      {!loading && sorted.length > pageSize && (
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+      {!loading && sorted.length > 0 && (sorted.length > effectivePageSize || !!pageSizeOptions) && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
           <span>
-            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sorted.length)} of {sorted.length}
+            Showing {(currentPage - 1) * effectivePageSize + 1} to {Math.min(currentPage * effectivePageSize, sorted.length)} of{' '}
+            {sorted.length}
+            {entityLabel ? ` ${entityLabel}` : ''}
           </span>
 
+          <div className="flex flex-wrap items-center gap-3">
+          {pageSizeOptions && (
+            <div className="w-32">
+              <Select
+                size="sm"
+                options={pageSizeOptions.map((n) => ({ value: String(n), label: `${n} per page` }))}
+                value={String(pageSizeState)}
+                onChange={(e) => {
+                  setPageSizeState(Number(e.target.value));
+                  setPage(1);
+                }}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -349,6 +374,7 @@ export function DataTable<T extends object>({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
               </svg>
             </button>
+          </div>
           </div>
         </div>
       )}
