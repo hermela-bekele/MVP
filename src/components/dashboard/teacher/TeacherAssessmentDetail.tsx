@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Download, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
+import { Check, Download, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -83,6 +83,25 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<Omit<AssessmentQuestion, 'id'>>(emptyForm());
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isEditingAiContent, setIsEditingAiContent] = useState(false);
+  const [aiContentDraft, setAiContentDraft] = useState('');
+
+  const startEditingAiContent = () => {
+    if (!assessment) return;
+    setAiContentDraft(assessment.questions[0]?.question ?? '');
+    setIsEditingAiContent(true);
+  };
+
+  const saveAiContent = () => {
+    if (!assessment) return;
+    const updated = [
+      { ...assessment.questions[0], question: aiContentDraft },
+      ...assessment.questions.slice(1),
+    ];
+    updateAssessmentQuestions(assessment.id, updated);
+    setIsEditingAiContent(false);
+    addNotification('Assessment updated', 'Your edits were saved.', 'success');
+  };
 
   const handlePrintAssessment = async () => {
     if (!assessment) return;
@@ -244,10 +263,32 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
           </p>
         ) : isAiDocument ? (
           <div className="rounded-xl border border-ais-card-border bg-white p-6 dark:bg-gray-900/40">
-            <AssessmentContentRenderer
-              content={assessment.questions[0].question}
-              categoryLabel={`${assessment.type} · ${assessment.questions[0].type || 'Mixed'}`}
-            />
+            <div className="mb-3 flex justify-end">
+              {isEditingAiContent ? (
+                <AisBtnSecondary onClick={saveAiContent}>
+                  <Check className="h-3.5 w-3.5" aria-hidden />
+                  Save changes
+                </AisBtnSecondary>
+              ) : (
+                <AisBtnSecondary onClick={startEditingAiContent}>
+                  <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  Edit
+                </AisBtnSecondary>
+              )}
+            </div>
+            {isEditingAiContent ? (
+              <textarea
+                value={aiContentDraft}
+                onChange={(e) => setAiContentDraft(e.target.value)}
+                rows={20}
+                className={`${aisInput} w-full resize-y font-mono text-xs leading-relaxed`}
+              />
+            ) : (
+              <AssessmentContentRenderer
+                content={assessment.questions[0].question}
+                categoryLabel={`${assessment.type} · ${assessment.questions[0].type || 'Mixed'}`}
+              />
+            )}
             {assessment.createdByRole === 'department-head' && (
               <p className="mt-4 text-xs text-muted-foreground">
                 Published by department head — record student results in Manage students → Gradebook

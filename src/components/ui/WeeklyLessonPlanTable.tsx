@@ -162,14 +162,12 @@ function SessionTable({
     <div className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
         <h3 className="font-bold">
-          Session {session.sessionNumber}: {session.subTopic || session.mainTopic}
+          Session {session.sessionNumber}
+          {session.subtopicId ? ` (${session.subtopicId})` : ''}: {session.subTopic || session.mainTopic}
         </h3>
-        <div className="text-xs text-muted-foreground">
-          {session.textbookPages ? <span>Pages: {session.textbookPages}</span> : null}
-          {session.durationMinutes ? (
-            <span className="ml-3">{session.durationMinutes}&nbsp;mins</span>
-          ) : null}
-        </div>
+        {session.teachingMethodology ? (
+          <span className="text-xs italic text-muted-foreground">{session.teachingMethodology}</span>
+        ) : null}
       </div>
       {editable ? (
         <div className="mb-2 space-y-1">

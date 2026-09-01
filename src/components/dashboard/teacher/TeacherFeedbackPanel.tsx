@@ -63,13 +63,24 @@ function roleBadgeVariant(role: FeedbackFilter): AisBadgeVariant {
   }
 }
 
+type RecipientKind = 'peer' | 'student' | 'parent';
+
+const RECIPIENT_KIND_OPTIONS: { value: RecipientKind; label: string }[] = [
+  { value: 'peer', label: 'A colleague (peer feedback)' },
+  { value: 'student', label: 'A student' },
+  { value: 'parent', label: "A student's parent" },
+];
+
 /**
  * Teacher's Feedback panel: view feedback received (peer, head of department, parent,
- * student) and give a direct peer review to a colleague. All feedback received is shown
- * anonymously by role — teachers never see who specifically left it.
+ * student) and give feedback to a colleague, a student, or a student's parent. All feedback
+ * received is shown anonymously by role — teachers never see who specifically left it.
+ * Feedback to/about the head of department has no path here by design — that relationship
+ * has its own module (DeptFeedbackPanel, HOD → teacher direction only).
  */
 export const TeacherFeedbackPanel: React.FC = () => {
-  const { teachers, teacherFeedbacks, giveTeacherFeedback, resolveTeacherId } = useApp();
+  const { teachers, students, teacherFeedbacks, giveTeacherFeedback, addStudentFeedback, resolveTeacherId } =
+    useApp();
   const teacherId = resolveTeacherId();
   const ownTeacher = useMemo(() => teachers.find((t) => t.id === teacherId), [teachers, teacherId]);
 
@@ -96,26 +107,45 @@ export const TeacherFeedbackPanel: React.FC = () => {
   );
 
   const [isOpen, setIsOpen] = useState(false);
+  const [recipientKind, setRecipientKind] = useState<RecipientKind>('peer');
   const [peerId, setPeerId] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [subject, setSubject] = useState('');
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState('5');
 
   const openModal = () => {
+    setRecipientKind('peer');
     setPeerId(peers[0]?.id ?? '');
+    setStudentId(students[0]?.id ?? '');
     setIsOpen(true);
   };
 
+  const canSubmit =
+    recipientKind === 'peer' ? Boolean(peerId) : Boolean(studentId);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!peerId || !comment.trim()) return;
-    giveTeacherFeedback({
-      teacherId: peerId,
-      authorRole: 'peer',
-      subject: subject.trim() || 'Peer feedback',
-      comment: comment.trim(),
-      rating: Number(rating),
-    });
+    if (!canSubmit || !comment.trim()) return;
+    if (recipientKind === 'peer') {
+      giveTeacherFeedback({
+        teacherId: peerId,
+        authorRole: 'peer',
+        subject: subject.trim() || 'Peer feedback',
+        comment: comment.trim(),
+        rating: Number(rating),
+      });
+    } else {
+      const student = students.find((s) => s.id === studentId);
+      addStudentFeedback({
+        studentId,
+        studentName: student?.name,
+        authorRole: recipientKind,
+        subject: subject.trim() || (recipientKind === 'parent' ? "Note to parent" : 'Student feedback'),
+        comment: comment.trim(),
+        rating: Number(rating),
+      });
+    }
     setSubject('');
     setComment('');
     setRating('5');
@@ -128,8 +158,8 @@ export const TeacherFeedbackPanel: React.FC = () => {
         title="Feedback received"
         description="Direct feedback from your head of department, peer reviews, and parent & student feedback"
         actions={
-          <AisBtnPrimary onClick={openModal} disabled={peers.length === 0}>
-            Give Peer Feedback
+          <AisBtnPrimary onClick={openModal} disabled={peers.length === 0 && students.length === 0}>
+            Give Feedback
           </AisBtnPrimary>
         }
         flush
@@ -174,14 +204,29 @@ export const TeacherFeedbackPanel: React.FC = () => {
         </AisTable>
       </AisPanel>
 
-      <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Give peer feedback" size="md">
+      <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Give feedback" size="md">
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <Select
-            label="Colleague"
-            value={peerId}
-            onChange={(e) => setPeerId(e.target.value)}
-            options={peers.map((t) => ({ value: t.id, label: t.name }))}
+            label="Who is this feedback for?"
+            value={recipientKind}
+            onChange={(e) => setRecipientKind(e.target.value as RecipientKind)}
+            options={RECIPIENT_KIND_OPTIONS}
           />
+          {recipientKind === 'peer' ? (
+            <Select
+              label="Colleague"
+              value={peerId}
+              onChange={(e) => setPeerId(e.target.value)}
+              options={peers.map((t) => ({ value: t.id, label: t.name }))}
+            />
+          ) : (
+            <Select
+              label={recipientKind === 'parent' ? "Student (feedback goes to their parent)" : 'Student'}
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              options={students.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          )}
           <input
             className={aisInput}
             required
@@ -214,7 +259,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
             </AisBtnSecondary>
             <button
               type="submit"
-              disabled={!peerId || !comment.trim()}
+              disabled={!canSubmit || !comment.trim()}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send feedback

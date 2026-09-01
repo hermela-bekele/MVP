@@ -20,7 +20,17 @@ import { computeRowSpans } from './annualLessonPlan';
 const THIN = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
 const BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
 
-/** A3 landscape usable width (~22cm) so all 13 template columns fill the page. */
+/**
+ * A3 landscape usable width (~22cm) so all 13 template columns fill the page.
+ * NOTE: the `docx` package swaps width/height itself when `orientation: 'landscape'` is set
+ * (it expects portrait-shaped input and performs the landscape swap internally) — so the
+ * `page.size` call below passes (PAGE_H, PAGE_W) swapped, not (PAGE_W, PAGE_H). Passing
+ * already-landscape dimensions there double-swaps them into an A3 PORTRAIT page
+ * (16838x23811) while this 13-column table is sized for a 23811-wide canvas — pushing
+ * roughly the rightmost half of every row off the real page. This was the "cropped content"
+ * bug: correct-looking column math (COL_WIDTHS sums exactly to TABLE_W) against the wrong
+ * actual physical page.
+ */
 const PAGE_W = 23811;
 const PAGE_H = 16838;
 const MARGIN = 360;
@@ -198,7 +208,13 @@ function buildDataRows(weeks: AnnualLessonPlanWeekRow[]): TableRow[] {
       cell([p(row.comments || '', { size: 12 })], COLS.comments),
     );
 
-    return new TableRow({ children, cantSplit: true });
+    // cantSplit was removed: with the richer per-subtopic content this table now carries
+    // (every real subtopic + its own page, no cap — see the backend grounding fix), a single
+    // row's content can genuinely be taller than one physical page. Forcing the whole row to
+    // stay on one page in that case is exactly the "cropped / doesn't fit" symptom users hit —
+    // letting Word paginate a long row naturally (splitting it across pages, which is the
+    // normal behavior for long tables) is the correct fix here.
+    return new TableRow({ children });
   });
 }
 
@@ -254,8 +270,8 @@ export async function downloadAnnualLessonPlanDocx(plan: AnnualLessonPlanResult)
           page: {
             size: {
               orientation: 'landscape',
-              width: PAGE_W,
-              height: PAGE_H,
+              width: PAGE_H,
+              height: PAGE_W,
             },
             margin: {
               top: MARGIN,

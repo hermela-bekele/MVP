@@ -53,14 +53,22 @@ export async function setCachedData(cacheKey: string, data: any) {
   try {
     await ensureCacheDir();
     const filePath = path.join(CACHE_DIR, cacheKey);
+    // Write to a per-write temp file, then rename into place. fs.writeFile alone is NOT
+    // atomic — it truncates the target file before writing its bytes, so a concurrent
+    // getCachedData() read (e.g. two overlapping requests for the same batch, or a route
+    // retry racing the original attempt) can observe a partially-written file and fail to
+    // parse it. rename() is atomic on both POSIX and Windows, so readers only ever see the
+    // old complete file or the new complete file, never a torn write.
+    const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
     await fs.writeFile(
-      filePath,
+      tmpPath,
       JSON.stringify({
         data,
         timestamp: Date.now(),
       }),
       'utf-8'
     );
+    await fs.rename(tmpPath, filePath);
   } catch (error) {
     console.error('Failed to write cache:', error);
   }

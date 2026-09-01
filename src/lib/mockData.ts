@@ -1126,6 +1126,10 @@ export interface TeachingNote {
   contentBody?: string;
   status: 'Draft' | 'Saved' | 'Pending Dept Head' | 'Approved' | 'Rejected';
   deptComments?: string;
+  /** Which weekly-plan session(s) this note actually covers — "all", or a specific session
+   * number as a string (e.g. "3"). Lets department-head exam generation offer only the
+   * content the teacher actually selected, instead of every session in the linked plan. */
+  sessionScope?: string;
   createdAt: string;
   updatedAt?: string;
 }

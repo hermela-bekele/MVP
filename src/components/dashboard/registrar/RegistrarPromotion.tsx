@@ -95,7 +95,7 @@ export const RegistrarPromotion: React.FC = () => {
           <p className="text-xs text-muted-foreground">
             This will move <strong className="text-foreground">{affectedCount} active student{affectedCount === 1 ? '' : 's'}</strong> from{' '}
             <strong className="text-foreground">{fromGrade}</strong> to <strong className="text-foreground">{toGrade}</strong>.
-            Their class section will be cleared — you'll need to reassign sections afterward in Class Placement.
+            Their class section will be cleared — you&apos;ll need to reassign sections afterward in Class Placement.
           </p>
           <DialogFooter className="border-t border-border/20 pt-4">
             <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)} className="text-xs h-9">Cancel</Button>
