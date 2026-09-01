@@ -30,6 +30,8 @@ import {
   type AnnualLessonPlanResult,
 } from '@/lib/annualLessonPlan';
 import { AnnualLessonPlanTable } from '@/components/ui/AnnualLessonPlanTable';
+import { GenerationStatusPanel } from '@/components/ui/GenerationStatusPanel';
+import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { toast as showToast, dismissToast } from '@/components/ui/toast';
 import {
   ANNUAL_PLAN_SUBJECT_OPTIONS,
@@ -39,6 +41,31 @@ import {
   type SubjectStream,
 } from '@/lib/subjectTimeAllocation';
 import { downloadAnnualLessonPlanDocx } from '@/lib/annualLessonPlanDocx';
+
+/**
+ * Runs `worker` over `items` with at most `limit` calls in flight at once, returning results
+ * in the SAME order as `items` regardless of completion order — the concurrency-limited pool
+ * annual-plan batch dispatch uses so one teacher's generation doesn't monopolize the shared
+ * backend threadpool other concurrently-generating teachers rely on. If any call throws, that
+ * lane stops pulling more work and the rejection propagates once every lane has settled.
+ */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+  const lanes = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await worker(items[current], current);
+    }
+  });
+  await Promise.all(lanes);
+  return results;
+}
 
 function toAnnualResult(
   plan: AIDetailedLessonPlanResult,
@@ -153,6 +180,10 @@ export const DeptAnnualPlanPanel: React.FC<{
   const [viewingPublishedId, setViewingPublishedId] = useState<string | null>(null);
   const [editingPublishedId, setEditingPublishedId] = useState<string | null>(null);
   const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
+  // Explicit Edit toggle for a freshly-generated (not yet published) plan — separate from
+  // editingPublishedId, which already represents "editing a published plan" and is always
+  // editable while that flow is active.
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
 
   const viewingPublished = useMemo(() => {
     const plan = publishedAnnuals.find((p) => p.id === viewingPublishedId);
@@ -199,6 +230,9 @@ export const DeptAnnualPlanPanel: React.FC<{
   const [generating, setGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [annualPlan, setAnnualPlan] = useState<AnnualLessonPlanResult | null>(null);
+  const [generationError, setGenerationError] = useState('');
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const elapsedSeconds = useElapsedTime(generating);
   const publishedSectionRef = React.useRef<HTMLDivElement | null>(null);
   const generatedSectionRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -303,6 +337,9 @@ export const DeptAnnualPlanPanel: React.FC<{
 
     setGenerating(true);
     setAnnualPlan(null);
+    setIsEditingDraft(false);
+    setGenerationError('');
+    setBatchProgress(null);
     const batchToastId = `annual-plan-batch-${Date.now()}`;
     try {
       const nonTeaching = summarizeNonTeachingWindows(publishedCalendar.events);
@@ -335,45 +372,80 @@ export const DeptAnnualPlanPanel: React.FC<{
       });
 
       const { aiService } = await import('@/lib/ai');
-      const WEEK_BATCH_SIZE = 4;
-      const allAiWeeks: NonNullable<AIDetailedLessonPlanResult['weeks']> = [];
-      let combined: AIDetailedLessonPlanResult | null = null;
-      let continuationHint = '';
+      // Math's and English's per-week LLM output is small — content/page/unit come from the
+      // backend's deterministic locked unit-map (Math: the curated GRADE11_MATH_UNITS
+      // catalog; English: the same treatment built from real retrieved "UNIT N <Title>"
+      // textbook headers), not the LLM; only objectives/methods/eval/homework/comments do.
+      // Any OTHER subject has no textbook ingested at all yet, so its LLM output is a much
+      // larger, ungrounded per-week write (full contents list + its own invented pages).
+      // Packing 8 of those into one call risks exceeding Groq's free-tier completion-token
+      // ceiling mid-response, which truncates the JSON and produces an all-blank fallback
+      // plan rather than an error. Keep the larger batch size to the two subjects that are
+      // actually deterministically grounded; leave everything else at the original, safe
+      // value until it also gets its own textbook ingested.
+      const subjectLower = planSubject.toLowerCase();
+      const isMathBatch = subjectLower.startsWith('math');
+      const isDeterministicallyGrounded = isMathBatch || subjectLower.startsWith('english');
+      const WEEK_BATCH_SIZE = isDeterministicallyGrounded ? 8 : 4;
+      // Batches no longer need each other's actual output before starting: unit/page/content
+      // for every batch is already 100% determined by (batch_index, total_batches, the full
+      // year_calendar_weeks) alone, and the backend now derives its own accurate "what came
+      // before" continuity note from that same deterministic schedule (see
+      // deterministic_prior_coverage_note on the backend) instead of relying on this frontend
+      // relaying a previous batch's real response. So batches can be dispatched concurrently
+      // instead of one-at-a-time — capped so one teacher's annual-plan generation doesn't
+      // monopolize the shared backend threadpool other concurrently-generating teachers rely on.
+      const BATCH_CONCURRENCY = 4;
 
-      for (let i = 0; i < weeks.length; i += WEEK_BATCH_SIZE) {
-        const batch = weeks.slice(i, i + WEEK_BATCH_SIZE);
-        const batchNum = Math.floor(i / WEEK_BATCH_SIZE) + 1;
-        const totalBatches = Math.ceil(weeks.length / WEEK_BATCH_SIZE);
-        const isFirstBatch = i === 0;
+      const batchSlices = Array.from(
+        { length: Math.ceil(weeks.length / WEEK_BATCH_SIZE) },
+        (_, batchIndex) => ({
+          batchIndex,
+          batch: weeks.slice(batchIndex * WEEK_BATCH_SIZE, (batchIndex + 1) * WEEK_BATCH_SIZE),
+        }),
+      );
+      const totalBatches = batchSlices.length;
 
-        showToast({
-          id: batchToastId,
-          title: 'Generating…',
-          description: `Annual plan batch ${batchNum} of ${totalBatches} (${batch.length} weeks)`,
-          variant: 'info',
-          durationMs: 15000,
-        });
+      // Sent as `topic` — the backend embeds this as a retrieval query for subjects without a
+      // deterministic unit map; Math/English (the only annual-plan subjects reachable via the
+      // API) skip that generic retrieval entirely once map-locked, so this can safely stay a
+      // fixed phrase for every batch instead of varying with a previous batch's output.
+      const retrievalTopic = `${planSubject} ${grade} textbook curriculum sequence`;
 
-        const topicHint = isFirstBatch
-          ? [
-              'MANDATORY: Begin with Unit-1 of the teaching textbook on the first TEACHING week.',
-              'Skip content on weeks with periodsAvailable = 0 (no school / exams / breaks).',
-              'Pace units using periodsAvailable and minutesAvailable on each week — short weeks get less content.',
-              `First instructional week starts at ${weeks[0]?.month} ${weeks[0]?.week} (${weeks[0]?.date}).`,
-              `Calendar working days by month: ${monthDaysSummary}`,
-              `Total school days: ${schoolDaysPerYear}; teaching weeks: ${teachingWeeksCount}; non-teaching weeks: ${nonTeachingWeeksCount}`,
-              `Hours: ${effectivePeriods} periods/week × ${effectiveMinutes} min = ~${((effectivePeriods * effectiveMinutes) / 60).toFixed(2)} hrs/week; year total ~${Math.round(totalMinutes / 60)} hrs (${totalPeriods} periods)`,
-              `Teaching aids available ONLY: ${aids.join(', ')}`,
-            ].join(' ')
-          : [
-              `Continue textbook sequence after: ${continuationHint || 'previous batch'}`,
-              'Do not restart from Unit-1 unless still covering Unit-1.',
-              'Keep unit numbers increasing in textbook order.',
-              'Respect periodsAvailable=0 weeks as non-teaching.',
-              `Teaching aids available ONLY: ${aids.join(', ')}`,
-            ].join(' ');
+      // Pacing/continuity instructions only — never used for retrieval, only injected into
+      // the prompt's calendar/header notes on the backend, which prepends its own
+      // schedule-derived continuity fact (accurate regardless of batch dispatch order) ahead
+      // of this static text for batch_index > 0.
+      const continuationNotes = [
+        'MANDATORY: Begin with Unit-1 of the teaching textbook on the first TEACHING week.',
+        'Skip content on weeks with periodsAvailable = 0 (no school / exams / breaks).',
+        'Pace units using periodsAvailable and minutesAvailable on each week — short weeks get less content.',
+        `First instructional week starts at ${weeks[0]?.month} ${weeks[0]?.week} (${weeks[0]?.date}).`,
+        `Calendar working days by month: ${monthDaysSummary}`,
+        `Total school days: ${schoolDaysPerYear}; teaching weeks: ${teachingWeeksCount}; non-teaching weeks: ${nonTeachingWeeksCount}`,
+        `Hours: ${effectivePeriods} periods/week × ${effectiveMinutes} min = ~${((effectivePeriods * effectiveMinutes) / 60).toFixed(2)} hrs/week; year total ~${Math.round(totalMinutes / 60)} hrs (${totalPeriods} periods)`,
+        `Teaching aids available ONLY: ${aids.join(', ')}`,
+        'For a later batch: do not restart from Unit-1 unless genuinely still covering Unit-1, keep unit numbers increasing in textbook order, and write natural, non-repetitive continuation language for objectives/methods/homework — the exact preceding unit/page (if any) is attached automatically from the locked schedule.',
+      ].join(' ');
 
-        let plan: AIDetailedLessonPlanResult | null = null;
+      let completedBatches = 0;
+      setBatchProgress({ current: 0, total: totalBatches });
+      showToast({
+        id: batchToastId,
+        title: 'Generating…',
+        description:
+          totalBatches > 1
+            ? `Generating annual plan — 0 of ${totalBatches} batches complete`
+            : 'Generating annual plan…',
+        variant: 'info',
+        durationMs: 15000,
+      });
+
+      const runBatch = async ({
+        batchIndex,
+        batch,
+      }: (typeof batchSlices)[number]): Promise<AIDetailedLessonPlanResult> => {
+        const batchNum = batchIndex + 1;
         let lastErr: unknown = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
@@ -381,8 +453,11 @@ export const DeptAnnualPlanPanel: React.FC<{
               plan_type: 'yearly',
               grade,
               subject: planSubject,
-              topic: topicHint,
+              topic: retrievalTopic,
               subtopic: '',
+              continuation_notes: continuationNotes,
+              batch_index: batchIndex,
+              total_batches: totalBatches,
               student_level: 'differentiated',
               periods_per_week: effectivePeriods,
               session_duration: effectiveMinutes,
@@ -403,17 +478,26 @@ export const DeptAnnualPlanPanel: React.FC<{
               academic_year: academicYear,
               reference_materials: 'TEXT BOOK',
             });
-            plan = res.plan;
-            lastErr = null;
-            break;
+            completedBatches += 1;
+            setBatchProgress({ current: completedBatches, total: totalBatches });
+            showToast({
+              id: batchToastId,
+              title: 'Generating…',
+              description: `Generating annual plan — ${completedBatches} of ${totalBatches} batches complete`,
+              variant: 'info',
+              durationMs: 15000,
+            });
+            return res.plan;
           } catch (err) {
             lastErr = err;
             const msg = err instanceof Error ? err.message : String(err);
             const retryable =
-              /timeout|timed out|handshake|ssl|500|network|fetch/i.test(msg);
+              /timeout|timed out|handshake|ssl|500|network|fetch|empty response|malformed response|prematurely/i.test(
+                msg,
+              );
             if (!retryable || attempt === 3) break;
             showToast({
-              id: batchToastId,
+              id: `${batchToastId}-${batchIndex}`,
               title: 'Retrying…',
               description: `Batch ${batchNum} network error — attempt ${attempt + 1}/3`,
               variant: 'alert',
@@ -422,35 +506,20 @@ export const DeptAnnualPlanPanel: React.FC<{
             await new Promise((r) => setTimeout(r, 3000 * attempt));
           }
         }
-        if (!plan) {
-          throw lastErr instanceof Error
-            ? lastErr
-            : new Error(`Batch ${batchNum} failed`);
-        }
+        throw lastErr instanceof Error ? lastErr : new Error(`Batch ${batchNum} failed`);
+      };
 
-        combined = plan;
-        if (plan.weeks?.length) {
-          allAiWeeks.push(...plan.weeks);
-          const lastTeaching = [...plan.weeks]
-            .reverse()
-            .find((w) => (w.periodsNeeded ?? 0) > 0 && w.unit && w.unit !== '—');
-          const last = lastTeaching ?? plan.weeks[plan.weeks.length - 1];
-          continuationHint = [
-            last.unit ? `last unit: ${last.unit}` : '',
-            last.page ? `last pages: ${last.page}` : '',
-            (last.contents || []).slice(0, 2).join('; '),
-          ]
-            .filter(Boolean)
-            .join(' | ');
-        }
+      const plansByBatchIndex = await runWithConcurrency(batchSlices, BATCH_CONCURRENCY, runBatch);
 
-        if (i + WEEK_BATCH_SIZE < weeks.length) {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-      }
-
+      const combined = plansByBatchIndex[plansByBatchIndex.length - 1] ?? null;
       if (!combined) {
         throw new Error('No plan returned');
+      }
+      // Reassembled in batch_index order (the array `runWithConcurrency` returns is already
+      // ordered that way regardless of completion order), not arrival order.
+      const allAiWeeks: NonNullable<AIDetailedLessonPlanResult['weeks']> = [];
+      for (const plan of plansByBatchIndex) {
+        if (plan.weeks?.length) allAiWeeks.push(...plan.weeks);
       }
 
       const mergedWeeks = mergeAiWeeksOntoCalendar(weeks, allAiWeeks, {
@@ -485,6 +554,7 @@ export const DeptAnnualPlanPanel: React.FC<{
     } catch (err) {
       dismissToast(batchToastId);
       const msg = err instanceof Error ? err.message : 'Could not generate annual plan. Try again.';
+      setGenerationError(msg.slice(0, 180));
       addNotification('Generation failed', msg.slice(0, 180), 'alert');
     } finally {
       setGenerating(false);
@@ -625,6 +695,7 @@ export const DeptAnnualPlanPanel: React.FC<{
     }
 
     createDeptAnnualLessonPlan(buildPublishPayload(annualPlan));
+    setIsEditingDraft(false);
     window.setTimeout(() => scrollToPublished(), 200);
   };
 
@@ -948,6 +1019,16 @@ export const DeptAnnualPlanPanel: React.FC<{
             >
               Download Word
             </Button>
+            {!editingPublishedId && (
+              <Button
+                variant="outline"
+                onClick={() => setIsEditingDraft((v) => !v)}
+                leftIcon={<Pencil className="h-4 w-4" />}
+                className="whitespace-nowrap"
+              >
+                {isEditingDraft ? 'Done editing' : 'Edit'}
+              </Button>
+            )}
             <Button variant="organic" onClick={handlePublish} className="whitespace-nowrap">
               {editingPublishedId
                 ? 'Save changes'
@@ -963,6 +1044,19 @@ export const DeptAnnualPlanPanel: React.FC<{
         </p>
       </div>
 
+      <GenerationStatusPanel
+        phase={generating ? 'generating' : generationError ? 'error' : 'idle'}
+        statusText={
+          batchProgress
+            ? `Generating batch ${batchProgress.current} of ${batchProgress.total}…`
+            : 'Generating annual plan…'
+        }
+        elapsedSeconds={elapsedSeconds}
+        batchCurrent={batchProgress?.current}
+        batchTotal={batchProgress?.total}
+        errorMessage={generationError}
+      />
+
       {annualPlan && (
         <div ref={generatedSectionRef}>
           <ContentCard
@@ -976,10 +1070,17 @@ export const DeptAnnualPlanPanel: React.FC<{
             description={
               editingPublishedId
                 ? 'Update the plan below, then click Save changes.'
-                : 'Table layout matches the school annual lesson plan template. Scroll horizontally on smaller screens.'
+                : isEditingDraft
+                  ? 'Editing — click any field to change it, then click Done editing when finished.'
+                  : 'Table layout matches the school annual lesson plan template. Scroll horizontally on smaller screens.'
             }
           >
-            <AnnualLessonPlanTable plan={annualPlan} showTitle={false} />
+            <AnnualLessonPlanTable
+              plan={annualPlan}
+              showTitle={false}
+              editable={Boolean(editingPublishedId) || isEditingDraft}
+              onChange={setAnnualPlan}
+            />
           </ContentCard>
         </div>
       )}

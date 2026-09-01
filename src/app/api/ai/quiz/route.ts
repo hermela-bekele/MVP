@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
       question_type = 'mixed',
       lesson_plan_context = '',
       student_level = 'differentiated',
+      subject = 'Mathematics',
+      grade = 'Grade 11',
+      mlc_percent,
     } = body;
 
     if (!topic) {
@@ -37,9 +40,14 @@ export async function POST(request: NextRequest) {
       num_questions: Math.min(60, Math.max(3, Number(num_questions) || 5)),
       question_type,
       student_level,
+      subject,
+      grade,
     };
     if (lesson_plan_context?.trim()) {
       payload.lesson_plan_context = lesson_plan_context.trim();
+    }
+    if (typeof mlc_percent === 'number' && Number.isFinite(mlc_percent)) {
+      payload.mlc_percent = Math.min(100, Math.max(0, Math.round(mlc_percent)));
     }
 
     // Create cache key

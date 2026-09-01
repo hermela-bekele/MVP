@@ -74,7 +74,15 @@ export interface WeeklyLessonSession {
   subject: string;
   mainTopic: string;
   subTopic: string;
+  /** Real textbook subtopic id this session covers (e.g. "1.3.1"), when the annual-plan
+   * content item resolved to verified textbook subtopics — locked server-side, never
+   * LLM-invented. Absent for subjects/content without subtopic-extraction support. */
+  subtopicId?: string;
   textbookPages?: string;
+  /** Teaching approach chosen for this specific subtopic/objective (e.g. "Guided discovery",
+   * "Direct instruction with worked examples") — free-form pedagogical framing, not a
+   * grounding-verified field. */
+  teachingMethodology?: string;
   prerequisiteKnowledge: string;
   rationale: string;
   objectives: string[];
@@ -137,231 +145,6 @@ export interface AITeachingNotesResult {
   visualAids: string[];
   exercises: string[];
 }
-
-export interface AIStudentAnalysisResult {
-  academicRisk: 'Low' | 'Moderate' | 'High';
-  weakSubjectAreas: string[];
-  strengthAreas: string[];
-  actionItems: string[];
-  homeReviewGuide: string;
-}
-
-export interface AIQuestion {
-  question: string;
-  type: string;
-  options?: string[];
-  answer: string;
-}
-
-// ----------------------------------------------------
-// AI Simulation Engines
-// ----------------------------------------------------
-
-export const generateLessonPlanAI = async (
-  grade: string,
-  subject: string,
-  topic: string,
-  sessions: number
-): Promise<AILessonPlanResult> => {
-  await delay(1500); // Simulate network and AI token generation
-
-  // Dynamic template based on subject
-  if (subject.toLowerCase().includes('math')) {
-    return {
-      title: `AI Generated: ${grade} Mathematics – ${topic || 'Algebraic Equations'}`,
-      objectives: [
-        `Understand the fundamental properties of ${topic || 'algebraic equations'}.`,
-        `Successfully solve multi-step problems with 90% accuracy.`,
-        `Apply mathematical models to physical real-world scenarios.`,
-      ],
-      activities: Array.from({ length: sessions }).map((_, idx) => ({
-        session: idx + 1,
-        activity: idx === 0 
-          ? `Concept introduction & vocabulary review of ${topic || 'variables'}.`
-          : idx === sessions - 1 
-          ? `Interactive class quiz and collaborative peer grading session.`
-          : `Step-by-step problem-solving board exercises and team solving blocks.`,
-        duration: '45 mins',
-      })),
-      assessments: [
-        `Continuous check-in quiz (Session 2)`,
-        `Group whiteboard presentation of active formulas`,
-        `Take-home workbook completion tracking`,
-      ],
-      homework: `Complete the review practice set B on page 142. Solve all odd-numbered problems for parent review.`,
-    };
-  }
-
-  // Biology template
-  return {
-    title: `AI Generated: ${grade} Biology – ${topic || 'Photosynthesis and Ecosystems'}`,
-    objectives: [
-      `Detail the key metabolic inputs and outputs of ${topic || 'cellular biology'}.`,
-      `Construct accurate structural diagrams labeling cell boundaries.`,
-      `Examine environmental dependencies affecting biochemical rates.`,
-    ],
-    activities: Array.from({ length: sessions }).map((_, idx) => ({
-      session: idx + 1,
-      activity: idx === 0
-        ? `Interactive slide presentation detailing organelles and chemical receptors.`
-        : idx === sessions - 1
-        ? `Laboratory write-up examination, microscope cleaning and summary reports.`
-        : `Guided review drawing structures and labeling transport proteins in pairs.`,
-      duration: '45 mins',
-    })),
-    assessments: [
-      `Formative diagram quiz`,
-      `Ecosystem peer-to-peer modeling challenge score`,
-      `Laboratory performance evaluation checklist`,
-    ],
-    homework: `Draft a 250-word synthesis connecting cell respiration outputs directly to photosynthesis inputs.`,
-  };
-};
-
-export const generateTeachingNotesAI = async (
-  grade: string,
-  subject: string,
-  topic: string,
-  language: string
-): Promise<AITeachingNotesResult> => {
-  await delay(1200);
-
-  const isAmharic = language === 'Amharic';
-  const isAfaanOromo = language === 'Afaan Oromo';
-  const isTigrinya = language === 'Tigrinya';
-
-  if (isAmharic) {
-    return {
-      title: `የማስተማሪያ ማስታወሻ: ${grade} ${subject} - ${topic || 'ክፍልፋዮች (Fractions)'}`,
-      language: 'Amharic',
-      introduction: `ይህ የማስተማሪያ ማስታወሻ የተዘጋጀው ለኢትዮጵያ የትምህርት ሥርዓት ሥርዓተ-ትምህርት መሠረት በማድረግ ነው። ተማሪዎች የ${topic || 'ክፍልፋዮች'}ን መሠረታዊ ጽንሰ-ሀሳብ በቀላሉ እንዲረዱ ይረዳል።`,
-      explanations: [
-        {
-          subtitle: 'ክፍልፋይ ምንድን ነው?',
-          content: 'ክፍልፋይ የአንድ ሙሉ ነገር የተወሰነ እኩል ክፍልን የሚገልጽ የቁጥር ዓይነት ነው። ክፍልፋይ ሁለት ዋና ክፍሎች አሉት፡ ላዕላይ (Numerator) እና ታህታይ (Denominator)።',
-          examples: [
-            '1/2 ማለት አንድን ዳቦ ለሁለት እኩል ሰንጥቆ አንዱን ክፍል መውሰድ ማለት ነው።',
-            '3/4 ማለት አንድን ብርቱካን በአራት እኩል ከፍሎ ሦስቱን ክፍሎች መውሰድ ማለት ነው።',
-          ],
-        },
-        {
-          subtitle: 'ክፍልፋዮችን መደመር እና መቀነስ',
-          content: 'ታህታያቸው (Denominator) ተመሳሳይ የሆኑ ክፍልፋዮችን ለመደመር ላዕላያቸውን ብቻ መደመር እና ተመሳሳይ ታህታዩን ማስቀመጥ ይበቃል።',
-          examples: [
-            '1/5 + 2/5 = (1+2)/5 = 3/5',
-            '4/7 - 2/7 = (4-2)/7 = 2/7',
-          ],
-        },
-      ],
-      visualAids: [
-        'የክብ ኬክ ምስልን ለአራት ከፍሎ አንዱን ክፍል በቀለም በመቀባት 1/4 ማሳየት።',
-        'የመስመር ቁጥር (Number Line) በመጠቀም ከ0 እስከ 1 ያለውን ርቀት በእኩል በመከፋፈል ክፍልፋዩን ማመልከት።',
-      ],
-      exercises: [
-        'የሚከተሉትን ክፍልፋዮች ደምሩ፡ 2/9 + 4/9 = ?',
-        'አንድን ሙሉ ኬክ ለ 8 ተማሪዎች እኩል ብናከፋፍል እያንዳንዱ ተማሪ ምን ያህል ክፍል ይደርሰዋል?',
-        'ቀጣዩን ክፍልፋይ አቃልሉ፡ 4/8 = ?',
-      ],
-    };
-  }
-
-  // Multilingual templates structure
-  const langPrefix = isAfaanOromo ? '[Afaan Oromo] ' : isTigrinya ? '[Tigrinya] ' : '';
-  const welcomeText = isAfaanOromo 
-    ? `Qabiyyee barumsaa kana kan qophaa'e sirna barnoota Itoophiyaa irratti hunda'uun barattoota ${grade}tiif.`
-    : isTigrinya
-    ? `እዚ ትምህርታዊ ፅሑፍ ብመሰረት ስርዓተ ትምህርቲ ኢትዮጵያ ተዳልዩ ዘሎ ኮይኑ ተምሃሮ ብቀሊሉ ክርድእዎ ይሕግዝ።`
-    : `This teaching guide is fully aligned with the Ethiopian MOE Curriculum guidelines for ${grade}. It simplifies core parameters for class presentation.`;
-
-  return {
-    title: `${langPrefix}Teaching Notes: ${grade} ${subject} – ${topic || 'Fractions & Ratios'}`,
-    language: language || 'English',
-    introduction: welcomeText,
-    explanations: [
-      {
-        subtitle: 'Core Concept Definition',
-        content: `Understanding ${topic || 'the ratio structure'} is fundamental in everyday measurements and scientific ratios. It describes parts of a larger unified system.`,
-        examples: [
-          'Example 1: A shared classroom supply split equally between students representing sub-fractions.',
-          'Example 2: Cooking calculations using simple proportion metrics.',
-        ],
-      },
-      {
-        subtitle: 'Practical Class Calculations',
-        content: 'Apply basic algebraic arithmetic or cell metabolic balances to solve theoretical text problems.',
-        examples: [
-          '3/4 representing three out of four total segments.',
-          'Scaling factors: doubling the values maintains ratio equivalence.',
-        ],
-      },
-    ],
-    visualAids: [
-      'Circular pie chart models splitting parameters into colored sectors.',
-      'Symmetric rectangular bar divisions for clear parts-to-whole estimation.',
-    ],
-    exercises: [
-      `Solve basic practice worksheets: Identify the larger ratio between 3/5 and 4/7.`,
-      `Explain in your own words why fractional systems represent division parameters.`,
-    ],
-  };
-};
-
-export const generateAssessmentAI = async (
-  _grade: string,
-  subject: string,
-  _difficulty: string,
-  _type: string
-): Promise<AIQuestion[]> => {
-  await delay(1500);
-
-  const mockQuestions: Record<string, AIQuestion[]> = {
-    biology: [
-      { question: 'Which structures are found in plant cells but absent in animal cells?', type: 'MCQ', options: ['Cell Wall & Chloroplasts', 'Nucleus & Ribosomes', 'Cell Membrane & Cytoplasm', 'Mitochondria & Vacuole'], answer: 'Cell Wall & Chloroplasts' },
-      { question: 'Active transport requires chemical energy in the form of ATP to move molecules against concentration gradients.', type: 'True/False', answer: 'True' },
-      { question: 'Explain the ecological significance of decomposers in Ethiopian savannah systems.', type: 'Essay', answer: 'Decomposers recycle dead organic matter back into basic nutrients (nitrogen, phosphorus), maintaining soil viability for producers and sustaining herbivores.' },
-    ],
-    math: [
-      { question: 'What is the sum of the roots of the quadratic equation x^2 - 5x + 6 = 0?', type: 'Short Answer', answer: '5' },
-      { question: 'A quadratic equation always possesses at least one real solution.', type: 'True/False', answer: 'False' },
-      { question: 'Solve for x: 2x - 7 = 3(x + 1)', type: 'MCQ', options: ['x=-10', 'x=4', 'x=-4', 'x=10'], answer: 'x=-10' },
-    ],
-  };
-
-  const selectedKey = subject.toLowerCase().includes('biol') ? 'biology' : 'math';
-  return mockQuestions[selectedKey];
-};
-
-export const analyzeStudentPerformanceAI = async (student: Student): Promise<AIStudentAnalysisResult> => {
-  await delay(1000);
-
-  const isLowPerf = student.gpa < 2.8 || student.attendanceRate < 90;
-  
-  if (isLowPerf) {
-    return {
-      academicRisk: 'High',
-      weakSubjectAreas: ['Mathematics (Quadratic Roots)', 'Physics (Mechanics formulas)'],
-      strengthAreas: ['English language communication', 'Biology diagrams accuracy'],
-      actionItems: [
-        'Mandatory attendance in Monday afternoon peer-tutor math blocks.',
-        'Weekly teacher check-in during homeroom section evaluations.',
-        'Daily review logs to be signed off by the parent.',
-      ],
-      homeReviewGuide: `Ato ${student.parentName}, your child requires strict revision on simple equations. Ensure they dedicate at least 30 minutes every evening to worksheets. Avoid distractions during homework blocks.`,
-    };
-  }
-
-  return {
-    academicRisk: 'Low',
-    weakSubjectAreas: ['Advanced chemistry laboratory balancing'],
-    strengthAreas: ['Mathematics and algebraic proofs', 'Biology practical identification', 'Syllabus coverage completion'],
-    actionItems: [
-      'Provide enrichment homework exercises in physics and STEM.',
-      'Recommend enrollment as a peer-tutor for Grade 9 study sessions.',
-      'Nominate for the school regional Science Olympiad representational group.',
-    ],
-    homeReviewGuide: `Excellent academic standing. W/ro/Ato ${student.parentName}, please continue fostering your child's natural affinity for Mathematics and Science by encouraging their participation in STEM group projects.`,
-  };
-};
 
 // AI Service Wrapper with Server-Side Shared Caching
 class AIService {
@@ -451,17 +234,26 @@ class AIService {
       );
     }
 
+    // Bounded slightly above the Next.js route's own `maxDuration = 120` so the browser waits
+    // for that route to finish and return its own (always-valid-JSON) error response instead
+    // of aborting the connection first — an abort here would itself look like a truncated
+    // response to whatever reads it next.
+    const REQUEST_TIMEOUT_MS = 130_000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
       // Call local Next.js API route (has server-side cache)
       const localEndpoint = `${this.apiUrl}${endpoint}`;
       console.log(`🚀 Calling cached API: ${localEndpoint}`);
-      
+
       const response = await fetch(localEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -470,8 +262,25 @@ class AIService {
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
-      const result = await response.json();
-      
+      // Parse defensively: a response that resolves with ok:true can still be an empty or
+      // truncated body if the connection was interrupted after headers were sent (e.g. a dev
+      // server reload mid-request) — reading as text first lets us report exactly what was
+      // received instead of letting a bare `SyntaxError: Unexpected end of JSON input`
+      // surface to the user with no context.
+      const rawText = await response.text();
+      let result: any;
+      try {
+        result = JSON.parse(rawText);
+      } catch (parseError) {
+        const preview = rawText.slice(0, 200);
+        throw new Error(
+          rawText.trim().length === 0
+            ? 'Prime AI returned an empty response (the connection may have been interrupted mid-request) — please try again.'
+            : `Prime AI returned a malformed response and could not be read (${preview}${rawText.length > 200 ? '…' : ''}) — please try again.`,
+          { cause: parseError },
+        );
+      }
+
       // Log cache status
       if (result.cached) {
         console.log(`✅ [SERVER CACHE HIT] Response from shared server cache (age: ${result.cacheAge} min)`);
@@ -487,8 +296,17 @@ class AIService {
       
       return result;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutErr = new Error(
+          `Prime AI request timed out after ${REQUEST_TIMEOUT_MS / 1000}s — the generation may still finish server-side and be served from cache on retry.`,
+        );
+        console.error('❌ Prime AI API call failed:', timeoutErr);
+        throw timeoutErr;
+      }
       console.error('❌ Prime AI API call failed:', error);
       throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -507,312 +325,6 @@ class AIService {
       size: this.cache.size,
       keys: Array.from(this.cache.keys()),
     };
-  }
-
-  async generateRealLifeExamples(topic: string, contextCountry: string = 'Ethiopia'): Promise<{ content: string }> {
-    try {
-      console.log('🌍 generateRealLifeExamples called for topic:', topic);
-      
-      // Use the correct /real-life-examples endpoint
-      const result = await this.callPrimeAI('/real-life-examples', {
-        topic,
-        context_country: contextCountry,
-      });
-      
-      console.log('✅ Prime AI returned real-life examples');
-      return { content: result.content || JSON.stringify(result) };
-    } catch (error) {
-      console.error('❌ generateRealLifeExamples failed, using fallback:', error);
-      
-      await delay(1000);
-      
-      return {
-        content: `# Real-Life Applications of ${topic}
-
-## Ethiopian Context
-
-Understanding ${topic} is essential for many practical applications in Ethiopia:
-
-### 1. Agriculture and Farming
-- **Application:** Farmers use ${topic} concepts to calculate optimal planting patterns, irrigation schedules, and crop yields.
-- **Example:** Determining the best arrangement of crops in a field to maximize production.
-
-### 2. Construction and Architecture
-- **Application:** Ethiopian builders apply ${topic} when designing traditional tukuls or modern buildings.
-- **Example:** Calculating angles, measurements, and structural stability.
-
-### 3. Business and Trade
-- **Application:** Market traders use ${topic} for pricing, profit calculations, and inventory management.
-- **Example:** Computing fair prices, bulk discounts, and profit margins in Addis Ababa's Merkato.
-
-### 4. Technology and Innovation
-- **Application:** Ethiopian tech startups use ${topic} in software development, data analysis, and system design.
-- **Example:** Creating algorithms, analyzing user data, and optimizing performance.
-
-### 5. Healthcare and Medicine
-- **Application:** Medical professionals apply ${topic} in dosage calculations, statistical analysis, and medical imaging.
-- **Example:** Determining medication dosages based on body weight and condition severity.
-
----
-
-## Practice Activity
-
-**Challenge:** Identify one more real-life application of ${topic} in your community. How do people use these concepts in their daily lives? Share your observations with your classmates.`,
-      };
-    }
-  }
-
-  async getAvailableTopics(): Promise<string[]> {
-    try {
-      console.log('📚 Fetching available topics from Prime AI');
-      
-      // Use GET request for /topics endpoint
-      const response = await fetch(`${this.apiUrl}/topics`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch topics: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Topics fetched:', result.topics);
-      return result.topics || [];
-    } catch (error) {
-      console.error('❌ Failed to fetch topics:', error);
-      
-      // Fallback topics for Grade 11 Mathematics
-      return [
-        'Relations and Functions',
-        'Polynomial Functions',
-        'Rational Functions',
-        'Exponential and Logarithmic Functions',
-        'Trigonometric Functions',
-        'Sequences and Series',
-        'Limits and Continuity',
-        'Differentiation',
-        'Integration',
-        'Vectors',
-        'Statistics and Probability',
-      ];
-    }
-  }
-
-  async chatWithTextbook(prompt: string): Promise<{ content: string }> {
-    try {
-      console.log('📝 chatWithTextbook called with prompt:', prompt.substring(0, 100) + '...');
-      
-      // Use the correct /chat endpoint with the proper request format
-      const result = await this.callPrimeAI('/chat', {
-        query: prompt,
-        history: [],
-      });
-      
-      console.log('✅ Prime AI API returned result');
-      return { content: result.content || result.response || JSON.stringify(result) };
-    } catch (error) {
-      console.error('❌ chatWithTextbook failed, using fallback:', error);
-      console.warn('⚠️ Using fallback assessment generation');
-      
-      // Fallback to template generation
-      await delay(1800);
-      
-      // Extract parameters from prompt
-      const typeMatch = prompt.match(/type:\s*(\w+)/i);
-      const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
-      const gradeMatch = prompt.match(/grade:\s*([^\n]+)/i);
-      const subjectMatch = prompt.match(/subject:\s*(\w+)/i);
-      const difficultyMatch = prompt.match(/difficulty:\s*(\w+)/i);
-      
-      const type = typeMatch ? typeMatch[1] : 'Quiz';
-      const topic = topicMatch ? topicMatch[1].trim() : 'General Review';
-      const grade = gradeMatch ? gradeMatch[1].trim() : 'Grade 9';
-      const subject = subjectMatch ? subjectMatch[1] : 'Mathematics';
-      const difficulty = difficultyMatch ? difficultyMatch[1] : 'Medium';
-      
-      // Generate assessment content based on subject
-      if (subject.toLowerCase().includes('math')) {
-        return {
-          content: `# ${type} on ${topic}
-
-**Grade: ${grade}**  
-**Subject: ${subject}**  
-**Difficulty: ${difficulty}**  
-**Total Marks: 50**
-
----
-
-## Instructions
-- Answer all questions
-- Show all your working
-- Time allowed: 45 minutes
-
----
-
-## Section A: Multiple Choice Questions (20 marks)
-
-1. If f(x) = 2x + 3, what is f(5)?
-   - A) 8
-   - B) 10
-   - C) 13
-   - D) 15
-
-2. Solve for x: 3x - 7 = 14
-   - A) x = 5
-   - B) x = 7
-   - C) x = 21
-   - D) x = 3
-
-3. What is the value of √144?
-   - A) 10
-   - B) 11
-   - C) 12
-   - D) 14
-
-4. Simplify: (4x + 8) / 4
-   - A) x + 2
-   - B) x + 8
-   - C) 4x + 2
-   - D) x + 4
-
----
-
-## Section B: Short Answer Questions (30 marks)
-
-5. Factorize completely: x² - 5x + 6  
-   (5 marks)
-
-6. Solve the quadratic equation: x² - 3x - 10 = 0  
-   (7 marks)
-
-7. In a class of 40 students, the ratio of boys to girls is 3:2. How many boys are in the class?  
-   (6 marks)
-
-8. Calculate the area of a circle with radius 7cm. Use π = 22/7  
-   (6 marks)
-
-9. Solve the simultaneous equations:  
-   2x + y = 10  
-   x - y = 2  
-   (6 marks)
-
----
-
-## Answer Key
-
-### Section A:
-- C) 13
-- B) x = 7
-- C) 12
-- A) x + 2
-
-### Section B:
-5. (x - 2)(x - 3)
-6. x = 5 or x = -2
-7. 24 boys
-8. Area = 154 cm²
-9. x = 4, y = 2
-
----
-
-**Marking Scheme:**
-- Section A: 5 marks each (4 questions = 20 marks)
-- Section B: As indicated per question (Total 30 marks)
-- **Grand Total: 50 marks**`,
-        };
-      }
-      
-      // Biology assessment
-      return {
-        content: `# ${type} on ${topic}
-
-**Grade: ${grade}**  
-**Subject: ${subject}**  
-**Difficulty: ${difficulty}**  
-**Total Marks: 50**
-
----
-
-## Instructions
-- Answer all questions
-- Draw clear, labeled diagrams where required
-- Time allowed: 45 minutes
-
----
-
-## Section A: Multiple Choice Questions (20 marks)
-
-1. Which organelle is responsible for photosynthesis in plant cells?
-   - A) Mitochondria
-   - B) Chloroplast
-   - C) Nucleus
-   - D) Ribosome
-
-2. What is the primary function of red blood cells?
-   - A) Fight infection
-   - B) Transport oxygen
-   - C) Clot blood
-   - D) Produce hormones
-
-3. The process by which plants lose water through their leaves is called:
-   - A) Respiration
-   - B) Transpiration
-   - C) Photosynthesis
-   - D) Digestion
-
-4. Which of these is NOT a characteristic of living organisms?
-   - A) Growth
-   - B) Reproduction
-   - C) Crystallization
-   - D) Movement
-
----
-
-## Section B: Structured Questions (30 marks)
-
-5. Define the term "ecosystem" and give two examples from Ethiopia.  
-   (5 marks)
-
-6. Describe the process of cellular respiration and state where it occurs in the cell.  
-   (8 marks)
-
-7. Draw and label a diagram of a plant cell showing the cell wall, cell membrane, nucleus, cytoplasm, and chloroplast.  
-   (8 marks)
-
-8. Explain the difference between aerobic and anaerobic respiration. Give one example of each.  
-   (6 marks)
-
-9. What role do decomposers play in the nutrient cycle?  
-   (3 marks)
-
----
-
-## Answer Key
-
-### Section A:
-- B) Chloroplast
-- B) Transport oxygen
-- B) Transpiration
-- C) Crystallization
-
-### Section B:
-5. Ecosystem = community of living organisms interacting with their environment. Examples: Bale Mountains, Simien Mountains
-6. Cellular respiration converts glucose to energy (ATP). Occurs in mitochondria.
-7. [Diagram should show labeled plant cell structures]
-8. Aerobic needs oxygen (e.g., human respiration), Anaerobic doesn't (e.g., yeast fermentation)
-9. Break down dead matter, return nutrients to soil
-
----
-
-**Marking Scheme:**
-- Section A: 5 marks each (4 questions = 20 marks)
-- Section B: As indicated per question (Total 30 marks)
-- **Grand Total: 50 marks**`,
-      };
-    }
   }
 
   async generateDetailedLessonPlan(params: {
@@ -859,6 +371,25 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     school_name?: string;
     academic_year?: string;
     reference_materials?: string;
+    /** Pacing/continuity instructions for this batch of a multi-batch annual plan. Kept
+     * separate from `topic` — `topic` is embedded as the retrieval query on the backend, and
+     * a paragraph of scheduling instructions there degrades retrieval relevance. */
+    continuation_notes?: string;
+    /** 0-based index of this batch and the total batch count, for a multi-batch annual plan —
+     * lets the backend hand back a distinct slice of source material per batch instead of
+     * every batch retrieving the same top-K chunks. */
+    batch_index?: number;
+    total_batches?: number;
+    /** Weekly-plan-only: the annual-plan week this weekly plan is derived from. Contents and
+     * general objectives are inherited verbatim (never regenerated) by the backend; the RAG
+     * pipeline drills these content lines down into real, verified textbook subtopics. */
+    annual_contents?: string[];
+    annual_general_objectives?: string[];
+    annual_unit_label?: string;
+    /** Subtopic ids already covered by an earlier week's weekly plan for the same annual
+     * content item — lets a later week continue from the next real subtopic instead of
+     * repeating one already taught. */
+    already_covered_subtopic_ids?: string[];
   }): Promise<{ plan: AIDetailedLessonPlanResult; sources: { page?: number; topic?: string }[] }> {
     const result = await this.callPrimeAI('/detailed-lesson-plan', {
       plan_type: params.plan_type,
@@ -879,6 +410,13 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       school_name: params.school_name ?? '',
       academic_year: params.academic_year ?? '',
       reference_materials: params.reference_materials ?? 'TEXT BOOK',
+      continuation_notes: params.continuation_notes ?? '',
+      batch_index: params.batch_index ?? 0,
+      total_batches: params.total_batches ?? 1,
+      annual_contents: params.annual_contents ?? [],
+      annual_general_objectives: params.annual_general_objectives ?? [],
+      annual_unit_label: params.annual_unit_label ?? '',
+      already_covered_subtopic_ids: params.already_covered_subtopic_ids ?? [],
     });
 
     const plan = (result.plan ?? result) as AIDetailedLessonPlanResult;
@@ -898,48 +436,6 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     };
   }
 
-  async generateLessonPlan(prompt: string): Promise<{ content: string }> {
-    try {
-      console.log('📚 generateLessonPlan called');
-      
-      // Extract parameters from prompt
-      const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
-      const durationMatch = prompt.match(/duration[_\s]?minutes:\s*(\d+)/i);
-      
-      const topic = topicMatch ? topicMatch[1].trim() : 'General Mathematics';
-      const duration_minutes = durationMatch ? parseInt(durationMatch[1]) : 80;
-      
-      // Use the correct /lesson-plan endpoint
-      const result = await this.callPrimeAI('/lesson-plan', {
-        topic,
-        duration_minutes,
-      });
-      
-      console.log('✅ Prime AI returned lesson plan');
-      return { content: result.content || JSON.stringify(result) };
-    } catch (error) {
-      console.error('❌ generateLessonPlan failed, using fallback:', error);
-      console.warn('⚠️ Using fallback lesson plan generation');
-      
-      await delay(1500);
-      
-      // Extract parameters
-      const gradeMatch = prompt.match(/grade:\s*([^\n]+)/i);
-      const subjectMatch = prompt.match(/subject:\s*(\w+)/i);
-      const sessionsMatch = prompt.match(/sessions:\s*(\d+)/i);
-      const topicMatch = prompt.match(/topic:\s*([^\n]+)/i);
-      
-      const grade = gradeMatch ? gradeMatch[1].trim() : 'Grade 9';
-      const subject = subjectMatch ? subjectMatch[1] : 'Biology';
-      const sessions = sessionsMatch ? parseInt(sessionsMatch[1]) : 4;
-      const topic = topicMatch ? topicMatch[1].trim() : subject;
-      
-      return {
-        content: JSON.stringify(await generateLessonPlanAI(grade, subject, topic, sessions))
-      };
-    }
-  }
-
   async generateTeachingNotes(params: {
     topic: string;
     subtopic?: string;
@@ -948,6 +444,9 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
     language?: string;
     sessionContext?: string;
     studentLevel?: string;
+    /** "Explain more": ask for one thorough deep-dive on the concept instead of a
+     * full objectives/practice/wrap-up note. */
+    deepDive?: boolean;
   } | string): Promise<{ content: string }> {
     const normalized =
       typeof params === 'string'
@@ -961,6 +460,7 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
             sessionContext:
               params.match(/session_context:\s*([\s\S]+)/i)?.[1]?.trim() ?? '',
             studentLevel: 'differentiated',
+            deepDive: false,
           }
         : params;
 
@@ -972,6 +472,7 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
       language = 'English',
       sessionContext = '',
       studentLevel = 'differentiated',
+      deepDive = false,
     } = normalized;
 
     try {
@@ -983,21 +484,19 @@ Understanding ${topic} is essential for many practical applications in Ethiopia:
         subtopic,
         session_context: sessionContext,
         student_level: studentLevel,
+        grade,
+        subject,
+        deep_dive: deepDive,
       });
 
       console.log('✅ Prime AI returned teaching notes');
       return { content: result.content || JSON.stringify(result) };
     } catch (error) {
-      console.error('❌ generateTeachingNotes failed, using fallback:', error);
-      console.warn('⚠️ Using fallback teaching notes generation');
-
-      await delay(1200);
-
-      return {
-        content: JSON.stringify(
-          await generateTeachingNotesAI(grade, subject, topic, language),
-        ),
-      };
+      // Previously fell back to a hardcoded mock (generic content unrelated to the
+      // requested topic/textbook) presented as a real generation. Surface the real
+      // failure instead so the caller shows an actual error.
+      console.error('❌ generateTeachingNotes failed:', error);
+      throw error;
     }
   }
 }
@@ -1317,6 +816,8 @@ export const generateAssessmentWithAI = async (
       num_questions: Math.min(60, Math.max(3, Number(numQuestions) || 10)),
       question_type: normalizeQuestionFormat(questionFormat),
       student_level: studentLevel,
+      subject,
+      grade,
     };
     if (lessonPlanContext?.trim()) {
       payload.lesson_plan_context = lessonPlanContext.trim();
@@ -1335,40 +836,11 @@ export const generateAssessmentWithAI = async (
 
     return result.content || JSON.stringify(result);
   } catch (error) {
-    console.error('AI Service failed for assessment generation, using fallback:', error);
-
-    const formatLabel = questionFormat === 'Mixed'
-      ? 'a mix of multiple choice, true/false, fill-in-the-blank, matching, and writing questions'
-      : `${questionFormat.toLowerCase()} questions`;
-
-    return `# ${type} on ${topic}
-
-**Grade:** ${grade}  
-**Subject:** ${subject}  
-**Difficulty:** ${difficulty}  
-**Question format:** ${questionFormat}  
-**Number of questions:** ${numQuestions}
-
----
-
-Generate ${numQuestions} ${formatLabel} on **${topic}** for ${grade} ${subject}.
-
----
-
-## Instructions
-- Answer all questions
-- Show all working where required
-- Time allowed: 45 minutes
-
----
-
-## Questions
-
-1. [Sample ${questionFormat.toLowerCase()} question related to ${topic}]
-
----
-
-**Total: ${numQuestions} questions**`;
+    // Previously fell back to a hardcoded placeholder quiz (a single "[Sample question]"
+    // line) presented as if it were a real generation. Surface the real failure instead so
+    // the caller shows an actual error rather than fabricated content.
+    console.error('AI Service failed for assessment generation:', error);
+    throw error;
   }
 };
 
@@ -1445,58 +917,10 @@ export const generateBaselineAssessmentWithAI = async (
     const result = await aiService['callPrimeAI']('/baseline-assessment', payload);
     return result.content || JSON.stringify(result);
   } catch (error) {
-    console.error('AI Service failed for baseline assessment, using fallback:', error);
-
-    const scope = baselineScopeLabel(grade, subject, semesterTiming, focusTopic);
-    const timing = baselineTimingLabel(semesterTiming, grade);
-
-    return `# Baseline Assessment — ${grade} ${subject}
-
-**Timing:** ${timing}  
-**Scope:** ${scope}  
-**Difficulty:** ${difficulty}  
-**Questions:** ${numQuestions}  
-**Format:** ${questionFormat}
-
----
-
-## Baseline Assessment Overview
-
-This diagnostic assessment checks student readiness before new instruction begins.
-Administer at the **${timing.toLowerCase()}**.
-
-**Skill areas probed:**
-- Core prerequisite concepts inferred from the ${grade} textbook
-- Foundational skills needed for upcoming units
-
----
-
-## Instructions for Students
-
-- Answer all questions to the best of your ability
-- Show all working for calculation questions
-- This is a diagnostic — it helps your teacher identify areas for review
-
----
-
-## Questions
-
-${Array.from({ length: Math.min(numQuestions, 5) }, (_, i) => (
-  `**Skill Area:** Prerequisite concept ${i + 1}\n\nQ${i + 1}: [Sample ${questionFormat.toLowerCase()} question for ${scope}]`
-)).join('\n\n')}
-
----
-
-## Answer Key
-
-[Teacher answer key with gap analysis per skill area]
-
----
-
-## Gap Analysis Guide
-
-- Missed algebra items → review ${derivePreviousGrade(grade)} equation solving
-- Missed geometry items → review prior grade angle and shape properties
-- Recommend targeted remediation before proceeding with new content`;
+    // Previously fell back to a hardcoded placeholder baseline (a repeated "[Sample
+    // question]" line) presented as if it were a real generation. Surface the real failure
+    // instead so the caller shows an actual error rather than fabricated content.
+    console.error('AI Service failed for baseline assessment:', error);
+    throw error;
   }
 };

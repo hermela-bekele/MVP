@@ -5,10 +5,19 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { FileX, CheckCircle2, XCircle } from 'lucide-react';
+import { FileX, CheckCircle2, XCircle, Download, Printer } from 'lucide-react';
 import { filterBySubjectScope, resolveDeptHeadScope } from '@/lib/departmentHead';
 import { assessmentNeedsApproval } from '@/lib/teacherPortal';
 import { DetailField } from '@/components/dashboard/shared/DetailField';
+import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
+import { MathRenderer } from '@/components/ui/MathRenderer';
+import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
+import {
+  assessmentToMarkdown,
+  generatePDFFromMarkdown,
+  printMarkdown,
+  slugifyFilename,
+} from '@/lib/pdfUtils';
 
 interface DeptAssessmentReviewProps {
   assessmentId: string;
@@ -16,7 +25,7 @@ interface DeptAssessmentReviewProps {
 
 export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ assessmentId }) => {
   const router = useRouter();
-  const { assessments, currentUser, approveAssessment, rejectAssessment } = useApp();
+  const { assessments, currentUser, approveAssessment, rejectAssessment, addNotification } = useApp();
   const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
   const departmentAssessments = useMemo(
     () => (scope ? filterBySubjectScope(assessments, scope) : []),
@@ -27,6 +36,7 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
     [departmentAssessments, assessmentId],
   );
   const [comments, setComments] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   if (!assessment) {
     return (
@@ -46,6 +56,7 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
   const canReview =
     assessment.status === 'Pending Dept Head' &&
     assessmentNeedsApproval(assessment.type, assessment.createdByRole);
+  const isAiDocument = isGeneratedAssessmentBlob(assessment.questions);
 
   const handleApprove = () => {
     approveAssessment(assessment.id, comments || 'Verified layout and syllabus alignment.');
@@ -55,6 +66,26 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
   const handleReject = () => {
     rejectAssessment(assessment.id, comments || 'Needs revision.');
     router.push('/dashboard/department-head/assessments');
+  };
+
+  const handlePrintExam = async () => {
+    await printMarkdown(assessmentToMarkdown(assessment), assessment.title);
+  };
+
+  const handleDownloadExam = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      await generatePDFFromMarkdown(
+        assessmentToMarkdown(assessment),
+        `${slugifyFilename(assessment.title)}.pdf`,
+        assessment.title,
+      );
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      addNotification('PDF Generation Failed', 'Could not generate the PDF — please try again.', 'alert');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   return (
@@ -69,24 +100,62 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
       </div>
 
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-3">
-        <h3 className="text-sm font-bold text-foreground">Test Questions Blueprint</h3>
-        <div className="space-y-3 max-h-96 overflow-y-auto rounded-lg border border-border/60 bg-muted/20 p-4">
-          {assessment.questions.map((q, idx) => (
-            <div key={q.id} className="border-b border-border/40 pb-2 text-xs last:border-0 last:pb-0">
-              <p className="font-bold text-foreground">
-                Question {idx + 1}: {q.question}
-              </p>
-              {q.options && (
-                <ul className="list-disc pl-5 mt-1 text-muted-foreground font-semibold">
-                  {q.options.map((opt, i) => (
-                    <li key={i}>{opt}</li>
-                  ))}
-                </ul>
-              )}
-              <p className="text-primary font-bold mt-1 text-[10px]">Expected Answer: {q.answer}</p>
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-foreground">Test Questions Blueprint</h3>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => void handlePrintExam()}
+              disabled={assessment.questions.length === 0}
+            >
+              <Printer className="h-3.5 w-3.5" aria-hidden />
+              Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => void handleDownloadExam()}
+              disabled={isGeneratingPDF || assessment.questions.length === 0}
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              {isGeneratingPDF ? 'Generating…' : 'Download Exam'}
+            </Button>
+          </div>
         </div>
+        {isAiDocument ? (
+          <div className="rounded-lg border border-border/60 bg-white p-4 dark:bg-gray-900/40">
+            <AssessmentContentRenderer
+              content={assessment.questions[0].question}
+              categoryLabel={`${assessment.type} · ${assessment.questions[0].type || 'Mixed'}`}
+            />
+          </div>
+        ) : (
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+            {assessment.questions.map((q, idx) => (
+              <div key={q.id} className="border-b border-border/40 pb-3 text-xs last:border-0 last:pb-0">
+                <p className="font-bold text-foreground">Question {idx + 1}</p>
+                <div className="mt-1 font-semibold text-foreground">
+                  <MathRenderer content={q.question} />
+                </div>
+                {q.options && (
+                  <ul className="list-disc pl-5 mt-1 text-muted-foreground font-semibold">
+                    {q.options.map((opt, i) => (
+                      <li key={i}>
+                        <MathRenderer content={opt} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="text-primary font-bold mt-1.5 text-[11px]">
+                  Expected Answer: <MathRenderer content={q.answer} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-2">

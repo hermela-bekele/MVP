@@ -19,7 +19,14 @@ import type { AIDetailedLessonPlanResult, WeeklyLessonSession, WeeklyProcedureRo
 const THIN = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
 const BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
 
-const PAGE_W = 16838; // A4 landscape
+// A4 landscape — the actual physical page the table/margins below are sized for.
+// NOTE: the `docx` package swaps width/height itself when `orientation: 'landscape'` is set
+// (it expects portrait-shaped input and performs the landscape swap internally) — so the
+// values passed into `page.size` further down are PAGE_H/PAGE_W (swapped), not PAGE_W/PAGE_H.
+// Passing already-landscape dimensions there double-swaps them into a portrait A4 page
+// (11906x16838) while this table is sized for a 16838-wide canvas, pushing the right side of
+// every row off the real page — this is the "cropped content" bug.
+const PAGE_W = 16838;
 const PAGE_H = 11906;
 const MARGIN = 360;
 const TABLE_W = PAGE_W - MARGIN * 2; // 16118
@@ -151,7 +158,9 @@ function buildSessionTable(session: WeeklyLessonSession): Table {
         ),
       );
     }
-    return new TableRow({ children, cantSplit: true });
+    // cantSplit removed — see annualLessonPlanDocx.ts for why forcing a long row to stay on
+    // one page causes cropped/doesn't-fit-in-one-file symptoms when cell content is long.
+    return new TableRow({ children });
   });
 
   return new Table({
@@ -195,7 +204,7 @@ export async function downloadWeeklyLessonPlanDocx(plan: AIDetailedLessonPlanRes
       {
         properties: {
           page: {
-            size: { orientation: 'landscape', width: PAGE_W, height: PAGE_H },
+            size: { orientation: 'landscape', width: PAGE_H, height: PAGE_W },
             margin: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
           },
         },

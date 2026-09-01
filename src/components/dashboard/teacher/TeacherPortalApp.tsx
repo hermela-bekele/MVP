@@ -2,7 +2,6 @@
 
 import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { PenLine } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { aisBtnPrimary } from "@/components/dashboard/teacher/aisStyles";
@@ -274,17 +273,6 @@ export function TeacherPortalApp() {
         }
       >
         + New lesson note
-      </button>
-    ) : activeTab === "manage-students" ? (
-      <button
-        type="button"
-        className={`${aisBtnPrimary} text-xs gap-1.5`}
-        onClick={() =>
-          window.dispatchEvent(new Event("open-teacher-grade-entry"))
-        }
-      >
-        <PenLine className="h-3.5 w-3.5" aria-hidden />
-        Record grade
       </button>
     ) : null;
 

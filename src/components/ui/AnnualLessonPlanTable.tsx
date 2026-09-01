@@ -189,13 +189,6 @@ function WeekRow({
           </span>
         )}
       </td>
-      <td className="border border-foreground/80 px-1.5 py-1.5 text-center whitespace-nowrap">
-        {editable ? (
-          <EditableText value={row.page} onChange={(v) => onEditField('page', v)} />
-        ) : (
-          row.page || '—'
-        )}
-      </td>
       <td className="border border-foreground/80 px-2 py-1.5">
         {editable ? (
           <EditableList
@@ -326,7 +319,6 @@ export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
                     Period needed
                   </span>
                 </th>
-                <th className="border border-foreground/80 px-1.5 py-2 bg-muted">Page</th>
                 <th className="border border-foreground/80 px-2 py-2 bg-muted">General Objectives</th>
                 <th className="border border-foreground/80 px-2 py-2 bg-muted">Teaching Methods</th>
                 <th className="border border-foreground/80 px-2 py-2 bg-muted">Teaching Aids</th>
@@ -338,7 +330,7 @@ export const AnnualLessonPlanTable: React.FC<AnnualLessonPlanTableProps> = ({
               {weeks.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={12}
                     className="border border-foreground/80 px-4 py-8 text-center text-sm text-muted-foreground"
                   >
                     No weekly rows in this plan yet.

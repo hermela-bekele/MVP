@@ -91,40 +91,38 @@ export const TeacherStudentsTab: React.FC = () => {
       ) : (
         <>
           {subTab === 'roster' && (
-            <div className="flex flex-col gap-4 max-w-4xl sm:flex-row sm:items-end sm:justify-between">
-              <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-3">
-                <Select
-                  variant="ais"
-                  label="Class grade"
-                  options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))}
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
-                />
-                <Select
-                  variant="ais"
-                  label="Section"
-                  options={SECTION_FILTER_OPTIONS.map((s) => ({
-                    value: s,
-                    label: s === 'All' ? 'All sections' : `Section ${s}`,
-                  }))}
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                />
-                <div className="flex flex-col gap-1.5">
-                  <label className={aisBodySm}>Search by name</label>
-                  <input
-                    type="search"
-                    className="h-10 rounded-lg border border-ais-outline-variant bg-white px-3 text-sm outline-none focus:border-ais-primary"
-                    placeholder="Student name..."
-                    value={nameQuery}
-                    onChange={(e) => setNameQuery(e.target.value)}
-                  />
-                </div>
-              </div>
-              <AisBtnPrimary type="button" className="!text-xs h-10 shrink-0" onClick={() => setSubTab('gradebook')}>
+            <div className="grid grid-cols-1 gap-4 max-w-4xl sm:grid-cols-4 sm:items-end">
+              <Select
+                variant="ais"
+                label="Class grade"
+                options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))}
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+              />
+              <Select
+                variant="ais"
+                label="Section"
+                options={SECTION_FILTER_OPTIONS.map((s) => ({
+                  value: s,
+                  label: s === 'All' ? 'All sections' : `Section ${s}`,
+                }))}
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+              />
+              <AisBtnPrimary type="button" className="!text-xs h-10" onClick={() => setSubTab('gradebook')}>
                 <Plus className="h-3.5 w-3.5" aria-hidden />
                 Add Result
               </AisBtnPrimary>
+              <div className="flex flex-col gap-1.5">
+                <label className={aisBodySm}>Search by name</label>
+                <input
+                  type="search"
+                  className="h-10 rounded-lg border border-ais-outline-variant bg-white px-3 text-sm outline-none focus:border-ais-primary"
+                  placeholder="Student name..."
+                  value={nameQuery}
+                  onChange={(e) => setNameQuery(e.target.value)}
+                />
+              </div>
             </div>
           )}
 

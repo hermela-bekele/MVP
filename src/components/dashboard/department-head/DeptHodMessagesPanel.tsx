@@ -140,7 +140,7 @@ export function DeptHodMessagesPanel() {
 
   return (
     <AisPage>
-      <div className="space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
         <div>
           <p className={aisLabelCaps}>Teacher messaging</p>
           <h2 className={`${aisHeadlineSm} mt-1 !text-title`}>Live chat with teachers</h2>
