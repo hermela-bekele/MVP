@@ -30,6 +30,9 @@ import {
   aisTextarea,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodyMd, aisBodySm } from '@/components/dashboard/teacher/aisStyles';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 type SubTab = 'roster' | 'gradebook' | 'parents';
 
@@ -60,6 +63,14 @@ export const TeacherStudentsTab: React.FC = () => {
   const myMessages = parentMessages.filter((m) => m.teacherId === teacherId);
   const allGradeEntries = filterTeacherGradeEntries(studentGradeEntries, teacherId);
   const selectedStudent = roster.find((s) => s.id === messageStudentId);
+
+  const [messagesPage, setMessagesPage] = useState(1);
+  const messagesTotalPages = Math.max(1, Math.ceil(myMessages.length / PAGE_SIZE));
+  const currentMessagesPage = Math.min(messagesPage, messagesTotalPages);
+  const pagedMessages = myMessages.slice(
+    (currentMessagesPage - 1) * PAGE_SIZE,
+    currentMessagesPage * PAGE_SIZE,
+  );
 
   const handleSendParent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,7 +204,7 @@ export const TeacherStudentsTab: React.FC = () => {
                   {myMessages.length === 0 ? (
                     <AisEmptyRow colSpan={4} message="No messages sent yet." />
                   ) : (
-                    myMessages.map((m) => (
+                    pagedMessages.map((m) => (
                       <AisTr key={m.id}>
                         <AisTd className="font-semibold">{m.studentName}</AisTd>
                         <AisTd>{m.parentName}</AisTd>
@@ -204,6 +215,15 @@ export const TeacherStudentsTab: React.FC = () => {
                   )}
                 </tbody>
               </AisTable>
+              <Pagination
+                className="mt-3 p-4 pt-0"
+                currentPage={currentMessagesPage}
+                totalPages={messagesTotalPages}
+                onPageChange={setMessagesPage}
+                totalItems={myMessages.length}
+                pageSize={PAGE_SIZE}
+                entityLabel="messages"
+              />
             </AisPanel>
           )}
         </>

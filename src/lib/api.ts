@@ -35,7 +35,7 @@ function authHeaders(): Record<string, string> {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   init?: RequestInit,
   timeoutMs: number = REQUEST_TIMEOUT_MS,

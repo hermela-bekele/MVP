@@ -20,6 +20,9 @@ import {
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { Select } from '@/components/ui/select';
 import { GRADE_OPTIONS } from '@/lib/teacherPortal';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 type Question = {
   id: string;
@@ -58,6 +61,19 @@ export function TeacherPracticeBank() {
   const [setGrade, setSetGrade] = useState('Grade 9');
   const [selectedQs, setSelectedQs] = useState<string[]>([]);
   const [publish, setPublish] = useState(true);
+
+  const [questionsPage, setQuestionsPage] = useState(1);
+  const questionsTotalPages = Math.max(1, Math.ceil(questions.length / PAGE_SIZE));
+  const currentQuestionsPage = Math.min(questionsPage, questionsTotalPages);
+  const pagedQuestions = questions.slice(
+    (currentQuestionsPage - 1) * PAGE_SIZE,
+    currentQuestionsPage * PAGE_SIZE,
+  );
+
+  const [setsPage, setSetsPage] = useState(1);
+  const setsTotalPages = Math.max(1, Math.ceil(sets.length / PAGE_SIZE));
+  const currentSetsPage = Math.min(setsPage, setsTotalPages);
+  const pagedSets = sets.slice((currentSetsPage - 1) * PAGE_SIZE, currentSetsPage * PAGE_SIZE);
 
   const refresh = useCallback(async () => {
     try {
@@ -210,7 +226,7 @@ export function TeacherPracticeBank() {
             {questions.length === 0 ? (
               <AisEmptyRow colSpan={6} message="No questions yet — add your first item above." />
             ) : (
-              questions.map((q) => (
+              pagedQuestions.map((q) => (
                 <AisTr key={q.id}>
                   <AisTd>
                     <input type="checkbox" checked={selectedQs.includes(q.id)} onChange={() => toggleQ(q.id)} />
@@ -227,6 +243,15 @@ export function TeacherPracticeBank() {
             )}
           </tbody>
         </AisTable>
+        <Pagination
+          className="mt-3 p-4 pt-0"
+          currentPage={currentQuestionsPage}
+          totalPages={questionsTotalPages}
+          onPageChange={setQuestionsPage}
+          totalItems={questions.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="questions"
+        />
       </AisPanel>
 
       <AisPanel title="Practice sets" description="Sets visible to students when published" flush>
@@ -243,7 +268,7 @@ export function TeacherPracticeBank() {
             {sets.length === 0 ? (
               <AisEmptyRow colSpan={4} message="No practice sets published yet." />
             ) : (
-              sets.map((s) => (
+              pagedSets.map((s) => (
                 <AisTr key={s.id}>
                   <AisTd className="font-semibold">{s.title}</AisTd>
                   <AisTd>{s.subject}</AisTd>
@@ -258,6 +283,15 @@ export function TeacherPracticeBank() {
             )}
           </tbody>
         </AisTable>
+        <Pagination
+          className="mt-3 p-4 pt-0"
+          currentPage={currentSetsPage}
+          totalPages={setsTotalPages}
+          onPageChange={setSetsPage}
+          totalItems={sets.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="practice sets"
+        />
         <div className="p-3">
           <AisBtnSecondary type="button" onClick={() => void refresh()}>
             Refresh

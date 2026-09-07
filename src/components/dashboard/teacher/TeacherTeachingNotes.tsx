@@ -48,6 +48,7 @@ import {
   aisLabelCaps,
 } from '@/components/dashboard/teacher/aisStyles';
 import { NoteDeliveryDialog } from '@/components/dashboard/teacher/NoteDeliveryDialog';
+import { Pagination } from '@/components/ui/pagination';
 const TeachingNotesRenderer = lazy(() =>
   import('@/components/ui/TeachingNotesRenderer').then((m) => ({
     default: m.TeachingNotesRenderer,
@@ -64,6 +65,8 @@ function weeklyPlanWeekLabel(plan: LessonPlan): string {
   }
   return plan.title;
 }
+
+const CARDS_PER_PAGE = 9; // 3-column card grid
 
 function RendererLoading() {
   return (
@@ -134,6 +137,22 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
     ),
   );
   const myNotes = teachingNotes.filter((n) => n.teacherId === teacherId);
+
+  const [weeklyPlansPage, setWeeklyPlansPage] = useState(1);
+  const weeklyPlansTotalPages = Math.max(1, Math.ceil(ownWeeklyPlans.length / CARDS_PER_PAGE));
+  const currentWeeklyPlansPage = Math.min(weeklyPlansPage, weeklyPlansTotalPages);
+  const pagedWeeklyPlans = ownWeeklyPlans.slice(
+    (currentWeeklyPlansPage - 1) * CARDS_PER_PAGE,
+    currentWeeklyPlansPage * CARDS_PER_PAGE,
+  );
+
+  const [notesPage, setNotesPage] = useState(1);
+  const notesTotalPages = Math.max(1, Math.ceil(myNotes.length / CARDS_PER_PAGE));
+  const currentNotesPage = Math.min(notesPage, notesTotalPages);
+  const pagedNotes = myNotes.slice(
+    (currentNotesPage - 1) * CARDS_PER_PAGE,
+    currentNotesPage * CARDS_PER_PAGE,
+  );
 
   const [viewNote, setViewNote] = useState<TeachingNote | null>(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -494,7 +513,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {ownWeeklyPlans.map((plan) => {
+                {pagedWeeklyPlans.map((plan) => {
                   const planNotes = notesForLessonPlan(myNotes, plan.id);
                   const hodApproved = isWeeklyPlanHodApproved(plan);
                   return (
@@ -606,6 +625,15 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 })}
               </div>
             )}
+            <Pagination
+              className="mt-2"
+              currentPage={currentWeeklyPlansPage}
+              totalPages={weeklyPlansTotalPages}
+              onPageChange={setWeeklyPlansPage}
+              totalItems={ownWeeklyPlans.length}
+              pageSize={CARDS_PER_PAGE}
+              entityLabel="weekly plans"
+            />
           </section>
           )}
 
@@ -623,9 +651,18 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {myNotes.map(renderNoteCard)}
+                {pagedNotes.map(renderNoteCard)}
               </div>
             )}
+            <Pagination
+              className="mt-2"
+              currentPage={currentNotesPage}
+              totalPages={notesTotalPages}
+              onPageChange={setNotesPage}
+              totalItems={myNotes.length}
+              pageSize={CARDS_PER_PAGE}
+              entityLabel="lesson notes"
+            />
           </section>
           )}
         </div>

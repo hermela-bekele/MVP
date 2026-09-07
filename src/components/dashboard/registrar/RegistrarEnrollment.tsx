@@ -6,6 +6,7 @@ import { ContentCard } from '@/components/dashboard/ContentCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { REGISTRAR_GRADE_OPTIONS, REGISTRAR_SECTION_OPTIONS, filterSchoolStudents } from '@/lib/registrarPortal';
 import { findPossibleDuplicates } from '@/lib/duplicateCheck';
 import { api } from '@/lib/api';
@@ -16,6 +17,7 @@ const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 const BULK_HEADERS = ['name', 'grade', 'section', 'parentName', 'parentPhone', 'parentEmail', 'email', 'dateOfBirth', 'medicalInfo', 'emergencyContact'];
+const BULK_ROWS_PAGE_SIZE = 10;
 
 interface BulkRow {
   name: string;
@@ -79,6 +81,7 @@ export const RegistrarEnrollment: React.FC = () => {
   const [bulkParseErrors, setBulkParseErrors] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ created: number; errors: { row: number; message: string }[] } | null>(null);
+  const [bulkRowsPage, setBulkRowsPage] = useState(1);
 
   useEffect(() => {
     const handleOpen = () => setSubmitted(false);
@@ -141,7 +144,13 @@ export const RegistrarEnrollment: React.FC = () => {
     setBulkRows(rows);
     setBulkParseErrors(parseErrors);
     setBulkResult(null);
+    setBulkRowsPage(1);
   };
+
+  const bulkRowsTotalPages = Math.max(1, Math.ceil(bulkRows.length / BULK_ROWS_PAGE_SIZE));
+  const bulkRowsCurrentPage = Math.min(bulkRowsPage, bulkRowsTotalPages);
+  const pagedBulkRowsStart = (bulkRowsCurrentPage - 1) * BULK_ROWS_PAGE_SIZE;
+  const pagedBulkRows = bulkRows.slice(pagedBulkRowsStart, pagedBulkRowsStart + BULK_ROWS_PAGE_SIZE);
 
   const bulkDuplicateWarnings = bulkRows.map((row) =>
     findPossibleDuplicates(schoolStudents, {
@@ -399,24 +408,35 @@ export const RegistrarEnrollment: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/30">
-                      {bulkRows.map((row, i) => (
-                        <tr key={i}>
-                          <td className="p-2 text-xs font-medium">{row.name}</td>
-                          <td className="p-2 text-xs">{row.grade}</td>
-                          <td className="p-2 text-xs">{row.section}</td>
-                          <td className="p-2 text-xs">{row.parentName} · {row.parentPhone}</td>
-                          <td className="p-2">
-                            {bulkDuplicateWarnings[i].length > 0 ? (
-                              <Badge variant="warning" size="sm">Possible duplicate</Badge>
-                            ) : (
-                              <Badge variant="neutral" size="sm">New</Badge>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {pagedBulkRows.map((row, idx) => {
+                        const i = pagedBulkRowsStart + idx;
+                        return (
+                          <tr key={i}>
+                            <td className="p-2 text-xs font-medium">{row.name}</td>
+                            <td className="p-2 text-xs">{row.grade}</td>
+                            <td className="p-2 text-xs">{row.section}</td>
+                            <td className="p-2 text-xs">{row.parentName} · {row.parentPhone}</td>
+                            <td className="p-2">
+                              {bulkDuplicateWarnings[i].length > 0 ? (
+                                <Badge variant="warning" size="sm">Possible duplicate</Badge>
+                              ) : (
+                                <Badge variant="neutral" size="sm">New</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={bulkRowsCurrentPage}
+                  totalPages={bulkRowsTotalPages}
+                  onPageChange={setBulkRowsPage}
+                  totalItems={bulkRows.length}
+                  pageSize={BULK_ROWS_PAGE_SIZE}
+                  entityLabel="rows"
+                />
                 <div className="flex justify-end">
                   <Button
                     variant="organic"

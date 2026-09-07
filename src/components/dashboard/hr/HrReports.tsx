@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { KpiWidget } from '@/components/dashboard/KpiWidget';
+import { Pagination } from '@/components/ui/pagination';
 import {
   filterSchoolEmployees,
   employeesByDepartment,
@@ -11,8 +12,11 @@ import {
   pendingLeaveRequests,
 } from '@/lib/hrPortal';
 
+const JOB_POSTINGS_PAGE_SIZE = 10;
+
 export const HrReports: React.FC = () => {
   const { hrEmployees, leaveRequests, payrollRecords, performanceReviews, jobPostings } = useApp();
+  const [jobPostingsPage, setJobPostingsPage] = useState(1);
 
   const employees = useMemo(() => filterSchoolEmployees(hrEmployees), [hrEmployees]);
   const byDept = employeesByDepartment(employees);
@@ -41,6 +45,13 @@ export const HrReports: React.FC = () => {
     }
     return counts;
   }, [leaveRequests]);
+
+  const jobPostingsTotalPages = Math.max(1, Math.ceil(jobPostings.length / JOB_POSTINGS_PAGE_SIZE));
+  const jobPostingsCurrentPage = Math.min(jobPostingsPage, jobPostingsTotalPages);
+  const pagedJobPostings = jobPostings.slice(
+    (jobPostingsCurrentPage - 1) * JOB_POSTINGS_PAGE_SIZE,
+    jobPostingsCurrentPage * JOB_POSTINGS_PAGE_SIZE
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -84,13 +95,22 @@ export const HrReports: React.FC = () => {
 
         <ContentCard title="Recruitment Status" description="Open positions and pipeline">
           <div className="space-y-2">
-            {jobPostings.map((job) => (
+            {pagedJobPostings.map((job) => (
               <div key={job.id} className="flex justify-between py-2 border-b border-border/30 last:border-0">
                 <span className="text-xs font-medium truncate mr-2">{job.title}</span>
                 <span className="text-xs text-muted-foreground shrink-0">{job.status} · {job.applicantCount} apps</span>
               </div>
             ))}
           </div>
+          <Pagination
+            className="mt-3"
+            currentPage={jobPostingsCurrentPage}
+            totalPages={jobPostingsTotalPages}
+            onPageChange={setJobPostingsPage}
+            totalItems={jobPostings.length}
+            pageSize={JOB_POSTINGS_PAGE_SIZE}
+            entityLabel="job postings"
+          />
         </ContentCard>
 
         <ContentCard title="Employment Mix" description="Contract types across organization">

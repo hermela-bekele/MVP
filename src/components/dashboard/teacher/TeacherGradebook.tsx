@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { readStoredSession } from '@/lib/auth';
+import { academicResultsApi, type ResultStatus } from '@/lib/academicResults';
+import { ApiError } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -180,6 +183,70 @@ export const TeacherGradebook: React.FC = () => {
       }),
     [studentGradeEntries, classGrade, classSection, teacherId],
   );
+
+  const [resultStatus, setResultStatus] = useState<ResultStatus | 'none'>('none');
+  const [submitting, setSubmitting] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const schoolId = readStoredSession()?.schoolId ?? undefined;
+
+  const refreshResultStatus = React.useCallback(() => {
+    if (classSection === 'All' || !defaultSubject) {
+      setResultStatus('none');
+      return;
+    }
+    academicResultsApi
+      .list({
+        schoolId,
+        teacherId,
+        subject: defaultSubject,
+        gradeLevel: classGrade,
+        section: classSection,
+        term: CURRENT_TERM,
+      })
+      .then(({ results }) => {
+        if (!results.length) {
+          setResultStatus('none');
+        } else if (results.every((r) => r.status === 'finalized')) {
+          setResultStatus('finalized');
+        } else if (results.some((r) => r.status === 'submitted' || r.status === 'finalized')) {
+          setResultStatus('submitted');
+        } else {
+          setResultStatus('draft');
+        }
+      })
+      .catch(() => setResultStatus('none'));
+  }, [classGrade, classSection, defaultSubject, schoolId, teacherId]);
+
+  useEffect(() => {
+    refreshResultStatus();
+  }, [refreshResultStatus]);
+
+  const isLocked = resultStatus === 'submitted' || resultStatus === 'finalized';
+
+  const handleSubmitResults = async () => {
+    setSubmitting(true);
+    setStatusError(null);
+    try {
+      await academicResultsApi.submit({
+        subject: defaultSubject,
+        gradeLevel: classGrade,
+        section: classSection,
+        term: CURRENT_TERM,
+        teacherId,
+        schoolId,
+      });
+      addNotification(
+        'Results submitted',
+        `${defaultSubject} results for ${classGrade} · ${classSection} were submitted for review.`,
+        'success',
+      );
+      refreshResultStatus();
+    } catch (err) {
+      setStatusError(err instanceof ApiError ? err.message : 'Failed to submit results.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const columns = useMemo(() => {
     const map = new Map<string, ColumnDef & { sortDate: string }>();
@@ -395,12 +462,52 @@ export const TeacherGradebook: React.FC = () => {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <AisBtnPrimary type="button" className="!text-xs" onClick={() => openAdd()} disabled={roster.length === 0}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          Add result
-        </AisBtnPrimary>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <AisBtnPrimary
+            type="button"
+            className="!text-xs"
+            onClick={() => openAdd()}
+            disabled={roster.length === 0 || isLocked}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Add result
+          </AisBtnPrimary>
+          {isLocked && (
+            <span className={`${aisBodySm} text-muted-foreground`}>
+              Editing is locked until an Academic Head reopens this class/subject/term.
+            </span>
+          )}
+        </div>
+        {classSection !== 'All' && (
+          <div className="flex items-center gap-2">
+            <AisStatusBadge
+              variant={
+                resultStatus === 'finalized' ? 'success' : resultStatus === 'submitted' ? 'primary' : 'neutral'
+              }
+            >
+              {resultStatus === 'finalized'
+                ? 'Finalized'
+                : resultStatus === 'submitted'
+                  ? 'Submitted'
+                  : resultStatus === 'draft'
+                    ? 'Draft'
+                    : 'Not submitted'}
+            </AisStatusBadge>
+            {!isLocked && (
+              <AisBtnSecondary
+                type="button"
+                className="!text-xs"
+                onClick={handleSubmitResults}
+                disabled={submitting || classEntries.length === 0}
+              >
+                {submitting ? 'Submitting…' : 'Submit Results'}
+              </AisBtnSecondary>
+            )}
+          </div>
+        )}
       </div>
+      {statusError && <p className="text-xs text-red-600">{statusError}</p>}
 
       <GradeGapAnalysisPanel
         classEntries={classEntries}
@@ -464,9 +571,10 @@ export const TeacherGradebook: React.FC = () => {
                             <AisTd key={col.key} className="text-center">
                               <button
                                 type="button"
-                                className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-primary"
+                                className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                                 onClick={() => openAdd(std.id, col)}
-                                title="Add result"
+                                disabled={isLocked}
+                                title={isLocked ? 'Locked — submitted for review' : 'Add result'}
                               >
                                 —
                               </button>
@@ -504,6 +612,7 @@ export const TeacherGradebook: React.FC = () => {
                         <AisBtnSecondary
                           className="!px-2 !py-1 text-[10px]"
                           onClick={() => openAdd(std.id)}
+                          disabled={isLocked}
                         >
                           + Score
                         </AisBtnSecondary>

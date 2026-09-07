@@ -10,16 +10,20 @@ import { filterBySubjectScope, type DeptHeadScope } from '@/lib/departmentHead';
 import { weeklyPlanStatusLabel } from '@/lib/teacherPortal';
 import { DetailedLessonPlanRenderer } from '@/components/ui/DetailedLessonPlanRenderer';
 import type { AIDetailedLessonPlanResult } from '@/lib/ai';
+import { Pagination } from '@/components/ui/pagination';
 
 interface DeptLessonPlansPanelProps {
   scope: DeptHeadScope | null;
 }
+
+const RECENT_PLANS_PAGE_SIZE = 10;
 
 export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scope }) => {
   const { lessonPlans, teachers, approveLessonPlan, rejectLessonPlan } = useApp();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comments, setComments] = useState('');
   const [open, setOpen] = useState(false);
+  const [recentPage, setRecentPage] = useState(1);
 
   const plans = useMemo(() => {
     if (!scope) return [];
@@ -29,7 +33,13 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
   }, [lessonPlans, scope]);
 
   const pending = plans.filter((p) => p.status === 'Pending Dept Head');
-  const recent = plans.filter((p) => p.status !== 'Pending Dept Head').slice(0, 20);
+  const recent = plans.filter((p) => p.status !== 'Pending Dept Head');
+  const recentTotalPages = Math.max(1, Math.ceil(recent.length / RECENT_PLANS_PAGE_SIZE));
+  const recentPageSafe = Math.min(recentPage, recentTotalPages);
+  const pagedRecent = recent.slice(
+    (recentPageSafe - 1) * RECENT_PLANS_PAGE_SIZE,
+    recentPageSafe * RECENT_PLANS_PAGE_SIZE,
+  );
   const selected = plans.find((p) => p.id === selectedId);
 
   const parsedDetail = useMemo(() => {
@@ -112,7 +122,7 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
                 </td>
               </tr>
             ) : (
-              recent.map((plan) => (
+              pagedRecent.map((plan) => (
                 <tr key={plan.id}>
                   <td className="font-medium">{plan.title}</td>
                   <td>{plan.teacherName || '—'}</td>
@@ -140,6 +150,15 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
             )}
           </tbody>
         </table>
+        <Pagination
+          className="mt-3"
+          currentPage={recentPageSafe}
+          totalPages={recentTotalPages}
+          onPageChange={setRecentPage}
+          totalItems={recent.length}
+          pageSize={RECENT_PLANS_PAGE_SIZE}
+          entityLabel="lesson plans"
+        />
       </TablePanel>
 
       <Dialog

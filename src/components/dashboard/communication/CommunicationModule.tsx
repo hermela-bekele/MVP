@@ -20,6 +20,9 @@ import { api } from '@/lib/api';
 import { departmentIdForSubject, resolveDeptHeadScope } from '@/lib/departmentHead';
 import type { Community } from '@/lib/communityTypes';
 import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
+import { Pagination } from '@/components/ui/pagination';
+
+const ANNOUNCEMENTS_PAGE_SIZE = 10;
 
 export type { CommunicationMainTab } from '@/components/dashboard/communication/CommunicationTabToggle';
 
@@ -60,6 +63,7 @@ export function CommunicationModule({
   const [announceTitle, setAnnounceTitle] = useState('');
   const [announceBody, setAnnounceBody] = useState('');
   const [posting, setPosting] = useState(false);
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
 
   const scope = useMemo(
     () => (mode === 'department-head' ? resolveDeptHeadScope(currentUser) : null),
@@ -103,7 +107,6 @@ export function CommunicationModule({
     // plus any local posts the HoD creates in this session.
     const fromFeed = (communityPosts || [])
       .filter((p) => p.title?.toLowerCase().includes('announcement') || p.authorRole === 'department-head')
-      .slice(0, 30)
       .map((p) => ({
         id: p.id,
         title: p.title || 'Announcement',
@@ -199,6 +202,13 @@ export function CommunicationModule({
     );
   }
 
+  const announcementsTotalPages = Math.max(1, Math.ceil(announcements.length / ANNOUNCEMENTS_PAGE_SIZE));
+  const announcementsCurrentPage = Math.min(announcementsPage, announcementsTotalPages);
+  const pagedAnnouncements = announcements.slice(
+    (announcementsCurrentPage - 1) * ANNOUNCEMENTS_PAGE_SIZE,
+    announcementsCurrentPage * ANNOUNCEMENTS_PAGE_SIZE
+  );
+
   return (
     <AisPage>
       <div className="mx-auto max-w-5xl space-y-8">
@@ -244,7 +254,7 @@ export function CommunicationModule({
             <p className={`${aisBodySm} py-4 text-center`}>No announcements yet.</p>
           ) : (
             <ul className="space-y-3">
-              {announcements.map((a) => (
+              {pagedAnnouncements.map((a) => (
                 <li
                   key={a.id}
                   className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-4"
@@ -264,6 +274,15 @@ export function CommunicationModule({
               ))}
             </ul>
           )}
+          <Pagination
+            className="mt-3"
+            currentPage={announcementsCurrentPage}
+            totalPages={announcementsTotalPages}
+            onPageChange={setAnnouncementsPage}
+            totalItems={announcements.length}
+            pageSize={ANNOUNCEMENTS_PAGE_SIZE}
+            entityLabel="announcements"
+          />
         </div>
 
         <div className="space-y-4">

@@ -22,6 +22,9 @@ import {
   type AisBadgeVariant,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodyMd } from '@/components/dashboard/teacher/aisStyles';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 type FeedbackFilter = 'all' | 'peer' | 'department-head' | 'parent' | 'student';
 
@@ -97,6 +100,11 @@ export const TeacherFeedbackPanel: React.FC = () => {
     () => (filter === 'all' ? received : received.filter((f) => roleOf(f) === filter)),
     [received, filter],
   );
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedFeedback = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const peers = useMemo(
     () =>
@@ -182,7 +190,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
             {filtered.length === 0 ? (
               <AisEmptyRow colSpan={6} message="No feedback in this category yet." />
             ) : (
-              filtered.map((f) => {
+              pagedFeedback.map((f) => {
                 const role = roleOf(f);
                 return (
                   <AisTr key={f.id}>
@@ -202,6 +210,15 @@ export const TeacherFeedbackPanel: React.FC = () => {
             )}
           </tbody>
         </AisTable>
+        <Pagination
+          className="mt-3 p-4 pt-0"
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="feedback entries"
+        />
       </AisPanel>
 
       <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Give feedback" size="md">

@@ -23,6 +23,10 @@ import {
   type QuestionMissStat,
 } from '@/lib/gradeMissAnalytics';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
+import { Pagination } from '@/components/ui/pagination';
+
+const MISS_STATS_PAGE_SIZE = 8;
+const TEACHER_REPORTS_PAGE_SIZE = 10;
 
 function encodeInlineModule(markdown: string) {
   return `inline-md:${encodeURIComponent(markdown)}`;
@@ -88,6 +92,23 @@ export function DeptGradeMissTrainingPanel() {
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState<GeneratedModule | null>(null);
   const [activeTopicLabel, setActiveTopicLabel] = useState('');
+
+  const [missStatsPage, setMissStatsPage] = useState(1);
+  const [teacherReportsPage, setTeacherReportsPage] = useState(1);
+
+  const missStatsTotalPages = Math.max(1, Math.ceil(missStats.length / MISS_STATS_PAGE_SIZE));
+  const missStatsPageSafe = Math.min(missStatsPage, missStatsTotalPages);
+  const pagedMissStats = missStats.slice(
+    (missStatsPageSafe - 1) * MISS_STATS_PAGE_SIZE,
+    missStatsPageSafe * MISS_STATS_PAGE_SIZE,
+  );
+
+  const teacherReportsTotalPages = Math.max(1, Math.ceil(teacherReports.length / TEACHER_REPORTS_PAGE_SIZE));
+  const teacherReportsPageSafe = Math.min(teacherReportsPage, teacherReportsTotalPages);
+  const pagedTeacherReports = teacherReports.slice(
+    (teacherReportsPageSafe - 1) * TEACHER_REPORTS_PAGE_SIZE,
+    teacherReportsPageSafe * TEACHER_REPORTS_PAGE_SIZE,
+  );
 
   const startGenerate = async (opts: {
     topic: string;
@@ -205,7 +226,7 @@ export function DeptGradeMissTrainingPanel() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {missStats.slice(0, 8).map((stat) => {
+              {pagedMissStats.map((stat) => {
                 const teacher = deptTeachers.find((t) =>
                   studentGradeEntries.some(
                     (e) =>
@@ -248,6 +269,17 @@ export function DeptGradeMissTrainingPanel() {
               })}
             </ul>
           )}
+          {missStats.length > 0 && (
+            <Pagination
+              className="mt-3"
+              currentPage={missStatsPageSafe}
+              totalPages={missStatsTotalPages}
+              onPageChange={setMissStatsPage}
+              totalItems={missStats.length}
+              pageSize={MISS_STATS_PAGE_SIZE}
+              entityLabel="miss alerts"
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -262,7 +294,7 @@ export function DeptGradeMissTrainingPanel() {
             </p>
           ) : (
             <ul className="space-y-2">
-              {teacherReports.slice(0, 10).map((msg) => {
+              {pagedTeacherReports.map((msg) => {
                 const topic = extractTopicFromMissReport(msg.body);
                 const teacher = deptTeachers.find((t) => t.id === msg.teacherId);
                 return (
@@ -290,6 +322,17 @@ export function DeptGradeMissTrainingPanel() {
                 );
               })}
             </ul>
+          )}
+          {teacherReports.length > 0 && (
+            <Pagination
+              className="mt-3"
+              currentPage={teacherReportsPageSafe}
+              totalPages={teacherReportsTotalPages}
+              onPageChange={setTeacherReportsPage}
+              totalItems={teacherReports.length}
+              pageSize={TEACHER_REPORTS_PAGE_SIZE}
+              entityLabel="teacher reports"
+            />
           )}
         </CardContent>
       </Card>

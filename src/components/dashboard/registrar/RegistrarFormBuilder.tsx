@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api, type RegistrationFormField, type RegistrationFormTemplate } from '@/lib/api';
 import { readStoredSession } from '@/lib/auth';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
@@ -47,6 +50,7 @@ export const RegistrarFormBuilder: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [savedTemplate, setSavedTemplate] = useState<RegistrationFormTemplate | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -370,6 +374,13 @@ export const RegistrarFormBuilder: React.FC = () => {
     );
   }
 
+  const templatesTotalPages = Math.max(1, Math.ceil(templates.length / PAGE_SIZE));
+  const templatesPage = Math.min(currentPage, templatesTotalPages);
+  const pagedTemplates = templates.slice(
+    (templatesPage - 1) * PAGE_SIZE,
+    templatesPage * PAGE_SIZE
+  );
+
   return (
     <div className="w-full animate-fade-in space-y-4">
       {error && (
@@ -394,7 +405,7 @@ export const RegistrarFormBuilder: React.FC = () => {
           </p>
         ) : (
           <div className="space-y-2">
-            {templates.map((t) => (
+            {pagedTemplates.map((t) => (
               <div
                 key={t.id}
                 className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -427,6 +438,15 @@ export const RegistrarFormBuilder: React.FC = () => {
             ))}
           </div>
         )}
+        <Pagination
+          className="mt-3"
+          currentPage={templatesPage}
+          totalPages={templatesTotalPages}
+          onPageChange={setCurrentPage}
+          totalItems={templates.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="forms"
+        />
       </ContentCard>
     </div>
   );

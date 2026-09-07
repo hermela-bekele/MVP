@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 type Announcement = {
   id: string;
@@ -27,6 +30,7 @@ export function SchoolHeadAnnouncements() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
     const rows = (await api.portalAnnouncements(session?.schoolId || undefined)) as Announcement[];
@@ -63,6 +67,10 @@ export function SchoolHeadAnnouncements() {
       setSaving(false);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedItems = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <PermissionGuard code="announcements.manage">
@@ -120,7 +128,7 @@ export function SchoolHeadAnnouncements() {
         <ContentCard title="Published announcements" description="Edit or remove active notices">
           {items.length ? (
             <div className="space-y-3">
-              {items.map((a) => (
+              {pagedItems.map((a) => (
                 <div
                   key={a.id}
                   className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border/70 bg-card p-4"
@@ -162,6 +170,15 @@ export function SchoolHeadAnnouncements() {
           ) : (
             <EmptyState title="No announcements" description="Publish your first notice above." />
           )}
+          <Pagination
+            className="mt-3"
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={items.length}
+            pageSize={PAGE_SIZE}
+            entityLabel="announcements"
+          />
         </ContentCard>
       </div>
     </PermissionGuard>

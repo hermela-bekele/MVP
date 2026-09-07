@@ -42,6 +42,7 @@ import {
 } from "@/components/dashboard/teacher/aisStyles";
 import { generatePDFFromMarkdown } from "@/lib/pdfUtils";
 import { VideoPlayer } from "@/components/ui/VideoPlayer";
+import { Pagination } from "@/components/ui/pagination";
 
 const CARDS_PER_PAGE = 6; // Show 6 cards: 3 per row × 2 rows
 
@@ -272,47 +273,12 @@ export const TeacherTrainingTab: React.FC<{
         </div>
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className={`${aisBtnSecondary} disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-
-            <div className="flex items-center gap-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                (page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-lg font-semibold transition-colors ${
-                      currentPage === page
-                        ? "bg-primary text-white"
-                        : `${aisBtnSecondary} px-0 py-0 justify-center`
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ),
-              )}
-            </div>
-
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
-              disabled={currentPage === totalPages}
-              className={`${aisBtnSecondary} disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        <Pagination
+          className="mt-8"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </AisPage>
     );
   }
