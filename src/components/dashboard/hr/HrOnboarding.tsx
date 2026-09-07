@@ -7,16 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { hrStatusBadgeVariant } from '@/lib/hrPortal';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
+
+const ONBOARDING_GROUPS_PAGE_SIZE = 10;
 
 export const HrOnboarding: React.FC = () => {
   const { onboardingTasks, hrEmployees, addOnboardingTask, toggleOnboardingTask, addHrEmployee, currentUser } = useApp();
   const hrOfficerName = currentUser?.displayName ?? 'HR Officer';
   const [isNewEmployeeOpen, setIsNewEmployeeOpen] = useState(false);
   const [isTaskOpen, setIsTaskOpen] = useState(false);
+  const [groupsPage, setGroupsPage] = useState(1);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,6 +47,14 @@ export const HrOnboarding: React.FC = () => {
     }
     return groups;
   }, [onboardingTasks]);
+
+  const groupedTaskEntries = Object.entries(groupedTasks);
+  const groupsTotalPages = Math.max(1, Math.ceil(groupedTaskEntries.length / ONBOARDING_GROUPS_PAGE_SIZE));
+  const groupsCurrentPage = Math.min(groupsPage, groupsTotalPages);
+  const pagedGroupedTaskEntries = groupedTaskEntries.slice(
+    (groupsCurrentPage - 1) * ONBOARDING_GROUPS_PAGE_SIZE,
+    groupsCurrentPage * ONBOARDING_GROUPS_PAGE_SIZE
+  );
 
   const defaultOnboardingTasks = (employeeId: string, employeeName: string) => [
     { employeeId, employeeName, task: 'Employment contract signing', assignee: hrOfficerName, dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
@@ -111,7 +123,7 @@ export const HrOnboarding: React.FC = () => {
 
       <TablePanel title="Onboarding Checklists">
         <div className="space-y-4">
-          {Object.entries(groupedTasks).map(([empId, tasks]) => {
+          {pagedGroupedTaskEntries.map(([empId, tasks]) => {
             const completed = tasks.filter((t) => t.completed).length;
             const employeeName = tasks[0]?.employeeName ?? 'Unknown';
             return (
@@ -143,6 +155,15 @@ export const HrOnboarding: React.FC = () => {
             );
           })}
         </div>
+        <Pagination
+          className="mt-3"
+          currentPage={groupsCurrentPage}
+          totalPages={groupsTotalPages}
+          onPageChange={setGroupsPage}
+          totalItems={groupedTaskEntries.length}
+          pageSize={ONBOARDING_GROUPS_PAGE_SIZE}
+          entityLabel="employees"
+        />
       </TablePanel>
 
       <Dialog isOpen={isNewEmployeeOpen} onClose={() => setIsNewEmployeeOpen(false)} title="Start Employee Onboarding">

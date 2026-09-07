@@ -30,6 +30,9 @@ import {
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 import type { AisBadgeVariant } from '@/components/dashboard/teacher/TeacherPortalUi';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 const statusVariant: Record<Attendance['status'], AisBadgeVariant> = {
   Present: 'success',
@@ -57,6 +60,11 @@ export const TeacherAttendanceTab: React.FC = () => {
     if (!query) return base;
     return base.filter((std) => std.name.toLowerCase().includes(query));
   }, [students, listGrade, listSection, nameQuery]);
+
+  const [rosterPage, setRosterPage] = useState(1);
+  const rosterTotalPages = Math.max(1, Math.ceil(listRoster.length / PAGE_SIZE));
+  const currentRosterPage = Math.min(rosterPage, rosterTotalPages);
+  const pagedRoster = listRoster.slice((currentRosterPage - 1) * PAGE_SIZE, currentRosterPage * PAGE_SIZE);
 
   const latestByStudent = useMemo(() => {
     const map: Record<string, Attendance> = {};
@@ -189,7 +197,7 @@ export const TeacherAttendanceTab: React.FC = () => {
             {listRoster.length === 0 ? (
               <AisEmptyRow colSpan={5} message="No students match this filter." />
             ) : (
-              listRoster.map((std) => {
+              pagedRoster.map((std) => {
                 const last = latestByStudent[std.id];
                 return (
                   <AisTr key={std.id}>
@@ -213,6 +221,15 @@ export const TeacherAttendanceTab: React.FC = () => {
             )}
           </tbody>
         </AisTable>
+        <Pagination
+          className="mt-3 p-4 pt-0"
+          currentPage={currentRosterPage}
+          totalPages={rosterTotalPages}
+          onPageChange={setRosterPage}
+          totalItems={listRoster.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="students"
+        />
       </AisPanel>
     </AisPage>
   );

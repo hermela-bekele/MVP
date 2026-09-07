@@ -6,6 +6,7 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { filterDeptTeachingNotes, type DeptHeadScope } from '@/lib/departmentHead';
 import { TeachingNotesRenderer } from '@/components/ui/TeachingNotesRenderer';
 import type { AITeachingNotesResult } from '@/lib/ai';
@@ -35,6 +36,11 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
   const [comments, setComments] = useState('');
   const [open, setOpen] = useState(false);
 
+  const NOTES_PAGE_SIZE = 10;
+  const [pendingPage, setPendingPage] = useState(1);
+  const [approvedPage, setApprovedPage] = useState(1);
+  const [otherPage, setOtherPage] = useState(1);
+
   const notes = useMemo(() => {
     if (!scope) return [];
     return filterDeptTeachingNotes(teachingNotes, teachers, scope);
@@ -54,6 +60,27 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
       !deliveryFor(n.id),
   );
   const selected = notes.find((n) => n.id === selectedId);
+
+  const pendingTotalPages = Math.max(1, Math.ceil(pending.length / NOTES_PAGE_SIZE));
+  const pendingPageSafe = Math.min(pendingPage, pendingTotalPages);
+  const pagedPending = pending.slice(
+    (pendingPageSafe - 1) * NOTES_PAGE_SIZE,
+    pendingPageSafe * NOTES_PAGE_SIZE,
+  );
+
+  const approvedTotalPages = Math.max(1, Math.ceil(approvedOrDelivered.length / NOTES_PAGE_SIZE));
+  const approvedPageSafe = Math.min(approvedPage, approvedTotalPages);
+  const pagedApproved = approvedOrDelivered.slice(
+    (approvedPageSafe - 1) * NOTES_PAGE_SIZE,
+    approvedPageSafe * NOTES_PAGE_SIZE,
+  );
+
+  const otherTotalPages = Math.max(1, Math.ceil(other.length / NOTES_PAGE_SIZE));
+  const otherPageSafe = Math.min(otherPage, otherTotalPages);
+  const pagedOther = other.slice(
+    (otherPageSafe - 1) * NOTES_PAGE_SIZE,
+    otherPageSafe * NOTES_PAGE_SIZE,
+  );
 
   const planTitleFor = (noteId: string, lessonPlanId?: string) => {
     const delivery = deliveryFor(noteId);
@@ -114,7 +141,7 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
                 </td>
               </tr>
             ) : (
-              pending.map((note) => {
+              pagedPending.map((note) => {
                 const teacher = teachers.find((t) => t.id === note.teacherId);
                 return (
                   <tr key={note.id}>
@@ -152,6 +179,15 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
             )}
           </tbody>
         </table>
+        <Pagination
+          className="mt-3"
+          currentPage={pendingPageSafe}
+          totalPages={pendingTotalPages}
+          onPageChange={setPendingPage}
+          totalItems={pending.length}
+          pageSize={NOTES_PAGE_SIZE}
+          entityLabel="pending teaching notes"
+        />
       </TablePanel>
 
       <TablePanel
@@ -176,7 +212,7 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
                 </td>
               </tr>
             ) : (
-              approvedOrDelivered.map((note) => {
+              pagedApproved.map((note) => {
                 const teacher = teachers.find((t) => t.id === note.teacherId);
                 const delivery = deliveryFor(note.id);
                 return (
@@ -226,6 +262,15 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
             )}
           </tbody>
         </table>
+        <Pagination
+          className="mt-3"
+          currentPage={approvedPageSafe}
+          totalPages={approvedTotalPages}
+          onPageChange={setApprovedPage}
+          totalItems={approvedOrDelivered.length}
+          pageSize={NOTES_PAGE_SIZE}
+          entityLabel="approved notes"
+        />
       </TablePanel>
 
       {other.length > 0 && (
@@ -240,7 +285,7 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
               </tr>
             </thead>
             <tbody>
-              {other.map((note) => {
+              {pagedOther.map((note) => {
                 const teacher = teachers.find((t) => t.id === note.teacherId);
                 return (
                   <tr key={note.id}>
@@ -265,6 +310,15 @@ export const DeptTeachingNotesPanel: React.FC<DeptTeachingNotesPanelProps> = ({ 
               })}
             </tbody>
           </table>
+          <Pagination
+            className="mt-3"
+            currentPage={otherPageSafe}
+            totalPages={otherTotalPages}
+            onPageChange={setOtherPage}
+            totalItems={other.length}
+            pageSize={NOTES_PAGE_SIZE}
+            entityLabel="other notes"
+          />
         </TablePanel>
       )}
 

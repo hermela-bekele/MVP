@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { AisPage, AisPanel, AisTable, AisTd, AisTh, AisTr } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodyMd, aisBodySm } from '@/components/dashboard/teacher/aisStyles';
 import { StudentFeedbackForm } from '@/components/dashboard/student/StudentFeedbackForm';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 /**
  * Read-only view of feedback a student has received from their teachers, plus a
@@ -29,6 +32,11 @@ export const StudentFeedbackTab: React.FC = () => {
     [teacherFeedbacks, activeStudent]
   );
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(received.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedFeedback = received.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <AisPage>
       <AisPanel title="Feedback from your teachers" description="Comments and coaching notes shared about your work" flush>
@@ -45,7 +53,7 @@ export const StudentFeedbackTab: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {received.map((f) => (
+              {pagedFeedback.map((f) => (
                 <AisTr key={f.id}>
                   <AisTd className="font-semibold">{f.authorName}</AisTd>
                   <AisTd>{f.subject}</AisTd>
@@ -56,6 +64,15 @@ export const StudentFeedbackTab: React.FC = () => {
             </tbody>
           </AisTable>
         )}
+        <Pagination
+          className="mt-3 p-4 pt-0"
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={received.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="feedback entries"
+        />
       </AisPanel>
 
       <StudentFeedbackForm studentId={activeStudent?.id} studentName={activeStudent?.name} />

@@ -21,6 +21,7 @@ import { formatEthiopianDateShort } from '@/lib/ethiopianCalendar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 
 type ViewMode = 'grid' | 'list';
 
@@ -46,6 +47,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
   const holidayCount = useMemo(() => events.filter((e) => e.type === 'holiday').length, [events]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [monthIndex, setMonthIndex] = useState(0);
+  const EVENTS_PAGE_SIZE = 10;
+  const [eventsPage, setEventsPage] = useState(1);
 
   const activeMonthKey = monthKeys[monthIndex] ?? monthKeys[0];
   const { year, month } = parseMonthKey(activeMonthKey);
@@ -64,6 +67,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
     }
     return cells;
   }, [year, month]);
+
+  const eventsTotalPages = Math.max(1, Math.ceil(events.length / EVENTS_PAGE_SIZE));
+  const eventsCurrentPage = Math.min(eventsPage, eventsTotalPages);
+  const pagedEvents = events.slice(
+    (eventsCurrentPage - 1) * EVENTS_PAGE_SIZE,
+    eventsCurrentPage * EVENTS_PAGE_SIZE,
+  );
 
   if (events.length === 0) {
     return (
@@ -239,7 +249,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
               </tr>
             </thead>
             <tbody>
-              {events.map((event, i) => (
+              {pagedEvents.map((event, i) => (
                 <tr key={`${event.label}-${event.startDate}-${i}`}>
                   <td className="font-semibold">{event.label}</td>
                   <td>{event.startDate}</td>
@@ -253,6 +263,15 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({
               ))}
             </tbody>
           </table>
+          <Pagination
+            className="p-3 border-t border-border/60"
+            currentPage={eventsCurrentPage}
+            totalPages={eventsTotalPages}
+            onPageChange={setEventsPage}
+            totalItems={events.length}
+            pageSize={EVENTS_PAGE_SIZE}
+            entityLabel="events"
+          />
         </div>
       )}
     </div>

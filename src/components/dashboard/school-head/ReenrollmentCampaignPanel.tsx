@@ -8,6 +8,9 @@ import { ContentCard } from '@/components/dashboard/ContentCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 export function ReenrollmentCampaignPanel() {
   const session = readStoredSession();
@@ -18,6 +21,7 @@ export function ReenrollmentCampaignPanel() {
     { id: string; title: string; inviteCount: number; confirmedCount: number; status: string }[]
   >([]);
   const [status, setStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = () =>
     api
@@ -28,6 +32,10 @@ export function ReenrollmentCampaignPanel() {
   useEffect(() => {
     load();
   }, [session?.schoolId]);
+
+  const totalPages = Math.max(1, Math.ceil(campaigns.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedCampaigns = campaigns.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <PermissionGuard code="enrollment.transfer">
@@ -73,7 +81,7 @@ export function ReenrollmentCampaignPanel() {
         </div>
         {status && <p className="mb-3 text-xs text-muted-foreground">{status}</p>}
         <div className="space-y-2">
-          {campaigns.map((c) => (
+          {pagedCampaigns.map((c) => (
             <div key={c.id} className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3 text-sm">
               <div>
                 <p className="font-semibold">{c.title}</p>
@@ -84,6 +92,15 @@ export function ReenrollmentCampaignPanel() {
             </div>
           ))}
         </div>
+        <Pagination
+          className="mt-3"
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={campaigns.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="campaigns"
+        />
       </ContentCard>
     </PermissionGuard>
   );

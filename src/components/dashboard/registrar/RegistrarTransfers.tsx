@@ -12,6 +12,9 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { Student } from '@/lib/mockData';
 import { filterSchoolStudents, statusBadgeVariant } from '@/lib/registrarPortal';
 import { gpaToMark } from '@/lib/grading';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 export const RegistrarTransfers: React.FC = () => {
   const { students, updateStudent, addNotification } = useApp();
@@ -23,11 +26,16 @@ export const RegistrarTransfers: React.FC = () => {
   const [transferNotes, setTransferNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filtered = useMemo(() => {
     if (statusFilter === 'All') return schoolStudents;
     return schoolStudents.filter((s) => s.status === statusFilter);
   }, [schoolStudents, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const statusCounts = useMemo(
     () => ({
@@ -75,7 +83,10 @@ export const RegistrarTransfers: React.FC = () => {
           <button
             key={status}
             type="button"
-            onClick={() => setStatusFilter(statusFilter === status ? 'All' : status)}
+            onClick={() => {
+              setStatusFilter(statusFilter === status ? 'All' : status);
+              setCurrentPage(1);
+            }}
             className={`p-4 rounded-lg border text-left transition-colors cursor-pointer ${
               statusFilter === status
                 ? 'border-primary bg-primary/10'
@@ -102,7 +113,7 @@ export const RegistrarTransfers: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {filtered.map((student) => (
+            {paged.map((student) => (
               <tr key={student.id} className="hover:bg-muted/10">
                 <td className="p-3">
                   <div className="flex items-center gap-2">
@@ -140,6 +151,15 @@ export const RegistrarTransfers: React.FC = () => {
             ))}
           </tbody>
         </table>
+        <Pagination
+          className="mt-3"
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="students"
+        />
       </TablePanel>
 
       <Dialog

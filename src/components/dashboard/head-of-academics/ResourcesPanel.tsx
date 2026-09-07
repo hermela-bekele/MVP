@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
+
+const RESOURCES_PAGE_SIZE = 10;
 
 export const ResourcesPanel: React.FC = () => {
   const { trainingMaterials, addTrainingMaterial, disseminateTrainingMaterial, addNotification } = useApp();
@@ -16,8 +19,15 @@ export const ResourcesPanel: React.FC = () => {
   const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [category, setCategory] = useState('Pedagogy');
   const [uploading, setUploading] = useState(false);
+  const [resourcesPage, setResourcesPage] = useState(1);
 
   const schoolResources = trainingMaterials.filter((m) => !m.departmentId);
+  const resourcesTotalPages = Math.max(1, Math.ceil(schoolResources.length / RESOURCES_PAGE_SIZE));
+  const resourcesCurrentPage = Math.min(resourcesPage, resourcesTotalPages);
+  const pagedResources = schoolResources.slice(
+    (resourcesCurrentPage - 1) * RESOURCES_PAGE_SIZE,
+    resourcesCurrentPage * RESOURCES_PAGE_SIZE,
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +129,7 @@ export const ResourcesPanel: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              schoolResources.map((resource) => (
+              pagedResources.map((resource) => (
                 <tr key={resource.id}>
                   <td className="font-semibold">{resource.title}</td>
                   <td>{resource.category}</td>
@@ -140,6 +150,17 @@ export const ResourcesPanel: React.FC = () => {
             )}
           </tbody>
         </table>
+        {schoolResources.length > 0 && (
+          <Pagination
+            className="mt-3"
+            currentPage={resourcesCurrentPage}
+            totalPages={resourcesTotalPages}
+            onPageChange={setResourcesPage}
+            totalItems={schoolResources.length}
+            pageSize={RESOURCES_PAGE_SIZE}
+            entityLabel="resources"
+          />
+        )}
       </TablePanel>
     </div>
   );

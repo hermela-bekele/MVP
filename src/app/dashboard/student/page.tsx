@@ -17,10 +17,17 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { UserX } from 'lucide-react';
 import { generatePDFFromMarkdown, slugifyFilename } from '@/lib/pdfUtils';
 import { gpaToMark } from '@/lib/grading';
+import { Pagination } from '@/components/ui/pagination';
 
 export default function StudentPortalPage() {
   const { students, addNotification, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Pagination state
+  const HOMEWORK_PAGE_SIZE = 10;
+  const [homeworkPage, setHomeworkPage] = useState(1);
+  const RESOURCES_PAGE_SIZE = 9;
+  const [resourcesPage, setResourcesPage] = useState(1);
 
   // Resolve the logged-in student from session; fall back to the first
   // student record only if this account has no link yet (demo/unlinked accounts).
@@ -37,6 +44,20 @@ export default function StudentPortalPage() {
     { id: 'res-2', name: 'Grade 9 Mathematics Syllabus Guide', format: 'PDF', size: '5.8 MB' },
     { id: 'res-3', name: 'Continuous Chemistry Assessment Lab Sheet', format: 'DOCX', size: '2.1 MB' },
   ];
+
+  const homeworkTotalPages = Math.max(1, Math.ceil(homeworkList.length / HOMEWORK_PAGE_SIZE));
+  const homeworkCurrentPage = Math.min(homeworkPage, homeworkTotalPages);
+  const pagedHomework = homeworkList.slice(
+    (homeworkCurrentPage - 1) * HOMEWORK_PAGE_SIZE,
+    homeworkCurrentPage * HOMEWORK_PAGE_SIZE,
+  );
+
+  const resourcesTotalPages = Math.max(1, Math.ceil(disseminatedResources.length / RESOURCES_PAGE_SIZE));
+  const resourcesCurrentPage = Math.min(resourcesPage, resourcesTotalPages);
+  const pagedResources = disseminatedResources.slice(
+    (resourcesCurrentPage - 1) * RESOURCES_PAGE_SIZE,
+    resourcesCurrentPage * RESOURCES_PAGE_SIZE,
+  );
 
   const SYLLABUS_TARGET_PCT = 70;
 
@@ -185,7 +206,7 @@ export default function StudentPortalPage() {
                     <CardTitle className="text-sm font-semibold">Pending Class Homework Checklist</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-2 space-y-3">
-                    {homeworkList.map((hw) => (
+                    {pagedHomework.map((hw) => (
                       <div key={hw.id} className="flex justify-between items-center p-3 bg-muted/40 border border-border/40 rounded-lg">
                         <div>
                           <span className="text-xs font-bold text-foreground">{hw.task}</span>
@@ -196,6 +217,15 @@ export default function StudentPortalPage() {
                         </Badge>
                       </div>
                     ))}
+                    <Pagination
+                      className="mt-3"
+                      currentPage={homeworkCurrentPage}
+                      totalPages={homeworkTotalPages}
+                      onPageChange={setHomeworkPage}
+                      totalItems={homeworkList.length}
+                      pageSize={HOMEWORK_PAGE_SIZE}
+                      entityLabel="homework items"
+                    />
                   </CardContent>
                 </Card>
 
@@ -234,7 +264,7 @@ export default function StudentPortalPage() {
                 </CardHeader>
                 <CardContent className="pt-2">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {disseminatedResources.map((res) => (
+                    {pagedResources.map((res) => (
                       <div key={res.id} className="p-4 bg-muted/40 border border-border/40 rounded-xl space-y-3">
                         <span className="text-2xl">📚</span>
                         <div>
@@ -250,6 +280,15 @@ export default function StudentPortalPage() {
                       </div>
                     ))}
                   </div>
+                  <Pagination
+                    className="mt-4"
+                    currentPage={resourcesCurrentPage}
+                    totalPages={resourcesTotalPages}
+                    onPageChange={setResourcesPage}
+                    totalItems={disseminatedResources.length}
+                    pageSize={RESOURCES_PAGE_SIZE}
+                    entityLabel="resources"
+                  />
                 </CardContent>
               </Card>
             </div>

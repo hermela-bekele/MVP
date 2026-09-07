@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { EmptyState } from './empty-state';
-import { Select } from './select';
+import { Pagination } from './pagination';
 
 /* ───────────── Types ───────────── */
 
@@ -157,21 +157,6 @@ export function DataTable<T extends object>({
     [sortKey, sortDir],
   );
 
-  /* ── Page numbers helper ── */
-  const pageNumbers = useMemo(() => {
-    const pages: (number | '...')[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('...');
-      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
-      if (currentPage < totalPages - 2) pages.push('...');
-      pages.push(totalPages);
-    }
-    return pages;
-  }, [currentPage, totalPages]);
-
   /* ── Render cell value ── */
   const renderCell = (row: T, col: DataTableColumn<T>, index: number) => {
     if (col.render) return col.render(row, index);
@@ -310,73 +295,24 @@ export function DataTable<T extends object>({
 
       {/* Pagination */}
       {!loading && sorted.length > 0 && (sorted.length > effectivePageSize || !!pageSizeOptions) && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>
-            Showing {(currentPage - 1) * effectivePageSize + 1} to {Math.min(currentPage * effectivePageSize, sorted.length)} of{' '}
-            {sorted.length}
-            {entityLabel ? ` ${entityLabel}` : ''}
-          </span>
-
-          <div className="flex flex-wrap items-center gap-3">
-          {pageSizeOptions && (
-            <div className="w-32">
-              <Select
-                size="sm"
-                options={pageSizeOptions.map((n) => ({ value: String(n), label: `${n} per page` }))}
-                value={String(pageSizeState)}
-                onChange={(e) => {
-                  setPageSizeState(Number(e.target.value));
+        <Pagination
+          className="mt-3"
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          totalItems={sorted.length}
+          pageSize={effectivePageSize}
+          entityLabel={entityLabel}
+          pageSizeOptions={pageSizeOptions}
+          onPageSizeChange={
+            pageSizeOptions
+              ? (size) => {
+                  setPageSizeState(size);
                   setPage(1);
-                }}
-              />
-            </div>
-          )}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Previous page"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {pageNumbers.map((p, i) =>
-              p === '...' ? (
-                <span key={`ellipsis-${i}`} className="px-1">…</span>
-              ) : (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPage(p)}
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    p === currentPage
-                      ? 'bg-primary text-primary-foreground'
-                      : 'border border-border hover:bg-muted'
-                  }`}
-                >
-                  {p}
-                </button>
-              ),
-            )}
-
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Next page"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-          </div>
-        </div>
+                }
+              : undefined
+          }
+        />
       )}
     </div>
   );

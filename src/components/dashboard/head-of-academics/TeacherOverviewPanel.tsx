@@ -13,6 +13,9 @@ import { hrStatusBadgeVariant } from '@/lib/hrPortal';
 import type { Teacher, LessonPlan } from '@/lib/mockData';
 import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { CalendarCheck, ClipboardList, Inbox, Users } from 'lucide-react';
+import { Pagination } from '@/components/ui/pagination';
+
+const ROWS_PAGE_SIZE = 10;
 
 /** Workflow-stage completion for a plan (Draft → Pending Dept Head → Pending School Head/Approved). */
 function planStageProgress(status: LessonPlan['status'] | undefined): number {
@@ -54,6 +57,7 @@ export const TeacherOverviewPanel: React.FC = () => {
   const { currentUser, teachers, departments, lessonPlans, hrEmployees, staffAttendance } = useApp();
   const scope = useMemo(() => resolveHeadOfAcademicsScope(currentUser), [currentUser]);
   const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
+  const [rowsPage, setRowsPage] = useState(1);
 
   const schoolTeachers = useMemo(
     () => (scope ? teachers.filter((t) => t.schoolId === scope.schoolId) : []),
@@ -142,6 +146,10 @@ export const TeacherOverviewPanel: React.FC = () => {
     [detailTeacher, rows],
   );
 
+  const rowsTotalPages = Math.max(1, Math.ceil(rows.length / ROWS_PAGE_SIZE));
+  const rowsCurrentPage = Math.min(rowsPage, rowsTotalPages);
+  const pagedRows = rows.slice((rowsCurrentPage - 1) * ROWS_PAGE_SIZE, rowsCurrentPage * ROWS_PAGE_SIZE);
+
   return (
     <div className="space-y-6 animate-fade-in text-left">
       <KpiGrid className="sm:grid-cols-2 xl:grid-cols-4">
@@ -181,7 +189,7 @@ export const TeacherOverviewPanel: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
+              pagedRows.map((row) => (
                 <tr key={row.teacher.id} className="hover:bg-muted/20">
                   <td className="p-3">
                     <div className="flex items-center gap-2">
@@ -221,6 +229,17 @@ export const TeacherOverviewPanel: React.FC = () => {
             )}
           </tbody>
         </table>
+        {rows.length > 0 && (
+          <Pagination
+            className="mt-3"
+            currentPage={rowsCurrentPage}
+            totalPages={rowsTotalPages}
+            onPageChange={setRowsPage}
+            totalItems={rows.length}
+            pageSize={ROWS_PAGE_SIZE}
+            entityLabel="teachers"
+          />
+        )}
       </TablePanel>
 
       <Dialog

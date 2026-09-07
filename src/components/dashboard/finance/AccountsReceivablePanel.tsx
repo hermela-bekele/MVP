@@ -12,6 +12,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { InvoiceDetailDialog } from '@/components/dashboard/billing/InvoiceDetailDialog';
+import { Pagination } from '@/components/ui/pagination';
+
+const INVOICES_PAGE_SIZE = 10;
 
 function deadlineVariant(color: Invoice['deadlineColor']) {
   if (color === 'green') return 'success' as const;
@@ -27,6 +30,7 @@ export function AccountsReceivablePanel() {
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoicesPage, setInvoicesPage] = useState(1);
   const [aging, setAging] = useState<{
     upcomingCount: number;
     overdueCount: number;
@@ -63,6 +67,13 @@ export function AccountsReceivablePanel() {
   const open = invoices.filter((i) => i.balanceDue > 0);
   const overdue = invoices.filter((i) => i.deadlineColor === 'red' && i.balanceDue > 0);
   const collected = aging?.collected ?? invoices.reduce((s, i) => s + i.amountPaid, 0);
+
+  const invoicesTotalPages = Math.max(1, Math.ceil(invoices.length / INVOICES_PAGE_SIZE));
+  const invoicesCurrentPage = Math.min(invoicesPage, invoicesTotalPages);
+  const pagedInvoices = invoices.slice(
+    (invoicesCurrentPage - 1) * INVOICES_PAGE_SIZE,
+    invoicesCurrentPage * INVOICES_PAGE_SIZE,
+  );
 
   return (
     <div className="space-y-5">
@@ -177,7 +188,7 @@ export function AccountsReceivablePanel() {
           </div>
         ) : invoices.length ? (
           <div className="space-y-3 p-1">
-            {invoices.map((inv) => (
+            {pagedInvoices.map((inv) => (
               <div
                 key={inv.id}
                 role="button"
@@ -247,6 +258,17 @@ export function AccountsReceivablePanel() {
           </div>
         ) : (
           <EmptyState title="No invoices yet" description="Accept an application or run monthly billing to create invoices." />
+        )}
+        {!invoicesLoading && invoices.length > 0 && (
+          <Pagination
+            className="mt-3"
+            currentPage={invoicesCurrentPage}
+            totalPages={invoicesTotalPages}
+            onPageChange={setInvoicesPage}
+            totalItems={invoices.length}
+            pageSize={INVOICES_PAGE_SIZE}
+            entityLabel="invoices"
+          />
         )}
       </ContentCard>
 

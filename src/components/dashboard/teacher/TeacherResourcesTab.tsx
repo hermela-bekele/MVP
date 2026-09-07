@@ -16,6 +16,9 @@ import {
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodyMd, aisBodySm, aisCard, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 9; // 3-column card grid
 
 function resourceUrlOf(row: ResourceRow): string | undefined {
   return row.kind === 'own' ? row.resource.url : row.resource.resourceUrl;
@@ -82,6 +85,11 @@ export const TeacherResourcesTab: React.FC = () => {
     return [...deptRows, ...ownRows];
   }, [departmentResources, myResources]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(allResources.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedResources = allResources.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const [viewingResource, setViewingResource] = useState<ResourceRow | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -138,7 +146,7 @@ export const TeacherResourcesTab: React.FC = () => {
           <p className={`${aisBodyMd} py-8 text-center`}>No resources available yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {allResources.map((row) => {
+            {pagedResources.map((row) => {
               const isOwn = row.kind === 'own';
               const title = row.resource.title;
               const type = isOwn ? row.resource.type : categoryToType(row.resource.category);
@@ -170,6 +178,15 @@ export const TeacherResourcesTab: React.FC = () => {
             })}
           </div>
         )}
+        <Pagination
+          className="mt-4"
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={allResources.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="resources"
+        />
       </AisPanel>
 
       <Dialog

@@ -7,6 +7,9 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Pagination } from '@/components/ui/pagination';
+
+const ENTRIES_PAGE_SIZE = 10;
 
 type CalendarEntry = {
   date: string;
@@ -43,6 +46,7 @@ export function FinancialCalendarPanel() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [periods, setPeriods] = useState<FinancialPeriod[]>([]);
   const [loading, setLoading] = useState(true);
+  const [entriesPage, setEntriesPage] = useState(1);
 
   useEffect(() => {
     Promise.all([
@@ -77,6 +81,13 @@ export function FinancialCalendarPanel() {
     return [...feeEntries, ...periodEntries].sort((a, b) => a.date.localeCompare(b.date));
   }, [invoices, periods]);
 
+  const entriesTotalPages = Math.max(1, Math.ceil(entries.length / ENTRIES_PAGE_SIZE));
+  const entriesCurrentPage = Math.min(entriesPage, entriesTotalPages);
+  const pagedEntries = entries.slice(
+    (entriesCurrentPage - 1) * ENTRIES_PAGE_SIZE,
+    entriesCurrentPage * ENTRIES_PAGE_SIZE,
+  );
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -99,7 +110,7 @@ export function FinancialCalendarPanel() {
         />
       ) : (
         <div className="divide-y divide-border/60">
-          {entries.map((entry, idx) => (
+          {pagedEntries.map((entry, idx) => (
             <div key={`${entry.date}-${idx}`} className="flex items-center justify-between gap-4 py-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -114,6 +125,17 @@ export function FinancialCalendarPanel() {
             </div>
           ))}
         </div>
+      )}
+      {entries.length > 0 && (
+        <Pagination
+          className="mt-3"
+          currentPage={entriesCurrentPage}
+          totalPages={entriesTotalPages}
+          onPageChange={setEntriesPage}
+          totalItems={entries.length}
+          pageSize={ENTRIES_PAGE_SIZE}
+          entityLabel="calendar entries"
+        />
       )}
     </TablePanel>
   );

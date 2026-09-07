@@ -25,6 +25,9 @@ import {
   approvalBadgeVariant,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 export const TeacherAssessmentsTab: React.FC = () => {
   const router = useRouter();
@@ -47,6 +50,11 @@ export const TeacherAssessmentsTab: React.FC = () => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assessments, teacherId, typeFilter, statusFilter, searchQuery]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredAssessments.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedAssessments = filteredAssessments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     const open = () => router.push('/dashboard/teacher/assessments/generate');
@@ -125,7 +133,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
             {filteredAssessments.length === 0 ? (
               <AisEmptyRow colSpan={6} message="No assessments match this filter." />
             ) : (
-              filteredAssessments.map((a) => (
+              pagedAssessments.map((a) => (
                 <AisTr
                   key={a.id}
                   className="cursor-pointer"
@@ -155,6 +163,15 @@ export const TeacherAssessmentsTab: React.FC = () => {
             )}
           </tbody>
         </AisTable>
+        <Pagination
+          className="mt-3 p-4 pt-0"
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredAssessments.length}
+          pageSize={PAGE_SIZE}
+          entityLabel="assessments"
+        />
       </AisPanel>
     </AisPage>
   );

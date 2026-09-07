@@ -160,7 +160,7 @@ export interface SignatureLine {
 }
 
 export interface StudentInfoFieldConfig {
-  key: 'name' | 'studentId' | 'grade' | 'section' | 'term' | 'parentName';
+  key: 'name' | 'studentId' | 'grade' | 'section' | 'term' | 'parentName' | 'academicYear';
   label: string;
   enabled: boolean;
 }
@@ -168,9 +168,11 @@ export interface StudentInfoFieldConfig {
 export interface ReportCardTemplate {
   header: {
     showLogo: boolean;
+    showSeal?: boolean;
     schoolNameOverride?: string;
     title: string;
     subtitle?: string;
+    addressLine?: string;
   };
   studentInfoFields: StudentInfoFieldConfig[];
   gradingScale: GradingScaleBand[];
@@ -179,7 +181,10 @@ export interface ReportCardTemplate {
     showTermAverage: boolean;
     showGpa: boolean;
     showRank: boolean;
+    showRankPopulation?: boolean;
     showAttendanceRate: boolean;
+    showConduct?: boolean;
+    showPromotionStatus?: boolean;
   };
   signatureLines: SignatureLine[];
   footerText?: string;

@@ -5,6 +5,7 @@ export interface RenderableReportDoc {
   kind: 'report-card' | 'transcript';
   schoolName: string;
   schoolLogoUrl?: string;
+  schoolSealUrl?: string;
   student: {
     name: string;
     studentId: string;
@@ -14,6 +15,7 @@ export interface RenderableReportDoc {
   };
   /** Report-card only — the single term this document covers. */
   term?: string;
+  academicYear?: string;
   /** Report card: one group (the selected term). Transcript: one group per term. */
   subjectGroups: {
     term?: string;
@@ -24,7 +26,11 @@ export interface RenderableReportDoc {
   /** Transcript cumulative GPA across all terms. */
   overallGpa?: number | null;
   rank?: number | null;
+  rankPopulation?: number | null;
   attendanceRate?: number | null;
+  conduct?: string | null;
+  promotionStatus?: string | null;
+  generalRemark?: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -42,6 +48,7 @@ const STUDENT_INFO_VALUES: Record<string, (doc: RenderableReportDoc) => string> 
   section: (doc) => doc.student.section,
   term: (doc) => doc.term ?? '',
   parentName: (doc) => doc.student.parentName ?? '',
+  academicYear: (doc) => doc.academicYear ?? '',
 };
 
 function renderHeader(template: ReportCardTemplate, doc: RenderableReportDoc): string {
@@ -53,6 +60,7 @@ function renderHeader(template: ReportCardTemplate, doc: RenderableReportDoc): s
         <div style="font-size:16px;font-weight:700;">${escapeHtml(schoolName)}</div>
         <div style="font-size:14px;font-weight:600;color:#374151;">${escapeHtml(template.header.title)}</div>
         ${template.header.subtitle ? `<div style="font-size:11px;color:#6b7280;">${escapeHtml(template.header.subtitle)}</div>` : ''}
+        ${template.header.addressLine ? `<div style="font-size:9px;color:#9ca3af;">${escapeHtml(template.header.addressLine)}</div>` : ''}
       </div>
     </div>
   `;
@@ -134,17 +142,35 @@ function renderSummary(template: ReportCardTemplate, doc: RenderableReportDoc, g
     items.push(`GPA: <strong>${gpa != null ? gpa.toFixed(2) : '—'}</strong>`);
   }
   if (template.summaryBlock.showRank) {
-    items.push(`Class Rank: <strong>${doc.rank != null ? `#${doc.rank}` : '—'}</strong>`);
+    const population = template.summaryBlock.showRankPopulation && doc.rankPopulation != null ? ` / ${doc.rankPopulation}` : '';
+    items.push(`Rank: <strong>${doc.rank != null ? `#${doc.rank}${population}` : '—'}</strong>`);
   }
   if (template.summaryBlock.showAttendanceRate) {
     items.push(`Attendance: <strong>${doc.attendanceRate != null ? `${doc.attendanceRate}%` : '—'}</strong>`);
+  }
+  if (template.summaryBlock.showConduct) {
+    items.push(`Conduct: <strong>${doc.conduct ? escapeHtml(doc.conduct) : '—'}</strong>`);
+  }
+  if (template.summaryBlock.showPromotionStatus) {
+    items.push(`Promotion Status: <strong>${doc.promotionStatus ? escapeHtml(doc.promotionStatus) : '—'}</strong>`);
   }
   if (!items.length) return '';
   return `<div style="display:flex;gap:20px;font-size:11px;margin:8px 0 16px;">${items.map((i) => `<span>${i}</span>`).join('')}</div>`;
 }
 
-function renderSignatureLines(template: ReportCardTemplate): string {
-  if (!template.signatureLines.length) return '';
+function renderSignatureLines(template: ReportCardTemplate, doc: RenderableReportDoc): string {
+  if (!template.signatureLines.length && !template.header.showSeal) return '';
+  const sealBox = template.header.showSeal
+    ? `
+      <div style="flex:1;text-align:center;">
+        ${
+          doc.schoolSealUrl
+            ? `<img src="${doc.schoolSealUrl}" style="height:48px;width:48px;object-fit:contain;margin:0 auto 4px;display:block;" />`
+            : `<div style="height:48px;"></div>`
+        }
+        <div style="border-top:1px solid #374151;padding-top:4px;font-size:10px;color:#4b5563;">School Seal</div>
+      </div>`
+    : '';
   return `
     <div style="display:flex;gap:24px;margin-top:36px;">
       ${template.signatureLines
@@ -155,8 +181,14 @@ function renderSignatureLines(template: ReportCardTemplate): string {
         </div>`,
         )
         .join('')}
+      ${sealBox}
     </div>
   `;
+}
+
+function renderGeneralRemark(doc: RenderableReportDoc): string {
+  if (!doc.generalRemark) return '';
+  return `<div style="margin-top:16px;font-size:11px;"><strong>Remark:</strong> ${escapeHtml(doc.generalRemark)}</div>`;
 }
 
 /**
@@ -180,7 +212,8 @@ export function buildReportDocumentInnerHTML(template: ReportCardTemplate, doc: 
     ${renderStudentInfo(template, doc)}
     ${groupsHtml}
     ${renderGradingScale(template)}
-    ${renderSignatureLines(template)}
+    ${renderGeneralRemark(doc)}
+    ${renderSignatureLines(template, doc)}
     ${template.footerText ? `<div style="margin-top:20px;font-size:10px;color:#6b7280;">${escapeHtml(template.footerText)}</div>` : ''}
   `;
 }

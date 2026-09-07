@@ -16,6 +16,7 @@ import { departmentIdForSubject } from '@/lib/departmentHead';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 import { FileText, GraduationCap, Settings2, Users } from 'lucide-react';
 import { TeacherOverviewPanel } from './TeacherOverviewPanel';
+import { VPAcademicResults } from './VPAcademicResults';
 import { VPClassReportPanel } from './VPClassReportPanel';
 import { VPTranscriptPanel } from './VPTranscriptPanel';
 import { VPReportTemplateBuilder } from './VPReportTemplateBuilder';
@@ -104,6 +105,8 @@ export default function HeadOfAcademicsPortalApp() {
 
   const meta = useMemo(() => {
     switch (activeTab) {
+      case 'academic-results':
+        return { title: 'Academic Results', subtitle: 'Review submitted results, spot missing grades, and finalize a class + term' };
       case 'class-reports':
         return { title: 'Class Reports', subtitle: 'Generate term report cards for a class' };
       case 'transcripts':
@@ -289,6 +292,7 @@ export default function HeadOfAcademicsPortalApp() {
       )}
 
       {activeTab === 'teachers' && <TeacherOverviewPanel />}
+      {activeTab === 'academic-results' && <VPAcademicResults />}
       {activeTab === 'class-reports' && <VPClassReportPanel />}
       {activeTab === 'transcripts' && <VPTranscriptPanel />}
       {activeTab === 'template-builder' && <VPReportTemplateBuilder />}

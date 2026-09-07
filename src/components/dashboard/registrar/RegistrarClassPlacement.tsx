@@ -8,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Pagination } from '@/components/ui/pagination';
 import { filterSchoolStudents, REGISTRAR_GRADE_OPTIONS, REGISTRAR_SECTION_OPTIONS } from '@/lib/registrarPortal';
 import { api, type GradeSectionCapacity } from '@/lib/api';
 import { readStoredSession } from '@/lib/auth';
 import { gpaToMark } from '@/lib/grading';
 
 const DEFAULT_SECTION_CAPACITY = 40; // matches grade_section_capacity's DB column default
+const GRADE_STUDENTS_PAGE_SIZE = 10;
 
 export const RegistrarClassPlacement: React.FC = () => {
   const { students, updateStudent } = useApp();
@@ -25,6 +27,7 @@ export const RegistrarClassPlacement: React.FC = () => {
   const [placementStudentId, setPlacementStudentId] = useState<string | null>(null);
   const [newSection, setNewSection] = useState('A');
   const [capacityRows, setCapacityRows] = useState<GradeSectionCapacity[]>([]);
+  const [studentsPage, setStudentsPage] = useState(1);
 
   useEffect(() => {
     api
@@ -33,9 +36,20 @@ export const RegistrarClassPlacement: React.FC = () => {
       .catch(() => setCapacityRows([]));
   }, [schoolId]);
 
+  useEffect(() => {
+    setStudentsPage(1);
+  }, [selectedGrade]);
+
   const gradeStudents = useMemo(
     () => schoolStudents.filter((s) => s.grade === selectedGrade),
     [schoolStudents, selectedGrade]
+  );
+
+  const studentsTotalPages = Math.max(1, Math.ceil(gradeStudents.length / GRADE_STUDENTS_PAGE_SIZE));
+  const studentsCurrentPage = Math.min(studentsPage, studentsTotalPages);
+  const pagedGradeStudents = gradeStudents.slice(
+    (studentsCurrentPage - 1) * GRADE_STUDENTS_PAGE_SIZE,
+    studentsCurrentPage * GRADE_STUDENTS_PAGE_SIZE
   );
 
   const sectionCounts = useMemo(() => {
@@ -118,7 +132,7 @@ export const RegistrarClassPlacement: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {gradeStudents.map((student) => (
+            {pagedGradeStudents.map((student) => (
               <tr key={student.id} className="hover:bg-muted/10">
                 <td className="p-3 text-xs font-semibold text-foreground">{student.name}</td>
                 <td className="p-3">
@@ -142,6 +156,15 @@ export const RegistrarClassPlacement: React.FC = () => {
             ))}
           </tbody>
         </table>
+        <Pagination
+          className="mt-3"
+          currentPage={studentsCurrentPage}
+          totalPages={studentsTotalPages}
+          onPageChange={setStudentsPage}
+          totalItems={gradeStudents.length}
+          pageSize={GRADE_STUDENTS_PAGE_SIZE}
+          entityLabel="students"
+        />
       </TablePanel>
 
       <Dialog

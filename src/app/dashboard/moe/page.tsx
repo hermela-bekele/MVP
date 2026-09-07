@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { FormField, FormSectionHeading, formFieldInputClass } from '@/components/ui/form-field';
+import { Pagination } from '@/components/ui/pagination';
 import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
 import { uploadFile } from '@/lib/api';
 import { usePortalTab } from '@/lib/usePortalTab';
@@ -38,6 +39,12 @@ export default function MoePortalPage() {
   const [filterRegion, setFilterRegion] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
+
+  // Pagination state
+  const SCHOOLS_PAGE_SIZE = 10;
+  const [schoolsPage, setSchoolsPage] = useState(1);
+  const TRAININGS_PAGE_SIZE = 9;
+  const [trainingsPage, setTrainingsPage] = useState(1);
 
   // Add School Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -176,6 +183,20 @@ export default function MoePortalPage() {
     const matchesType = filterType === 'All' || sch.type === filterType;
     return matchesSearch && matchesRegion && matchesType;
   });
+
+  const schoolsTotalPages = Math.max(1, Math.ceil(filteredSchools.length / SCHOOLS_PAGE_SIZE));
+  const schoolsCurrentPage = Math.min(schoolsPage, schoolsTotalPages);
+  const pagedSchools = filteredSchools.slice(
+    (schoolsCurrentPage - 1) * SCHOOLS_PAGE_SIZE,
+    schoolsCurrentPage * SCHOOLS_PAGE_SIZE,
+  );
+
+  const trainingsTotalPages = Math.max(1, Math.ceil(trainings.length / TRAININGS_PAGE_SIZE));
+  const trainingsCurrentPage = Math.min(trainingsPage, trainingsTotalPages);
+  const pagedTrainings = trainings.slice(
+    (trainingsCurrentPage - 1) * TRAININGS_PAGE_SIZE,
+    trainingsCurrentPage * TRAININGS_PAGE_SIZE,
+  );
 
   return (
     <DashboardShell
@@ -342,7 +363,7 @@ export default function MoePortalPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredSchools.map((sch) => (
+                      pagedSchools.map((sch) => (
                         <tr key={sch.id}>
                           <td className="font-mono font-semibold">{sch.code}</td>
                           <td className="font-medium">{sch.name}</td>
@@ -382,6 +403,16 @@ export default function MoePortalPage() {
                   </tbody>
                 </table>
               </TablePanel>
+
+              <Pagination
+                className="mt-3"
+                currentPage={schoolsCurrentPage}
+                totalPages={schoolsTotalPages}
+                onPageChange={setSchoolsPage}
+                totalItems={filteredSchools.length}
+                pageSize={SCHOOLS_PAGE_SIZE}
+                entityLabel="schools"
+              />
 
               {/* Add School Dialog */}
               <Dialog
@@ -569,8 +600,8 @@ export default function MoePortalPage() {
           {activeTab === 'training' && (
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {trainings.map((tr) => (
+
+                {pagedTrainings.map((tr) => (
                   <Card key={tr.id} hoverGlow>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
@@ -595,6 +626,16 @@ export default function MoePortalPage() {
                 ))}
 
               </div>
+
+              <Pagination
+                className="mt-3"
+                currentPage={trainingsCurrentPage}
+                totalPages={trainingsTotalPages}
+                onPageChange={setTrainingsPage}
+                totalItems={trainings.length}
+                pageSize={TRAININGS_PAGE_SIZE}
+                entityLabel="training programs"
+              />
             </div>
           )}
 

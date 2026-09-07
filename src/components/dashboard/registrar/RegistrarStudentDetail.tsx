@@ -13,6 +13,9 @@ import { api, type AuditLogEntry } from '@/lib/api';
 import { generateEnrollmentLetterPDF, generateIdCardPDF } from '@/lib/registrarDocs';
 import { slugifyFilename } from '@/lib/pdfUtils';
 import { DetailField } from '@/components/dashboard/shared/DetailField';
+import { Pagination } from '@/components/ui/pagination';
+
+const HISTORY_PAGE_SIZE = 10;
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
@@ -39,6 +42,7 @@ export const RegistrarStudentDetail: React.FC<RegistrarStudentDetailProps> = ({
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [history, setHistory] = useState<AuditLogEntry[]>([]);
   const [docBusy, setDocBusy] = useState<'letter' | 'card' | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
 
   const [studentName, setStudentName] = useState('');
   const [studentGrade, setStudentGrade] = useState('Grade 9');
@@ -192,6 +196,13 @@ export const RegistrarStudentDetail: React.FC<RegistrarStudentDetailProps> = ({
     );
   }
 
+  const historyTotalPages = Math.max(1, Math.ceil(history.length / HISTORY_PAGE_SIZE));
+  const historyCurrentPage = Math.min(historyPage, historyTotalPages);
+  const pagedHistory = history.slice(
+    (historyCurrentPage - 1) * HISTORY_PAGE_SIZE,
+    historyCurrentPage * HISTORY_PAGE_SIZE
+  );
+
   return (
     <div className="w-full space-y-4">
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-4">
@@ -231,7 +242,7 @@ export const RegistrarStudentDetail: React.FC<RegistrarStudentDetailProps> = ({
           <p className="text-xs text-muted-foreground">No recorded changes yet.</p>
         ) : (
           <div className="space-y-1.5 max-h-40 overflow-y-auto">
-            {history.map((h) => (
+            {pagedHistory.map((h) => (
               <div key={h.id} className="flex items-center justify-between text-[10px] py-1.5 border-b border-border/40 last:border-0">
                 <span className="text-foreground">
                   {(h.actorName || h.actorEmail || 'Someone')} · {h.action.replace(/[._]/g, ' ')}
@@ -243,6 +254,15 @@ export const RegistrarStudentDetail: React.FC<RegistrarStudentDetailProps> = ({
             ))}
           </div>
         )}
+        <Pagination
+          className="mt-3"
+          currentPage={historyCurrentPage}
+          totalPages={historyTotalPages}
+          onPageChange={setHistoryPage}
+          totalItems={history.length}
+          pageSize={HISTORY_PAGE_SIZE}
+          entityLabel="changes"
+        />
       </div>
 
       <div className="flex flex-wrap justify-end gap-2">

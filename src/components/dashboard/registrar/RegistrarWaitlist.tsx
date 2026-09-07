@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Pagination } from '@/components/ui/pagination';
+
+const PAGE_SIZE = 10;
 
 type WaitlistRow = {
   id: string;
@@ -39,6 +42,7 @@ export function RegistrarWaitlist() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [editCap, setEditCap] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   const refresh = useCallback(async () => {
     try {
@@ -87,6 +91,10 @@ export function RegistrarWaitlist() {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(waitlist.length / PAGE_SIZE));
+  const page = Math.min(currentPage, totalPages);
+  const pagedWaitlist = waitlist.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   return (
     <div className="space-y-5 animate-fade-in">
       {error && (
@@ -134,9 +142,9 @@ export function RegistrarWaitlist() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {waitlist.map((row, i) => (
+                {pagedWaitlist.map((row, i) => (
                   <tr key={row.id} className="hover:bg-muted/10">
-                    <td className="p-3 text-sm tabular-nums text-muted-foreground">{i + 1}</td>
+                    <td className="p-3 text-sm tabular-nums text-muted-foreground">{(page - 1) * PAGE_SIZE + i + 1}</td>
                     <td className="p-3">
                       <p className="text-sm font-semibold">{row.applicant_name}</p>
                       <p className="text-[11px] text-muted-foreground">
@@ -176,6 +184,15 @@ export function RegistrarWaitlist() {
                 ))}
               </tbody>
             </table>
+            <Pagination
+              className="mt-3"
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={waitlist.length}
+              pageSize={PAGE_SIZE}
+              entityLabel="applicants"
+            />
           </div>
         )}
       </TablePanel>
