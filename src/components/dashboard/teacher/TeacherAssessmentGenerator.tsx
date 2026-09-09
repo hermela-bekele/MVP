@@ -50,7 +50,7 @@ export function TeacherAssessmentGenerator() {
   const searchParams = useSearchParams();
   const initialUploadMode = searchParams.get('mode') === 'upload' ? 'upload' : 'create';
 
-  const { createAssessment, lessonPlans, resolveTeacherId } = useApp();
+  const { createAssessment, lessonPlans, teachingNotes, lessonDeliveries, resolveTeacherId } = useApp();
   const teacherId = resolveTeacherId();
   const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
 
@@ -72,6 +72,8 @@ export function TeacherAssessmentGenerator() {
   const [useMlcMix, setUseMlcMix] = useState(false);
   const [mlcPercent, setMlcPercent] = useState(70);
   const [baselineTiming, setBaselineTiming] = useState<BaselineSemesterTiming>('semester_1_start');
+  // TE-007: for a Unit Test, which of the teacher's own DELIVERED lessons it covers.
+  const [selectedCoveredNoteIds, setSelectedCoveredNoteIds] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -82,6 +84,25 @@ export function TeacherAssessmentGenerator() {
   const elapsedSeconds = useElapsedTime(isGenerating);
 
   const questionLimits = questionLimitsForAssessmentType(type);
+
+  // TE-007: delivered lessons (a real lesson_deliveries row exists) for this teacher's
+  // own notes, matching the assessment's grade/subject — the only lessons a Unit Test
+  // may be scoped to. Identified and stored by ID, never by title alone.
+  const deliveredTeachingNoteIds = useMemo(
+    () => new Set(lessonDeliveries.map((d) => d.teachingNoteId)),
+    [lessonDeliveries],
+  );
+  const deliveredNotesForUnitTest = useMemo(
+    () =>
+      teachingNotes.filter(
+        (n) =>
+          n.teacherId === teacherId &&
+          n.grade === grade &&
+          n.subject === subject &&
+          deliveredTeachingNoteIds.has(n.id),
+      ),
+    [teachingNotes, teacherId, grade, subject, deliveredTeachingNoteIds],
+  );
 
   const selectedPlan = teacherPlans.find((p) => p.id === selectedLessonPlanId);
   const sessionOptions = useMemo(
@@ -221,6 +242,7 @@ export function TeacherAssessmentGenerator() {
     e.preventDefault();
     if (!title) return;
     if (uploadMode === 'create' && !generatedContent) return;
+    if (type === 'Unit Test' && selectedCoveredNoteIds.length === 0) return;
 
     const parsedQuestions = generatedContent ? parseAssessmentQuestions(generatedContent) : null;
 
@@ -232,6 +254,7 @@ export function TeacherAssessmentGenerator() {
           : parsedQuestions && parsedQuestions.length > 0
           ? parsedQuestions
           : [{ id: 1, question: generatedContent, type: questionFormat, answer: 'See assessment content' }],
+      coveredTeachingNoteIds: type === 'Unit Test' ? selectedCoveredNoteIds : undefined,
     });
 
     goBackToList();
@@ -244,7 +267,8 @@ export function TeacherAssessmentGenerator() {
       : !!selectedLessonPlanId && selectedSessionScopes.length > 0;
 
   const canSubmit =
-    uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
+    (uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent)) &&
+    (type !== 'Unit Test' || selectedCoveredNoteIds.length > 0);
 
   const previewTitle = title || `${type} on ${topic || 'Assessment'}`;
 
@@ -430,7 +454,7 @@ export function TeacherAssessmentGenerator() {
             <Select
               variant="ais"
               label="Assessment type"
-              options={['Baseline', 'Quiz', 'Assignment'].map((t) => ({ value: t, label: t }))}
+              options={['Baseline', 'Quiz', 'Assignment', 'Unit Test'].map((t) => ({ value: t, label: t }))}
               value={type}
               onChange={(e) => {
                 const next = e.target.value as Assessment['type'];
@@ -441,6 +465,7 @@ export function TeacherAssessmentGenerator() {
                   setSelectedLessonPlanId('');
                   setSelectedSessionScopes([]);
                 }
+                if (next !== 'Unit Test') setSelectedCoveredNoteIds([]);
               }}
             />
             <Select
@@ -516,9 +541,13 @@ export function TeacherAssessmentGenerator() {
             <Select
               variant="ais"
               label="Assessment type"
-              options={['Baseline', 'Quiz', 'Assignment'].map((t) => ({ value: t, label: t }))}
+              options={['Baseline', 'Quiz', 'Assignment', 'Unit Test'].map((t) => ({ value: t, label: t }))}
               value={type}
-              onChange={(e) => setType(e.target.value as Assessment['type'])}
+              onChange={(e) => {
+                const next = e.target.value as Assessment['type'];
+                setType(next);
+                if (next !== 'Unit Test') setSelectedCoveredNoteIds([]);
+              }}
             />
           )}
           <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
@@ -526,6 +555,52 @@ export function TeacherAssessmentGenerator() {
           <Select variant="ais" label="Difficulty" options={['Easy', 'Medium', 'Hard'].map((d) => ({ value: d, label: d }))} value={difficulty} onChange={(e) => setDifficulty(e.target.value as Assessment['difficulty'])} />
         </div>
       </section>
+
+      {type === 'Unit Test' && (
+        <section className="space-y-3 rounded-xl border border-ais-card-border bg-card p-5">
+          <div>
+            <label className={aisFormLabel}>Which delivered lessons does this Unit Test cover?</label>
+            <p className="text-[11px] text-ais-on-surface-variant">
+              Only your own lessons already confirmed as delivered for {grade} · {subject} are listed.
+            </p>
+          </div>
+          {deliveredNotesForUnitTest.length === 0 ? (
+            <p className="text-sm text-ais-on-surface-variant">
+              No delivered lessons found yet for {grade} · {subject}. Confirm delivery on a teaching note
+              first, or change grade/subject above.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {deliveredNotesForUnitTest.map((note) => {
+                const checked = selectedCoveredNoteIds.includes(note.id);
+                return (
+                  <label
+                    key={note.id}
+                    className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+                      checked ? 'border-primary bg-primary/5' : 'border-ais-card-border'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={checked}
+                      onChange={(e) =>
+                        setSelectedCoveredNoteIds((prev) =>
+                          e.target.checked ? [...prev, note.id] : prev.filter((id) => id !== note.id),
+                        )
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{note.title}</span>
+                      <span className="block text-xs text-ais-on-surface-variant">{note.topic}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {uploadMode === 'create' && (
         <GenerationStatusPanel

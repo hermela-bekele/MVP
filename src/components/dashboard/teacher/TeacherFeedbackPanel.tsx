@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Select } from '@/components/ui/select';
-import type { TeacherFeedback } from '@/lib/mockData';
+import type { TeacherFeedback, TeacherFeedbackCategory } from '@/lib/mockData';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -66,6 +66,14 @@ function roleBadgeVariant(role: FeedbackFilter): AisBadgeVariant {
   }
 }
 
+const CATEGORY_LABEL: Record<TeacherFeedbackCategory, string> = {
+  informal_peer: 'Informal Peer Feedback',
+  coaching: 'Coaching Feedback',
+  classroom_observation: 'Classroom Observation',
+  formal_performance: 'Formal Performance Review',
+  anonymous_survey: 'Anonymous Survey',
+};
+
 type RecipientKind = 'peer' | 'student' | 'parent';
 
 const RECIPIENT_KIND_OPTIONS: { value: RecipientKind; label: string }[] = [
@@ -76,8 +84,11 @@ const RECIPIENT_KIND_OPTIONS: { value: RecipientKind; label: string }[] = [
 
 /**
  * Teacher's Feedback panel: view feedback received (peer, head of department, parent,
- * student) and give feedback to a colleague, a student, or a student's parent. All feedback
- * received is shown anonymously by role — teachers never see who specifically left it.
+ * student) and give feedback to a colleague, a student, or a student's parent.
+ *
+ * FB-002: anonymity is allowed ONLY for student feedback — the backend already masks
+ * that author's real name to "Anonymous Student" before it ever reaches this component
+ * (see mapTeacherFeedback), so peer/parent/HoD feedback always shows the real author.
  * Feedback to/about the head of department has no path here by design — that relationship
  * has its own module (DeptFeedbackPanel, HOD → teacher direction only).
  */
@@ -180,6 +191,7 @@ export const TeacherFeedbackPanel: React.FC = () => {
             <tr className="bg-ais-surface-container-low">
               <AisTh>From</AisTh>
               <AisTh>Source</AisTh>
+              <AisTh>Category</AisTh>
               <AisTh>Subject</AisTh>
               <AisTh>Comment</AisTh>
               <AisTh>Rating</AisTh>
@@ -188,18 +200,21 @@ export const TeacherFeedbackPanel: React.FC = () => {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <AisEmptyRow colSpan={6} message="No feedback in this category yet." />
+              <AisEmptyRow colSpan={7} message="No feedback in this category yet." />
             ) : (
               pagedFeedback.map((f) => {
                 const role = roleOf(f);
                 return (
                   <AisTr key={f.id}>
                     <AisTd className="font-semibold">
-                      Anonymous {roleLabel(role)}
+                      {/* FB-002: authorName is already the real name for every source
+                          except student — the backend masks that one, we never do. */}
+                      {f.authorName}
                     </AisTd>
                     <AisTd>
                       <AisStatusBadge variant={roleBadgeVariant(role)}>{roleLabel(role)}</AisStatusBadge>
                     </AisTd>
+                    <AisTd className="text-xs">{f.category ? CATEGORY_LABEL[f.category] : '—'}</AisTd>
                     <AisTd>{f.subject}</AisTd>
                     <AisTd className="max-w-sm text-xs">{f.comment}</AisTd>
                     <AisTd className={aisBodyMd}>{f.rating ? `${f.rating} / 5` : '—'}</AisTd>

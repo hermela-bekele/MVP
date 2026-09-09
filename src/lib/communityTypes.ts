@@ -2,6 +2,22 @@ export type CommunityType = 'department' | 'general' | 'custom';
 export type CommunityMemberRole = 'owner' | 'admin' | 'member';
 export type ChannelType = 'text' | 'announcement';
 
+/**
+ * CO-001: teachers must not have unrestricted authority to create permanent
+ * institutional communities. Mirrors the backend's `canCreateCommunity` in
+ * backend/src/lib/communityAccess.ts exactly — this is a frontend-only visibility
+ * check (hide the affordance rather than let it fail), the backend independently
+ * enforces the same rule and must never be bypassed by trusting this alone.
+ */
+export function canCreateCommunity(role?: string | null): boolean {
+  return (
+    role === 'school-head' ||
+    role === 'moe' ||
+    role === 'head-of-academics' ||
+    role === 'department-head'
+  );
+}
+
 export interface Community {
   id: string;
   schoolId: string | null;

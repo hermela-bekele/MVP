@@ -1,17 +1,49 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { api } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import {
   filterTeacherStudents,
   GRADE_OPTIONS,
   SECTION_OPTIONS,
   SECTION_FILTER_OPTIONS,
-  TEACHER_CLASS_ASSIGNMENTS,
 } from '@/lib/teacherPortal';
 import type { Attendance } from '@/lib/mockData';
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** CM-006: a real scheduled timetable session (not the mock class-assignment list) —
+ * attendance recorded against one of these is traced back to it by real ID. */
+interface TimetableSlot {
+  id: string;
+  grade: string;
+  section: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  room?: string;
+}
+
+function mapTimetableSlotRow(row: Record<string, unknown>): TimetableSlot {
+  return {
+    id: String(row.id),
+    grade: String(row.grade),
+    section: String(row.section),
+    dayOfWeek: Number(row.day_of_week),
+    startTime: String(row.start_time),
+    endTime: String(row.end_time),
+    subject: String(row.subject),
+    room: row.room ? String(row.room) : undefined,
+  };
+}
+
+function timetableSlotLabel(slot: TimetableSlot): string {
+  return `${WEEKDAY_LABELS[slot.dayOfWeek] ?? ''} ${slot.startTime}–${slot.endTime} · ${slot.grade} Section ${slot.section} · ${slot.subject}${slot.room ? ` · ${slot.room}` : ''}`;
+}
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -48,9 +80,28 @@ export const TeacherAttendanceTab: React.FC = () => {
   const [listSection, setListSection] = useState('All');
   const [nameQuery, setNameQuery] = useState('');
 
-  const [grade, setGrade] = useState('Grade 9');
-  const [section, setSection] = useState('A');
-  const [sessionLabel, setSessionLabel] = useState<string>(TEACHER_CLASS_ASSIGNMENTS[0].period);
+  // CM-006: real scheduled sessions for this teacher, fetched from the timetable —
+  // attendance recorded in "record" mode is always tied to one of these by real ID.
+  const [mySlots, setMySlots] = useState<TimetableSlot[]>([]);
+  useEffect(() => {
+    void api.myTimetable().then((rows) => setMySlots(rows.map(mapTimetableSlotRow))).catch(() => setMySlots([]));
+  }, []);
+
+  const [selectedSlotId, setSelectedSlotId] = useState<string>('');
+  const selectedSlot = mySlots.find((s) => s.id === selectedSlotId) ?? null;
+
+  // Fallback manual grade/section only used when the teacher has no scheduled slots
+  // yet (ad-hoc attendance — recorded without a timetableSlotId).
+  const [manualGrade, setManualGrade] = useState('Grade 9');
+  const [manualSection, setManualSection] = useState('A');
+
+  const grade = selectedSlot?.grade ?? manualGrade;
+  const section = selectedSlot?.section ?? manualSection;
+
+  useEffect(() => {
+    if (!selectedSlotId && mySlots.length > 0) setSelectedSlotId(mySlots[0].id);
+  }, [mySlots, selectedSlotId]);
+
   const [attendanceStatuses, setAttendanceStatuses] = useState<Record<string, 'Present' | 'Absent' | 'Late'>>({});
   const [attendanceRemarks, setAttendanceRemarks] = useState<Record<string, string>>({});
 
@@ -82,8 +133,9 @@ export const TeacherAttendanceTab: React.FC = () => {
       roster.map((std) => ({
         studentId: std.id,
         status: attendanceStatuses[std.id] || 'Present',
-        remarks: attendanceRemarks[std.id] || `Session: ${sessionLabel}`,
-      }))
+        remarks: attendanceRemarks[std.id] || (selectedSlot ? `Session: ${timetableSlotLabel(selectedSlot)}` : undefined),
+      })),
+      selectedSlot?.id,
     );
     setAttendanceStatuses({});
     setAttendanceRemarks({});
@@ -98,11 +150,28 @@ export const TeacherAttendanceTab: React.FC = () => {
           Back to attendance list
         </AisBtnSecondary>
 
-        <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
-          <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={section} onChange={(e) => setSection(e.target.value)} />
-          <Select variant="ais" label="Teaching session" options={TEACHER_CLASS_ASSIGNMENTS.map((a) => ({ value: a.period, label: `${a.period} (${a.grade} ${a.section})` }))} value={sessionLabel} onChange={(e) => setSessionLabel(e.target.value)} />
-        </div>
+        {mySlots.length > 0 ? (
+          <div className="max-w-xl">
+            <Select
+              variant="ais"
+              label="Teaching session"
+              options={mySlots.map((s) => ({ value: s.id, label: timetableSlotLabel(s) }))}
+              value={selectedSlotId}
+              onChange={(e) => setSelectedSlotId(e.target.value)}
+            />
+            <p className="mt-1.5 text-xs text-ais-on-surface-variant">
+              Class and section come from the scheduled session — attendance is linked to it automatically.
+            </p>
+          </div>
+        ) : (
+          <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select variant="ais" label="Class grade" options={GRADE_OPTIONS.filter((g) => g.includes('9') || g.includes('10')).map((g) => ({ value: g, label: g }))} value={manualGrade} onChange={(e) => setManualGrade(e.target.value)} />
+            <Select variant="ais" label="Section" options={SECTION_OPTIONS.map((s) => ({ value: s, label: `Section ${s}` }))} value={manualSection} onChange={(e) => setManualSection(e.target.value)} />
+            <p className="col-span-full text-xs text-ais-on-surface-variant">
+              No scheduled sessions found on your timetable — recording ad-hoc attendance for this grade/section instead.
+            </p>
+          </div>
+        )}
 
         <AisPanel title="Session roll call" description="Record attendance during your active teaching period" flush>
           <AisTable>

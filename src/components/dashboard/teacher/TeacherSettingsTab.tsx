@@ -65,7 +65,9 @@ export const TeacherSettingsTab: React.FC = () => {
       <div className={`${aisCard} p-4`}>
         <div className="mb-4 border-b border-ais-card-border pb-3">
           <h3 className={`${aisHeadlineSm} !text-title`}>Personal profile</h3>
-          <p className={`${aisBodyMd} mt-0.5`}>Contact details visible to department head and parents.</p>
+          <p className={`${aisBodyMd} mt-0.5`}>
+            Email is visible across the school; phone is personal and only shared with your department head.
+          </p>
         </div>
         <form onSubmit={handlePersonalSave} className="space-y-3">
           <input className={aisInput} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />

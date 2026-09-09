@@ -92,6 +92,7 @@ function columnKey(entryType: string, title: string) {
 
 function assessmentToEntryType(type: Assessment['type']): StudentGradeEntryType {
   if (type === 'Baseline') return 'Quiz';
+  if (type === 'Unit Test') return 'Test';
   return type;
 }
 

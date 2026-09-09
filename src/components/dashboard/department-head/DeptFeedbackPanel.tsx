@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
-import type { TeacherFeedback } from '@/lib/mockData';
+import type { TeacherFeedback, TeacherFeedbackCategory } from '@/lib/mockData';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
 
 type FeedbackRole = NonNullable<TeacherFeedback['authorRole']>;
@@ -43,6 +43,23 @@ function roleBadgeVariant(role: FeedbackRole | undefined): 'primary' | 'info' | 
   }
 }
 
+// FB-003: distinct evidence categories — a department head giving direct feedback
+// chooses exactly one; peer/parent/student feedback derives its own automatically.
+type DeptHeadFeedbackCategory = 'coaching' | 'classroom_observation' | 'formal_performance';
+const DEPT_HEAD_CATEGORY_OPTIONS: { value: DeptHeadFeedbackCategory; label: string }[] = [
+  { value: 'coaching', label: 'Coaching Feedback' },
+  { value: 'classroom_observation', label: 'Classroom Observation Feedback' },
+  { value: 'formal_performance', label: 'Formal Performance Feedback' },
+];
+
+const CATEGORY_LABEL: Record<TeacherFeedbackCategory, string> = {
+  informal_peer: 'Informal Peer Feedback',
+  coaching: 'Coaching Feedback',
+  classroom_observation: 'Classroom Observation',
+  formal_performance: 'Formal Performance Review',
+  anonymous_survey: 'Anonymous Survey',
+};
+
 /**
  * Department head's Feedback Loops panel: give direct feedback to a teacher in the
  * department, and view every feedback entry (direct, peer, parent, student) recorded
@@ -69,20 +86,27 @@ export const DeptFeedbackPanel: React.FC = () => {
     [teacherFeedbacks, teacherNameById],
   );
 
-  const avgRating = useMemo(() => {
-    const rated = departmentFeedback.filter((f) => typeof f.rating === 'number');
-    if (!rated.length) return 0;
-    return Math.round((rated.reduce((sum, f) => sum + (f.rating ?? 0), 0) / rated.length) * 10) / 10;
+  // FB-003: per-category counts, never blended into one cross-source "average rating" —
+  // a 5-star peer note and a formal performance review aren't the same kind of evidence.
+  const categoryCounts = useMemo(() => {
+    const counts: Partial<Record<TeacherFeedbackCategory, number>> = {};
+    for (const f of departmentFeedback) {
+      if (!f.category) continue;
+      counts[f.category] = (counts[f.category] ?? 0) + 1;
+    }
+    return counts;
   }, [departmentFeedback]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetTeacherId, setTargetTeacherId] = useState('');
+  const [category, setCategory] = useState<DeptHeadFeedbackCategory>('coaching');
   const [subject, setSubject] = useState('');
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState(5);
 
   const openModal = () => {
     setTargetTeacherId(departmentTeachers[0]?.id ?? '');
+    setCategory('coaching');
     setIsModalOpen(true);
   };
 
@@ -92,6 +116,7 @@ export const DeptFeedbackPanel: React.FC = () => {
     giveTeacherFeedback({
       teacherId: targetTeacherId,
       authorRole: 'department-head',
+      category,
       subject: subject.trim() || 'Direct feedback',
       comment: comment.trim(),
       rating,
@@ -121,6 +146,14 @@ export const DeptFeedbackPanel: React.FC = () => {
         <Badge variant={roleBadgeVariant(row.authorRole)} size="sm" className="font-medium">
           {roleLabel(row.authorRole)}
         </Badge>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      sortable: true,
+      render: (row) => (
+        <span className="text-xs text-muted-foreground">{row.category ? CATEGORY_LABEL[row.category] : '—'}</span>
       ),
     },
     {
@@ -169,7 +202,7 @@ export const DeptFeedbackPanel: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in text-left">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="border-border/60">
           <CardContent className="pt-4">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -178,22 +211,21 @@ export const DeptFeedbackPanel: React.FC = () => {
             <p className="text-xl font-bold text-foreground mt-1">{departmentFeedback.length}</p>
           </CardContent>
         </Card>
+        {/* FB-003: counts per category, not one blended cross-source average — a peer
+            note, a coaching session, and a formal review aren't the same evidence. */}
         <Card className="border-border/60">
           <CardContent className="pt-4">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Average Rating
+              By Category
             </span>
-            <p className="text-xl font-bold text-foreground mt-1">{avgRating ? `${avgRating} / 5` : '—'}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border/60">
-          <CardContent className="pt-4">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Peer Reviews Logged
-            </span>
-            <p className="text-xl font-bold text-foreground mt-1">
-              {departmentFeedback.filter((f) => f.authorRole === 'peer').length}
-            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {(Object.keys(CATEGORY_LABEL) as TeacherFeedbackCategory[]).map((cat) => (
+                <span key={cat} className="text-xs text-foreground">
+                  <span className="font-bold">{categoryCounts[cat] ?? 0}</span>{' '}
+                  <span className="text-muted-foreground">{CATEGORY_LABEL[cat]}</span>
+                </span>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -228,6 +260,13 @@ export const DeptFeedbackPanel: React.FC = () => {
             value={targetTeacherId}
             onChange={(e) => setTargetTeacherId(e.target.value)}
             options={departmentTeachers.map((t) => ({ value: t.id, label: t.name }))}
+          />
+
+          <Select
+            label="Feedback category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as DeptHeadFeedbackCategory)}
+            options={DEPT_HEAD_CATEGORY_OPTIONS}
           />
 
           <div className="space-y-1 text-left">

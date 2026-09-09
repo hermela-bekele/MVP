@@ -193,6 +193,23 @@ export function AisStatusBadge({
   return <span className={`${badgeClass[variant]} ${className}`}>{children}</span>;
 }
 
+/**
+ * TE-008: a visible, stable record identifier for Lesson Plans, Teaching Notes, and
+ * Quizzes/Assessments. These IDs already exist as the persistent database primary key
+ * (e.g. `lp-...`, `tn-...`, `asm-...`) — this just surfaces the existing ID rather than
+ * generating a new one, so it stays stable across refreshes.
+ */
+export function AisIdTag({ id, className = '' }: { id: string; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border border-ais-card-border bg-ais-surface-container-low/60 px-1.5 py-0.5 font-mono text-[10px] font-medium text-ais-on-surface-variant ${className}`}
+      title={`Record ID: ${id}`}
+    >
+      {id}
+    </span>
+  );
+}
+
 export function AisBtnPrimary({
   children,
   className = '',

@@ -15,6 +15,7 @@ import {
   AisBtnPrimary,
   AisBtnSecondary,
   AisEmptyRow,
+  AisIdTag,
   AisPage,
   AisPanel,
   AisStatusBadge,
@@ -100,6 +101,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
               { value: 'Assignment', label: 'Assignment' },
               { value: 'Practical', label: 'Practical' },
               { value: 'Baseline', label: 'Baseline' },
+              { value: 'Unit Test', label: 'Unit Test' },
             ]}
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
@@ -146,6 +148,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
                         HoD
                       </span>
                     ) : null}
+                    <AisIdTag id={a.id} className="ml-2 align-middle" />
                   </AisTd>
                   <AisTd>{a.type}</AisTd>
                   <AisTd>{a.grade} · {a.subject}</AisTd>

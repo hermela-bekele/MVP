@@ -67,6 +67,19 @@ export interface TeacherTrainingAssignment {
   reason?: string;
   status: 'assigned' | 'in_progress' | 'completed';
   createdAt: string;
+  /** TR-005: the HoD-set completion timeframe. */
+  dueDate?: string;
+  /** TR-007: completion requires ALL of sessionsCompleted>=sessionsTotal,
+   * assessmentPassed, and reflectionSubmitted — enforced server-side. */
+  sessionsCompleted: number;
+  sessionsTotal?: number;
+  assessmentScore?: number;
+  assessmentPassed?: boolean;
+  reflectionSubmitted: boolean;
+  reflectionAnswers?: Record<number, string>;
+  completedAt?: string;
+  /** TR-005: derived — dueDate has passed and status isn't 'completed'. */
+  overdue: boolean;
 }
 
 export interface Student {
@@ -140,6 +153,25 @@ export interface LessonPlan {
   planDetail?: string;
 }
 
+/** TE-004: a recorded departure from the annual plan. The annual plan itself is never
+ * silently overwritten — every change a teacher makes to their planned topic/unit is
+ * logged here instead, separate from both the baseline (LessonPlan) and actual
+ * delivery (LessonDelivery). */
+export interface TeacherLessonAdjustment {
+  id: string;
+  teacherId: string;
+  annualPlanId?: string;
+  weeklyPlanId?: string;
+  grade: string;
+  subject: string;
+  originalTopic: string;
+  revisedTopic: string;
+  reason: string;
+  pacingImpact?: string;
+  adjustmentDate: string;
+  createdAt: string;
+}
+
 export type AcademicCalendarEventType =
   | 'term'
   | 'break'
@@ -209,7 +241,7 @@ export interface MoeCalendarDraft {
 export interface Assessment {
   id: string;
   title: string;
-  type: 'Quiz' | 'Mid Exam' | 'Final Exam' | 'Assignment' | 'Practical' | 'Baseline';
+  type: 'Quiz' | 'Mid Exam' | 'Final Exam' | 'Assignment' | 'Practical' | 'Baseline' | 'Unit Test';
   subject: string;
   grade: string;
   teacherId: string;
@@ -230,6 +262,8 @@ export interface Assessment {
   }[];
   /** Who authored the assessment — HoD-authored exams skip approval. */
   createdByRole?: 'teacher' | 'department-head';
+  /** TE-007: for a Unit Test, the delivered teaching notes it covers, by real ID. */
+  coveredTeachingNoteIds?: string[];
   createdAt: string;
 }
 
@@ -1130,6 +1164,9 @@ export interface TeachingNote {
    * number as a string (e.g. "3"). Lets department-head exam generation offer only the
    * content the teacher actually selected, instead of every session in the linked plan. */
   sessionScope?: string;
+  /** TE-005: required when lessonPlanId is unset — why this Supplementary/Unplanned
+   * Session note exists outside the normal plan -> note evidence chain. */
+  standaloneReason?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1145,10 +1182,16 @@ export type StudentGradeEntryType =
 
 /** Per-question mark for a student's assessment result. */
 export interface GradeQuestionResult {
+  /** CM-003: this, together with the parent entry's assessmentId, is the question's
+   * real identifier (assessments.questions[].id matches this number) — not just a
+   * display position. */
   questionNumber: number;
   correct: boolean;
   /** Optional label from linked assessment */
   prompt?: string;
+  /** CM-003: which curriculum objective this question assesses. No authoring UI exists
+   * yet to assign these (see curriculum_objectives table) — left undefined until then. */
+  curriculumObjectiveId?: string;
 }
 
 export interface StudentGradeEntry {
@@ -1169,7 +1212,12 @@ export interface StudentGradeEntry {
   remarks?: string;
   /** Which question numbers were answered correctly / incorrectly */
   questionResults?: GradeQuestionResult[];
+  /** CM-003: the real school_classes row this result belongs to, resolved server-side
+   * from gradeLevel/section (null when that pair doesn't map to exactly one class). */
+  classId?: string;
 }
+
+export type TeacherResourceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'REMOVED';
 
 export interface TeacherResource {
   id: string;
@@ -1181,7 +1229,19 @@ export interface TeacherResource {
   url: string;
   downloads: number;
   createdAt: string;
+  status: TeacherResourceStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewComment?: string;
 }
+
+/** FB-003: distinct evidence categories — never combined into one score. */
+export type TeacherFeedbackCategory =
+  | 'informal_peer'
+  | 'coaching'
+  | 'classroom_observation'
+  | 'formal_performance'
+  | 'anonymous_survey';
 
 export interface TeacherFeedback {
   id: string;
@@ -1192,6 +1252,10 @@ export interface TeacherFeedback {
   /** Who authored a 'to_teacher' entry. Missing on legacy rows is treated as 'department-head'. */
   authorRole?: 'student' | 'parent' | 'peer' | 'department-head';
   authorName: string;
+  /** FB-002: true only for student-authored feedback — the only source anonymity is
+   * allowed for. authorName is already masked server-side when this is true. */
+  isAnonymous?: boolean;
+  category?: TeacherFeedbackCategory;
   subject: string;
   comment: string;
   rating?: number;
@@ -1651,6 +1715,7 @@ export const mockTeacherResources: TeacherResource[] = [
     url: '#',
     downloads: 48,
     createdAt: '2026-05-08',
+    status: 'APPROVED',
   },
   {
     id: 'tr-2',
@@ -1661,6 +1726,7 @@ export const mockTeacherResources: TeacherResource[] = [
     subject: 'Mathematics',
     url: '#',
     downloads: 32,
+    status: 'APPROVED',
     createdAt: '2026-05-14',
   },
 ];

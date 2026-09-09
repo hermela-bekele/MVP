@@ -18,7 +18,7 @@ import {
 } from '@/components/dashboard/teacher/aisStyles';
 import { api } from '@/lib/api';
 import { departmentIdForSubject, resolveDeptHeadScope } from '@/lib/departmentHead';
-import type { Community } from '@/lib/communityTypes';
+import { canCreateCommunity, type Community } from '@/lib/communityTypes';
 import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 import { Pagination } from '@/components/ui/pagination';
 
@@ -72,6 +72,10 @@ export function CommunicationModule({
 
   const canPostAnnouncement =
     mode === 'school-head' || currentUser?.role === 'school-head';
+
+  // CO-001: only school admins/leadership/department heads may create permanent
+  // communities — a plain teacher must not see (or be able to trigger) this affordance.
+  const canCreate = canCreateCommunity(currentUser?.role);
 
   // A subject teacher (or their department head) only sees their own department's
   // communities, plus any school-wide ones. School-head sees everything.
@@ -288,17 +292,19 @@ export function CommunicationModule({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className={aisLabelCaps}>Your Communities</p>
-            <button
-              type="button"
-              onClick={() => setShowCreateForm((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create Community
-            </button>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => setShowCreateForm((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create Community
+              </button>
+            )}
           </div>
 
-          {showCreateForm && (
+          {canCreate && showCreateForm && (
             <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
               <input
                 className={aisInput}

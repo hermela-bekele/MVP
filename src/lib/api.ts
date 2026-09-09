@@ -216,6 +216,9 @@ export const api = {
     request(`/students/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   createLessonPlan: (body: Record<string, unknown>) =>
     request('/lesson-plans', { method: 'POST', body: JSON.stringify(body) }),
+  createTeacherLessonAdjustment: (body: Record<string, unknown>) =>
+    request('/teacher-lesson-adjustments', { method: 'POST', body: JSON.stringify(body) }),
+  listMyTeacherLessonAdjustments: () => request('/teacher-lesson-adjustments/mine'),
   approveLessonPlan: (id: string, role: 'dept' | 'school', comments: string) =>
     request(`/lesson-plans/${id}/approve`, {
       method: 'PATCH',
@@ -249,10 +252,13 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ comments }),
     }),
-  saveAttendance: (records: { studentId: string; status: string; remarks?: string }[]) =>
+  saveAttendance: (
+    records: { studentId: string; status: string; remarks?: string }[],
+    timetableSlotId?: string,
+  ) =>
     request('/attendance/batch', {
       method: 'POST',
-      body: JSON.stringify({ records }),
+      body: JSON.stringify({ records, timetableSlotId }),
     }),
   createDepartment: (name: string, headName: string) =>
     request('/departments', {
@@ -317,6 +323,9 @@ export const api = {
     request('/teacher-training-assignments', { method: 'POST', body: JSON.stringify(body) }),
   updateTrainingAssignmentStatus: (id: string, status: string) =>
     request(`/teacher-training-assignments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateTrainingAssignmentProgress: (id: string, progress: Record<string, unknown>) =>
+    request(`/teacher-training-assignments/${id}/progress`, { method: 'PATCH', body: JSON.stringify(progress) }),
+  listMyTrainingAssignments: () => request('/teacher-training-assignments/mine'),
   createTeachingNote: (body: Record<string, unknown>) =>
     request('/teaching-notes', { method: 'POST', body: JSON.stringify(body) }),
   updateTeachingNote: (id: string, body: Record<string, unknown>) =>
@@ -335,6 +344,23 @@ export const api = {
     request<{ gpa: number }>(`/students/${studentId}/recalculate-gpa`, { method: 'POST' }),
   createTeacherResource: (body: Record<string, unknown>) =>
     request('/teacher-resources', { method: 'POST', body: JSON.stringify(body) }),
+  listMyTeacherResources: () => request('/teacher-resources/mine'),
+  listPendingTeacherResources: () => request('/teacher-resources/pending'),
+  approveTeacherResource: (id: string, comment?: string) =>
+    request(`/teacher-resources/${id}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
+  rejectTeacherResource: (id: string, comment?: string) =>
+    request(`/teacher-resources/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
+  removeTeacherResource: (id: string, comment?: string) =>
+    request(`/teacher-resources/${id}/remove`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
   sendParentMessage: (body: Record<string, unknown>) =>
     request('/parent-messages', { method: 'POST', body: JSON.stringify(body) }),
   addTeacherFeedback: (body: Record<string, unknown>) =>
@@ -898,6 +924,7 @@ export const api = {
     if (schoolId) q.set('schoolId', schoolId);
     return request<Record<string, unknown>[]>(`/portal/timetable?${q}`);
   },
+  myTimetable: () => request<Record<string, unknown>[]>('/portal/timetable/mine'),
   portalDocuments: (studentId: string) =>
     request<Record<string, unknown>[]>(`/portal/documents?studentId=${studentId}`),
   portalGrades: (studentId: string) =>
@@ -1319,6 +1346,10 @@ export interface MessageThread {
   subject: string;
   updated_at?: string;
   updatedAt?: string;
+  /** CO-002: the other party's role relative to the requesting user — distinguishes a
+   * parent conversation from a teacher-peer one sharing the same underlying columns. */
+  counterpart_role?: string;
+  counterpartRole?: string;
 }
 
 export interface ThreadMessage {

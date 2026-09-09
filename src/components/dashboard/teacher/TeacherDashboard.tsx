@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Avatar } from '@/components/ui/avatar';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   filterTeacherStudents,
   avgAttendanceForStudents,
@@ -25,6 +26,12 @@ import {
 } from '@/lib/teacherPortal';
 import type { Student } from '@/lib/mockData';
 import { gpaToMark, formatMark } from '@/lib/grading';
+import {
+  DASHBOARD_INDICATOR_DICTIONARY,
+  isAtRisk,
+  atRiskReason,
+  type DashboardIndicatorId,
+} from '@/lib/dashboardIndicators';
 import {
   aisActivityAlertRow,
   aisActivityPanel,
@@ -59,10 +66,6 @@ import {
 
 const iconSm = 'h-3.5 w-3.5 shrink-0';
 const iconMd = 'h-4 w-4 shrink-0';
-
-function isAtRisk(student: Student) {
-  return student.attendanceRate < 90 || student.gpa < 2.5;
-}
 
 function periodLabel(period: string, index: number) {
   const match = period.match(/(\d{2}:\d{2})/);
@@ -231,6 +234,8 @@ function KpiCard({
   valueIcon,
   icon: Icon,
   accent = 'primary',
+  indicatorId,
+  tooltipPosition = 'bottom',
 }: {
   label: string;
   value: React.ReactNode;
@@ -239,6 +244,13 @@ function KpiCard({
   valueIcon?: React.ReactNode;
   icon: React.ComponentType<{ className?: string }>;
   accent?: 'primary' | 'error';
+  /** Backs this card with an entry from the Dashboard Indicator Dictionary (TE-001):
+   * hovering explains what it measures and what to do; clicking drills into the tab
+   * where that data lives. */
+  indicatorId?: DashboardIndicatorId;
+  /** The last card in the row sits near the right edge — center-under overflows off
+   * the viewport there, so it needs to open leftward instead. */
+  tooltipPosition?: 'bottom' | 'left';
 }) {
   const pillClass =
     pillVariant === 'success'
@@ -249,8 +261,22 @@ function KpiCard({
           ? 'text-[11px] font-semibold text-ais-on-surface-variant'
           : aisKpiPill;
 
-  return (
-    <div className={aisKpiCard}>
+  const indicator = indicatorId ? DASHBOARD_INDICATOR_DICTIONARY[indicatorId] : undefined;
+
+  const card = (
+    <div
+      className={`${aisKpiCard} ${indicator ? 'cursor-pointer transition-shadow hover:shadow-md' : ''}`}
+      role={indicator ? 'button' : undefined}
+      tabIndex={indicator ? 0 : undefined}
+      onClick={indicator ? () => dispatchTeacherQuickAction(indicator.drillDownTab) : undefined}
+      onKeyDown={
+        indicator
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') dispatchTeacherQuickAction(indicator.drillDownTab);
+            }
+          : undefined
+      }
+    >
       <div
         className={
           pill
@@ -278,6 +304,26 @@ function KpiCard({
       </div>
     </div>
   );
+
+  if (!indicator) return card;
+
+  return (
+    <Tooltip
+      position={tooltipPosition}
+      className="w-full"
+      tooltipClassName="whitespace-normal max-w-[15rem] text-left"
+      content={
+        <div className="space-y-1">
+          <p className="font-semibold">{indicator.label}</p>
+          <p>{indicator.measures}</p>
+          <p className="text-background/70">Threshold: {indicator.threshold}</p>
+          <p className="text-background/70">Action: {indicator.teacherAction}</p>
+        </div>
+      }
+    >
+      {card}
+    </Tooltip>
+  );
 }
 
 export const TeacherDashboard: React.FC = () => {
@@ -287,6 +333,8 @@ export const TeacherDashboard: React.FC = () => {
   const [dismissedAlertIds, setDismissedAlertIds] = useState<Set<string>>(new Set());
 
   const atRisk = roster.filter(isAtRisk).filter((s) => !dismissedAlertIds.has(s.id));
+  const attendanceRiskCount = atRisk.filter((s) => atRiskReason(s) === 'attendance').length;
+  const academicRiskCount = atRisk.length - attendanceRiskCount;
   const avgGpa = avgGpaForStudents(roster);
   const avgAtt = avgAttendanceForStudents(roster);
 
@@ -311,6 +359,7 @@ export const TeacherDashboard: React.FC = () => {
           pill="Grades 9–10"
           pillVariant="plain"
           icon={Users}
+          indicatorId="totalStudents"
         />
         <KpiCard
           label="Average Mark"
@@ -319,20 +368,28 @@ export const TeacherDashboard: React.FC = () => {
             <TrendingUp className="h-5 w-5 text-ais-success" aria-hidden />
           }
           icon={TrendingUp}
+          indicatorId="averageMark"
         />
         <KpiCard
           label="Attendance"
           value={`${avgAtt}%`}
           pill="Target 90%"
           icon={UserCheck}
+          indicatorId="attendance"
         />
         <KpiCard
-          label="At-Risk"
+          label="At Risk"
           value={atRisk.length}
-          pill="Action req."
+          pill={
+            atRisk.length === 0
+              ? 'None'
+              : `${attendanceRiskCount} attendance · ${academicRiskCount} mark`
+          }
           pillVariant="error"
           icon={AlertTriangle}
           accent="error"
+          indicatorId="studentsAtRisk"
+          tooltipPosition="left"
         />
       </section>
 
@@ -387,7 +444,7 @@ export const TeacherDashboard: React.FC = () => {
               ) : (
                 atRisk.map((s) => {
                   const reason =
-                    s.attendanceRate < 90 ? 'low attendance' : 'low mark';
+                    atRiskReason(s) === 'attendance' ? 'low attendance' : 'low mark';
                   return (
                     <div
                       key={s.id}
@@ -445,7 +502,7 @@ export const TeacherDashboard: React.FC = () => {
                     {atRiskStudent ? (
                       <span className={aisBadgeWarning}>
                         <AlertCircle className="h-3 w-3" aria-hidden />
-                        Low Mark Alert
+                        {atRiskReason(s) === 'attendance' ? 'Low Attendance Alert' : 'Low Mark Alert'}
                       </span>
                     ) : (
                       <span className={aisBadgeSuccess}>

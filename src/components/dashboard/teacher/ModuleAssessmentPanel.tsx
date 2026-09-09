@@ -15,6 +15,9 @@ interface ModuleAssessmentPanelProps {
   assessmentContent?: string;
   moduleContent?: string;
   onComplete?: (score: number, passed: boolean) => void;
+  /** TR-006/TR-007: fired with the teacher's own reflection text when submitted, so it
+   * can be persisted as real evidence (not just a boolean flag). */
+  onReflectionSubmit?: (answers: Record<number, string>) => void;
 }
 
 function parseReflectionPrompts(content: string): string[] {
@@ -44,6 +47,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
   assessmentContent,
   moduleContent = '',
   onComplete,
+  onReflectionSubmit,
 }) => {
   const shortAnswerQuestions = useMemo(
     () => questions.filter((q) => q.type === 'short-answer'),
@@ -92,6 +96,7 @@ export const ModuleAssessmentPanel: React.FC<ModuleAssessmentPanelProps> = ({
         ? computeCombinedScore(multipleChoiceScore)
         : shortAnswerScore ?? 0;
     const passed = finalScore >= passingScore;
+    onReflectionSubmit?.(reflectionAnswers);
     onComplete?.(finalScore, passed);
   };
 

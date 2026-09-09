@@ -139,6 +139,9 @@ export function TeacherLessonNoteGenerator() {
 
   const [linkedPlanId, setLinkedPlanId] = useState(editingNote?.lessonPlanId || initialLessonPlanId || '');
   const [selectedSessionScope, setSelectedSessionScope] = useState(initialSessionScope);
+  // TE-005: required whenever this note has no linked lesson plan — it's a
+  // Supplementary / Unplanned Session, an exception to the normal evidence chain.
+  const [standaloneReason, setStandaloneReason] = useState(editingNote?.standaloneReason || '');
   const [notesGrade, setNotesGrade] = useState(editingNote?.grade || defaultGrade);
   const [notesSubject, setNotesSubject] = useState(editingNote?.subject || defaultSubject);
   const [notesTopic, setNotesTopic] = useState(editingNote?.topic || '');
@@ -418,6 +421,7 @@ export function TeacherLessonNoteGenerator() {
         : activePlan
           ? selectedSessionScope || 'all'
           : undefined,
+      standaloneReason: linkedPlanId ? undefined : standaloneReason.trim(),
     };
   };
 
@@ -427,6 +431,14 @@ export function TeacherLessonNoteGenerator() {
     const payload = buildNotePayload();
     if (!payload.contentBody) {
       addNotification('Content required', 'Add or edit note content before saving.', 'alert');
+      return;
+    }
+    if (!linkedPlanId && !standaloneReason.trim()) {
+      addNotification(
+        'Reason required',
+        'This note has no linked lesson plan — explain why it’s a Supplementary / Unplanned Session.',
+        'alert',
+      );
       return;
     }
     if (editingNoteId) {
@@ -443,6 +455,14 @@ export function TeacherLessonNoteGenerator() {
     const payload = buildNotePayload();
     if (!hasNoteContent) {
       addNotification('Nothing to submit', 'Add note content or generate with AI first.', 'alert');
+      return;
+    }
+    if (!linkedPlanId && !standaloneReason.trim()) {
+      addNotification(
+        'Reason required',
+        'This note has no linked lesson plan — explain why it’s a Supplementary / Unplanned Session.',
+        'alert',
+      );
       return;
     }
     if (editingNoteId) {
@@ -462,7 +482,7 @@ export function TeacherLessonNoteGenerator() {
           variant="ais"
           label="Week (weekly lesson plan)"
           options={[
-            { value: '', label: 'No lesson plan (standalone)' },
+            { value: '', label: 'No lesson plan — Supplementary / Unplanned Session' },
             ...noteWeekPlanChoices.map((p) => ({
               value: p.id,
               label: isWeeklyPlanHodApproved(p) ? weeklyPlanWeekLabel(p) : `${weeklyPlanWeekLabel(p)} · ${p.status} (awaiting HoD)`,
@@ -482,6 +502,24 @@ export function TeacherLessonNoteGenerator() {
             }
           }}
         />
+        {!linkedPlanId && (
+          <div className="space-y-1.5">
+            <label className={aisFormLabel}>
+              Why is this note Supplementary / Unplanned? <span className="text-ais-error">*</span>
+            </label>
+            <textarea
+              className={aisTextarea}
+              rows={2}
+              placeholder="e.g. Covered an extra review session not on the weekly plan; substitute-taught another section; addressed a topic students struggled with."
+              value={standaloneReason}
+              onChange={(e) => setStandaloneReason(e.target.value)}
+            />
+            <p className="text-xs text-ais-on-surface-variant">
+              Notes without a linked weekly plan are an exception to normal curriculum tracking and are
+              recorded as a Supplementary / Unplanned Session.
+            </p>
+          </div>
+        )}
         {activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan) && (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
             This weekly plan is not yet approved by the department head. You can edit fields, but AI

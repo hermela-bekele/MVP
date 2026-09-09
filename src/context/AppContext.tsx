@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { api, type BootstrapPayload } from '@/lib/api';
+import { api, ApiError, type BootstrapPayload } from '@/lib/api';
 import { toast } from '@/components/ui/toast';
 import {
   type DataSource,
@@ -197,7 +197,10 @@ interface AppContextType {
     }
   ) => void;
   updateAssessmentQuestions: (id: string, questions: Assessment['questions']) => void;
-  saveAttendance: (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => void;
+  saveAttendance: (
+    records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[],
+    timetableSlotId?: string,
+  ) => void;
   enrollStudent: (student: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => void;
   submitRegistrationApplication: (
     app: Omit<RegistrationApplication, 'id' | 'status' | 'submittedAt'>
@@ -238,9 +241,23 @@ interface AppContextType {
     data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>
   ) => void;
   assignTrainingModule: (
-    data: Omit<TeacherTrainingAssignment, 'id' | 'createdAt' | 'status'>
+    data: Omit<
+      TeacherTrainingAssignment,
+      'id' | 'createdAt' | 'status' | 'sessionsCompleted' | 'reflectionSubmitted' | 'overdue'
+    > & { dueDate?: string; sessionsTotal?: number }
   ) => void;
   updateTrainingAssignmentStatus: (id: string, status: TeacherTrainingAssignment['status']) => void;
+  updateTrainingAssignmentProgress: (
+    id: string,
+    progress: {
+      sessionsCompleted?: number;
+      sessionsTotal?: number;
+      assessmentScore?: number;
+      assessmentPassed?: boolean;
+      reflectionSubmitted?: boolean;
+      reflectionAnswers?: Record<number, string>;
+    }
+  ) => Promise<TeacherTrainingAssignment | void>;
   addDepartment: (name: string, headName: string) => void;
   addClass: (name: string, grade: string, section: string, homeroomTeacher: string) => void;
   approveExam: (id: string, comments: string) => void;
@@ -306,7 +323,7 @@ interface AppContextType {
   deleteStudentGradeEntry: (id: string) => void;
   recalculateStudentGpaFromGrades: (studentId: string) => void;
   addTeacherResource: (
-    resource: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt'>
+    resource: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt' | 'status'>
   ) => void;
   respondToTeacherCheckIn: (id: string, response: string) => void;
   sendParentMessage: (
@@ -318,6 +335,9 @@ interface AppContextType {
   giveTeacherFeedback: (input: {
     teacherId: string;
     authorRole: 'peer' | 'department-head';
+    /** FB-003: only meaningful when authorRole is 'department-head' — peer feedback is
+     * always 'informal_peer', derived server-side. */
+    category?: 'coaching' | 'classroom_observation' | 'formal_performance';
     subject: string;
     comment: string;
     rating?: number;
@@ -747,8 +767,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setDataError(null);
       await persistPortalSnapshot(data, syncedAt);
 
-      const { flushed, remaining } = await flushOfflineOutbox();
+      const { flushed, remaining, dropped } = await flushOfflineOutbox();
       setPendingSyncCount(remaining);
+      if (dropped.length > 0) {
+        addNotification(
+          'Some offline changes could not be saved',
+          `${dropped.length} change${dropped.length === 1 ? '' : 's'} made while offline were rejected by the server (${dropped[0].error}) and have been discarded rather than left stuck. You may need to redo ${dropped.length === 1 ? 'it' : 'them'}.`,
+          'alert',
+        );
+      }
       if (flushed > 0) {
         try {
           const fresh = await api.bootstrap();
@@ -774,6 +801,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount]);
 
   useEffect(() => {
+    // /bootstrap now requires auth (PR-002) — an anonymous mount (e.g. the login
+    // page) has no session yet, so skip the call instead of guaranteeing a 401.
+    // login() explicitly triggers the authenticated fetch once a session exists.
+    if (!readStoredSession()) return;
     void refreshFromApi();
   }, [refreshFromApi]);
 
@@ -972,7 +1003,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const saveAttendance = (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => {
+  const saveAttendance = (
+    records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[],
+    timetableSlotId?: string,
+  ) => {
     const applyLocal = () => {
       const today = new Date().toISOString().slice(0, 10);
       setAttendance((prev) => {
@@ -997,18 +1031,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!isBrowserOnline()) {
       applyLocal();
-      void enqueueOutbox('saveAttendance', { records });
+      void enqueueOutbox('saveAttendance', { records, timetableSlotId });
       void refreshPendingCount();
       addNotification('Attendance saved offline', `Recorded for ${records.length} students — will sync when online.`, 'info');
       return;
     }
 
-    void api.saveAttendance(records).then(() => {
+    void api.saveAttendance(records, timetableSlotId).then(() => {
       void refreshFromApi();
       addNotification('Attendance Logs Recorded', `Attendance recorded for ${records.length} students.`, 'success');
-    }).catch(() => {
+    }).catch((err) => {
+      // CM-006: a 409 means this scheduled session already has attendance recorded —
+      // that will never succeed by retrying, so surface it instead of silently queuing
+      // a save that's guaranteed to fail again offline.
+      if (err instanceof ApiError && err.status === 409) {
+        addNotification('Already recorded', err.message || 'Attendance for this session has already been recorded.', 'alert');
+        return;
+      }
       applyLocal();
-      void enqueueOutbox('saveAttendance', { records });
+      void enqueueOutbox('saveAttendance', { records, timetableSlotId });
       void refreshPendingCount();
       addNotification('Attendance saved offline', `Saved on this device — will sync when online.`, 'alert');
     });
@@ -1298,11 +1339,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
-  const assignTrainingModule = (data: Omit<TeacherTrainingAssignment, 'id' | 'createdAt' | 'status'>) => {
+  const assignTrainingModule = (
+    data: Omit<
+      TeacherTrainingAssignment,
+      'id' | 'createdAt' | 'status' | 'sessionsCompleted' | 'reflectionSubmitted' | 'overdue'
+    > & { dueDate?: string; sessionsTotal?: number }
+  ) => {
     void api.assignTrainingModule(data as unknown as Record<string, unknown>).then((a) => {
       setTeacherTrainingAssignments((prev) => [a as TeacherTrainingAssignment, ...prev]);
       addNotification('Module Assigned', `${data.moduleTitle} assigned.`, 'success');
     }).catch(() => void refreshFromApi());
+  };
+
+  const updateTrainingAssignmentProgress = async (
+    id: string,
+    progress: {
+      sessionsCompleted?: number;
+      sessionsTotal?: number;
+      assessmentScore?: number;
+      assessmentPassed?: boolean;
+      reflectionSubmitted?: boolean;
+      reflectionAnswers?: Record<number, string>;
+    }
+  ) => {
+    try {
+      const updated = (await api.updateTrainingAssignmentProgress(id, progress)) as TeacherTrainingAssignment;
+      setTeacherTrainingAssignments((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      if (updated.status === 'completed') {
+        addNotification('Module Completed', `${updated.moduleTitle} is now complete — sessions, assessment, and reflection all done.`, 'success');
+      }
+      return updated;
+    } catch {
+      addNotification('Could not save progress', 'Try again once you’re back online.', 'alert');
+    }
   };
 
   const updateTrainingAssignmentStatus = (id: string, status: TeacherTrainingAssignment['status']) => {
@@ -1893,11 +1962,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addTeacherResource = (
-    resourceData: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt'>
+    resourceData: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt' | 'status'>
   ) => {
     void api.createTeacherResource({ ...resourceData, teacherId: resolveTeacherId() }).then((res) => {
       setTeacherResources((prev) => [res as TeacherResource, ...prev]);
-      addNotification('Resource Published', `"${(res as TeacherResource).title}" is available.`, 'success');
+      addNotification('Resource Submitted', `"${(res as TeacherResource).title}" was sent to your department head for review.`, 'success');
     }).catch(() => void refreshFromApi());
   };
 
@@ -1927,6 +1996,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const giveTeacherFeedback = (input: {
     teacherId: string;
     authorRole: 'peer' | 'department-head';
+    category?: 'coaching' | 'classroom_observation' | 'formal_performance';
     subject: string;
     comment: string;
     rating?: number;
@@ -1938,6 +2008,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       teacherId: input.teacherId,
       direction: 'to_teacher',
       authorRole: input.authorRole,
+      category: input.authorRole === 'peer' ? 'informal_peer' : input.category ?? 'coaching',
       authorName,
       subject: input.subject,
       comment: input.comment,
@@ -2289,6 +2360,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         submitSelfAssessment,
         assignTrainingModule,
         updateTrainingAssignmentStatus,
+        updateTrainingAssignmentProgress,
         addDepartment,
         addClass,
         approveExam,

@@ -42,6 +42,7 @@ import { DeptLessonPlansPanel } from "@/components/dashboard/department-head/Dep
 import { DeptGapAnalysisPanel } from "@/components/dashboard/department-head/DeptGapAnalysisPanel";
 import { DeptTeacherDevelopmentAssignmentPanel } from "@/components/dashboard/department-head/DeptTeacherDevelopmentAssignmentPanel";
 import { DeptFeedbackPanel } from "@/components/dashboard/department-head/DeptFeedbackPanel";
+import { DeptResourcesReviewPanel } from "@/components/dashboard/department-head/DeptResourcesReviewPanel";
 import { DeptWellnessCheckins } from "@/components/dashboard/department-head/DeptWellnessCheckins";
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
@@ -1103,6 +1104,8 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "resources" && (
         <div className="space-y-6 animate-fade-in">
+          <DeptResourcesReviewPanel />
+
           <div className="flex justify-end">
             <Button
               variant="organic"

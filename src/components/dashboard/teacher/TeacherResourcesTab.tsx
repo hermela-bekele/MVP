@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
-import { uploadFile } from '@/lib/api';
+import { api, uploadFile } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { GRADE_OPTIONS } from '@/lib/teacherPortal';
 import { filterTrainingMaterialsForTeacher } from '@/lib/trainingResources';
-import type { TeacherResource, TrainingMaterial } from '@/lib/mockData';
+import type { TeacherResource, TeacherResourceStatus, TrainingMaterial } from '@/lib/mockData';
 import {
   AisBtnSecondary,
   AisPage,
@@ -21,7 +21,7 @@ import { Pagination } from '@/components/ui/pagination';
 const PAGE_SIZE = 9; // 3-column card grid
 
 function resourceUrlOf(row: ResourceRow): string | undefined {
-  return row.kind === 'own' ? row.resource.url : row.resource.resourceUrl;
+  return row.kind === 'department' ? row.resource.resourceUrl : row.resource.url;
 }
 
 function isImageUrl(url: string) {
@@ -46,7 +46,22 @@ const RESOURCE_TYPES: TeacherResource['type'][] = [
 
 type ResourceRow =
   | { kind: 'own'; resource: TeacherResource }
+  | { kind: 'peer'; resource: TeacherResource; teacherName: string }
   | { kind: 'department'; resource: TrainingMaterial };
+
+const RESOURCE_STATUS_LABEL: Record<TeacherResourceStatus, string> = {
+  PENDING: 'Pending review',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  REMOVED: 'Removed',
+};
+
+const RESOURCE_STATUS_VARIANT: Record<TeacherResourceStatus, 'neutral' | 'success' | 'error' | 'warning'> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  REMOVED: 'neutral',
+};
 
 function categoryToType(category: string): TeacherResource['type'] {
   if (category === 'STEM') return 'Lab Guide';
@@ -57,6 +72,7 @@ function categoryToType(category: string): TeacherResource['type'] {
 
 export const TeacherResourcesTab: React.FC = () => {
   const {
+    teachers,
     teacherResources,
     trainingMaterials,
     addTeacherResource,
@@ -66,7 +82,20 @@ export const TeacherResourcesTab: React.FC = () => {
   } = useApp();
   const teacherId = resolveTeacherId();
 
-  const myResources = teacherResources.filter((r) => r.teacherId === teacherId);
+  // TE-010: `teacherResources` from the shared app state only ever contains APPROVED
+  // rows (bootstrap deliberately excludes pending/rejected uploads so peers/students
+  // never see them). A teacher's own uploads — whatever their review status — are
+  // fetched separately here so the uploader can still track them.
+  const [myResources, setMyResources] = useState<TeacherResource[]>([]);
+  const loadMyResources = useCallback(() => {
+    void api
+      .listMyTeacherResources()
+      .then((rows) => setMyResources(rows as TeacherResource[]))
+      .catch(() => {});
+  }, []);
+  useEffect(loadMyResources, [loadMyResources]);
+
+  const peerResources = teacherResources.filter((r) => r.teacherId !== teacherId);
 
   const departmentResources = useMemo(
     () => filterTrainingMaterialsForTeacher(trainingMaterials),
@@ -74,16 +103,21 @@ export const TeacherResourcesTab: React.FC = () => {
   );
 
   const allResources: ResourceRow[] = useMemo(() => {
-    const deptRows: ResourceRow[] = departmentResources.map((resource) => ({
-      kind: 'department',
-      resource,
-    }));
     const ownRows: ResourceRow[] = myResources.map((resource) => ({
       kind: 'own',
       resource,
     }));
-    return [...deptRows, ...ownRows];
-  }, [departmentResources, myResources]);
+    const peerRows: ResourceRow[] = peerResources.map((resource) => ({
+      kind: 'peer',
+      resource,
+      teacherName: teachers.find((t) => t.id === resource.teacherId)?.name ?? 'Colleague',
+    }));
+    const deptRows: ResourceRow[] = departmentResources.map((resource) => ({
+      kind: 'department',
+      resource,
+    }));
+    return [...ownRows, ...peerRows, ...deptRows];
+  }, [departmentResources, myResources, peerResources, teachers]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(allResources.length / PAGE_SIZE));
@@ -125,6 +159,9 @@ export const TeacherResourcesTab: React.FC = () => {
       setUrl('');
       setResourceFile(null);
       setIsOpen(false);
+      // The new upload starts PENDING and won't appear in the shared `teacherResources`
+      // state (approved-only) — refetch the owner's own list so it shows up right away.
+      window.setTimeout(loadMyResources, 300);
     } catch (err) {
       addNotification(
         'Upload failed',
@@ -140,20 +177,22 @@ export const TeacherResourcesTab: React.FC = () => {
     <AisPage>
       <AisPanel
         title="Classroom resources"
-        description="Your uploads and department-shared study materials — click a card to view it"
+        description="Your uploads, approved resources shared by colleagues, and department-shared study materials — click a card to view it"
       >
         {allResources.length === 0 ? (
           <p className={`${aisBodyMd} py-8 text-center`}>No resources available yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pagedResources.map((row) => {
-              const isOwn = row.kind === 'own';
               const title = row.resource.title;
-              const type = isOwn ? row.resource.type : categoryToType(row.resource.category);
+              const type = row.kind === 'department' ? categoryToType(row.resource.category) : row.resource.type;
               const grade = row.resource.grade;
               const subject = row.resource.subject;
-              const date = isOwn ? row.resource.createdAt : row.resource.uploadedAt;
-              const key = isOwn ? `own-${row.resource.id}` : `dept-${row.resource.id}`;
+              const date = row.kind === 'department' ? row.resource.uploadedAt : row.resource.createdAt;
+              const key =
+                row.kind === 'own' ? `own-${row.resource.id}`
+                : row.kind === 'peer' ? `peer-${row.resource.id}`
+                : `dept-${row.resource.id}`;
 
               return (
                 <button
@@ -164,9 +203,15 @@ export const TeacherResourcesTab: React.FC = () => {
                 >
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <AisStatusBadge variant="primary">{type}</AisStatusBadge>
-                    <AisStatusBadge variant={isOwn ? 'neutral' : 'success'}>
-                      {isOwn ? 'My upload' : 'Department'}
-                    </AisStatusBadge>
+                    {row.kind === 'own' ? (
+                      <AisStatusBadge variant={RESOURCE_STATUS_VARIANT[row.resource.status]}>
+                        {RESOURCE_STATUS_LABEL[row.resource.status]}
+                      </AisStatusBadge>
+                    ) : row.kind === 'peer' ? (
+                      <AisStatusBadge variant="neutral">By {row.teacherName}</AisStatusBadge>
+                    ) : (
+                      <AisStatusBadge variant="success">Department</AisStatusBadge>
+                    )}
                   </div>
                   <h4 className={`${aisHeadlineSm} line-clamp-2 !text-title`}>{title}</h4>
                   <p className={`${aisBodySm} mt-1`}>
@@ -198,7 +243,6 @@ export const TeacherResourcesTab: React.FC = () => {
         {viewingResource && (() => {
           const url = resourceUrlOf(viewingResource);
           const row = viewingResource;
-          const isOwn = row.kind === 'own';
           const grade = row.resource.grade;
           const subject = row.resource.subject;
           return (
@@ -206,8 +250,24 @@ export const TeacherResourcesTab: React.FC = () => {
               <p className={aisBodySm}>
                 {grade && subject ? `${grade} · ${subject}` : grade || subject}
                 {' — '}
-                {isOwn ? row.resource.type : categoryToType(row.resource.category)}
+                {row.kind === 'department' ? categoryToType(row.resource.category) : row.resource.type}
+                {row.kind === 'peer' && <> · Uploaded by {row.teacherName}</>}
               </p>
+              {row.kind === 'own' && row.resource.status !== 'APPROVED' && (
+                <div
+                  className={`${aisCard} p-3 text-sm ${
+                    row.resource.status === 'REJECTED' ? 'border-ais-error/40' : 'border-ais-primary/30'
+                  }`}
+                >
+                  <p className="font-semibold">{RESOURCE_STATUS_LABEL[row.resource.status]}</p>
+                  {row.resource.status === 'PENDING' && (
+                    <p className={aisBodySm}>Not visible to other teachers or students until a department head approves it.</p>
+                  )}
+                  {row.resource.reviewComment && (
+                    <p className={`${aisBodySm} mt-1`}>&quot;{row.resource.reviewComment}&quot;</p>
+                  )}
+                </div>
+              )}
               {url && isImageUrl(url) && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={url} alt={row.resource.title} className="max-h-[60vh] w-full rounded-lg object-contain" />
@@ -237,7 +297,7 @@ export const TeacherResourcesTab: React.FC = () => {
         })()}
       </Dialog>
 
-      <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Upload & disseminate resource" size="md">
+      <Dialog isOpen={isOpen} onClose={() => setIsOpen(false)} title="Upload resource" size="md">
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <input className={aisInput} required placeholder="Resource title" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Select variant="ais" label="Type" options={RESOURCE_TYPES.map((t) => ({ value: t, label: t }))} value={type} onChange={(e) => setType(e.target.value as TeacherResource['type'])} />
@@ -275,7 +335,7 @@ export const TeacherResourcesTab: React.FC = () => {
               disabled={uploading || (!resourceFile && !url.trim())}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {uploading ? 'Uploading…' : 'Publish to students'}
+              {uploading ? 'Uploading…' : 'Submit for review'}
             </button>
           </DialogFooter>
         </form>

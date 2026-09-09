@@ -22,12 +22,13 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
-import type {
-  Community,
-  CommunityChannel,
-  CommunityMember,
-  CommunityMessage,
-  MentionNotification,
+import {
+  canCreateCommunity,
+  type Community,
+  type CommunityChannel,
+  type CommunityMember,
+  type CommunityMessage,
+  type MentionNotification,
 } from "@/lib/communityTypes";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
@@ -55,14 +56,6 @@ const NAVY = "#14213D";
 const ORANGE = "#E88700";
 const CREAM = "#FCBA65";
 
-function canCreateCommunities(role?: string) {
-  return (
-    role === "school-head" ||
-    role === "moe" ||
-    role === "head-of-academics" ||
-    role === "department-head"
-  );
-}
 
 function isCommunityAdmin(role?: string) {
   return role === "owner" || role === "admin";
@@ -603,7 +596,7 @@ export function CommunityHub() {
             Workspace
           </p>
         </div>
-        {canCreateCommunities(currentUser?.role) && (
+        {canCreateCommunity(currentUser?.role) && (
           <button
             type="button"
             title="Create community"

@@ -66,6 +66,8 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
   const [mode, setMode] = useState<AssignMode>('preset');
   const [moduleId, setModuleId] = useState('');
   const [reason, setReason] = useState('');
+  // TR-005: the HoD sets the completion timeframe at assignment time.
+  const [dueDate, setDueDate] = useState('');
   const [gapFocus, setGapFocus] = useState<GapFocus>('subject-matter');
   const [missKey, setMissKey] = useState('');
   const [aiTopic, setAiTopic] = useState('');
@@ -181,6 +183,8 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
       moduleTitle: chosen.title,
       assignedByName: currentUser?.displayName ?? 'Head of Department',
       reason: reason.trim() || undefined,
+      dueDate: dueDate || undefined,
+      sessionsTotal: chosen.sessions?.length,
     });
     addNotification(
       'Training assigned',
@@ -275,6 +279,7 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
         moduleTitle: title,
         assignedByName: currentUser?.displayName ?? 'Head of Department',
         reason: suggestion.slice(0, 240) || `Gap module: ${topic}`,
+        dueDate: dueDate || undefined,
       });
 
       addNotification(
@@ -352,25 +357,67 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
                 </p>
               )}
               {assignments.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="space-y-2 pt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Training progress
+                  </p>
                   {assignments.map((a) => (
-                    <Badge
-                      key={a.id}
-                      variant={a.status === 'completed' ? 'success' : 'info'}
-                      size="sm"
-                    >
-                      {a.moduleTitle} · {a.status.replace('_', ' ')}
-                    </Badge>
+                    <div key={a.id} className="rounded-lg border border-border/50 p-2.5 text-xs space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <span className="font-semibold text-foreground">{a.moduleTitle}</span>
+                        <Badge
+                          variant={a.status === 'completed' ? 'success' : a.overdue ? 'danger' : 'info'}
+                          size="sm"
+                        >
+                          {a.overdue ? 'Late' : a.status.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+                        <span>Assigned {a.createdAt.slice(0, 10)}</span>
+                        {a.dueDate && <span>Due {a.dueDate}</span>}
+                        <span>
+                          Sessions {a.sessionsCompleted}
+                          {a.sessionsTotal != null ? `/${a.sessionsTotal}` : ''}
+                        </span>
+                        <span>
+                          Assessment{' '}
+                          {a.assessmentPassed === true
+                            ? `passed (${a.assessmentScore}%)`
+                            : a.assessmentPassed === false
+                              ? `not passed (${a.assessmentScore}%)`
+                              : 'not attempted'}
+                        </span>
+                        <span>Reflection {a.reflectionSubmitted ? 'submitted' : 'pending'}</span>
+                        {a.completedAt && <span>Completed {a.completedAt.slice(0, 10)}</span>}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
+            <div className="space-y-1">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase">
+                Completion timeframe (optional)
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
+              />
+            </div>
+
             <Select
               label="Assignment type"
               options={[
-                { value: 'preset', label: 'Assign preset Induction module' },
-                { value: 'Continuous', label: 'Assign Continuous Development module'},
+                {
+                  value: 'preset',
+                  label:
+                    getTeacherExperienceLevel(teacher) === 'new'
+                      ? 'Assign preset Induction (TIP) module'
+                      : 'Assign preset Continuous Development (STEP) module',
+                },
                 { value: 'ai', label: 'Module from missed-question suggestion' },
               ]}
               value={mode}

@@ -175,15 +175,16 @@ export function NoteDeliveryDialog({
     <Dialog
       isOpen={open}
       onClose={handleClose}
-      title="Mark lesson delivered"
+      title="Confirm Lesson Delivery"
       size="md"
       largeTitle
     >
       <div className="space-y-4 pt-1">
         {note && (
           <p className={aisBodySm}>
-            How did the class respond to{' '}
-            <span className="font-semibold text-foreground">{note.title}</span>?
+            This records that you taught{' '}
+            <span className="font-semibold text-foreground">{note.title}</span> in class. How did
+            the class respond?
           </p>
         )}
 

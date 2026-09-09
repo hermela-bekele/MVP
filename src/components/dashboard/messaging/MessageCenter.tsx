@@ -13,7 +13,11 @@ import { EmptyState } from '@/components/ui/empty-state';
 type Contact = { id: string; label: string; role: string };
 
 type Props = {
-  mode: 'parent' | 'staff';
+  // CO-002: 'peer' reuses the exact same message_threads/thread_messages
+  // infrastructure as 'parent'/'staff' — the schema has no role constraint on either
+  // party column, so a teacher-to-teacher DM is just a thread where both sides happen
+  // to be staff. Only the contact list and copy differ.
+  mode: 'parent' | 'staff' | 'peer';
   staffRoleHint?: string;
   childrenOptions?: { id: string; name: string }[];
 };
@@ -57,12 +61,21 @@ export function MessageCenter({ mode, staffRoleHint, childrenOptions = [] }: Pro
   const refreshThreads = useCallback(async () => {
     try {
       const rows = await api.listMessageThreads();
-      setThreads(rows);
-      setActiveId((prev) => prev || rows[0]?.id || null);
+      // CO-002: message_threads has no explicit "kind" — a parent conversation and a
+      // teacher-peer one share the same columns, so filter by the counterpart's actual
+      // role (from the backend join) rather than showing every thread in both inboxes.
+      const filtered = rows.filter((t) => {
+        const counterpart = t.counterpartRole || t.counterpart_role;
+        if (mode === 'peer') return counterpart !== 'parent';
+        if (mode === 'staff') return counterpart === 'parent';
+        return true;
+      });
+      setThreads(filtered);
+      setActiveId((prev) => (prev && filtered.some((t) => t.id === prev) ? prev : filtered[0]?.id || null));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     void refreshThreads();
@@ -100,16 +113,24 @@ export function MessageCenter({ mode, staffRoleHint, childrenOptions = [] }: Pro
                   role: h.role,
                 })),
               ]
-            : data.parents.map((p) => ({
-                id: p.userId,
-                label: p.displayName,
-                role: 'parent',
-              }));
+            : mode === 'peer'
+              ? data.teachers
+                  .filter((t) => t.userId && t.userId !== myId)
+                  .map((t) => ({
+                    id: String(t.userId),
+                    label: t.displayName,
+                    role: 'teacher',
+                  }))
+              : data.parents.map((p) => ({
+                  id: p.userId,
+                  label: p.displayName,
+                  role: 'parent',
+                }));
         setContacts(list);
         if (list[0]) setToUserId(list[0].id);
       })
       .catch(() => setContacts([]));
-  }, [composeOpen, mode, schoolId]);
+  }, [composeOpen, mode, schoolId, myId]);
 
   const active = useMemo(() => threads.find((t) => t.id === activeId) ?? null, [threads, activeId]);
 
@@ -172,7 +193,13 @@ export function MessageCenter({ mode, staffRoleHint, childrenOptions = [] }: Pro
     <div className="grid gap-4 lg:grid-cols-5 animate-fade-in">
       <ContentCard
         title="Inbox"
-        description={mode === 'parent' ? 'Teachers and school head' : 'Parent conversations'}
+        description={
+          mode === 'parent'
+            ? 'Teachers and school head'
+            : mode === 'peer'
+              ? 'Conversations with colleagues'
+              : 'Parent conversations'
+        }
         className="lg:col-span-2"
         actions={
           <Button size="sm" variant="organic" className="border-none" onClick={() => setComposeOpen((v) => !v)}>
@@ -183,7 +210,7 @@ export function MessageCenter({ mode, staffRoleHint, childrenOptions = [] }: Pro
         {composeOpen && (
           <div className="mb-4 space-y-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-3.5">
             <Select
-              label={mode === 'parent' ? 'Send to' : 'Parent'}
+              label={mode === 'parent' ? 'Send to' : mode === 'peer' ? 'Colleague' : 'Parent'}
               value={toUserId}
               onChange={(e) => setToUserId(e.target.value)}
               options={contacts.map((u) => ({

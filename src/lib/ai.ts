@@ -788,6 +788,8 @@ export function questionLimitsForAssessmentType(
     case 'Assignment':
     case 'Practical':
       return { min: 5, max: 25, default: 10 };
+    case 'Unit Test':
+      return { min: 10, max: 30, default: 15 };
     default:
       return { min: 5, max: 40, default: 15 };
   }

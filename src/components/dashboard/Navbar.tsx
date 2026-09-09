@@ -537,7 +537,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs, hideSearch = false 
                   }}
                   className={`${aisNavbarDropdownItem} mt-1.5`}
                 >
-                  My Profile Settings
+                  My Profile & Preferences
                 </button>
                 <button
                   type="button"
