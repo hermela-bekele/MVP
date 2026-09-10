@@ -154,6 +154,7 @@ class AIService {
   private useFallback = process.env.NEXT_PUBLIC_AI_FALLBACK_MODE === 'true';
   private useLocalCache = true; // Client-side cache as secondary layer
   private cache: Map<string, any> = new Map();
+  private inFlight = new Map<string, Promise<any>>();
   private readonly CACHE_STORAGE_KEY = 'prime_ai_cache';
 
   constructor() {
@@ -216,6 +217,20 @@ class AIService {
   }
 
   private async callPrimeAI(endpoint: string, payload: any): Promise<any> {
+    const requestKey = this.getCacheKey(endpoint, payload);
+    const existing = this.inFlight.get(requestKey);
+    if (existing) return existing;
+
+    const request = this.requestPrimeAI(endpoint, payload);
+    this.inFlight.set(requestKey, request);
+    try {
+      return await request;
+    } finally {
+      this.inFlight.delete(requestKey);
+    }
+  }
+
+  private async requestPrimeAI(endpoint: string, payload: any): Promise<any> {
     if (this.useFallback) {
       console.warn('⚠️ AI Fallback Mode is enabled. Using template generation.');
       throw new Error('Fallback mode enabled');
