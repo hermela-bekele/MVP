@@ -12,15 +12,17 @@ import {
   generateAssessmentWithAI,
   generateBaselineAssessmentWithAI,
   getWeeklyPlanSessionTopicOptions,
+  parseWeeklyPlanDetail,
   baselineScopeLabel,
   baselineTimingLabel,
   derivePreviousGrade,
   questionLimitsForAssessmentType,
+  type AIDetailedLessonPlanResult,
   type BaselineSemesterTiming,
 } from '@/lib/ai';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { parseAssessmentQuestions, wrapAssessmentMarkdown } from '@/lib/assessmentMarkdown';
-import type { Assessment } from '@/lib/mockData';
+import type { Assessment, TeachingNote } from '@/lib/mockData';
 import { generatePDFFromMarkdown, printMarkdown, slugifyFilename } from '@/lib/pdfUtils';
 import { AisBtnPrimary, AisBtnSecondary, aisInput, aisFormLabel } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { GeneratorActionBar } from '@/components/ui/GeneratorActionBar';
@@ -50,7 +52,7 @@ export function TeacherAssessmentGenerator() {
   const searchParams = useSearchParams();
   const initialUploadMode = searchParams.get('mode') === 'upload' ? 'upload' : 'create';
 
-  const { createAssessment, lessonPlans, resolveTeacherId } = useApp();
+  const { createAssessment, lessonPlans, teachingNotes, lessonDeliveries, resolveTeacherId } = useApp();
   const teacherId = resolveTeacherId();
   const teacherPlans = filterTeacherLessonPlans(lessonPlans, teacherId);
 
@@ -72,6 +74,8 @@ export function TeacherAssessmentGenerator() {
   const [useMlcMix, setUseMlcMix] = useState(false);
   const [mlcPercent, setMlcPercent] = useState(70);
   const [baselineTiming, setBaselineTiming] = useState<BaselineSemesterTiming>('semester_1_start');
+  // TE-007: for a Unit Test, which of the teacher's own DELIVERED lessons it covers.
+  const [selectedCoveredNoteIds, setSelectedCoveredNoteIds] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -82,6 +86,55 @@ export function TeacherAssessmentGenerator() {
   const elapsedSeconds = useElapsedTime(isGenerating);
 
   const questionLimits = questionLimitsForAssessmentType(type);
+
+  // TE-007: delivered lessons (a real lesson_deliveries row exists) for this teacher's
+  // own notes, matching the assessment's grade/subject — the only lessons a Unit Test
+  // may be scoped to. Identified and stored by ID, never by title alone.
+  const deliveredTeachingNoteIds = useMemo(
+    () => new Set(lessonDeliveries.map((d) => d.teachingNoteId)),
+    [lessonDeliveries],
+  );
+  const deliveredNotesForUnitTest = useMemo(
+    () =>
+      teachingNotes.filter(
+        (n) =>
+          n.teacherId === teacherId &&
+          n.grade === grade &&
+          n.subject === subject &&
+          deliveredTeachingNoteIds.has(n.id),
+      ),
+    [teachingNotes, teacherId, grade, subject, deliveredTeachingNoteIds],
+  );
+
+  // Group delivered notes by the curriculum unit their linked weekly plan was generated
+  // for, so a teacher picks a Unit Test's scope by unit — the way the annual/weekly plan
+  // actually organizes the syllabus — instead of hunting through a flat list of note
+  // titles to guess which lesson belonged to which unit.
+  const unitGroupsForUnitTest = useMemo(() => {
+    const groups = new Map<string, TeachingNote[]>();
+    for (const note of deliveredNotesForUnitTest) {
+      const plan = note.lessonPlanId ? lessonPlans.find((p) => p.id === note.lessonPlanId) : undefined;
+      const detail = plan
+        ? (parseWeeklyPlanDetail(plan) as (AIDetailedLessonPlanResult & { calendarWeek?: { unit?: string } }) | null)
+        : null;
+      const unit = detail?.calendarWeek?.unit?.trim() || 'No unit on record';
+      const list = groups.get(unit) ?? [];
+      list.push(note);
+      groups.set(unit, list);
+    }
+    return [...groups.entries()]
+      .map(([unit, notes]) => ({ unit, notes }))
+      .sort((a, b) => a.unit.localeCompare(b.unit));
+  }, [deliveredNotesForUnitTest, lessonPlans]);
+
+  const toggleUnitCoverage = (noteIds: string[]) => {
+    const allSelected = noteIds.every((id) => selectedCoveredNoteIds.includes(id));
+    setSelectedCoveredNoteIds((prev) =>
+      allSelected
+        ? prev.filter((id) => !noteIds.includes(id))
+        : [...new Set([...prev, ...noteIds])],
+    );
+  };
 
   const selectedPlan = teacherPlans.find((p) => p.id === selectedLessonPlanId);
   const sessionOptions = useMemo(
@@ -221,6 +274,7 @@ export function TeacherAssessmentGenerator() {
     e.preventDefault();
     if (!title) return;
     if (uploadMode === 'create' && !generatedContent) return;
+    if (type === 'Unit Test' && selectedCoveredNoteIds.length === 0) return;
 
     const parsedQuestions = generatedContent ? parseAssessmentQuestions(generatedContent) : null;
 
@@ -232,6 +286,7 @@ export function TeacherAssessmentGenerator() {
           : parsedQuestions && parsedQuestions.length > 0
           ? parsedQuestions
           : [{ id: 1, question: generatedContent, type: questionFormat, answer: 'See assessment content' }],
+      coveredTeachingNoteIds: type === 'Unit Test' ? selectedCoveredNoteIds : undefined,
     });
 
     goBackToList();
@@ -244,7 +299,8 @@ export function TeacherAssessmentGenerator() {
       : !!selectedLessonPlanId && selectedSessionScopes.length > 0;
 
   const canSubmit =
-    uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent);
+    (uploadMode === 'upload' || (uploadMode === 'create' && showPreview && !!generatedContent)) &&
+    (type !== 'Unit Test' || selectedCoveredNoteIds.length > 0);
 
   const previewTitle = title || `${type} on ${topic || 'Assessment'}`;
 
@@ -265,6 +321,87 @@ export function TeacherAssessmentGenerator() {
       setIsGeneratingPDF(false);
     }
   };
+
+  // Rendered directly under whichever "Assessment type" row is currently visible
+  // (create mode's type/level/count/format grid, or upload mode's type/grade/subject/
+  // difficulty row) rather than after unrelated sections like Title or the MLC mix.
+  const unitTestSection = (
+    <section className="space-y-4 rounded-xl border border-ais-card-border bg-card p-5">
+      <div>
+        <label className={aisFormLabel}>Which units does this Unit Test cover?</label>
+        <p className="text-[11px] text-ais-on-surface-variant">
+          Units come from your weekly lesson plans. Pick a whole unit to cover every delivered
+          lesson in it, or expand a unit to choose specific lessons — only lessons already
+          confirmed as delivered for {grade} · {subject} are listed.
+        </p>
+      </div>
+      {deliveredNotesForUnitTest.length === 0 ? (
+        <p className="text-sm text-ais-on-surface-variant">
+          No delivered lessons found yet for {grade} · {subject}. Confirm delivery on a teaching note
+          first, or change grade/subject above.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {unitGroupsForUnitTest.map((group) => {
+            const noteIds = group.notes.map((n) => n.id);
+            const selectedCount = noteIds.filter((id) => selectedCoveredNoteIds.includes(id)).length;
+            const allSelected = selectedCount === noteIds.length;
+            const someSelected = selectedCount > 0 && !allSelected;
+            return (
+              <div key={group.unit} className="rounded-xl border border-ais-card-border overflow-hidden">
+                <label
+                  className={`flex cursor-pointer items-center gap-2.5 px-3 py-2.5 text-sm ${
+                    allSelected ? 'bg-primary/10' : someSelected ? 'bg-primary/5' : 'bg-ais-surface-container-low/40'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={() => toggleUnitCoverage(noteIds)}
+                  />
+                  <span className="min-w-0 flex-1 font-semibold text-ais-on-surface">{group.unit}</span>
+                  <span className="shrink-0 text-[11px] text-ais-on-surface-variant">
+                    {selectedCount}/{noteIds.length} lesson{noteIds.length === 1 ? '' : 's'} selected
+                  </span>
+                </label>
+                <div className="grid grid-cols-1 gap-2 border-t border-ais-card-border p-2.5 sm:grid-cols-2">
+                  {group.notes.map((note) => {
+                    const checked = selectedCoveredNoteIds.includes(note.id);
+                    return (
+                      <label
+                        key={note.id}
+                        className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+                          checked ? 'border-primary bg-primary/5' : 'border-ais-card-border'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={checked}
+                          onChange={(e) =>
+                            setSelectedCoveredNoteIds((prev) =>
+                              e.target.checked ? [...prev, note.id] : prev.filter((id) => id !== note.id),
+                            )
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{note.title}</span>
+                          <span className="block text-xs text-ais-on-surface-variant">{note.topic}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-[96rem] space-y-5">
@@ -430,7 +567,7 @@ export function TeacherAssessmentGenerator() {
             <Select
               variant="ais"
               label="Assessment type"
-              options={['Baseline', 'Quiz', 'Assignment'].map((t) => ({ value: t, label: t }))}
+              options={['Baseline', 'Quiz', 'Assignment', 'Unit Test'].map((t) => ({ value: t, label: t }))}
               value={type}
               onChange={(e) => {
                 const next = e.target.value as Assessment['type'];
@@ -441,6 +578,7 @@ export function TeacherAssessmentGenerator() {
                   setSelectedLessonPlanId('');
                   setSelectedSessionScopes([]);
                 }
+                if (next !== 'Unit Test') setSelectedCoveredNoteIds([]);
               }}
             />
             <Select
@@ -479,10 +617,17 @@ export function TeacherAssessmentGenerator() {
         </section>
       )}
 
+      {uploadMode === 'create' && type === 'Unit Test' && unitTestSection}
+
       {uploadMode === 'create' && (
         <section className="space-y-2 rounded-xl border border-ais-card-border bg-card p-5">
           <label className="flex items-center gap-2 text-xs font-semibold text-ais-on-surface uppercase tracking-wide">
-            <input type="checkbox" checked={useMlcMix} onChange={(e) => setUseMlcMix(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={useMlcMix}
+              onChange={(e) => setUseMlcMix(e.target.checked)}
+              className="accent-btn-primary"
+            />
             Set MLC vs. advanced mix
           </label>
           {useMlcMix && (
@@ -490,7 +635,7 @@ export function TeacherAssessmentGenerator() {
               <input
                 type="range" min={0} max={100} step={5} value={mlcPercent}
                 onChange={(e) => setMlcPercent(Number(e.target.value))}
-                className="flex-1"
+                className="flex-1 accent-btn-primary"
               />
               <span className="w-40 shrink-0 text-xs text-ais-on-surface-variant">
                 {mlcPercent}% MLC (minimum competency) · {100 - mlcPercent}% advanced
@@ -516,9 +661,13 @@ export function TeacherAssessmentGenerator() {
             <Select
               variant="ais"
               label="Assessment type"
-              options={['Baseline', 'Quiz', 'Assignment'].map((t) => ({ value: t, label: t }))}
+              options={['Baseline', 'Quiz', 'Assignment', 'Unit Test'].map((t) => ({ value: t, label: t }))}
               value={type}
-              onChange={(e) => setType(e.target.value as Assessment['type'])}
+              onChange={(e) => {
+                const next = e.target.value as Assessment['type'];
+                setType(next);
+                if (next !== 'Unit Test') setSelectedCoveredNoteIds([]);
+              }}
             />
           )}
           <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={grade} onChange={(e) => setGrade(e.target.value)} />
@@ -526,6 +675,8 @@ export function TeacherAssessmentGenerator() {
           <Select variant="ais" label="Difficulty" options={['Easy', 'Medium', 'Hard'].map((d) => ({ value: d, label: d }))} value={difficulty} onChange={(e) => setDifficulty(e.target.value as Assessment['difficulty'])} />
         </div>
       </section>
+
+      {uploadMode === 'upload' && type === 'Unit Test' && unitTestSection}
 
       {uploadMode === 'create' && (
         <GenerationStatusPanel

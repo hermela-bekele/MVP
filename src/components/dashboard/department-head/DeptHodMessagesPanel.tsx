@@ -1,19 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Search, Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import {
   AisBtnPrimary,
   AisPage,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import {
-  aisBodySm,
-  aisHeadlineSm,
-  aisLabelCaps,
-} from '@/components/dashboard/teacher/aisStyles';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
+import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 import {
   HOD_THREAD_SELECT_EVENT,
   readActiveHodTeacherId,
@@ -54,6 +50,7 @@ export function DeptHodMessagesPanel() {
   );
 
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
+  const [teacherSearch, setTeacherSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -137,30 +134,38 @@ export function DeptHodMessagesPanel() {
   };
 
   const selectedTeacher = deptTeachers.find((t) => t.id === selectedTeacherId);
+  const filteredTeachers = deptTeachers.filter((teacher) =>
+    teacher.name.toLowerCase().includes(teacherSearch.trim().toLowerCase()),
+  );
 
   return (
     <AisPage>
-      <div className="mx-auto max-w-5xl space-y-4">
-        <div>
-          <p className={aisLabelCaps}>Teacher messaging</p>
-          <h2 className={`${aisHeadlineSm} mt-1 !text-title`}>Live chat with teachers</h2>
-          <p className={`${aisBodySm} mt-1`}>
-            Select an active teacher to message. Conversations refresh every few seconds.
-          </p>
-        </div>
-
-        <div className="grid min-h-[480px] grid-cols-1 overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface md:grid-cols-[220px_1fr]">
-          <aside className="border-b border-ais-card-border md:border-b-0 md:border-r">
-            <p className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-ais-on-surface-variant">
-              Active teachers
-            </p>
-            <div className="max-h-[200px] overflow-y-auto md:max-h-none">
+      <div className="mx-1 flex h-[calc(100dvh-10rem)] min-h-0 w-full max-w-none flex-col overflow-hidden rounded-2xl border border-ais-card-border bg-white dark:bg-ais-surface sm:mx-2">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[240px_1fr]">
+          <aside className="flex min-h-0 flex-col border-b border-ais-card-border md:border-b-0 md:border-r">
+            <div className="border-b border-ais-card-border p-3">
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ais-on-surface-variant" aria-hidden />
+                <input
+                  value={teacherSearch}
+                  onChange={(event) => setTeacherSearch(event.target.value)}
+                  placeholder="Search teachers"
+                  className={`${aisInput} h-9 pl-8`}
+                  aria-label="Search teachers"
+                />
+              </label>
+            </div>
+            <div className="min-h-0 overflow-y-auto">
               {deptTeachers.length === 0 ? (
                 <p className="px-3 py-4 text-xs text-ais-on-surface-variant">
                   No active teachers in this department.
                 </p>
+              ) : filteredTeachers.length === 0 ? (
+                <p className="px-3 py-4 text-xs text-ais-on-surface-variant">
+                  No teachers match your search.
+                </p>
               ) : (
-                deptTeachers.map((t) => {
+                filteredTeachers.map((t) => {
                 const unread = unreadByTeacher.get(t.id) ?? 0;
                 const active = t.id === selectedTeacherId;
                 return (
@@ -168,11 +173,14 @@ export function DeptHodMessagesPanel() {
                     key={t.id}
                     type="button"
                     onClick={() => setSelectedTeacherId(t.id)}
-                    className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm ${
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm ${
                       active ? 'bg-ais-primary/10 font-semibold text-ais-primary' : 'hover:bg-ais-row-hover'
                     }`}
                   >
-                    <span className="truncate">{t.name}</span>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(t.id)}`}>
+                      {communityInitials(t.name)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{t.name}</span>
                     {unread > 0 && (
                       <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-ais-primary px-1.5 text-[10px] font-bold text-white">
                         {unread}
@@ -191,7 +199,7 @@ export function DeptHodMessagesPanel() {
                 {selectedTeacher?.name ?? 'Select a teacher'}
               </p>
             </div>
-            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" style={{ maxHeight: 360 }}>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {!selectedTeacherId ? (
                 <p className="py-8 text-center text-sm text-ais-on-surface-variant">
                   Select a teacher to open the thread.

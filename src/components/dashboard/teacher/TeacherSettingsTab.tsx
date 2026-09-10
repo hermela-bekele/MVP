@@ -24,8 +24,6 @@ export const TeacherSettingsTab: React.FC = () => {
     setPhone(teacher.phone);
     setYearsOfExperience(teacher.yearsOfExperience ?? 0);
   }, [teacher.id, teacher.name, teacher.email, teacher.phone, teacher.yearsOfExperience]);
-  const [notifyEmail, setNotifyEmail] = useState(true);
-  const [notifySms, setNotifySms] = useState(false);
   const [language, setLanguage] = useState('English');
 
   const handlePersonalSave = (e: React.FormEvent) => {
@@ -65,7 +63,9 @@ export const TeacherSettingsTab: React.FC = () => {
       <div className={`${aisCard} p-4`}>
         <div className="mb-4 border-b border-ais-card-border pb-3">
           <h3 className={`${aisHeadlineSm} !text-title`}>Personal profile</h3>
-          <p className={`${aisBodyMd} mt-0.5`}>Contact details visible to department head and parents.</p>
+          <p className={`${aisBodyMd} mt-0.5`}>
+            Email is visible across the school; phone is personal and only shared with your department head.
+          </p>
         </div>
         <form onSubmit={handlePersonalSave} className="space-y-3">
           <input className={aisInput} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
@@ -92,17 +92,8 @@ export const TeacherSettingsTab: React.FC = () => {
       <div className={`${aisCard} p-4`}>
         <div className="mb-4 border-b border-ais-card-border pb-3">
           <h3 className={`${aisHeadlineSm} !text-title`}>General preferences</h3>
-          <p className={`${aisBodyMd} mt-0.5`}>Notifications and display options.</p>
         </div>
         <form onSubmit={handleGeneralSave} className="space-y-3">
-          <label className={`flex cursor-pointer items-center gap-2 ${aisBodyMd}`}>
-            <input type="checkbox" className="accent-ais-primary" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} />
-            Email alerts for approvals and parent messages
-          </label>
-          <label className={`flex cursor-pointer items-center gap-2 ${aisBodyMd}`}>
-            <input type="checkbox" className="accent-ais-primary" checked={notifySms} onChange={(e) => setNotifySms(e.target.checked)} />
-            SMS for urgent attendance alerts
-          </label>
           <select className={aisInput} value={language} onChange={(e) => setLanguage(e.target.value)}>
             <option value="English">English</option>
             <option value="Amharic">Amharic</option>

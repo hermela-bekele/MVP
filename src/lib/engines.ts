@@ -48,7 +48,7 @@ export const ROLE_ENGINES: Record<PortalRole, EngineId[]> = {
   'school-head': ['administrative', 'regulatory', 'training', 'communications'],
   registrar: ['registrar'],
   hr: ['administrative', 'training'],
-  'head-of-academics': ['curriculum', 'training'],
+  'head-of-academics': ['administrative', 'curriculum', 'training', 'communications'],
   'department-head': ['administrative', 'academic', 'training', 'communications'],
   teacher: ['teaching', 'management', 'training', 'communications'],
   student: [],
@@ -75,4 +75,26 @@ export function requiresEngineSelection(role: PortalRole): boolean {
 export function defaultEngineForRole(role: PortalRole): EngineId | null {
   const engines = enginesForRole(role);
   return engines.length === 1 ? engines[0] : null;
+}
+
+export function defaultTabForEngine(role: PortalRole, engine: EngineId): string {
+  if (role === 'department-head') {
+    const tabs: Partial<Record<EngineId, string>> = {
+      administrative: 'dashboard',
+      academic: 'reports',
+      training: 'training',
+      communications: 'communication',
+    };
+    return tabs[engine] ?? 'dashboard';
+  }
+  if (role === 'head-of-academics') {
+    const tabs: Partial<Record<EngineId, string>> = {
+      administrative: 'dashboard',
+      curriculum: 'academic-results',
+      training: 'my-development',
+      communications: 'communication',
+    };
+    return tabs[engine] ?? 'dashboard';
+  }
+  return 'dashboard';
 }

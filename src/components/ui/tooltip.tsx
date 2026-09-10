@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
-type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
+type TooltipPosition = 'top' | 'bottom' | 'left' | 'right' | 'bottom-right';
 
 interface TooltipProps {
   children: React.ReactNode;
@@ -21,6 +21,10 @@ const positionStyles: Record<TooltipPosition, string> = {
   bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
   left: 'right-full top-1/2 -translate-y-1/2 mr-2',
   right: 'left-full top-1/2 -translate-y-1/2 ml-2',
+  // Opens downward like `bottom` (same direction as every other card in a row), but
+  // right-edge-aligned instead of centered — for a trigger near the right edge of its
+  // container, where a centered bubble would overflow off-screen.
+  'bottom-right': 'top-full right-0 mt-2',
 };
 
 const arrowStyles: Record<TooltipPosition, string> = {
@@ -28,6 +32,7 @@ const arrowStyles: Record<TooltipPosition, string> = {
   bottom: 'bottom-full left-1/2 -translate-x-1/2 border-b-foreground border-x-transparent border-t-transparent',
   left: 'left-full top-1/2 -translate-y-1/2 border-l-foreground border-y-transparent border-r-transparent',
   right: 'right-full top-1/2 -translate-y-1/2 border-r-foreground border-y-transparent border-l-transparent',
+  'bottom-right': 'bottom-full right-4 border-b-foreground border-x-transparent border-t-transparent',
 };
 
 const arrowSizes: Record<TooltipPosition, string> = {
@@ -35,6 +40,7 @@ const arrowSizes: Record<TooltipPosition, string> = {
   bottom: 'border-[4px]',
   left: 'border-[4px]',
   right: 'border-[4px]',
+  'bottom-right': 'border-[4px]',
 };
 
 const enterAnimations: Record<TooltipPosition, string> = {
@@ -42,6 +48,7 @@ const enterAnimations: Record<TooltipPosition, string> = {
   bottom: '-translate-y-1',
   left: 'translate-x-1',
   right: '-translate-x-1',
+  'bottom-right': '-translate-y-1',
 };
 
 export const Tooltip: React.FC<TooltipProps> = ({
@@ -109,7 +116,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
             text-background bg-foreground
             rounded-md
             shadow-lg
-            whitespace-nowrap
+            ${tooltipClassName.includes('whitespace-') ? '' : 'whitespace-nowrap'}
             ${tooltipClassName}
           `}
         >

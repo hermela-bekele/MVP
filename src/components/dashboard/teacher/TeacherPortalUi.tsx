@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { Info } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   aisBadgeError,
   aisBadgeNeutral,
@@ -68,8 +70,20 @@ export function AisPanel({
       {(title || description || actions) && (
         <div className={aisPanelHeader}>
           <div className="min-w-0">
-            {title && <h3 className={`${aisHeadlineSm} !text-title`}>{title}</h3>}
-            {description && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
+            {title && (
+              <h3 className={`${aisHeadlineSm} !text-title flex items-center gap-1.5`}>
+                {title}
+                {description && (
+                  <Tooltip content={description}>
+                    <Info
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-colors hover:text-primary cursor-help"
+                      aria-label={description}
+                    />
+                  </Tooltip>
+                )}
+              </h3>
+            )}
+            {description && !title && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </div>
@@ -191,6 +205,23 @@ export function AisStatusBadge({
   className?: string;
 }) {
   return <span className={`${badgeClass[variant]} ${className}`}>{children}</span>;
+}
+
+/**
+ * TE-008: a visible, stable record identifier for Lesson Plans, Teaching Notes, and
+ * Quizzes/Assessments. These IDs already exist as the persistent database primary key
+ * (e.g. `lp-...`, `tn-...`, `asm-...`) — this just surfaces the existing ID rather than
+ * generating a new one, so it stays stable across refreshes.
+ */
+export function AisIdTag({ id, className = '' }: { id: string; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-md border border-ais-card-border bg-ais-surface-container-low/60 px-1.5 py-0.5 font-mono text-[10px] font-medium text-ais-on-surface-variant ${className}`}
+      title={`Record ID: ${id}`}
+    >
+      {id}
+    </span>
+  );
 }
 
 export function AisBtnPrimary({

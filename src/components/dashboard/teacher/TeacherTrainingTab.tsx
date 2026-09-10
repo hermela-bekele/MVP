@@ -69,12 +69,16 @@ export const TeacherTrainingTab: React.FC<{
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { teachers, currentUser, teacherTrainingAssignments, addNotification } = useApp();
+  const { teachers, currentUser, teacherTrainingAssignments, addNotification, updateTrainingAssignmentProgress } = useApp();
   const teacher = getDemoTeacher(teachers, currentUser?.email, currentUser?.displayName);
+
+  // TR-002: "Assigned to Me" (the bare 'training' tab) is a cross-program landing view —
+  // it doesn't belong to one module library, so it shows the union of all of them.
+  const isAssignedToMeView = activeTabType === "training";
 
   // Select the appropriate modules based on active tab
   const ALL_MODULES =
-    activeTabType === "all"
+    activeTabType === "all" || isAssignedToMeView
       ? [...TRAINING_MODULES, ...TIP_MODULES, ...ELEP_MODULES, ...CONTINUOUS_DEVELOPMENT_MODULES]
       : activeTabType === "training-subject-matter"
         ? TRAINING_MODULES
@@ -87,9 +91,23 @@ export const TeacherTrainingTab: React.FC<{
   const program: "TIP" | "STEP" | null =
     activeTabType === "training-induction" ? "TIP" : activeTabType === "training-continuous" ? "STEP" : null;
 
-  const assignedModules = program
-    ? teacherTrainingAssignments.filter((a) => a.teacherId === teacher.id && a.program === program)
-    : [];
+  // "Assigned to Me" shows every assignment regardless of program; the TIP/STEP-specific
+  // views stay scoped to their own program.
+  const assignedModules = isAssignedToMeView
+    ? teacherTrainingAssignments.filter((a) => a.teacherId === teacher.id)
+    : program
+      ? teacherTrainingAssignments.filter((a) => a.teacherId === teacher.id && a.program === program)
+      : [];
+
+  // TR-004/TR-007: if the module currently open was formally assigned by an HoD, its
+  // progress (sessions/assessment/reflection) is persisted against that assignment so
+  // the HoD can track it and completion can be enforced server-side. A module a teacher
+  // is just browsing on their own has no assignment row to persist against.
+  const matchingAssignment = selectedModule
+    ? teacherTrainingAssignments.find(
+        (a) => a.teacherId === teacher.id && a.moduleId === selectedModule.id,
+      ) ?? null
+    : null;
 
   // Calculate pagination
   const totalPages = Math.ceil(ALL_MODULES.length / CARDS_PER_PAGE);
@@ -137,6 +155,14 @@ export const TeacherTrainingTab: React.FC<{
     // Update the module
     const updatedModule = { ...selectedModule, sessions: updatedSessions };
     setSelectedModule(updatedModule);
+
+    if (matchingAssignment) {
+      const completedCount = updatedSessions.filter((s) => s.completed).length;
+      void updateTrainingAssignmentProgress(matchingAssignment.id, {
+        sessionsCompleted: completedCount,
+        sessionsTotal: updatedSessions.length,
+      });
+    }
 
     // Advance to the next session after completion, otherwise keep the
     // current session selected with its updated completion state.
@@ -188,7 +214,16 @@ export const TeacherTrainingTab: React.FC<{
                     disabled={!mod}
                     className="flex w-full flex-col gap-0.5 rounded-lg border border-border bg-white px-3 py-2 text-left text-sm hover:border-primary/40 disabled:cursor-default disabled:opacity-70 dark:bg-card"
                   >
-                    <span className="font-semibold text-foreground">{a.moduleTitle}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-foreground">{a.moduleTitle}</span>
+                      {a.status === 'completed' ? (
+                        <span className="shrink-0 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase text-success">Completed</span>
+                      ) : a.overdue ? (
+                        <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-700">Late</span>
+                      ) : a.dueDate ? (
+                        <span className="shrink-0 text-[10px] font-semibold uppercase text-muted-foreground">Due {a.dueDate}</span>
+                      ) : null}
+                    </div>
                     {a.reason && <span className="text-xs text-muted-foreground">{a.reason}</span>}
                   </button>
                 );
@@ -200,7 +235,15 @@ export const TeacherTrainingTab: React.FC<{
         {/* Module Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentModules.map((module) => {
-            const progress = calculateModuleProgress(module);
+            // A module formally assigned by the HoD is only really "complete" once its
+            // TeacherTrainingAssignment record says so (sessions + assessment + reflection,
+            // enforced server-side) — the session-toggle percentage alone can't be trusted
+            // to reflect that, so it's overridden to 100% once the assignment confirms it.
+            const assignment = teacherTrainingAssignments.find(
+              (a) => a.teacherId === teacher.id && a.moduleId === module.id,
+            );
+            const isCompleted = assignment?.status === 'completed';
+            const progress = isCompleted ? 100 : calculateModuleProgress(module);
 
             return (
               <button
@@ -209,8 +252,11 @@ export const TeacherTrainingTab: React.FC<{
                 className={`${aisCard} group relative overflow-hidden p-5 text-left transition-all duration-300 hover:shadow-md hover:border-primary/30`}
               >
                 {/* Category Badge */}
-                <div className={`${aisBadgePrimary} mb-3`}>
-                  {module.category}
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className={aisBadgePrimary}>{module.category}</div>
+                  {isCompleted && (
+                    <span className={aisBadgeSuccess}>Completed</span>
+                  )}
                 </div>
 
                 {/* Title */}
@@ -550,6 +596,25 @@ export const TeacherTrainingTab: React.FC<{
                           `${selectedModule.title}: scored ${score}%.`,
                           passed ? 'success' : 'alert',
                         );
+                        // TR-007: onComplete only ever fires once reflection (when the
+                        // module has one) is already submitted, so reflectionSubmitted
+                        // is safe to set true here — the backend still independently
+                        // enforces all three requirements before marking it complete.
+                        if (matchingAssignment) {
+                          void updateTrainingAssignmentProgress(matchingAssignment.id, {
+                            assessmentScore: score,
+                            assessmentPassed: passed,
+                            reflectionSubmitted: true,
+                          });
+                        }
+                      }}
+                      onReflectionSubmit={(answers) => {
+                        if (matchingAssignment) {
+                          void updateTrainingAssignmentProgress(matchingAssignment.id, {
+                            reflectionAnswers: answers,
+                            reflectionSubmitted: true,
+                          });
+                        }
                       }}
                     />
                   ) : (

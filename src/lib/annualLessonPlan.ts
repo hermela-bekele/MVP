@@ -40,6 +40,11 @@ export interface CalendarTeachingWeek {
   minutesAvailable?: number;
   isTeachingWeek?: boolean;
   note?: string;
+  /** Monday (ISO, Gregorian) this week starts on — the only reliable way to answer
+   * "which week is today" without re-deriving it from the Ethiopian day-of-month range,
+   * which is ambiguous across years/leap-day offsets. Undefined only for the legacy
+   * no-calendar fallback path, which has no real dates to anchor to. */
+  startDateIso?: string;
 }
 
 /** One row in the annual lesson plan table (matches school template). */
@@ -59,6 +64,10 @@ export interface AnnualLessonPlanWeekRow {
   /** Textbook homework: Exercise N.M + printed page */
   homework?: string[];
   comments?: string;
+  /** Monday (ISO, Gregorian) this week starts on — carried over from the calendar week
+   * it was built from, so a saved annual/weekly plan can still answer "which week is
+   * today" long after generation. See CalendarTeachingWeek.startDateIso. */
+  startDateIso?: string;
 }
 
 export interface AnnualLessonPlanMeta {
@@ -74,6 +83,13 @@ export interface AnnualLessonPlanMeta {
   generalObjectives: string[];
   minutesPerPeriod?: number;
   teachingAidsAvailable?: string[];
+  /** Identifies which published school academic calendar this plan's weeks were mapped
+   * against, so a later calendar republish can't silently make the plan's dates ambiguous. */
+  academicCalendarVersion?: string;
+  /** Unique curriculum units covered, in first-appearance order — kept as an explicit
+   * top-level list (not only recoverable by scanning every week row) so it survives
+   * independently of week-by-week edits. */
+  units?: string[];
 }
 
 export interface AnnualLessonPlanResult {
@@ -136,6 +152,22 @@ function weekOrdinal(n: number): string {
   if (j === 2 && k !== 12) return `${n}nd`;
   if (j === 3 && k !== 13) return `${n}rd`;
   return `${n}th`;
+}
+
+/** A week row's `week` field is an ordinal string ("1st", "23rd", …) for the annual
+ * plan table; anywhere a short, unambiguous week label is shown instead (a plan title,
+ * a week picker) this renders "W1", "W23" — never the underlying day-of-month date,
+ * which reads as noise once a plan is identified by week number. */
+export function weekNumberLabel(week: string): string {
+  const n = parseInt(week, 10);
+  return Number.isFinite(n) ? `W${n}` : week;
+}
+
+/** Textbook page label for a week row, e.g. page "1-2" -> "P1-2". Falls back to an
+ * em dash when no page range was recorded. */
+export function weekPageLabel(page: string | undefined): string {
+  const trimmed = (page || '').trim();
+  return trimmed ? `P${trimmed}` : '—';
 }
 
 function pad2(n: number): string {
@@ -392,6 +424,7 @@ export function buildTeachingWeeksFromCalendar(
       minutesAvailable: periodsAvailable * minutesPerPeriod,
       isTeachingWeek: teachingDays.length > 0,
       note,
+      startDateIso: mon,
     });
 
     if (teachingDays.length > 0) {
@@ -521,6 +554,7 @@ export function mergeAiWeeksOntoCalendar(
         evaluationMethods: [],
         homework: [],
         comments: slot.note || 'No instructional periods this week (calendar)',
+        startDateIso: slot.startDateIso,
       };
     }
 
@@ -555,8 +589,26 @@ export function mergeAiWeeksOntoCalendar(
         : [],
       homework: Array.isArray(match?.homework) ? match!.homework! : [],
       comments: match?.comments || slot.note || '',
+      startDateIso: slot.startDateIso,
     };
   });
+}
+
+/** The Monday (ISO) of the calendar week containing `dateIso` (default: today). */
+export function mondayOfWeekIso(dateIso: string = new Date().toISOString().slice(0, 10)): string {
+  return mondayOfWeek(dateIso);
+}
+
+/** Finds the week row whose calendar week contains `dateIso` (default: today) — the
+ * single source of truth for "which week is it" anywhere a timetable, weekly plan, or
+ * lesson delivery needs to agree on the current instructional week. Returns null when
+ * the plan has no startDateIso (legacy fallback rows) or no week matches. */
+export function findWeekForDate<T extends { startDateIso?: string }>(
+  weeks: T[],
+  dateIso: string = new Date().toISOString().slice(0, 10),
+): T | null {
+  const targetMonday = mondayOfWeek(dateIso);
+  return weeks.find((w) => w.startDateIso === targetMonday) ?? null;
 }
 
 /** Rowspan helpers for semester / month / unit columns in HTML & docx. */

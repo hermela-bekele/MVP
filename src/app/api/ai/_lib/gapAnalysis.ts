@@ -299,6 +299,6 @@ export async function runGapAnalysis(body: GapAnalysisBody) {
     result = fallbackAnalysis(body);
   }
 
-  await setCachedData(cacheKey, result);
+  void setCachedData(cacheKey, result);
   return NextResponse.json({ ...result, cached: false });
 }

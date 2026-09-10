@@ -60,10 +60,29 @@ export async function request<T>(
     throw new ApiError(message, res.status);
   }
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text.trim()) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ApiError('Server returned an invalid JSON response', res.status);
+  }
 }
 
 const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
+
+/** Rewrites any stored "/uploads/..." reference (a bare relative path, or an absolute URL
+ * from before uploads stopped baking in a host) to point at whichever backend is
+ * CURRENTLY configured (API_BASE), instead of whatever host/port happened to handle the
+ * original upload request. A local dev backend's port/relay can change across restarts,
+ * and a stale baked-in host is exactly what produces "localhost refused to connect" when
+ * opening a previously-uploaded file. External links (e.g. a pasted YouTube URL) pass
+ * through unchanged since they never match "/uploads/". */
+export function resolveResourceUrl(url: string | undefined | null): string {
+  if (!url) return '';
+  const match = url.match(/\/uploads\/.+$/);
+  return match ? `${API_BASE}${match[0]}` : url;
+}
 
 export async function uploadFile(file: File): Promise<string> {
   const formData = new FormData();
@@ -84,7 +103,7 @@ export async function uploadFile(file: File): Promise<string> {
     throw new ApiError(message, res.status);
   }
   const data = (await res.json()) as { url: string };
-  return data.url;
+  return resolveResourceUrl(data.url);
 }
 
 export interface BootstrapPayload {
@@ -216,15 +235,23 @@ export const api = {
     request(`/students/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   createLessonPlan: (body: Record<string, unknown>) =>
     request('/lesson-plans', { method: 'POST', body: JSON.stringify(body) }),
+  createTeacherLessonAdjustment: (body: Record<string, unknown>) =>
+    request('/teacher-lesson-adjustments', { method: 'POST', body: JSON.stringify(body) }),
+  listMyTeacherLessonAdjustments: () => request('/teacher-lesson-adjustments/mine'),
   approveLessonPlan: (id: string, role: 'dept' | 'school', comments: string) =>
     request(`/lesson-plans/${id}/approve`, {
       method: 'PATCH',
       body: JSON.stringify({ role, comments }),
     }),
-  rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string) =>
+  rejectLessonPlan: (
+    id: string,
+    role: 'dept' | 'school',
+    comments: string,
+    returnReasonCategory?: string,
+  ) =>
     request(`/lesson-plans/${id}/reject`, {
       method: 'PATCH',
-      body: JSON.stringify({ role, comments }),
+      body: JSON.stringify({ role, comments, returnReasonCategory }),
     }),
   updateLessonPlan: (
     id: string,
@@ -239,20 +266,34 @@ export const api = {
     request('/assessments', { method: 'POST', body: JSON.stringify(body) }),
   updateAssessment: (id: string, body: { questions: unknown[] }) =>
     request(`/assessments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  approveAssessment: (id: string, comments: string) =>
+  approveAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) =>
     request(`/assessments/${id}/approve`, {
       method: 'PATCH',
-      body: JSON.stringify({ comments }),
+      body: JSON.stringify({ comments, moderationRubric }),
     }),
-  rejectAssessment: (id: string, comments: string) =>
+  rejectAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) =>
     request(`/assessments/${id}/reject`, {
       method: 'PATCH',
-      body: JSON.stringify({ comments }),
+      body: JSON.stringify({ comments, moderationRubric }),
     }),
-  saveAttendance: (records: { studentId: string; status: string; remarks?: string }[]) =>
+  disseminateAssessment: (id: string) =>
+    request(`/assessments/${id}/disseminate`, { method: 'PATCH' }),
+  listAssessmentReviewers: (departmentId?: string) =>
+    request(`/assessment-reviewers${departmentId ? `?departmentId=${departmentId}` : ''}`),
+  listMyAssessmentReviewerDepartments: () =>
+    request('/assessment-reviewers/mine'),
+  setAssessmentReviewers: (teacherIds: string[]) =>
+    request('/assessment-reviewers', {
+      method: 'POST',
+      body: JSON.stringify({ teacherIds }),
+    }),
+  saveAttendance: (
+    records: { studentId: string; status: string; remarks?: string }[],
+    timetableSlotId?: string,
+  ) =>
     request('/attendance/batch', {
       method: 'POST',
-      body: JSON.stringify({ records }),
+      body: JSON.stringify({ records, timetableSlotId }),
     }),
   createDepartment: (name: string, headName: string) =>
     request('/departments', {
@@ -317,6 +358,9 @@ export const api = {
     request('/teacher-training-assignments', { method: 'POST', body: JSON.stringify(body) }),
   updateTrainingAssignmentStatus: (id: string, status: string) =>
     request(`/teacher-training-assignments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateTrainingAssignmentProgress: (id: string, progress: Record<string, unknown>) =>
+    request(`/teacher-training-assignments/${id}/progress`, { method: 'PATCH', body: JSON.stringify(progress) }),
+  listMyTrainingAssignments: () => request('/teacher-training-assignments/mine'),
   createTeachingNote: (body: Record<string, unknown>) =>
     request('/teaching-notes', { method: 'POST', body: JSON.stringify(body) }),
   updateTeachingNote: (id: string, body: Record<string, unknown>) =>
@@ -335,6 +379,23 @@ export const api = {
     request<{ gpa: number }>(`/students/${studentId}/recalculate-gpa`, { method: 'POST' }),
   createTeacherResource: (body: Record<string, unknown>) =>
     request('/teacher-resources', { method: 'POST', body: JSON.stringify(body) }),
+  listMyTeacherResources: () => request('/teacher-resources/mine'),
+  listPendingTeacherResources: () => request('/teacher-resources/pending'),
+  approveTeacherResource: (id: string, comment?: string) =>
+    request(`/teacher-resources/${id}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
+  rejectTeacherResource: (id: string, comment?: string) =>
+    request(`/teacher-resources/${id}/reject`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
+  removeTeacherResource: (id: string, comment?: string) =>
+    request(`/teacher-resources/${id}/remove`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
   sendParentMessage: (body: Record<string, unknown>) =>
     request('/parent-messages', { method: 'POST', body: JSON.stringify(body) }),
   addTeacherFeedback: (body: Record<string, unknown>) =>
@@ -898,6 +959,7 @@ export const api = {
     if (schoolId) q.set('schoolId', schoolId);
     return request<Record<string, unknown>[]>(`/portal/timetable?${q}`);
   },
+  myTimetable: () => request<Record<string, unknown>[]>('/portal/timetable/mine'),
   portalDocuments: (studentId: string) =>
     request<Record<string, unknown>[]>(`/portal/documents?studentId=${studentId}`),
   portalGrades: (studentId: string) =>
@@ -1319,6 +1381,10 @@ export interface MessageThread {
   subject: string;
   updated_at?: string;
   updatedAt?: string;
+  /** CO-002: the other party's role relative to the requesting user — distinguishes a
+   * parent conversation from a teacher-peer one sharing the same underlying columns. */
+  counterpart_role?: string;
+  counterpartRole?: string;
 }
 
 export interface ThreadMessage {

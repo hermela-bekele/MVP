@@ -159,10 +159,10 @@ export const aisNavbarDropdownItem =
 export const aisCard =
   'rounded-lg border border-border bg-card shadow-[0_1px_3px_rgba(15,23,42,0.05)]';
 
-export const aisKpiCard = `${aisCard} flex min-h-[128px] flex-col justify-between p-6`;
+export const aisKpiCard = `${aisCard} flex w-full min-h-[128px] flex-col justify-between p-6`;
 
 export const aisKpiLabel =
-  'text-xs font-bold uppercase leading-4 tracking-widest text-primary';
+  'text-xs font-bold uppercase leading-4 tracking-wide text-primary';
 
 export const aisKpiPill =
   'inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground';

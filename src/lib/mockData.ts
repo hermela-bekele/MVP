@@ -67,6 +67,19 @@ export interface TeacherTrainingAssignment {
   reason?: string;
   status: 'assigned' | 'in_progress' | 'completed';
   createdAt: string;
+  /** TR-005: the HoD-set completion timeframe. */
+  dueDate?: string;
+  /** TR-007: completion requires ALL of sessionsCompleted>=sessionsTotal,
+   * assessmentPassed, and reflectionSubmitted — enforced server-side. */
+  sessionsCompleted: number;
+  sessionsTotal?: number;
+  assessmentScore?: number;
+  assessmentPassed?: boolean;
+  reflectionSubmitted: boolean;
+  reflectionAnswers?: Record<number, string>;
+  completedAt?: string;
+  /** TR-005: derived — dueDate has passed and status isn't 'completed'. */
+  overdue: boolean;
 }
 
 export interface Student {
@@ -128,6 +141,9 @@ export interface LessonPlan {
   status: 'Draft' | 'Pending Dept Head' | 'Pending School Head' | 'Approved' | 'Rejected';
   deptComments?: string;
   schoolHeadComments?: string;
+  /** Only ever set when a department head returns a weekly plan — names which kind of
+   * problem it is so the teacher knows exactly what to revise, never just free text. */
+  returnReasonCategory?: 'curriculum_alignment' | 'pacing' | 'pedagogy' | 'assessment' | 'differentiation' | 'resource_issue';
   version: number;
   objectives: string[];
   activities: { session: number; activity: string; duration: string }[];
@@ -138,6 +154,25 @@ export interface LessonPlan {
   createdByRole?: 'teacher' | 'department-head';
   /** Serialized AI plan JSON for department-published annual plans */
   planDetail?: string;
+}
+
+/** TE-004: a recorded departure from the annual plan. The annual plan itself is never
+ * silently overwritten — every change a teacher makes to their planned topic/unit is
+ * logged here instead, separate from both the baseline (LessonPlan) and actual
+ * delivery (LessonDelivery). */
+export interface TeacherLessonAdjustment {
+  id: string;
+  teacherId: string;
+  annualPlanId?: string;
+  weeklyPlanId?: string;
+  grade: string;
+  subject: string;
+  originalTopic: string;
+  revisedTopic: string;
+  reason: string;
+  pacingImpact?: string;
+  adjustmentDate: string;
+  createdAt: string;
 }
 
 export type AcademicCalendarEventType =
@@ -209,12 +244,12 @@ export interface MoeCalendarDraft {
 export interface Assessment {
   id: string;
   title: string;
-  type: 'Quiz' | 'Mid Exam' | 'Final Exam' | 'Assignment' | 'Practical' | 'Baseline';
+  type: 'Quiz' | 'Mid Exam' | 'Final Exam' | 'Assignment' | 'Practical' | 'Baseline' | 'Unit Test';
   subject: string;
   grade: string;
   teacherId: string;
   teacherName: string;
-  status: 'Draft' | 'Pending Dept Head' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Pending Dept Head' | 'Pending Reviewer' | 'Approved' | 'Rejected';
   comments?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   questions: {
@@ -230,8 +265,34 @@ export interface Assessment {
   }[];
   /** Who authored the assessment — HoD-authored exams skip approval. */
   createdByRole?: 'teacher' | 'department-head';
+  /** TE-007: for a Unit Test, the delivered teaching notes it covers, by real ID. */
+  coveredTeachingNoteIds?: string[];
+  /** Set on a Mid/Final Exam only when its department has designated reviewers — the
+   * assessment sits at status 'Pending Reviewer' for this department's reviewers + HoD
+   * until explicitly disseminated to the rest of the department's teachers. */
+  reviewDepartmentId?: string;
+  /** Assessment Moderation Rubric — a department head's structured review, one verdict
+   * per fixed quality criterion, never a single blended score. */
+  moderationRubric?: AssessmentModerationRubric;
   createdAt: string;
 }
+
+export type ModerationVerdict = 'meets' | 'needs_improvement' | 'not_applicable';
+
+export const MODERATION_RUBRIC_CRITERIA = [
+  'curriculumAlignment',
+  'cognitiveLevel',
+  'clarity',
+  'difficulty',
+  'coverage',
+  'fairness',
+  'answerKey',
+  'appropriateness',
+] as const;
+
+export type ModerationRubricCriterion = (typeof MODERATION_RUBRIC_CRITERIA)[number];
+
+export type AssessmentModerationRubric = Partial<Record<ModerationRubricCriterion, ModerationVerdict>>;
 
 export interface Attendance {
   id: string;
@@ -242,6 +303,10 @@ export interface Attendance {
   date: string;
   status: 'Present' | 'Absent' | 'Late';
   remarks?: string;
+  teacherId?: string;
+  /** CM-006: the real scheduled timetable session this record was taken against, when
+   * recorded through the "Teaching session" picker rather than the manual fallback. */
+  timetableSlotId?: string;
 }
 
 export interface TeacherTraining {
@@ -258,7 +323,7 @@ export interface TeacherTraining {
 export interface SchoolCheckIn {
   id: string;
   title?: string;
-  type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback';
+  type: 'Wellness' | 'Student Feedback' | 'Parent Feedback' | 'Teacher Reflection';
   respondentName: string;
   rating: number; // 1-5
   comment: string;
@@ -991,12 +1056,12 @@ export const mockTrainingPrograms: TeacherTraining[] = [
 ];
 
 export const mockCheckIns: SchoolCheckIn[] = [
-  { id: 'ch-1', type: 'Teacher Wellness', respondentName: 'Martha Feyissa', rating: 4, comment: 'Sufficient resources. AI tools have saved me hours of scheduling and typing!', date: '2026-05-18' },
+  { id: 'ch-1', type: 'Wellness', respondentName: 'Martha Feyissa', rating: 4, comment: 'Sufficient resources. AI tools have saved me hours of scheduling and typing!', date: '2026-05-18' },
   { id: 'ch-2', type: 'Parent Feedback', respondentName: 'Abebe Demeke', rating: 5, comment: 'Extremely glad to see child grades instantly. AI advice helps me review math worksheets at home.', date: '2026-05-19' },
-  { id: 'ch-3', type: 'Student Satisfaction', respondentName: 'Selam Abebe', rating: 5, comment: 'AI Study Assistant explained fractions easily. The mock quiz was fun!', date: '2026-05-20' },
-  { id: 'ch-4', type: 'Teacher Wellness', respondentName: 'Abebe Kebede', rating: 4, comment: 'STEM lab scheduling is smoother this term. Need more graphing calculators for Grade 11.', date: '2026-05-17' },
-  { id: 'ch-5', type: 'Teacher Wellness', respondentName: 'W/ro Almaz Tekle', rating: 3, comment: 'Chemistry practical kits running low — reorder before midterm week.', date: '2026-05-16' },
-  { id: 'ch-6', type: 'Student Satisfaction', respondentName: 'Yonas Kassa', rating: 4, comment: 'Physics demonstrations in class 9-B were very clear this week.', date: '2026-05-19' },
+  { id: 'ch-3', type: 'Student Feedback', respondentName: 'Selam Abebe', rating: 5, comment: 'AI Study Assistant explained fractions easily. The mock quiz was fun!', date: '2026-05-20' },
+  { id: 'ch-4', type: 'Wellness', respondentName: 'Abebe Kebede', rating: 4, comment: 'STEM lab scheduling is smoother this term. Need more graphing calculators for Grade 11.', date: '2026-05-17' },
+  { id: 'ch-5', type: 'Wellness', respondentName: 'W/ro Almaz Tekle', rating: 3, comment: 'Chemistry practical kits running low — reorder before midterm week.', date: '2026-05-16' },
+  { id: 'ch-6', type: 'Student Feedback', respondentName: 'Yonas Kassa', rating: 4, comment: 'Physics demonstrations in class 9-B were very clear this week.', date: '2026-05-19' },
 ];
 
 // ----------------------------------------------------
@@ -1130,6 +1195,9 @@ export interface TeachingNote {
    * number as a string (e.g. "3"). Lets department-head exam generation offer only the
    * content the teacher actually selected, instead of every session in the linked plan. */
   sessionScope?: string;
+  /** TE-005: required when lessonPlanId is unset — why this Supplementary/Unplanned
+   * Session note exists outside the normal plan -> note evidence chain. */
+  standaloneReason?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1145,10 +1213,16 @@ export type StudentGradeEntryType =
 
 /** Per-question mark for a student's assessment result. */
 export interface GradeQuestionResult {
+  /** CM-003: this, together with the parent entry's assessmentId, is the question's
+   * real identifier (assessments.questions[].id matches this number) — not just a
+   * display position. */
   questionNumber: number;
   correct: boolean;
   /** Optional label from linked assessment */
   prompt?: string;
+  /** CM-003: which curriculum objective this question assesses. No authoring UI exists
+   * yet to assign these (see curriculum_objectives table) — left undefined until then. */
+  curriculumObjectiveId?: string;
 }
 
 export interface StudentGradeEntry {
@@ -1169,19 +1243,45 @@ export interface StudentGradeEntry {
   remarks?: string;
   /** Which question numbers were answered correctly / incorrectly */
   questionResults?: GradeQuestionResult[];
+  /** CM-003: the real school_classes row this result belongs to, resolved server-side
+   * from gradeLevel/section (null when that pair doesn't map to exactly one class). */
+  classId?: string;
 }
+
+export type TeacherResourceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'REMOVED';
 
 export interface TeacherResource {
   id: string;
   teacherId: string;
   title: string;
-  type: 'Worksheet' | 'Slide Deck' | 'Lab Guide' | 'Reference PDF' | 'Video Link';
+  type:
+    | 'Worksheet'
+    | 'Slide Deck'
+    | 'Lab Guide'
+    | 'Reference PDF'
+    | 'Video Link'
+    | 'Teaching Material'
+    | 'Guide Book'
+    | 'Syllabus'
+    | 'Textbook';
   grade: string;
   subject: string;
   url: string;
   downloads: number;
   createdAt: string;
+  status: TeacherResourceStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewComment?: string;
 }
+
+/** FB-003: distinct evidence categories — never combined into one score. */
+export type TeacherFeedbackCategory =
+  | 'informal_peer'
+  | 'coaching'
+  | 'classroom_observation'
+  | 'formal_performance'
+  | 'anonymous_survey';
 
 export interface TeacherFeedback {
   id: string;
@@ -1192,10 +1292,22 @@ export interface TeacherFeedback {
   /** Who authored a 'to_teacher' entry. Missing on legacy rows is treated as 'department-head'. */
   authorRole?: 'student' | 'parent' | 'peer' | 'department-head';
   authorName: string;
+  /** FB-002: true only for student-authored feedback — the only source anonymity is
+   * allowed for. authorName is already masked server-side when this is true. */
+  isAnonymous?: boolean;
+  category?: TeacherFeedbackCategory;
   subject: string;
   comment: string;
   rating?: number;
   date: string;
+  /** Structured coaching/observation fields — kept optional since peer/parent/student
+   * feedback and anonymous surveys don't fill these in, only a department head's direct,
+   * coaching, classroom-observation, or formal-performance feedback does. */
+  strength?: string;
+  developmentArea?: string;
+  agreedAction?: string;
+  followUpRequired?: boolean;
+  followUpDueDate?: string;
 }
 
 export interface ParentMessage {
@@ -1211,7 +1323,7 @@ export interface ParentMessage {
 export interface TeacherCheckInPrompt {
   id: string;
   title: string;
-  type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback';
+  type: 'Wellness' | 'Student Feedback' | 'Parent Feedback' | 'Teacher Reflection';
   dueDate: string;
   teacherResponse?: string;
   respondedAt?: string;
@@ -1651,6 +1763,7 @@ export const mockTeacherResources: TeacherResource[] = [
     url: '#',
     downloads: 48,
     createdAt: '2026-05-08',
+    status: 'APPROVED',
   },
   {
     id: 'tr-2',
@@ -1661,6 +1774,7 @@ export const mockTeacherResources: TeacherResource[] = [
     subject: 'Mathematics',
     url: '#',
     downloads: 32,
+    status: 'APPROVED',
     createdAt: '2026-05-14',
   },
 ];
@@ -1816,13 +1930,13 @@ export const mockTeacherCheckInPrompts: TeacherCheckInPrompt[] = [
   {
     id: 'tcp-1',
     title: 'Q2 Teacher Wellness Pulse Survey',
-    type: 'Teacher Wellness',
+    type: 'Wellness',
     dueDate: '2026-05-28',
   },
   {
     id: 'tcp-2',
     title: 'Instructional Delivery Reflection',
-    type: 'Student Satisfaction',
+    type: 'Teacher Reflection',
     dueDate: '2026-05-30',
     teacherResponse: 'Students were highly engaged during the genetics practicum; pacing on session 3 could improve.',
     respondedAt: '2026-05-22',

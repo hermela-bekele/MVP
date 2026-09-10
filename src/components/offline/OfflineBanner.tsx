@@ -40,7 +40,7 @@ export const OfflineBanner: React.FC = () => {
   } else if (offline) {
     message = 'You are offline. Changes stay on this device until you reconnect.';
   } else if (cached) {
-    message = `Using saved data (last synced ${formatSyncedAt(lastSyncedAt)}). Server unreachable.`;
+    message = `Offline mode - using saved portal data (last synced ${formatSyncedAt(lastSyncedAt)}). Live sync is unavailable.`;
   } else if (mock) {
     message = 'Live server unavailable — demo data only.';
   } else if (pendingSyncCount > 0) {

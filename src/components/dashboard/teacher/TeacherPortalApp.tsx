@@ -6,6 +6,8 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { aisBtnPrimary } from "@/components/dashboard/teacher/aisStyles";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
+import { useApp } from "@/context/AppContext";
+import { filterTeacherStudents } from "@/lib/teacherPortal";
 
 function TabLoading() {
   return (
@@ -79,6 +81,11 @@ const TeacherTrainingTab = lazy(() =>
 const StepSelfAssessment = lazy(() =>
   import("@/components/dashboard/teacher/StepSelfAssessment").then((m) => ({
     default: m.StepSelfAssessment,
+  })),
+);
+const TeacherCompletedTrainingTab = lazy(() =>
+  import("@/components/dashboard/teacher/TeacherCompletedTrainingTab").then((m) => ({
+    default: m.TeacherCompletedTrainingTab,
   })),
 );
 const TeacherSettingsTab = lazy(() =>
@@ -168,7 +175,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Give peer feedback and review feedback from your head of department, parents, and students.",
   },
   "manage-classes": {
-    title: "Manage Classes",
+    title: "My Classes",
     subtitle: "All homeroom and subject sections you teach.",
   },
   attendance: {
@@ -176,28 +183,36 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Roll call during active teaching sessions.",
   },
   training: {
-    title: "Teacher Training",
-    subtitle: "MOE materials by type and your certification progress.",
+    title: "Assigned to Me",
+    subtitle: "Training modules your Head of Department has assigned, across every program.",
   },
   "training-subject-matter": {
-    title: "Subject Matter Training",
+    title: "Subject Development",
     subtitle: "Professional development in your teaching subject area.",
   },
   "training-continuous": {
-    title: "STEP · Professional Growth",
+    title: "Continuous Development (STEP)",
     subtitle: "School-Based Teaching Excellence Program: ongoing professional development.",
   },
   "training-induction": {
-    title: "TIP · Induction",
+    title: "New-Teacher Onboarding (TIP)",
     subtitle: "Teacher Induction Program: foundations for your first two years.",
   },
   "training-self-assessment": {
-    title: "STEP Self-Assessment",
-    subtitle: "Rate yourself against the STEP rubric — shared with your HoD.",
+    title: "My Development Plan",
+    subtitle: "Rate yourself against the STEP rubric to identify growth areas — shared with your HoD.",
+  },
+  "training-completed": {
+    title: "Completed Learning & Evidence",
+    subtitle: "Training you've finished — sessions, assessment score, and reflection, all in one place.",
   },
   messages: {
     title: "Parent Messages",
     subtitle: "One-to-one conversations with parents about your students.",
+  },
+  "peer-messages": {
+    title: "Peer Messages",
+    subtitle: "One-to-one conversations with fellow teachers.",
   },
   settings: {
     title: "Settings",
@@ -207,7 +222,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   // every other portal) — alias it to the same content as `settings` rather than renaming
   // the teacher portal's existing sidebar "Settings" entry.
   profile: {
-    title: "Settings",
+    title: "My Profile & Preferences",
     subtitle: "Personal profile and general portal preferences.",
   },
 };
@@ -217,6 +232,28 @@ export function TeacherPortalApp() {
   const router = useRouter();
   const activeTab = tabFromPortalPath(pathname, "teacher");
   const [trainingTypeFilter] = useState("All");
+  // CM-004: parent messaging lives in the Communications Engine (MessageCenter); pass
+  // the teacher's own roster so "About student" context is preserved there, since the
+  // old per-row "Message parent" shortcut in Class Management is being retired.
+  const { students } = useApp();
+  const messageChildrenOptions = filterTeacherStudents(students).map((s) => ({
+    id: s.id,
+    name: s.name,
+  }));
+  // TE-003: "+ Create lesson plan" creates a *weekly* plan, so it must only show while
+  // the Lesson Plans tab's own "Weekly plans" sub-tab is active (see the
+  // 'teacher-lesson-plan-subtab' broadcast in TeacherTeachingNotes), not on "Annual
+  // plans" within the same tab.
+  const [lessonPlanSubTab, setLessonPlanSubTab] = useState<'annual' | 'weekly' | 'notes'>('annual');
+
+  useEffect(() => {
+    const handleSubTab = (event: Event) => {
+      const detail = (event as CustomEvent<{ listTab?: 'annual' | 'weekly' | 'notes' }>).detail;
+      if (detail?.listTab) setLessonPlanSubTab(detail.listTab);
+    };
+    window.addEventListener('teacher-lesson-plan-subtab', handleSubTab);
+    return () => window.removeEventListener('teacher-lesson-plan-subtab', handleSubTab);
+  }, []);
 
   const setActiveTab = useCallback(
     (tab: string) => {
@@ -254,7 +291,7 @@ export function TeacherPortalApp() {
   const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
 
   const shellActions =
-    activeTab === "lesson-plans" ? (
+    activeTab === "lesson-plans" && lessonPlanSubTab === "weekly" ? (
       <button
         type="button"
         className={`${aisBtnPrimary} text-xs`}
@@ -313,8 +350,12 @@ export function TeacherPortalApp() {
           />
         )}
         {activeTab === "training-self-assessment" && <StepSelfAssessment />}
+        {activeTab === "training-completed" && <TeacherCompletedTrainingTab />}
         {activeTab === "messages" && (
-          <MessageCenter mode="staff" staffRoleHint="teacher" />
+          <MessageCenter mode="staff" staffRoleHint="teacher" childrenOptions={messageChildrenOptions} />
+        )}
+        {activeTab === "peer-messages" && (
+          <MessageCenter mode="peer" staffRoleHint="teacher" />
         )}
         {(activeTab === "settings" || activeTab === "profile") && <TeacherSettingsTab />}
       </Suspense>

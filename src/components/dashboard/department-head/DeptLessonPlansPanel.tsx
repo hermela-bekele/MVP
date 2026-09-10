@@ -6,10 +6,12 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import { Select } from '@/components/ui/select';
 import { filterBySubjectScope, type DeptHeadScope } from '@/lib/departmentHead';
 import { weeklyPlanStatusLabel } from '@/lib/teacherPortal';
 import { DetailedLessonPlanRenderer } from '@/components/ui/DetailedLessonPlanRenderer';
 import type { AIDetailedLessonPlanResult } from '@/lib/ai';
+import type { LessonPlan } from '@/lib/mockData';
 import { Pagination } from '@/components/ui/pagination';
 
 interface DeptLessonPlansPanelProps {
@@ -18,10 +20,22 @@ interface DeptLessonPlansPanelProps {
 
 const RECENT_PLANS_PAGE_SIZE = 10;
 
+// A HoD's return must always name which kind of problem it is — never just free text —
+// so the teacher knows exactly what to revise.
+const RETURN_REASON_OPTIONS: { value: NonNullable<LessonPlan['returnReasonCategory']>; label: string }[] = [
+  { value: 'curriculum_alignment', label: 'Curriculum alignment' },
+  { value: 'pacing', label: 'Pacing' },
+  { value: 'pedagogy', label: 'Pedagogy' },
+  { value: 'assessment', label: 'Assessment' },
+  { value: 'differentiation', label: 'Differentiation' },
+  { value: 'resource_issue', label: 'Resource issue' },
+];
+
 export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scope }) => {
   const { lessonPlans, teachers, approveLessonPlan, rejectLessonPlan } = useApp();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comments, setComments] = useState('');
+  const [returnReason, setReturnReason] = useState<NonNullable<LessonPlan['returnReasonCategory']> | ''>('');
   const [open, setOpen] = useState(false);
   const [recentPage, setRecentPage] = useState(1);
 
@@ -54,6 +68,7 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
   const openReview = (id: string) => {
     setSelectedId(id);
     setComments('');
+    setReturnReason('');
     setOpen(true);
   };
 
@@ -139,6 +154,11 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
                     >
                       {weeklyPlanStatusLabel(plan.status)}
                     </Badge>
+                    {plan.status === 'Rejected' && plan.returnReasonCategory && (
+                      <span className="ml-1.5 text-xxs text-muted-foreground">
+                        ({RETURN_REASON_OPTIONS.find((o) => o.value === plan.returnReasonCategory)?.label})
+                      </span>
+                    )}
                   </td>
                   <td className="text-right">
                     <Button size="sm" variant="ghost" onClick={() => openReview(plan.id)}>
@@ -179,15 +199,23 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
             </ul>
           )}
           {selected?.status === 'Pending Dept Head' ? (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold">Comments</label>
-              <textarea
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-                rows={3}
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                placeholder="Optional feedback for the teacher"
+            <div className="space-y-3">
+              <Select
+                label="If returning: reason category (required to return)"
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value as typeof returnReason)}
+                options={[{ value: '', label: 'Select a reason…' }, ...RETURN_REASON_OPTIONS]}
               />
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Comments</label>
+                <textarea
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+                  rows={3}
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  placeholder="Optional feedback for the teacher"
+                />
+              </div>
             </div>
           ) : null}
         </div>
@@ -199,9 +227,11 @@ export const DeptLessonPlansPanel: React.FC<DeptLessonPlansPanelProps> = ({ scop
             <>
               <Button
                 variant="destructive"
+                disabled={!returnReason}
+                title={!returnReason ? 'Select a reason category before returning' : undefined}
                 onClick={() => {
-                  if (!selected) return;
-                  rejectLessonPlan(selected.id, 'dept', comments || 'Please revise and resubmit.');
+                  if (!selected || !returnReason) return;
+                  rejectLessonPlan(selected.id, 'dept', comments || 'Please revise and resubmit.', returnReason);
                   setOpen(false);
                 }}
               >

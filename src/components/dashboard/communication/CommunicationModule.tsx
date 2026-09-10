@@ -18,7 +18,7 @@ import {
 } from '@/components/dashboard/teacher/aisStyles';
 import { api } from '@/lib/api';
 import { departmentIdForSubject, resolveDeptHeadScope } from '@/lib/departmentHead';
-import type { Community } from '@/lib/communityTypes';
+import { canCreateCommunity, type Community } from '@/lib/communityTypes';
 import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 import { Pagination } from '@/components/ui/pagination';
 
@@ -46,7 +46,7 @@ export function CommunicationModule({
   mainTab,
   onMainTabChange: _onMainTabChange,
 }: {
-  mode: 'teacher' | 'department-head' | 'school-head' | 'student';
+  mode: 'teacher' | 'department-head' | 'school-head' | 'student' | 'head-of-academics';
   mainTab?: CommunicationMainTab;
   onMainTabChange?: (tab: CommunicationMainTab) => void;
 }) {
@@ -72,6 +72,10 @@ export function CommunicationModule({
 
   const canPostAnnouncement =
     mode === 'school-head' || currentUser?.role === 'school-head';
+
+  // CO-001: only school admins/leadership/department heads may create permanent
+  // communities — a plain teacher must not see (or be able to trigger) this affordance.
+  const canCreate = canCreateCommunity(currentUser?.role);
 
   // A subject teacher (or their department head) only sees their own department's
   // communities, plus any school-wide ones. School-head sees everything.
@@ -195,7 +199,7 @@ export function CommunicationModule({
   if (communityId) {
     return (
       <AisPage>
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-1 w-full max-w-none sm:mx-2">
           <CommunityChannelsPanel communityId={communityId} onBack={() => setCommunityId(null)} />
         </div>
       </AisPage>
@@ -211,7 +215,7 @@ export function CommunicationModule({
 
   return (
     <AisPage>
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="mx-1 w-full max-w-none space-y-8 sm:mx-2">
         <div className="space-y-4 rounded-2xl border border-ais-card-border bg-white p-4 dark:bg-ais-surface">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ais-primary/10 text-ais-primary">
@@ -288,17 +292,19 @@ export function CommunicationModule({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className={aisLabelCaps}>Your Communities</p>
-            <button
-              type="button"
-              onClick={() => setShowCreateForm((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create Community
-            </button>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => setShowCreateForm((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-ais-primary transition-colors hover:bg-ais-primary/10"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create Community
+              </button>
+            )}
           </div>
 
-          {showCreateForm && (
+          {canCreate && showCreateForm && (
             <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
               <input
                 className={aisInput}

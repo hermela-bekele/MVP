@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react';
-import { api, type BootstrapPayload } from '@/lib/api';
+import { api, ApiError, type BootstrapPayload } from '@/lib/api';
 import { toast } from '@/components/ui/toast';
 import {
   type DataSource,
@@ -146,6 +146,8 @@ interface AppContextType {
   students: Student[];
   lessonPlans: LessonPlan[];
   assessments: Assessment[];
+  /** Department ids the signed-in teacher is a designated Mid/Final Exam reviewer for. */
+  reviewerDepartmentIds: string[];
   attendance: Attendance[];
   trainings: TeacherTraining[];
   checkIns: SchoolCheckIn[];
@@ -185,9 +187,13 @@ interface AppContextType {
   addSchool: (school: Omit<School, 'id' | 'code' | 'studentsCount' | 'teachersCount' | 'status' | 'gps'>) => void;
   toggleSchoolStatus: (id: string) => void;
   approveLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
-  rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
-  approveAssessment: (id: string, comments: string) => void;
-  rejectAssessment: (id: string, comments: string) => void;
+  /** returnReasonCategory is required in practice whenever role is 'dept' — the HoD's
+   * return dialog blocks submission until one is chosen. */
+  rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string, returnReasonCategory?: string) => void;
+  approveAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) => void;
+  rejectAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) => void;
+  /** Publishes a 'Pending Reviewer' Mid/Final Exam to the rest of the department's teachers. */
+  disseminateAssessment: (id: string) => void;
   createLessonPlan: (plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => void;
   createAssessment: (
     asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
@@ -197,7 +203,10 @@ interface AppContextType {
     }
   ) => void;
   updateAssessmentQuestions: (id: string, questions: Assessment['questions']) => void;
-  saveAttendance: (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => void;
+  saveAttendance: (
+    records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[],
+    timetableSlotId?: string,
+  ) => void;
   enrollStudent: (student: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => void;
   submitRegistrationApplication: (
     app: Omit<RegistrationApplication, 'id' | 'status' | 'submittedAt'>
@@ -238,9 +247,23 @@ interface AppContextType {
     data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>
   ) => void;
   assignTrainingModule: (
-    data: Omit<TeacherTrainingAssignment, 'id' | 'createdAt' | 'status'>
+    data: Omit<
+      TeacherTrainingAssignment,
+      'id' | 'createdAt' | 'status' | 'sessionsCompleted' | 'reflectionSubmitted' | 'overdue'
+    > & { dueDate?: string; sessionsTotal?: number }
   ) => void;
   updateTrainingAssignmentStatus: (id: string, status: TeacherTrainingAssignment['status']) => void;
+  updateTrainingAssignmentProgress: (
+    id: string,
+    progress: {
+      sessionsCompleted?: number;
+      sessionsTotal?: number;
+      assessmentScore?: number;
+      assessmentPassed?: boolean;
+      reflectionSubmitted?: boolean;
+      reflectionAnswers?: Record<number, string>;
+    }
+  ) => Promise<TeacherTrainingAssignment | void>;
   addDepartment: (name: string, headName: string) => void;
   addClass: (name: string, grade: string, section: string, homeroomTeacher: string) => void;
   approveExam: (id: string, comments: string) => void;
@@ -271,7 +294,7 @@ interface AppContextType {
     data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
   ) => void;
   removeTrainingPlanAssignment: (id: string) => void;
-  addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
+  addCheckInTemplate: (title: string, type: 'Wellness' | 'Student Feedback' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
   updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
   distributeLessonPlan: (id: string) => void;
   createTeachingNote: (
@@ -306,7 +329,7 @@ interface AppContextType {
   deleteStudentGradeEntry: (id: string) => void;
   recalculateStudentGpaFromGrades: (studentId: string) => void;
   addTeacherResource: (
-    resource: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt'>
+    resource: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt' | 'status'>
   ) => void;
   respondToTeacherCheckIn: (id: string, response: string) => void;
   sendParentMessage: (
@@ -318,9 +341,18 @@ interface AppContextType {
   giveTeacherFeedback: (input: {
     teacherId: string;
     authorRole: 'peer' | 'department-head';
+    /** FB-003: only meaningful when authorRole is 'department-head' — peer feedback is
+     * always 'informal_peer', derived server-side. */
+    category?: 'coaching' | 'classroom_observation' | 'formal_performance';
     subject: string;
     comment: string;
     rating?: number;
+    /** FB-004: structured coaching/observation fields — 'department-head' only. */
+    strength?: string;
+    developmentArea?: string;
+    agreedAction?: string;
+    followUpRequired?: boolean;
+    followUpDueDate?: string;
   }) => void;
   markLessonDelivered: (payload: {
     teachingNoteId: string;
@@ -430,6 +462,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     dataSourceRef.current = dataSource;
   }, [dataSource]);
+  const currentUserRef = useRef<AuthUser | null>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   // Collections state (loaded from PostgreSQL API)
   const [schools, setSchools] = useState<School[]>([]);
@@ -437,6 +473,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [students, setStudents] = useState<Student[]>([]);
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [reviewerDepartmentIds, setReviewerDepartmentIds] = useState<string[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [trainings, setTrainings] = useState<TeacherTraining[]>([]);
   const [checkIns, setCheckIns] = useState<SchoolCheckIn[]>([]);
@@ -708,6 +745,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     writeOfflineMeta({ pendingCount: n });
   }, []);
 
+  const refreshReviewerDepartments = useCallback((role?: string | null) => {
+    if (role !== 'teacher') {
+      setReviewerDepartmentIds([]);
+      return;
+    }
+    void api
+      .listMyAssessmentReviewerDepartments()
+      .then((rows) =>
+        setReviewerDepartmentIds((rows as { departmentId: string }[]).map((r) => r.departmentId)),
+      )
+      .catch(() => {});
+  }, []);
+
   const refreshFromApi = useCallback(async () => {
     setIsDataLoading(true);
     const online = isBrowserOnline();
@@ -746,9 +796,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLastSyncedAt(syncedAt);
       setDataError(null);
       await persistPortalSnapshot(data, syncedAt);
+      refreshReviewerDepartments(currentUserRef.current?.role);
 
-      const { flushed, remaining } = await flushOfflineOutbox();
+      const { flushed, remaining, dropped } = await flushOfflineOutbox();
       setPendingSyncCount(remaining);
+      if (dropped.length > 0) {
+        addNotification(
+          'Some offline changes could not be saved',
+          `${dropped.length} change${dropped.length === 1 ? '' : 's'} made while offline were rejected by the server (${dropped[0].error}) and have been discarded rather than left stuck. You may need to redo ${dropped.length === 1 ? 'it' : 'them'}.`,
+          'alert',
+        );
+      }
       if (flushed > 0) {
         try {
           const fresh = await api.bootstrap();
@@ -771,9 +829,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsDataLoading(false);
     }
-  }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount]);
+  }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount, refreshReviewerDepartments]);
 
   useEffect(() => {
+    // /bootstrap now requires auth (PR-002) — an anonymous mount (e.g. the login
+    // page) has no session yet, so skip the call instead of guaranteeing a 401.
+    // login() explicitly triggers the authenticated fetch once a session exists.
+    if (!readStoredSession()) return;
     void refreshFromApi();
   }, [refreshFromApi]);
 
@@ -820,13 +882,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveRoleState(user.role);
     setActiveEngineState(defaultEngineForRole(user.role));
     persistSession(user, remember);
+    refreshReviewerDepartments(user.role);
     void refreshFromApi();
-  }, [refreshFromApi]);
+  }, [refreshFromApi, refreshReviewerDepartments]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
     setActiveRoleState('login');
     setActiveEngineState(null);
+    setReviewerDepartmentIds([]);
     clearSession();
   }, []);
 
@@ -883,24 +947,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
-  const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
-    void api.rejectLessonPlan(id, role, comments).then((lp) => {
+  const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string, returnReasonCategory?: string) => {
+    void api.rejectLessonPlan(id, role, comments, returnReasonCategory).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
       addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert', '/dashboard/teacher/lesson-plans');
     }).catch(() => void refreshFromApi());
   };
 
-  const approveAssessment = (id: string, comments: string) => {
-    void api.approveAssessment(id, comments).then((asm) => {
+  const approveAssessment = (id: string, comments: string, moderationRubric?: Record<string, string>) => {
+    void api.approveAssessment(id, comments, moderationRubric).then((asm) => {
       setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
       addNotification('Assessment Approved', `Assessment "${(asm as Assessment).title}" approved.`, 'success', '/dashboard/teacher/manage-students');
     }).catch(() => void refreshFromApi());
   };
 
-  const rejectAssessment = (id: string, comments: string) => {
-    void api.rejectAssessment(id, comments).then((asm) => {
+  const rejectAssessment = (id: string, comments: string, moderationRubric?: Record<string, string>) => {
+    void api.rejectAssessment(id, comments, moderationRubric).then((asm) => {
       setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
       addNotification('Assessment Draft Rejected', `Assessment "${(asm as Assessment).title}" sent back.`, 'alert', '/dashboard/teacher/assessments');
+    }).catch(() => void refreshFromApi());
+  };
+
+  const disseminateAssessment = (id: string) => {
+    void api.disseminateAssessment(id).then((asm) => {
+      setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
+      addNotification('Exam published to teachers', `"${(asm as Assessment).title}" is now live for subject teachers.`, 'success', '/dashboard/department-head/assessments');
     }).catch(() => void refreshFromApi());
   };
 
@@ -928,8 +999,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .then((asm) => {
         setAssessments((prev) => [asm as Assessment, ...prev]);
-        const ready = (asm as Assessment).status === 'Approved';
+        const status = (asm as Assessment).status;
+        const ready = status === 'Approved';
+        const pendingReview = status === 'Pending Reviewer';
         const isDeptExam = createdByRole === 'department-head';
+        if (pendingReview) {
+          addNotification(
+            'Exam sent for review',
+            `"${(asm as Assessment).title}" is waiting on the designated reviewers before it's shared with other teachers.`,
+            'info',
+            '/dashboard/department-head/assessments',
+          );
+          return;
+        }
         addNotification(
           ready
             ? isDeptExam
@@ -972,7 +1054,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const saveAttendance = (records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[]) => {
+  const saveAttendance = (
+    records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[],
+    timetableSlotId?: string,
+  ) => {
     const applyLocal = () => {
       const today = new Date().toISOString().slice(0, 10);
       setAttendance((prev) => {
@@ -997,18 +1082,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!isBrowserOnline()) {
       applyLocal();
-      void enqueueOutbox('saveAttendance', { records });
+      void enqueueOutbox('saveAttendance', { records, timetableSlotId });
       void refreshPendingCount();
       addNotification('Attendance saved offline', `Recorded for ${records.length} students — will sync when online.`, 'info');
       return;
     }
 
-    void api.saveAttendance(records).then(() => {
+    void api.saveAttendance(records, timetableSlotId).then(() => {
       void refreshFromApi();
       addNotification('Attendance Logs Recorded', `Attendance recorded for ${records.length} students.`, 'success');
-    }).catch(() => {
+    }).catch((err) => {
+      // CM-006: a 409 means this scheduled session already has attendance recorded —
+      // that will never succeed by retrying, so surface it instead of silently queuing
+      // a save that's guaranteed to fail again offline.
+      if (err instanceof ApiError && err.status === 409) {
+        addNotification('Already recorded', err.message || 'Attendance for this session has already been recorded.', 'alert');
+        return;
+      }
       applyLocal();
-      void enqueueOutbox('saveAttendance', { records });
+      void enqueueOutbox('saveAttendance', { records, timetableSlotId });
       void refreshPendingCount();
       addNotification('Attendance saved offline', `Saved on this device — will sync when online.`, 'alert');
     });
@@ -1298,11 +1390,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
-  const assignTrainingModule = (data: Omit<TeacherTrainingAssignment, 'id' | 'createdAt' | 'status'>) => {
+  const assignTrainingModule = (
+    data: Omit<
+      TeacherTrainingAssignment,
+      'id' | 'createdAt' | 'status' | 'sessionsCompleted' | 'reflectionSubmitted' | 'overdue'
+    > & { dueDate?: string; sessionsTotal?: number }
+  ) => {
     void api.assignTrainingModule(data as unknown as Record<string, unknown>).then((a) => {
       setTeacherTrainingAssignments((prev) => [a as TeacherTrainingAssignment, ...prev]);
       addNotification('Module Assigned', `${data.moduleTitle} assigned.`, 'success');
     }).catch(() => void refreshFromApi());
+  };
+
+  const updateTrainingAssignmentProgress = async (
+    id: string,
+    progress: {
+      sessionsCompleted?: number;
+      sessionsTotal?: number;
+      assessmentScore?: number;
+      assessmentPassed?: boolean;
+      reflectionSubmitted?: boolean;
+      reflectionAnswers?: Record<number, string>;
+    }
+  ) => {
+    try {
+      const updated = (await api.updateTrainingAssignmentProgress(id, progress)) as TeacherTrainingAssignment;
+      setTeacherTrainingAssignments((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      if (updated.status === 'completed') {
+        addNotification('Module Completed', `${updated.moduleTitle} is now complete — sessions, assessment, and reflection all done.`, 'success');
+      }
+      return updated;
+    } catch {
+      addNotification('Could not save progress', 'Try again once you’re back online.', 'alert');
+    }
   };
 
   const updateTrainingAssignmentStatus = (id: string, status: TeacherTrainingAssignment['status']) => {
@@ -1428,7 +1548,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void api.removeTrainingPlanAssignment(id).catch(() => void refreshFromApi());
   };
 
-  const addCheckInTemplate = (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
+  const addCheckInTemplate = (title: string, type: 'Wellness' | 'Student Feedback' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
     void api.createCheckIn({ title, type, respondentName, rating, comment }).then((ch) => {
       setCheckIns((prev) => [ch as SchoolCheckIn, ...prev]);
       addNotification('Wellness Survey Created', `Survey "${title}" created.`, 'success');
@@ -1893,11 +2013,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addTeacherResource = (
-    resourceData: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt'>
+    resourceData: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt' | 'status'>
   ) => {
     void api.createTeacherResource({ ...resourceData, teacherId: resolveTeacherId() }).then((res) => {
       setTeacherResources((prev) => [res as TeacherResource, ...prev]);
-      addNotification('Resource Published', `"${(res as TeacherResource).title}" is available.`, 'success');
+      addNotification('Resource Submitted', `"${(res as TeacherResource).title}" was sent to your department head for review.`, 'success');
     }).catch(() => void refreshFromApi());
   };
 
@@ -1927,22 +2047,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const giveTeacherFeedback = (input: {
     teacherId: string;
     authorRole: 'peer' | 'department-head';
+    category?: 'coaching' | 'classroom_observation' | 'formal_performance';
     subject: string;
     comment: string;
     rating?: number;
+    strength?: string;
+    developmentArea?: string;
+    agreedAction?: string;
+    followUpRequired?: boolean;
+    followUpDueDate?: string;
   }) => {
     const authorName =
       currentUser?.displayName ?? (input.authorRole === 'department-head' ? 'Department Head' : 'Colleague');
+    const isStructured = input.authorRole === 'department-head';
     const record: TeacherFeedback = {
       id: `local-fb-${Date.now()}`,
       teacherId: input.teacherId,
       direction: 'to_teacher',
       authorRole: input.authorRole,
+      category: input.authorRole === 'peer' ? 'informal_peer' : input.category ?? 'coaching',
       authorName,
       subject: input.subject,
       comment: input.comment,
       rating: input.rating,
       date: new Date().toISOString().slice(0, 10),
+      strength: isStructured ? input.strength : undefined,
+      developmentArea: isStructured ? input.developmentArea : undefined,
+      agreedAction: isStructured ? input.agreedAction : undefined,
+      followUpRequired: isStructured ? input.followUpRequired : undefined,
+      followUpDueDate: isStructured && input.followUpRequired ? input.followUpDueDate : undefined,
     };
     setTeacherFeedbacks((prev) => [record, ...prev]);
     addNotification('Feedback Sent', `Your feedback was recorded for the teacher.`, 'success');
@@ -2217,6 +2350,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         students,
         lessonPlans,
         assessments,
+        reviewerDepartmentIds,
         attendance,
         trainings,
         checkIns,
@@ -2257,6 +2391,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rejectLessonPlan,
         approveAssessment,
         rejectAssessment,
+        disseminateAssessment,
         createLessonPlan,
         createAssessment,
         updateAssessmentQuestions,
@@ -2289,6 +2424,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         submitSelfAssessment,
         assignTrainingModule,
         updateTrainingAssignmentStatus,
+        updateTrainingAssignmentProgress,
         addDepartment,
         addClass,
         approveExam,

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { aisInput } from '@/components/dashboard/teacher/TeacherPortalUi';
-import { aisBodySm, aisCard } from '@/components/dashboard/teacher/aisStyles';
+import { aisCard } from '@/components/dashboard/teacher/aisStyles';
 import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 
 function timeLabel(iso: string) {
@@ -81,7 +81,7 @@ export function TeacherHodMessagesTab() {
   const myName = teacher?.name ?? currentUser?.displayName ?? 'You';
 
   return (
-    <div className={`${aisCard} flex h-[min(70vh,720px)] min-h-[420px] flex-col overflow-hidden`}>
+    <div className={`${aisCard} flex h-[calc(100dvh-10rem)] min-h-0 flex-col overflow-hidden`}>
       <header className="flex h-16 shrink-0 items-center gap-3 border-b border-ais-card-border bg-ais-surface-container-low/40 px-4 sm:px-5">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ais-primary text-xs font-bold text-white">
           HoD
@@ -99,9 +99,6 @@ export function TeacherHodMessagesTab() {
                 <Send className="h-6 w-6" />
               </div>
               <p className="mt-4 text-lg font-bold text-ais-on-surface">Start the conversation</p>
-              <p className={`${aisBodySm} mx-auto mt-1.5 max-w-sm`}>
-                Say hello or share a classroom challenge with your department head.
-              </p>
             </div>
           ) : (
             thread.map((msg) => {

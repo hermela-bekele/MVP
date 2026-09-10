@@ -92,6 +92,65 @@ export function buildTeacherWeeklyTimetable(
   });
 }
 
+/** CM-006: a real scheduled timetable session (backed by timetable_slots), shared by
+ * every teacher-portal view that needs to know a teacher's actual weekly schedule —
+ * attendance recording, the Teaching Timetable tab, and lesson-plan/delivery linking.
+ * Not the same thing as TEACHER_CLASS_ASSIGNMENTS above, which is a legacy static
+ * roster still used for the dashboard's "Today's Schedule" widget and My Classes. */
+export interface TimetableSlot {
+  id: string;
+  grade: string;
+  section: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  room?: string;
+}
+
+export const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+export function mapTimetableSlotRow(row: Record<string, unknown>): TimetableSlot {
+  return {
+    id: String(row.id),
+    grade: String(row.grade),
+    section: String(row.section),
+    dayOfWeek: Number(row.day_of_week),
+    startTime: String(row.start_time),
+    endTime: String(row.end_time),
+    subject: String(row.subject),
+    room: row.room ? String(row.room) : undefined,
+  };
+}
+
+export function timetableSlotLabel(slot: TimetableSlot): string {
+  return `${WEEKDAY_LABELS[slot.dayOfWeek] ?? ''} ${slot.startTime}–${slot.endTime} · ${slot.grade} Section ${slot.section} · ${slot.subject}${slot.room ? ` · ${slot.room}` : ''}`;
+}
+
+/** ISO date (Gregorian) of this slot's occurrence within the calendar week that starts
+ * on `mondayIso` — dayOfWeek is JS's Sun=0..Sat=6, Monday is the week anchor. */
+export function timetableSlotOccurrenceDate(slot: TimetableSlot, mondayIso: string): string {
+  const offset = (slot.dayOfWeek + 6) % 7;
+  const d = new Date(`${mondayIso}T12:00:00`);
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Which occurrence (1-based) `slot` is within the week, among every slot that is the
+ * same class (grade/section/subject) — e.g. a Mon/Wed/Fri class's Wednesday slot is
+ * occurrence 2. This is "session N" of that week's lesson plan, since a weekly plan's
+ * sessions are numbered in the order the class actually meets. */
+export function sessionNumberForSlot(slot: TimetableSlot, allSlots: TimetableSlot[]): number {
+  const sameClass = allSlots
+    .filter(
+      (s) =>
+        s.grade === slot.grade && s.section === slot.section && s.subject === slot.subject,
+    )
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+  const idx = sameClass.findIndex((s) => s.id === slot.id);
+  return idx >= 0 ? idx + 1 : 1;
+}
+
 export const GRADE_OPTIONS = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
 export const SECTION_OPTIONS = ['A', 'B', 'C', 'D'];
 /** Gradebook / roster filters — include All sections for a grade level. */
@@ -245,7 +304,7 @@ export function keepLatestLessonPlansByGradeSubject(plans: LessonPlan[]): Lesson
 export function filterTeacherAssessments(
   assessments: Assessment[],
   teacherId = DEMO_TEACHER_ID,
-  opts?: { subjects?: string[] },
+  opts?: { subjects?: string[]; reviewerDepartmentIds?: string[] },
 ) {
   const subjects = (opts?.subjects || []).map((s) => s.toLowerCase()).filter(Boolean);
   const subjectMatch = (subject: string) => {
@@ -253,11 +312,18 @@ export function filterTeacherAssessments(
     const s = (subject || '').toLowerCase();
     return subjects.some((sub) => s.includes(sub) || sub.includes(s));
   };
+  const reviewerDeptIds = new Set(opts?.reviewerDepartmentIds || []);
 
   return assessments
     .filter((a) => {
       if (!a?.id || a.status === 'Rejected') return false;
       if (String(a.teacherId) === String(teacherId)) return true;
+
+      // A designated reviewer can see a Mid/Final Exam for their department while it's
+      // still gated at 'Pending Reviewer', before it's disseminated to other teachers.
+      if (a.status === 'Pending Reviewer' && a.reviewDepartmentId && reviewerDeptIds.has(a.reviewDepartmentId)) {
+        return true;
+      }
 
       // Published department exams shared with subject teachers
       const isDeptPublished =

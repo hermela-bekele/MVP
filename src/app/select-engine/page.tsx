@@ -4,7 +4,8 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { dashboardPathForRole, roleLabel } from '@/lib/auth';
-import { ENGINE_DESCRIPTIONS, enginesForRole, engineLabel, requiresEngineSelection, type EngineId } from '@/lib/engines';
+import { ENGINE_DESCRIPTIONS, defaultTabForEngine, enginesForRole, engineLabel, requiresEngineSelection, type EngineId } from '@/lib/engines';
+import { portalTabPath } from '@/lib/portalPaths';
 import { Logo } from '@/components/shared/Logo';
 
 const ENGINE_ICONS: Record<EngineId, React.ReactNode> = {
@@ -64,7 +65,7 @@ export default function SelectEnginePage() {
 
   const handleSelect = (engine: EngineId) => {
     setEngine(engine);
-    router.replace(dashboardPathForRole(currentUser.role));
+    router.replace(portalTabPath(currentUser.role, defaultTabForEngine(currentUser.role, engine)));
   };
 
   return (

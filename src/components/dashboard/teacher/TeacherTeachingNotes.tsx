@@ -2,13 +2,17 @@
 
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Download, Eye, HelpCircle, MoreVertical, Pencil, Plus, Printer, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ClipboardCheck, Download, Eye, GitBranch, MoreVertical, Pencil, Plus, Printer, Save, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { TeacherAdjustmentDialog } from '@/components/dashboard/teacher/TeacherAdjustmentDialog';
+import { api } from '@/lib/api';
+import type { TeacherLessonAdjustment } from '@/lib/mockData';
 import type { AITeachingNotesResult, AIDetailedLessonPlanResult } from '@/lib/ai';
 import { parseWeeklyPlanDetail } from '@/lib/ai';
+import { weekNumberLabel, weekPageLabel } from '@/lib/annualLessonPlan';
 import {
   filterTeacherLessonPlans,
   notesForLessonPlan,
@@ -33,6 +37,7 @@ import { stripDuplicatedMarkdownPrefix } from '@/lib/teachingNotesMarkdown';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
+  AisIdTag,
   AisPage,
   AisStatusBadge,
   approvalBadgeVariant,
@@ -57,11 +62,11 @@ const TeachingNotesRenderer = lazy(() =>
 
 function weeklyPlanWeekLabel(plan: LessonPlan): string {
   const detail = parseWeeklyPlanDetail(plan) as AIDetailedLessonPlanResult & {
-    calendarWeek?: { month?: string; week?: string; date?: string; unit?: string };
+    calendarWeek?: { month?: string; week?: string; page?: string; unit?: string };
   } | null;
   const cw = detail?.calendarWeek;
   if (cw?.month && cw?.week) {
-    return `${cw.month} ${cw.week}${cw.date ? ` (${cw.date})` : ''}${cw.unit ? ` · ${cw.unit}` : ''}`;
+    return `${cw.month} ${weekNumberLabel(cw.week)} · ${weekPageLabel(cw.page)}${cw.unit ? ` · ${cw.unit}` : ''}`;
   }
   return plan.title;
 }
@@ -164,6 +169,18 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
   const [editWeeklyTitle, setEditWeeklyTitle] = useState('');
   const [planPendingDelete, setPlanPendingDelete] = useState<LessonPlan | null>(null);
   const [notePendingDelete, setNotePendingDelete] = useState<TeachingNote | null>(null);
+  // TE-004: Teacher Adjustments — recorded departures from the annual plan.
+  const [adjustmentPlan, setAdjustmentPlan] = useState<LessonPlan | null>(null);
+  const [myAdjustments, setMyAdjustments] = useState<TeacherLessonAdjustment[]>([]);
+  useEffect(() => {
+    if (mode === 'notes') return;
+    void api
+      .listMyTeacherLessonAdjustments()
+      .then((rows) => setMyAdjustments(rows as TeacherLessonAdjustment[]))
+      .catch(() => {});
+  }, [mode]);
+  const adjustmentCountFor = (planId: string) =>
+    myAdjustments.filter((a) => a.weeklyPlanId === planId).length;
   const [listTab, setListTab] = useState<'annual' | 'weekly' | 'notes'>(
     mode === 'notes' ? 'notes' : 'annual',
   );
@@ -181,6 +198,18 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             { id: 'notes' as const, label: 'Lesson notes' },
           ]
   );
+  // TE-003: the shell header's "+ Create lesson plan" button lives in TeacherPortalApp
+  // (it renders the page header), but whether it should show depends on which sub-tab
+  // of this component is active — it creates a *weekly* plan, so it must hide on the
+  // Annual Plans sub-tab. Broadcast the active sub-tab so the parent can gate it.
+  useEffect(() => {
+    if (mode === 'plans') {
+      window.dispatchEvent(
+        new CustomEvent('teacher-lesson-plan-subtab', { detail: { listTab } }),
+      );
+    }
+  }, [mode, listTab]);
+
   const detailPlan = lessonPlanId
     ? teacherPlans.find((p) => p.id === lessonPlanId)
     : undefined;
@@ -367,7 +396,15 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             ]}
           />
         </div>
-        <p className={`${aisDataMd} font-semibold line-clamp-2`}>{note.title}</p>
+        <div className="flex items-center gap-2">
+          <p className={`${aisDataMd} font-semibold line-clamp-2`}>{note.title}</p>
+          <AisIdTag id={note.id} />
+        </div>
+        {!note.lessonPlanId && (
+          <AisStatusBadge variant="warning" className="mt-1">
+            Supplementary / Unplanned Session
+          </AisStatusBadge>
+        )}
         <p className={`${aisBodySm} mt-1`}>{note.topic}</p>
         <p className={`${aisBodySm} mt-0.5`}>{note.language}</p>
         <p className={`${aisBodySm} mt-1 text-ais-on-surface-variant`}>
@@ -386,14 +423,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </span>
           </>
         ) : (
-          <button
-            type="button"
-            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ais-primary transition-colors hover:bg-ais-primary/10"
+          <AisBtnPrimary
+            className="!flex-row items-center gap-1.5 !rounded-xl !px-3 !py-2 !text-[11px] leading-tight"
             onClick={() => setDeliverNote(note)}
+            title="Confirm Lesson Delivery"
           >
-            <HelpCircle className="h-5 w-5" aria-hidden />
-            Delivered?
-          </button>
+            <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden />
+            Confirm
+          </AisBtnPrimary>
         )}
       </div>
     </div>
@@ -479,10 +516,11 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                       className="flex flex-1 flex-col p-4 text-left transition-colors hover:bg-ais-row-hover"
                       onClick={() => goToLessonPlan(plan.id)}
                     >
-                      <div className="mb-2">
+                      <div className="mb-2 flex items-center gap-2">
                         <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                           Annual
                         </span>
+                        <AisIdTag id={plan.id} />
                       </div>
                       <h3 className={`${aisHeadlineSm} line-clamp-2 mb-2 !text-title`}>{plan.title}</h3>
                       <p className={`${aisBodySm} text-ais-on-surface-variant mb-2`}>
@@ -528,6 +566,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                           onClick={() => openWeeklyPlanDialog(plan, 'view')}
                         >
                           <h3 className={`${aisHeadlineSm} line-clamp-2 !text-title`}>{weeklyPlanWeekLabel(plan)}</h3>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <AisIdTag id={plan.id} />
+                            {adjustmentCountFor(plan.id) > 0 && (
+                              <AisStatusBadge variant="warning">
+                                {adjustmentCountFor(plan.id)} adjustment{adjustmentCountFor(plan.id) === 1 ? '' : 's'}
+                              </AisStatusBadge>
+                            )}
+                          </div>
                         </button>
                         <div className="flex shrink-0 items-center gap-1">
                           <span className="inline-flex h-7 min-w-[2rem] items-center justify-center rounded-full bg-ais-primary/10 px-2.5 text-xs font-bold tabular-nums text-ais-primary">
@@ -555,6 +601,12 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                                     label: 'Edit',
                                     icon: <Pencil className="h-4 w-4" />,
                                     onClick: () => openWeeklyPlanDialog(plan, 'edit'),
+                                  },
+                                  {
+                                    id: 'adjustment',
+                                    label: 'Log adjustment',
+                                    icon: <GitBranch className="h-4 w-4" />,
+                                    onClick: () => setAdjustmentPlan(plan),
                                   },
                                   {
                                     id: 'delete',
@@ -700,6 +752,32 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
               </p>
             )}
             <PlanSummary plan={weeklyPlanDialog.plan} />
+            {weeklyPlanDialog.mode === 'view' && adjustmentCountFor(weeklyPlanDialog.plan.id) > 0 && (
+              <div className="space-y-2">
+                <p className={aisFormLabel}>
+                  Logged adjustments ({adjustmentCountFor(weeklyPlanDialog.plan.id)})
+                </p>
+                {myAdjustments
+                  .filter((a) => a.weeklyPlanId === weeklyPlanDialog.plan.id)
+                  .map((a) => (
+                    <div key={a.id} className={`${aisCard} space-y-1 p-3`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <AisIdTag id={a.id} />
+                        <span className={aisBodySm}>{a.adjustmentDate}</span>
+                      </div>
+                      <p className={aisBodySm}>
+                        <span className="font-semibold text-ais-on-surface">{a.originalTopic}</span>
+                        {' → '}
+                        <span className="font-semibold text-ais-on-surface">{a.revisedTopic}</span>
+                      </p>
+                      <p className={aisBodySm}>{a.reason}</p>
+                      {a.pacingImpact && (
+                        <p className="text-xxs text-ais-on-surface-variant">Pacing impact: {a.pacingImpact}</p>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
             <DialogFooter className="pt-2 -mb-1">
               <AisBtnSecondary onClick={() => setWeeklyPlanDialog(null)}>Close</AisBtnSecondary>
               {weeklyPlanDialog.mode === 'edit' && (
@@ -825,6 +903,38 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
         note={deliverNote}
         onClose={() => setDeliverNote(null)}
         onSubmit={handleDeliverySubmit}
+      />
+
+      <TeacherAdjustmentDialog
+        open={!!adjustmentPlan}
+        weeklyPlan={adjustmentPlan}
+        annualPlan={
+          adjustmentPlan
+            ? publishedAnnualPlans.find(
+                (p) => p.grade === adjustmentPlan.grade && p.subject === adjustmentPlan.subject,
+              ) ?? null
+            : null
+        }
+        onClose={() => setAdjustmentPlan(null)}
+        onSubmit={async (payload) => {
+          if (!adjustmentPlan) return;
+          const annual = publishedAnnualPlans.find(
+            (p) => p.grade === adjustmentPlan.grade && p.subject === adjustmentPlan.subject,
+          );
+          const created = await api.createTeacherLessonAdjustment({
+            ...payload,
+            grade: adjustmentPlan.grade,
+            subject: adjustmentPlan.subject,
+            weeklyPlanId: adjustmentPlan.id,
+            annualPlanId: annual?.id,
+          });
+          setMyAdjustments((prev) => [created as TeacherLessonAdjustment, ...prev]);
+          addNotification(
+            'Adjustment logged',
+            `Recorded a departure from the annual plan for "${adjustmentPlan.title}".`,
+            'success',
+          );
+        }}
       />
     </AisPage>
   );
