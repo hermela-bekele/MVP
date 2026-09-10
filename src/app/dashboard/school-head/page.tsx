@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { resolveResourceUrl } from '@/lib/api';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -541,7 +542,7 @@ export default function SchoolHeadPortalPage() {
                               <CardTitle className="text-xs font-bold text-foreground truncate">{mat.title}</CardTitle>
                             </CardHeader>
                             <CardContent className="text-xxs pb-4 flex justify-between items-center">
-                              <a href={mat.resourceUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">
+                              <a href={resolveResourceUrl(mat.resourceUrl)} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold">
                                 View Guide Document →
                               </a>
                             </CardContent>

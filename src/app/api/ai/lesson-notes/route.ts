@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const result = (await response.json()) as Record<string, unknown>;
 
     // Store in cache
-    await setCachedData(cacheKey, result);
+    void setCachedData(cacheKey, result);
 
     console.log(`💾 [Cached] Lesson notes for: ${topic} (persisted to disk)`);
 

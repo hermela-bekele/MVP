@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = (await response.json()) as Record<string, unknown>;
-    await setCachedData(cacheKey, result);
+    void setCachedData(cacheKey, result);
 
     return NextResponse.json({
       ...result,

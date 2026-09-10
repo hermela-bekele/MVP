@@ -10,40 +10,11 @@ import {
   GRADE_OPTIONS,
   SECTION_OPTIONS,
   SECTION_FILTER_OPTIONS,
+  mapTimetableSlotRow,
+  timetableSlotLabel,
+  type TimetableSlot,
 } from '@/lib/teacherPortal';
 import type { Attendance } from '@/lib/mockData';
-
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-/** CM-006: a real scheduled timetable session (not the mock class-assignment list) —
- * attendance recorded against one of these is traced back to it by real ID. */
-interface TimetableSlot {
-  id: string;
-  grade: string;
-  section: string;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  subject: string;
-  room?: string;
-}
-
-function mapTimetableSlotRow(row: Record<string, unknown>): TimetableSlot {
-  return {
-    id: String(row.id),
-    grade: String(row.grade),
-    section: String(row.section),
-    dayOfWeek: Number(row.day_of_week),
-    startTime: String(row.start_time),
-    endTime: String(row.end_time),
-    subject: String(row.subject),
-    room: row.room ? String(row.room) : undefined,
-  };
-}
-
-function timetableSlotLabel(slot: TimetableSlot): string {
-  return `${WEEKDAY_LABELS[slot.dayOfWeek] ?? ''} ${slot.startTime}–${slot.endTime} · ${slot.grade} Section ${slot.section} · ${slot.subject}${slot.room ? ` · ${slot.room}` : ''}`;
-}
 import {
   AisBtnPrimary,
   AisBtnSecondary,

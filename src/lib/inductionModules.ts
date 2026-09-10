@@ -113,7 +113,12 @@ Your Department Head will check in on your teaching notes and delivered lessons 
       },
     ],
     assessmentContent:
-      'Complete the checklist below reflecting honestly on your first two weeks. This assessment is about establishing habits, not testing recall.',
+      `Complete the checklist below reflecting honestly on your first two weeks. This assessment is about establishing habits, not testing recall.
+
+## Reflection After Assessment
+- What has surprised you most about your first two weeks of teaching?
+- Which routine from this module have you already started using, and how is it going?
+- What is one thing you'll ask your Department Head about this week?`,
     assessmentQuestions: [
       {
         id: 'tip-1-q1',
@@ -235,7 +240,12 @@ Log what happened factually (what, when, who) rather than emotionally, and menti
       },
     ],
     assessmentContent:
-      'This short assessment checks your understanding of proactive structure and dignity-preserving correction.',
+      `This short assessment checks your understanding of proactive structure and dignity-preserving correction.
+
+## Reflection After Assessment
+- Which of the three structural gaps (dead time, unclear expectations, unequal attention) shows up most in your own lessons?
+- Think of your last correction of a student — how closely did it follow the dignity-preserving sequence?
+- What is one structural change you will make to your very next lesson?`,
     assessmentQuestions: [
       {
         id: 'tip-2-q1',

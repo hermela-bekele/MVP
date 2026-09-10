@@ -103,10 +103,23 @@ export const DeptFeedbackPanel: React.FC = () => {
   const [subject, setSubject] = useState('');
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState(5);
+  // FB-004: structured coaching/observation record — every direct feedback entry names
+  // a strength, a development area, and an agreed next action rather than only a
+  // free-text comment, and optionally schedules a follow-up.
+  const [strength, setStrength] = useState('');
+  const [developmentArea, setDevelopmentArea] = useState('');
+  const [agreedAction, setAgreedAction] = useState('');
+  const [followUpRequired, setFollowUpRequired] = useState(false);
+  const [followUpDueDate, setFollowUpDueDate] = useState('');
 
   const openModal = () => {
     setTargetTeacherId(departmentTeachers[0]?.id ?? '');
     setCategory('coaching');
+    setStrength('');
+    setDevelopmentArea('');
+    setAgreedAction('');
+    setFollowUpRequired(false);
+    setFollowUpDueDate('');
     setIsModalOpen(true);
   };
 
@@ -120,10 +133,20 @@ export const DeptFeedbackPanel: React.FC = () => {
       subject: subject.trim() || 'Direct feedback',
       comment: comment.trim(),
       rating,
+      strength: strength.trim() || undefined,
+      developmentArea: developmentArea.trim() || undefined,
+      agreedAction: agreedAction.trim() || undefined,
+      followUpRequired,
+      followUpDueDate: followUpRequired ? followUpDueDate || undefined : undefined,
     });
     setSubject('');
     setComment('');
     setRating(5);
+    setStrength('');
+    setDevelopmentArea('');
+    setAgreedAction('');
+    setFollowUpRequired(false);
+    setFollowUpDueDate('');
     setIsModalOpen(false);
   };
 
@@ -172,9 +195,24 @@ export const DeptFeedbackPanel: React.FC = () => {
       key: 'subject',
       header: 'Subject',
       render: (row) => (
-        <div className="flex flex-col text-left max-w-xs">
+        <div className="flex flex-col text-left max-w-xs gap-0.5">
           <span className="text-xs font-medium text-foreground">{row.subject}</span>
           <span className="text-xxs text-muted-foreground truncate">{row.comment}</span>
+          {row.strength && (
+            <span className="text-xxs text-emerald-700 truncate">
+              <span className="font-semibold">Strength:</span> {row.strength}
+            </span>
+          )}
+          {row.developmentArea && (
+            <span className="text-xxs text-amber-700 truncate">
+              <span className="font-semibold">Development area:</span> {row.developmentArea}
+            </span>
+          )}
+          {row.agreedAction && (
+            <span className="text-xxs text-primary truncate">
+              <span className="font-semibold">Agreed action:</span> {row.agreedAction}
+            </span>
+          )}
         </div>
       ),
     },
@@ -188,6 +226,18 @@ export const DeptFeedbackPanel: React.FC = () => {
             {'★'.repeat(row.rating)}
             {'☆'.repeat(5 - row.rating)}
           </span>
+        ) : (
+          <span className="text-xxs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: 'followUpRequired',
+      header: 'Follow-up',
+      render: (row) =>
+        row.followUpRequired ? (
+          <Badge variant="warning" size="sm">
+            {row.followUpDueDate ? `Due ${row.followUpDueDate}` : 'Required'}
+          </Badge>
         ) : (
           <span className="text-xxs text-muted-foreground">—</span>
         ),
@@ -305,6 +355,61 @@ export const DeptFeedbackPanel: React.FC = () => {
               onChange={(e) => setComment(e.target.value)}
               className="w-full h-24 p-3 bg-muted/40 border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Strength</label>
+              <textarea
+                placeholder="What is this teacher doing well?"
+                value={strength}
+                onChange={(e) => setStrength(e.target.value)}
+                className="w-full h-16 p-3 bg-muted/40 border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Development Area</label>
+              <textarea
+                placeholder="What should this teacher work on?"
+                value={developmentArea}
+                onChange={(e) => setDevelopmentArea(e.target.value)}
+                className="w-full h-16 p-3 bg-muted/40 border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1 text-left">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Agreed Action</label>
+            <textarea
+              placeholder="What did you and the teacher agree they'll do next?"
+              value={agreedAction}
+              onChange={(e) => setAgreedAction(e.target.value)}
+              className="w-full h-16 p-3 bg-muted/40 border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground">
+              <input
+                type="checkbox"
+                className="accent-primary"
+                checked={followUpRequired}
+                onChange={(e) => setFollowUpRequired(e.target.checked)}
+              />
+              Follow-up required?
+            </label>
+            {followUpRequired && (
+              <div className="space-y-1 text-left">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Due Date</label>
+                <input
+                  type="date"
+                  required
+                  value={followUpDueDate}
+                  onChange={(e) => setFollowUpDueDate(e.target.value)}
+                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter className="mt-6 border-t border-border/20 pt-4">

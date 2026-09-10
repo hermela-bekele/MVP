@@ -575,7 +575,12 @@ D. No inputs have outputs
 
 **Total Marks: 10**
 
-**Passing Score: 7/10 (70%)**`,
+**Passing Score: 7/10 (70%)**
+
+## Reflection After Assessment
+- Which of these questions revealed a gap between how you teach this topic and how it's formally defined?
+- What is one real classroom example you'll use next time you introduce relations and functions?
+- Which of your students struggle most with distinguishing a relation from a function, and why?`,
 
     assessmentQuestions: [
       { 

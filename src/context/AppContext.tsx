@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, {
   createContext,
@@ -7,9 +7,9 @@ import React, {
   useEffect,
   useCallback,
   useRef,
-} from 'react';
-import { api, ApiError, type BootstrapPayload } from '@/lib/api';
-import { toast } from '@/components/ui/toast';
+} from "react";
+import { api, ApiError, type BootstrapPayload } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 import {
   type DataSource,
   countOutbox,
@@ -20,8 +20,8 @@ import {
   readOfflineMeta,
   saveOfflineSnapshot,
   writeOfflineMeta,
-} from '@/lib/offlineStore';
-import { flushOfflineOutbox } from '@/lib/offlineSync';
+} from "@/lib/offlineStore";
+import { flushOfflineOutbox } from "@/lib/offlineSync";
 import {
   School,
   Region,
@@ -79,7 +79,7 @@ import {
   mockTeacherCheckInPrompts,
   mockStudentGradeEntries,
   mockRegistrationApplications,
-} from '@/lib/mockData';
+} from "@/lib/mockData";
 import {
   HrEmployee,
   LeaveRequest,
@@ -100,14 +100,20 @@ import {
   mockPerformanceReviews,
   mockOnboardingTasks,
   mockStaffAttendance,
-} from '@/lib/hrPortal';
-import { DEMO_TEACHER_ID, percentToGpa } from '@/lib/teacherPortal';
-import { readStoredCalendars, writeStoredCalendars } from '@/lib/calendarStorage';
-import { readStoredMoeCalendar, writeStoredMoeCalendar } from '@/lib/moeCalendarStorage';
+} from "@/lib/hrPortal";
+import { DEMO_TEACHER_ID, percentToGpa } from "@/lib/teacherPortal";
+import {
+  readStoredCalendars,
+  writeStoredCalendars,
+} from "@/lib/calendarStorage";
+import {
+  readStoredMoeCalendar,
+  writeStoredMoeCalendar,
+} from "@/lib/moeCalendarStorage";
 import {
   readStoredDeptHeadMessages,
   writeStoredDeptHeadMessages,
-} from '@/lib/deptHeadMessageStorage';
+} from "@/lib/deptHeadMessageStorage";
 import {
   type AuthUser,
   clearSession,
@@ -115,8 +121,13 @@ import {
   persistSession,
   readStoredEngine,
   readStoredSession,
-} from '@/lib/auth';
-import { type EngineId, defaultEngineForRole, enginesForRole, isEngineId } from '@/lib/engines';
+} from "@/lib/auth";
+import {
+  type EngineId,
+  defaultEngineForRole,
+  enginesForRole,
+  isEngineId,
+} from "@/lib/engines";
 
 export interface AppNotification {
   id: string;
@@ -124,7 +135,7 @@ export interface AppNotification {
   description: string;
   timestamp: string;
   read: boolean;
-  type: 'info' | 'alert' | 'success' | 'request';
+  type: "info" | "alert" | "success" | "request";
   /** Absolute or portal path for deep-link navigation, e.g. /dashboard/teacher/communication */
   linkPath?: string;
 }
@@ -139,9 +150,9 @@ interface AppContextType {
   activeEngine: EngineId | null;
   setEngine: (engine: EngineId) => void;
   resolveTeacherId: () => string;
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   toggleTheme: () => void;
-  
+
   // Tables
   schools: School[];
   regions: Region[];
@@ -149,6 +160,8 @@ interface AppContextType {
   students: Student[];
   lessonPlans: LessonPlan[];
   assessments: Assessment[];
+  /** Department ids the signed-in teacher is a designated Mid/Final Exam reviewer for. */
+  reviewerDepartmentIds: string[];
   attendance: Attendance[];
   trainings: TeacherTraining[];
   checkIns: SchoolCheckIn[];
@@ -183,81 +196,180 @@ interface AppContextType {
   onboardingTasks: OnboardingTask[];
   staffAttendance: StaffAttendanceRecord[];
   notifications: AppNotification[];
-  
+
   // Actions
   addRegion: (name: string) => Promise<Region>;
   updateRegionName: (id: string, name: string) => Promise<Region>;
   connectSchool: (body: {
-    name: string; region: string; type: 'Public' | 'Private'; principal: string;
-    email: string; phone?: string; capacity?: number; emisId?: string;
-    adminName: string; adminEmail: string; confirmDuplicate?: boolean;
-  }) => Promise<{ school: School; admin: { id: string; email: string; displayName: string; temporaryPassword: string } }>;
-  updateSchoolIntegrationStatus: (id: string, status: 'Active' | 'Suspended') => Promise<School>;
-  updateSchool: (id: string, patch: Partial<Pick<School, 'name' | 'principal' | 'email' | 'phone' | 'region'>>) => Promise<School>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
-  approveLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
-  rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
-  approveAssessment: (id: string, comments: string) => void;
-  rejectAssessment: (id: string, comments: string) => void;
-  createLessonPlan: (plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => void;
+    name: string;
+    region: string;
+    type: "Public" | "Private";
+    principal: string;
+    email: string;
+    phone?: string;
+    capacity?: number;
+    emisId?: string;
+    adminName: string;
+    adminEmail: string;
+    confirmDuplicate?: boolean;
+  }) => Promise<{
+    school: School;
+    admin: {
+      id: string;
+      email: string;
+      displayName: string;
+      temporaryPassword: string;
+    };
+  }>;
+  updateSchoolIntegrationStatus: (
+    id: string,
+    status: "Active" | "Suspended",
+  ) => Promise<School>;
+  updateSchool: (
+    id: string,
+    patch: Partial<
+      Pick<School, "name" | "principal" | "email" | "phone" | "region">
+    >,
+  ) => Promise<School>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
+  approveLessonPlan: (
+    id: string,
+    role: "dept" | "school",
+    comments: string,
+  ) => void;
+  /** returnReasonCategory is required in practice whenever role is 'dept' — the HoD's
+   * return dialog blocks submission until one is chosen. */
+  rejectLessonPlan: (
+    id: string,
+    role: "dept" | "school",
+    comments: string,
+    returnReasonCategory?: string,
+  ) => void;
+  approveAssessment: (
+    id: string,
+    comments: string,
+    moderationRubric?: Record<string, string>,
+  ) => void;
+  rejectAssessment: (
+    id: string,
+    comments: string,
+    moderationRubric?: Record<string, string>,
+  ) => void;
+  /** Publishes a 'Pending Reviewer' Mid/Final Exam to the rest of the department's teachers. */
+  disseminateAssessment: (id: string) => void;
+  createLessonPlan: (
+    plan: Omit<
+      LessonPlan,
+      "id" | "teacherId" | "teacherName" | "status" | "version" | "createdAt"
+    >,
+  ) => void;
   createAssessment: (
-    asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
-      createdByRole?: Assessment['createdByRole'];
+    asm: Omit<
+      Assessment,
+      "id" | "teacherId" | "teacherName" | "status" | "createdAt"
+    > & {
+      createdByRole?: Assessment["createdByRole"];
       teacherName?: string;
       teacherId?: string;
-    }
+    },
   ) => void;
-  updateAssessmentQuestions: (id: string, questions: Assessment['questions']) => void;
+  updateAssessmentQuestions: (
+    id: string,
+    questions: Assessment["questions"],
+  ) => void;
   saveAttendance: (
-    records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[],
+    records: {
+      studentId: string;
+      status: "Present" | "Absent" | "Late";
+      remarks?: string;
+    }[],
     timetableSlotId?: string,
   ) => void;
-  enrollStudent: (student: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => void;
+  enrollStudent: (
+    student: Omit<
+      Student,
+      "id" | "studentId" | "gpa" | "attendanceRate" | "status"
+    >,
+  ) => void;
   submitRegistrationApplication: (
-    app: Omit<RegistrationApplication, 'id' | 'status' | 'submittedAt'>
+    app: Omit<RegistrationApplication, "id" | "status" | "submittedAt">,
   ) => void;
   updateRegistrationApplication: (
     id: string,
-    updates: Partial<RegistrationApplication>
+    updates: Partial<RegistrationApplication>,
   ) => void;
   reviewRegistrationApplication: (
     id: string,
     status: RegistrationApplicationStatus,
-    reviewerNotes?: string
+    reviewerNotes?: string,
   ) => void;
   enrollFromApplication: (applicationId: string) => void;
-  addHrEmployee: (employee: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>) => Promise<HrEmployee>;
+  addHrEmployee: (
+    employee: Omit<HrEmployee, "id" | "employeeId" | "schoolId">,
+  ) => Promise<HrEmployee>;
   updateHrEmployee: (id: string, updates: Partial<HrEmployee>) => void;
   toggleHrEmployeeStatus: (id: string) => void;
-  submitLeaveRequest: (request: Omit<LeaveRequest, 'id' | 'status' | 'submittedAt'>) => void;
-  reviewLeaveRequest: (id: string, status: LeaveStatus, reviewerNotes?: string) => void;
+  submitLeaveRequest: (
+    request: Omit<LeaveRequest, "id" | "status" | "submittedAt">,
+  ) => void;
+  reviewLeaveRequest: (
+    id: string,
+    status: LeaveStatus,
+    reviewerNotes?: string,
+  ) => void;
   processPayroll: (employeeId: string, month: string) => void;
   updatePayrollStatus: (id: string, status: PayrollStatus) => void;
-  addJobPosting: (posting: Omit<JobPosting, 'id' | 'postedAt' | 'applicantCount'>) => void;
+  addJobPosting: (
+    posting: Omit<JobPosting, "id" | "postedAt" | "applicantCount">,
+  ) => void;
   updateJobPosting: (id: string, updates: Partial<JobPosting>) => void;
-  updateJobApplication: (id: string, status: ApplicationStatus, notes?: string) => void;
-  addPerformanceReview: (review: Omit<PerformanceReview, 'id' | 'status'>) => void;
-  updatePerformanceReview: (id: string, updates: Partial<PerformanceReview>) => void;
-  addOnboardingTask: (task: Omit<OnboardingTask, 'id' | 'completed'>) => void;
+  updateJobApplication: (
+    id: string,
+    status: ApplicationStatus,
+    notes?: string,
+  ) => void;
+  addPerformanceReview: (
+    review: Omit<PerformanceReview, "id" | "status">,
+  ) => void;
+  updatePerformanceReview: (
+    id: string,
+    updates: Partial<PerformanceReview>,
+  ) => void;
+  addOnboardingTask: (task: Omit<OnboardingTask, "id" | "completed">) => void;
   toggleOnboardingTask: (id: string) => void;
   recordStaffAttendance: (
-    record: Omit<StaffAttendanceRecord, 'id' | 'employeeName'> & { employeeName?: string }
+    record: Omit<StaffAttendanceRecord, "id" | "employeeName"> & {
+      employeeName?: string;
+    },
   ) => void;
   updateStudent: (id: string, updates: Partial<Student>) => void;
   updateStudentGrade: (id: string, newGpa: number) => void;
-  addTeacher: (teacher: Omit<Teacher, 'id' | 'status' | 'trainingProgress'>) => void;
+  addTeacher: (
+    teacher: Omit<Teacher, "id" | "status" | "trainingProgress">,
+  ) => void;
   updateTeacher: (id: string, updates: Partial<Teacher>) => void;
   toggleTeacherStatus: (id: string) => void;
   submitSelfAssessment: (
-    data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>
+    data: Omit<TeacherSelfAssessment, "id" | "submittedAt">,
   ) => void;
   assignTrainingModule: (
     data: Omit<
       TeacherTrainingAssignment,
-      'id' | 'createdAt' | 'status' | 'sessionsCompleted' | 'reflectionSubmitted' | 'overdue'
-    > & { dueDate?: string; sessionsTotal?: number }
+      | "id"
+      | "createdAt"
+      | "status"
+      | "sessionsCompleted"
+      | "reflectionSubmitted"
+      | "overdue"
+    > & { dueDate?: string; sessionsTotal?: number },
   ) => void;
-  updateTrainingAssignmentStatus: (id: string, status: TeacherTrainingAssignment['status']) => void;
+  updateTrainingAssignmentStatus: (
+    id: string,
+    status: TeacherTrainingAssignment["status"],
+  ) => void;
   updateTrainingAssignmentProgress: (
     id: string,
     progress: {
@@ -267,10 +379,15 @@ interface AppContextType {
       assessmentPassed?: boolean;
       reflectionSubmitted?: boolean;
       reflectionAnswers?: Record<number, string>;
-    }
+    },
   ) => Promise<TeacherTrainingAssignment | void>;
   addDepartment: (name: string, headName: string) => void;
-  addClass: (name: string, grade: string, section: string, homeroomTeacher: string) => void;
+  addClass: (
+    name: string,
+    grade: string,
+    section: string,
+    homeroomTeacher: string,
+  ) => void;
   approveExam: (id: string, comments: string) => void;
   rejectExam: (id: string, comments: string) => void;
   addTrainingMaterial: (data: {
@@ -278,8 +395,8 @@ interface AppContextType {
     description?: string;
     resourceUrl: string;
     category: string;
-    audience?: TrainingMaterial['audience'];
-    trainingType?: TrainingMaterial['trainingType'];
+    audience?: TrainingMaterial["audience"];
+    trainingType?: TrainingMaterial["trainingType"];
     departmentId?: string;
     grade?: string;
     subject?: string;
@@ -288,92 +405,155 @@ interface AppContextType {
   addTrainingPlan: (data: {
     title: string;
     description?: string;
-    type: TrainingPlan['type'];
+    type: TrainingPlan["type"];
     category?: string;
-    audience?: TrainingPlan['audience'];
+    audience?: TrainingPlan["audience"];
     startDate: string;
     endDate?: string;
     location?: string;
     facilitator?: string;
     createdByName: string;
   }) => void;
-  updateTrainingPlanStatus: (id: string, status: TrainingPlan['status']) => void;
+  updateTrainingPlanStatus: (
+    id: string,
+    status: TrainingPlan["status"],
+  ) => void;
   assignTrainingPlan: (
     planId: string,
-    data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+    data: {
+      targetType: "teacher" | "department";
+      teacherId?: string;
+      departmentId?: string;
+      assignedByName: string;
+    },
   ) => void;
   removeTrainingPlanAssignment: (id: string) => void;
   updateTrainingPlanAssignment: (
     id: string,
-    updates: { attended?: boolean; impactRating?: number; impactNotes?: string },
+    updates: {
+      attended?: boolean;
+      impactRating?: number;
+      impactNotes?: string;
+    },
   ) => void;
   addCheckInTemplate: (
     title: string,
-    type: SchoolCheckIn['type'],
+    type: SchoolCheckIn["type"],
     respondentName: string,
     rating: number,
     comment: string,
     confidentiality: SchoolCheckInConfidentiality,
   ) => void;
-  updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
+  updateLessonPlan: (
+    id: string,
+    title: string,
+    objectives: string[],
+    sessions: number,
+    homework: string,
+    planDetail?: string,
+  ) => void;
   distributeLessonPlan: (id: string) => void;
   createTeachingNote: (
-    note: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>,
-    status?: TeachingNote['status']
+    note: Omit<
+      TeachingNote,
+      "id" | "teacherId" | "status" | "createdAt" | "updatedAt"
+    >,
+    status?: TeachingNote["status"],
   ) => string;
   updateTeachingNote: (id: string, updates: Partial<TeachingNote>) => void;
   deleteTeachingNote: (id: string) => void;
   approveTeachingNote: (id: string, comments: string) => void;
   rejectTeachingNote: (id: string, comments: string) => void;
   createAcademicCalendar: (
-    calendar: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>
+    calendar: Omit<
+      AcademicCalendar,
+      "id" | "schoolId" | "status" | "createdAt" | "publishedAt"
+    >,
   ) => string;
   updateAcademicCalendar: (
     id: string,
-    updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>
+    updates: Partial<Omit<AcademicCalendar, "id" | "schoolId" | "createdAt">>,
   ) => void;
   publishAcademicCalendar: (id: string) => void;
-  saveMoeCalendarDraft: (events: AcademicCalendarEvent[], title: string, academicYear: string) => Promise<MoeCalendarDraft | undefined>;
+  saveMoeCalendarDraft: (
+    events: AcademicCalendarEvent[],
+    title: string,
+    academicYear: string,
+  ) => Promise<MoeCalendarDraft | undefined>;
   disseminateMoeCalendar: (calendarId?: string) => void;
   createDeptAnnualLessonPlan: (
-    plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
+    plan: Omit<
+      LessonPlan,
+      | "id"
+      | "teacherId"
+      | "teacherName"
+      | "status"
+      | "version"
+      | "createdAt"
+      | "planType"
+      | "createdByRole"
+    >,
   ) => void;
   updateDeptAnnualLessonPlan: (
     id: string,
-    plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
+    plan: Omit<
+      LessonPlan,
+      | "id"
+      | "teacherId"
+      | "teacherName"
+      | "status"
+      | "version"
+      | "createdAt"
+      | "planType"
+      | "createdByRole"
+    >,
   ) => void;
   deleteLessonPlan: (id: string) => void;
   upsertStudentGradeEntry: (
-    entry: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
+    entry: Omit<StudentGradeEntry, "id" | "teacherId" | "recordedAt"> & {
+      id?: string;
+    },
   ) => void;
   deleteStudentGradeEntry: (id: string) => void;
   recalculateStudentGpaFromGrades: (studentId: string) => void;
   addTeacherResource: (
-    resource: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt' | 'status'>
+    resource: Omit<
+      TeacherResource,
+      "id" | "teacherId" | "downloads" | "createdAt" | "status"
+    >,
   ) => void;
   respondToTeacherCheckIn: (id: string, response: string) => void;
   sendParentMessage: (
-    msg: Omit<ParentMessage, 'id' | 'teacherId' | 'sentAt'>
+    msg: Omit<ParentMessage, "id" | "teacherId" | "sentAt">,
   ) => void;
   addStudentFeedback: (
-    feedback: Omit<TeacherFeedback, 'id' | 'teacherId' | 'direction' | 'authorName' | 'date'>
+    feedback: Omit<
+      TeacherFeedback,
+      "id" | "teacherId" | "direction" | "authorName" | "date"
+    >,
   ) => void;
   giveTeacherFeedback: (input: {
     teacherId: string;
-    authorRole: 'peer' | 'department-head';
+    authorRole: "peer" | "department-head";
     /** FB-003: only meaningful when authorRole is 'department-head' — peer feedback is
      * always 'informal_peer', derived server-side. */
-    category?: 'coaching' | 'classroom_observation' | 'formal_performance';
+    category?: "coaching" | "classroom_observation" | "formal_performance";
     subject: string;
     comment: string;
     rating?: number;
+    /** FB-004: structured coaching/observation fields — 'department-head' only. */
+    strength?: string;
+    developmentArea?: string;
+    agreedAction?: string;
+    followUpRequired?: boolean;
+    followUpDueDate?: string;
   }) => void;
   markLessonDelivered: (payload: {
     teachingNoteId: string;
     lessonPlanId?: string;
     graspOutcome: GraspOutcome;
     challengeText?: string;
-    postTo: 'hod' | 'community' | 'both' | 'none';
+    postTo: "hod" | "community" | "both" | "none";
     communityId?: string;
     channelId?: string;
   }) => Promise<void>;
@@ -383,29 +563,39 @@ interface AppContextType {
     subject?: string;
     grade?: string;
   }) => Promise<void>;
-  replyToCommunityPost: (postId: string, body: string, parentReplyId?: string) => Promise<void>;
+  replyToCommunityPost: (
+    postId: string,
+    body: string,
+    parentReplyId?: string,
+  ) => Promise<void>;
   sendStaffMessage: (payload: {
     teacherId: string;
     body: string;
-    senderRole: 'teacher' | 'department-head';
+    senderRole: "teacher" | "department-head";
   }) => Promise<void>;
-  refreshStaffMessages: (params?: { teacherId?: string; departmentId?: string }) => Promise<void>;
-  markStaffMessagesRead: (teacherId: string, readerRole: 'teacher' | 'department-head') => void;
+  refreshStaffMessages: (params?: {
+    teacherId?: string;
+    departmentId?: string;
+  }) => Promise<void>;
+  markStaffMessagesRead: (
+    teacherId: string,
+    readerRole: "teacher" | "department-head",
+  ) => void;
   sendDeptHeadMessage: (payload: {
     departmentId: string;
     body: string;
-    senderRole: 'department-head' | 'school-head';
+    senderRole: "department-head" | "school-head";
   }) => void;
   markDeptHeadMessagesRead: (
     departmentId: string,
-    readerRole: 'department-head' | 'school-head',
+    readerRole: "department-head" | "school-head",
   ) => void;
   addNotification: (
     title: string,
     description: string,
-    type: AppNotification['type'],
+    type: AppNotification["type"],
     linkPath?: string,
-    scope?: 'self' | 'school'
+    scope?: "self" | "school",
   ) => void;
   markNotificationAsRead: (id: string) => void;
   markNotificationAsUnread: (id: string) => void;
@@ -427,28 +617,34 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       return readStoredSession();
     }
     return null;
   });
   const [authReady, setAuthReady] = useState(false);
   const [activeRole, setActiveRoleState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const savedUser = readStoredSession();
       if (savedUser) return savedUser.role;
     }
-    return 'login';
+    return "login";
   });
   const [activeEngine, setActiveEngineState] = useState<EngineId | null>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const savedUser = readStoredSession();
       if (savedUser) {
         const allowedEngines = enginesForRole(savedUser.role);
         const storedEngine = readStoredEngine();
-        if (storedEngine && isEngineId(storedEngine) && allowedEngines.includes(storedEngine)) {
+        if (
+          storedEngine &&
+          isEngineId(storedEngine) &&
+          allowedEngines.includes(storedEngine)
+        ) {
           return storedEngine;
         }
         return defaultEngineForRole(savedUser.role);
@@ -456,17 +652,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return null;
   });
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       return navigator.onLine;
     }
     return true;
   });
-  const [dataSource, setDataSource] = useState<DataSource>(() => readOfflineMeta().dataSource);
+  const [dataSource, setDataSource] = useState<DataSource>(
+    () => readOfflineMeta().dataSource,
+  );
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(
     () => readOfflineMeta().lastSyncedAt,
   );
@@ -477,6 +675,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     dataSourceRef.current = dataSource;
   }, [dataSource]);
+  const currentUserRef = useRef<AuthUser | null>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   // Collections state (loaded from PostgreSQL API)
   const [schools, setSchools] = useState<School[]>([]);
@@ -485,62 +687,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [students, setStudents] = useState<Student[]>([]);
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [reviewerDepartmentIds, setReviewerDepartmentIds] = useState<string[]>(
+    [],
+  );
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [trainings, setTrainings] = useState<TeacherTraining[]>([]);
   const [checkIns, setCheckIns] = useState<SchoolCheckIn[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [exams, setExams] = useState<ExamPaper[]>([]);
-  const [trainingMaterials, setTrainingMaterials] = useState<TrainingMaterial[]>([]);
+  const [trainingMaterials, setTrainingMaterials] = useState<
+    TrainingMaterial[]
+  >([]);
   const [trainingPlans, setTrainingPlans] = useState<TrainingPlan[]>([]);
-  const [trainingPlanAssignments, setTrainingPlanAssignments] = useState<TrainingPlanAssignment[]>([]);
+  const [trainingPlanAssignments, setTrainingPlanAssignments] = useState<
+    TrainingPlanAssignment[]
+  >([]);
   const [teachingNotes, setTeachingNotes] = useState<TeachingNote[]>([]);
-  const [academicCalendars, setAcademicCalendars] = useState<AcademicCalendar[]>(() =>
-    typeof window !== 'undefined' ? readStoredCalendars() : [],
-  );
+  const [academicCalendars, setAcademicCalendars] = useState<
+    AcademicCalendar[]
+  >(() => (typeof window !== "undefined" ? readStoredCalendars() : []));
   const [moeCalendar, setMoeCalendar] = useState<MoeCalendarDraft | null>(() =>
-    typeof window !== 'undefined' ? readStoredMoeCalendar() : null,
+    typeof window !== "undefined" ? readStoredMoeCalendar() : null,
   );
-  const [teacherResources, setTeacherResources] = useState<TeacherResource[]>([]);
-  const [teacherFeedbacks, setTeacherFeedbacks] = useState<TeacherFeedback[]>([]);
+  const [teacherResources, setTeacherResources] = useState<TeacherResource[]>(
+    [],
+  );
+  const [teacherFeedbacks, setTeacherFeedbacks] = useState<TeacherFeedback[]>(
+    [],
+  );
   const [parentMessages, setParentMessages] = useState<ParentMessage[]>([]);
-  const [teacherCheckInPrompts, setTeacherCheckInPrompts] =
-    useState<TeacherCheckInPrompt[]>([]);
-  const [studentGradeEntries, setStudentGradeEntries] =
-    useState<StudentGradeEntry[]>([]);
-  const [lessonDeliveries, setLessonDeliveries] = useState<LessonDelivery[]>([]);
-  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
-  const [communityReplies, setCommunityReplies] = useState<CommunityReply[]>([]);
-  const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([]);
-  const [deptHeadMessages, setDeptHeadMessages] = useState<DeptHeadMessage[]>(() =>
-    typeof window !== 'undefined' ? readStoredDeptHeadMessages() : [],
+  const [teacherCheckInPrompts, setTeacherCheckInPrompts] = useState<
+    TeacherCheckInPrompt[]
+  >([]);
+  const [studentGradeEntries, setStudentGradeEntries] = useState<
+    StudentGradeEntry[]
+  >([]);
+  const [lessonDeliveries, setLessonDeliveries] = useState<LessonDelivery[]>(
+    [],
   );
-  const [teacherSelfAssessments, setTeacherSelfAssessments] =
-    useState<TeacherSelfAssessment[]>([]);
-  const [teacherTrainingAssignments, setTeacherTrainingAssignments] =
-    useState<TeacherTrainingAssignment[]>([]);
-  const [registrationApplications, setRegistrationApplications] =
-    useState<RegistrationApplication[]>([]);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
+  const [communityReplies, setCommunityReplies] = useState<CommunityReply[]>(
+    [],
+  );
+  const [staffMessages, setStaffMessages] = useState<StaffMessage[]>([]);
+  const [deptHeadMessages, setDeptHeadMessages] = useState<DeptHeadMessage[]>(
+    () => (typeof window !== "undefined" ? readStoredDeptHeadMessages() : []),
+  );
+  const [teacherSelfAssessments, setTeacherSelfAssessments] = useState<
+    TeacherSelfAssessment[]
+  >([]);
+  const [teacherTrainingAssignments, setTeacherTrainingAssignments] = useState<
+    TeacherTrainingAssignment[]
+  >([]);
+  const [registrationApplications, setRegistrationApplications] = useState<
+    RegistrationApplication[]
+  >([]);
   const [hrEmployees, setHrEmployees] = useState<HrEmployee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
-  const [performanceReviews, setPerformanceReviews] = useState<PerformanceReview[]>([]);
+  const [performanceReviews, setPerformanceReviews] = useState<
+    PerformanceReview[]
+  >([]);
   const [onboardingTasks, setOnboardingTasks] = useState<OnboardingTask[]>([]);
-  const [staffAttendance, setStaffAttendance] = useState<StaffAttendanceRecord[]>([]);
+  const [staffAttendance, setStaffAttendance] = useState<
+    StaffAttendanceRecord[]
+  >([]);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const applyMockFallback = useCallback(() => {
     setSchools(mockSchools);
     setRegions([
-      { id: 'reg-addis-ababa', name: 'Addis Ababa' },
-      { id: 'reg-oromia', name: 'Oromia' },
-      { id: 'reg-amhara', name: 'Amhara' },
-      { id: 'reg-tigray', name: 'Tigray' },
-      { id: 'reg-sidama', name: 'Sidama' },
-      { id: 'reg-snnpr', name: 'SNNPR' },
+      { id: "reg-addis-ababa", name: "Addis Ababa" },
+      { id: "reg-oromia", name: "Oromia" },
+      { id: "reg-amhara", name: "Amhara" },
+      { id: "reg-tigray", name: "Tigray" },
+      { id: "reg-sidama", name: "Sidama" },
+      { id: "reg-snnpr", name: "SNNPR" },
     ]);
     setTeachers(mockTeachers);
     setStudents(mockStudents);
@@ -580,69 +806,98 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOnboardingTasks(mockOnboardingTasks);
     setStaffAttendance(mockStaffAttendance);
     setNotifications([
-      { id: 'not-1', title: 'New Lesson Plan Submitted', description: 'Martha Feyissa submitted a Biology lesson plan for approval.', timestamp: '10 mins ago', read: false, type: 'request' },
-      { id: 'not-2', title: 'National Exam Schedule', description: 'MOE published Grade 12 National Exam timelines for June.', timestamp: '1 hour ago', read: false, type: 'info' },
-      { id: 'not-3', title: 'Low Attendance Alert', description: 'Student Yonas Kassa attendance has dropped below 86%.', timestamp: '2 hours ago', read: false, type: 'alert' },
+      {
+        id: "not-1",
+        title: "New Lesson Plan Submitted",
+        description:
+          "Martha Feyissa submitted a Biology lesson plan for approval.",
+        timestamp: "10 mins ago",
+        read: false,
+        type: "request",
+      },
+      {
+        id: "not-2",
+        title: "National Exam Schedule",
+        description: "MOE published Grade 12 National Exam timelines for June.",
+        timestamp: "1 hour ago",
+        read: false,
+        type: "info",
+      },
+      {
+        id: "not-3",
+        title: "Low Attendance Alert",
+        description: "Student Yonas Kassa attendance has dropped below 86%.",
+        timestamp: "2 hours ago",
+        read: false,
+        type: "alert",
+      },
     ]);
-    setDataSource('mock');
-    writeOfflineMeta({ dataSource: 'mock' });
+    setDataSource("mock");
+    writeOfflineMeta({ dataSource: "mock" });
   }, []);
 
-  const applyBootstrapPayload = useCallback((data: BootstrapPayload, source: DataSource) => {
-    setSchools(data.schools ?? []);
-    setRegions(data.regions ?? []);
-    setTeachers(data.teachers ?? []);
-    setStudents(data.students ?? []);
-    setLessonPlans(data.lessonPlans ?? []);
-    setAssessments(data.assessments ?? []);
-    setAttendance(data.attendance ?? []);
-    setTrainings(data.trainings ?? []);
-    setCheckIns(data.checkIns ?? []);
-    setDepartments(data.departments ?? []);
-    setClasses(data.classes ?? []);
-    setExams(data.exams ?? []);
-    setTrainingMaterials(data.trainingMaterials ?? []);
-    setTrainingPlans(data.trainingPlans ?? []);
-    setTrainingPlanAssignments(data.trainingPlanAssignments ?? []);
-    setTeachingNotes(data.teachingNotes ?? []);
-    const apiCalendars = data.academicCalendars ?? [];
-    const storedCalendars = readStoredCalendars();
-    const mergedCalendars =
-      apiCalendars.length > 0
-        ? apiCalendars
-        : storedCalendars.length > 0
-          ? storedCalendars
-          : mockAcademicCalendars;
-    setAcademicCalendars(mergedCalendars);
-    writeStoredCalendars(mergedCalendars);
-    setMoeCalendar(data.moeCalendar ?? null);
-    setTeacherResources(data.teacherResources ?? []);
-    setTeacherFeedbacks(data.teacherFeedbacks ?? []);
-    setParentMessages(data.parentMessages ?? []);
-    setTeacherCheckInPrompts(data.teacherCheckInPrompts ?? []);
-    setStudentGradeEntries(data.studentGradeEntries ?? []);
-    setLessonDeliveries(data.lessonDeliveries ?? []);
-    setCommunityPosts(data.communityPosts ?? []);
-    setCommunityReplies(data.communityReplies ?? []);
-    setStaffMessages(data.staffMessages ?? []);
-    setTeacherSelfAssessments(data.teacherSelfAssessments ?? []);
-    setTeacherTrainingAssignments(data.teacherTrainingAssignments ?? []);
-    setNotifications((data.notifications ?? []) as AppNotification[]);
-    setRegistrationApplications(mockRegistrationApplications);
-    setHrEmployees(data.hrEmployees ?? []);
-    setLeaveRequests(data.leaveRequests ?? []);
-    setPayrollRecords(data.payrollRecords ?? []);
-    setJobPostings(data.jobPostings ?? []);
-    setJobApplications(data.jobApplications ?? []);
-    setPerformanceReviews(data.performanceReviews ?? []);
-    setOnboardingTasks(data.onboardingTasks ?? []);
-    setStaffAttendance(data.staffAttendance ?? []);
-    setDataSource(source);
-    writeOfflineMeta({ dataSource: source });
-  }, []);
+  const applyBootstrapPayload = useCallback(
+    (data: BootstrapPayload, source: DataSource) => {
+      setSchools(data.schools ?? []);
+      setRegions(data.regions ?? []);
+      setTeachers(data.teachers ?? []);
+      setStudents(data.students ?? []);
+      setLessonPlans(data.lessonPlans ?? []);
+      setAssessments(data.assessments ?? []);
+      setAttendance(data.attendance ?? []);
+      setTrainings(data.trainings ?? []);
+      setCheckIns(data.checkIns ?? []);
+      setDepartments(data.departments ?? []);
+      setClasses(data.classes ?? []);
+      setExams(data.exams ?? []);
+      setTrainingMaterials(data.trainingMaterials ?? []);
+      setTrainingPlans(data.trainingPlans ?? []);
+      setTrainingPlanAssignments(data.trainingPlanAssignments ?? []);
+      setTeachingNotes(data.teachingNotes ?? []);
+      const apiCalendars = data.academicCalendars ?? [];
+      const storedCalendars = readStoredCalendars();
+      const mergedCalendars =
+        apiCalendars.length > 0
+          ? apiCalendars
+          : storedCalendars.length > 0
+            ? storedCalendars
+            : mockAcademicCalendars;
+      setAcademicCalendars(mergedCalendars);
+      writeStoredCalendars(mergedCalendars);
+      setMoeCalendar(data.moeCalendar ?? null);
+      setTeacherResources(data.teacherResources ?? []);
+      setTeacherFeedbacks(data.teacherFeedbacks ?? []);
+      setParentMessages(data.parentMessages ?? []);
+      setTeacherCheckInPrompts(data.teacherCheckInPrompts ?? []);
+      setStudentGradeEntries(data.studentGradeEntries ?? []);
+      setLessonDeliveries(data.lessonDeliveries ?? []);
+      setCommunityPosts(data.communityPosts ?? []);
+      setCommunityReplies(data.communityReplies ?? []);
+      setStaffMessages(data.staffMessages ?? []);
+      setTeacherSelfAssessments(data.teacherSelfAssessments ?? []);
+      setTeacherTrainingAssignments(data.teacherTrainingAssignments ?? []);
+      setNotifications((data.notifications ?? []) as AppNotification[]);
+      setRegistrationApplications(mockRegistrationApplications);
+      setHrEmployees(data.hrEmployees ?? []);
+      setLeaveRequests(data.leaveRequests ?? []);
+      setPayrollRecords(data.payrollRecords ?? []);
+      setJobPostings(data.jobPostings ?? []);
+      setJobApplications(data.jobApplications ?? []);
+      setPerformanceReviews(data.performanceReviews ?? []);
+      setOnboardingTasks(data.onboardingTasks ?? []);
+      setStaffAttendance(data.staffAttendance ?? []);
+      setDataSource(source);
+      writeOfflineMeta({ dataSource: source });
+    },
+    [],
+  );
 
   const snapshotUserKey = useCallback(() => {
-    return currentUser?.email?.toLowerCase() || readStoredSession()?.email?.toLowerCase() || 'anon';
+    return (
+      currentUser?.email?.toLowerCase() ||
+      readStoredSession()?.email?.toLowerCase() ||
+      "anon"
+    );
   }, [currentUser]);
 
   const buildSnapshotPayload = useCallback((): BootstrapPayload => {
@@ -684,14 +939,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       performanceReviews,
       onboardingTasks,
       staffAttendance,
-      notifications: notifications.map(({ id, title, description, timestamp, read, type }) => ({
-        id,
-        title,
-        description,
-        timestamp,
-        read,
-        type,
-      })),
+      notifications: notifications.map(
+        ({ id, title, description, timestamp, read, type }) => ({
+          id,
+          title,
+          description,
+          timestamp,
+          read,
+          type,
+        }),
+      ),
     };
   }, [
     schools,
@@ -735,7 +992,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const buildSnapshotPayloadRef = useRef(buildSnapshotPayload);
   const snapshotUserKeyRef = useRef(snapshotUserKey);
-  
+
   useEffect(() => {
     buildSnapshotPayloadRef.current = buildSnapshotPayload;
     snapshotUserKeyRef.current = snapshotUserKey;
@@ -743,7 +1000,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const persistPortalSnapshot = useCallback(
     async (payload?: BootstrapPayload, syncedAt?: string) => {
-      if (dataSourceRef.current === 'mock') return;
+      if (dataSourceRef.current === "mock") return;
       const savedAt = syncedAt ?? new Date().toISOString();
       await saveOfflineSnapshot(
         {
@@ -768,6 +1025,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     writeOfflineMeta({ pendingCount: n });
   }, []);
 
+  const refreshReviewerDepartments = useCallback((role?: string | null) => {
+    if (role !== "teacher") {
+      setReviewerDepartmentIds([]);
+      return;
+    }
+    void api
+      .listMyAssessmentReviewerDepartments()
+      .then((rows) =>
+        setReviewerDepartmentIds(
+          (rows as { departmentId: string }[]).map((r) => r.departmentId),
+        ),
+      )
+      .catch(() => {});
+  }, []);
+
   const refreshFromApi = useCallback(async () => {
     setIsDataLoading(true);
     const online = isBrowserOnline();
@@ -776,9 +1048,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const hydrateFromCache = async (reason: string) => {
       const snap = await loadOfflineSnapshot(snapshotUserKeyRef.current());
       if (snap?.payload) {
-        applyBootstrapPayload(snap.payload, 'offline-cache');
+        applyBootstrapPayload(snap.payload, "offline-cache");
         setLastSyncedAt(snap.savedAt);
-        writeOfflineMeta({ lastSyncedAt: snap.savedAt, dataSource: 'offline-cache' });
+        writeOfflineMeta({
+          lastSyncedAt: snap.savedAt,
+          dataSource: "offline-cache",
+        });
         setDataError(reason);
         await refreshPendingCount();
         return true;
@@ -789,12 +1064,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       if (!online) {
         const ok = await hydrateFromCache(
-          'Offline — showing the last portal data saved on this device.',
+          "Offline — showing the last portal data saved on this device.",
         );
         if (!ok) {
           applyMockFallback();
           setDataError(
-            'Offline and no saved portal data on this device. Connect once to download your school data.',
+            "Offline and no saved portal data on this device. Connect once to download your school data.",
           );
         }
         return;
@@ -802,24 +1077,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const data = await api.bootstrap();
       const syncedAt = new Date().toISOString();
-      applyBootstrapPayload(data, 'api');
+      applyBootstrapPayload(data, "api");
       setLastSyncedAt(syncedAt);
       setDataError(null);
       await persistPortalSnapshot(data, syncedAt);
+      refreshReviewerDepartments(currentUserRef.current?.role);
 
       const { flushed, remaining, dropped } = await flushOfflineOutbox();
       setPendingSyncCount(remaining);
       if (dropped.length > 0) {
         addNotification(
-          'Some offline changes could not be saved',
-          `${dropped.length} change${dropped.length === 1 ? '' : 's'} made while offline were rejected by the server (${dropped[0].error}) and have been discarded rather than left stuck. You may need to redo ${dropped.length === 1 ? 'it' : 'them'}.`,
-          'alert',
+          "Some offline changes could not be saved",
+          `${dropped.length} change${dropped.length === 1 ? "" : "s"} made while offline were rejected by the server (${dropped[0].error}) and have been discarded rather than left stuck. You may need to redo ${dropped.length === 1 ? "it" : "them"}.`,
+          "alert",
         );
       }
       if (flushed > 0) {
         try {
           const fresh = await api.bootstrap();
-          applyBootstrapPayload(fresh, 'api');
+          applyBootstrapPayload(fresh, "api");
           await persistPortalSnapshot(fresh, new Date().toISOString());
         } catch {
           /* keep post-flush state */
@@ -827,18 +1103,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch {
       const ok = await hydrateFromCache(
-        'Server unreachable — showing saved portal data from this device.',
+        "Server unreachable — showing saved portal data from this device.",
       );
       if (!ok) {
         applyMockFallback();
         setDataError(
-          'API unavailable — live data could not be loaded. Start the server on port 3004.',
+          "API unavailable — live data could not be loaded. Start the server on port 3004.",
         );
       }
     } finally {
       setIsDataLoading(false);
     }
-  }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount]);
+  }, [
+    applyBootstrapPayload,
+    applyMockFallback,
+    persistPortalSnapshot,
+    refreshPendingCount,
+    refreshReviewerDepartments,
+  ]);
 
   useEffect(() => {
     // /bootstrap now requires auth (PR-002) — an anonymous mount (e.g. the login
@@ -850,7 +1132,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Track browser online/offline and sync when connectivity returns
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const onOnline = () => {
       setIsOnline(true);
@@ -858,23 +1140,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const onOffline = () => {
       setIsOnline(false);
-      if (dataSourceRef.current !== 'mock') {
+      if (dataSourceRef.current !== "mock") {
         void persistPortalSnapshot();
       }
     };
 
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
     };
   }, [persistPortalSnapshot, refreshFromApi]);
 
   // Keep IndexedDB snapshot fresh while browsing (skip demo mock data)
   useEffect(() => {
     if (isDataLoading) return;
-    if (dataSource === 'mock') return;
+    if (dataSource === "mock") return;
     const timer = window.setTimeout(() => {
       void persistPortalSnapshot();
     }, 800);
@@ -886,18 +1168,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveRoleState(role);
   };
 
-  const login = useCallback((user: AuthUser, remember = true) => {
-    setCurrentUser(user);
-    setActiveRoleState(user.role);
-    setActiveEngineState(defaultEngineForRole(user.role));
-    persistSession(user, remember);
-    void refreshFromApi();
-  }, [refreshFromApi]);
+  const login = useCallback(
+    (user: AuthUser, remember = true) => {
+      setCurrentUser(user);
+      setActiveRoleState(user.role);
+      setActiveEngineState(defaultEngineForRole(user.role));
+      persistSession(user, remember);
+      refreshReviewerDepartments(user.role);
+      void refreshFromApi();
+    },
+    [refreshFromApi, refreshReviewerDepartments],
+  );
 
   const logout = useCallback(() => {
     setCurrentUser(null);
-    setActiveRoleState('login');
+    setActiveRoleState("login");
     setActiveEngineState(null);
+    setReviewerDepartmentIds([]);
     clearSession();
   }, []);
 
@@ -912,16 +1199,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (!currentUser?.email) return DEMO_TEACHER_ID;
     const match = teachers.find(
-      (t) => t.email.toLowerCase() === currentUser.email.toLowerCase()
+      (t) => t.email.toLowerCase() === currentUser.email.toLowerCase(),
     );
     return match?.id ?? DEMO_TEACHER_ID;
   }, [currentUser, teachers]);
 
   useEffect(() => {
     // Always force light mode — dark mode has been removed
-    if (typeof window !== 'undefined') {
-      window.document.documentElement.classList.remove('dark');
-      localStorage.removeItem('pts-active-theme');
+    if (typeof window !== "undefined") {
+      window.document.documentElement.classList.remove("dark");
+      localStorage.removeItem("pts-active-theme");
     }
     setAuthReady(true);
   }, []);
@@ -932,86 +1219,208 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Actions
-  const addRegion: AppContextType['addRegion'] = async (name) => {
+  const addRegion: AppContextType["addRegion"] = async (name) => {
     const region = await api.createRegion(name);
-    setRegions((prev) => [...prev, region].sort((a, b) => a.name.localeCompare(b.name)));
+    setRegions((prev) =>
+      [...prev, region].sort((a, b) => a.name.localeCompare(b.name)),
+    );
     return region;
   };
 
-  const updateRegionName: AppContextType['updateRegionName'] = async (id, name) => {
+  const updateRegionName: AppContextType["updateRegionName"] = async (
+    id,
+    name,
+  ) => {
     const region = await api.updateRegion(id, name);
-    setRegions((prev) => prev.map((r) => (r.id === id ? region : r)).sort((a, b) => a.name.localeCompare(b.name)));
+    setRegions((prev) =>
+      prev
+        .map((r) => (r.id === id ? region : r))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
     await refreshFromApi();
     return region;
   };
 
-  const connectSchool: AppContextType['connectSchool'] = async (body) => {
-    const result = (await api.connectSchool(body)) as { school: School; admin: { id: string; email: string; displayName: string; temporaryPassword: string } };
+  const connectSchool: AppContextType["connectSchool"] = async (body) => {
+    const result = (await api.connectSchool(body)) as {
+      school: School;
+      admin: {
+        id: string;
+        email: string;
+        displayName: string;
+        temporaryPassword: string;
+      };
+    };
     setSchools((prev) => [result.school, ...prev]);
-    addNotification('School Connected to PRIME EduAI', `${result.school.name} was connected and activated.`, 'success');
+    addNotification(
+      "School Connected to PRIME EduAI",
+      `${result.school.name} was connected and activated.`,
+      "success",
+    );
     return result;
   };
 
-  const updateSchoolIntegrationStatus: AppContextType['updateSchoolIntegrationStatus'] = async (id, status) => {
-    const school = (await api.updateSchoolIntegrationStatus(id, status)) as School;
-    setSchools((prev) => prev.map((sch) => (sch.id === id ? school : sch)));
-    addNotification(`School ${school.status}`, `School ${school.name} PRIME participation set to ${school.status}.`, school.status === 'Active' ? 'success' : 'alert');
-    return school;
-  };
+  const updateSchoolIntegrationStatus: AppContextType["updateSchoolIntegrationStatus"] =
+    async (id, status) => {
+      const school = (await api.updateSchoolIntegrationStatus(
+        id,
+        status,
+      )) as School;
+      setSchools((prev) => prev.map((sch) => (sch.id === id ? school : sch)));
+      addNotification(
+        `School ${school.status}`,
+        `School ${school.name} PRIME participation set to ${school.status}.`,
+        school.status === "Active" ? "success" : "alert",
+      );
+      return school;
+    };
 
-  const updateSchool: AppContextType['updateSchool'] = async (id, patch) => {
+  const updateSchool: AppContextType["updateSchool"] = async (id, patch) => {
     const school = (await api.updateSchool(id, patch)) as School;
     setSchools((prev) => prev.map((sch) => (sch.id === id ? school : sch)));
     return school;
   };
 
-  const changePassword: AppContextType['changePassword'] = async (currentPassword, newPassword) => {
+  const changePassword: AppContextType["changePassword"] = async (
+    currentPassword,
+    newPassword,
+  ) => {
     await api.changePassword(currentPassword, newPassword);
   };
 
-  const approveLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
-    void api.approveLessonPlan(id, role, comments).then((lp) => {
-      setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Updated', `Lesson plan "${(lp as LessonPlan).title}" was approved.`, 'success', '/dashboard/teacher/lesson-plans');
-    }).catch(() => void refreshFromApi());
+  const approveLessonPlan = (
+    id: string,
+    role: "dept" | "school",
+    comments: string,
+  ) => {
+    void api
+      .approveLessonPlan(id, role, comments)
+      .then((lp) => {
+        setLessonPlans((prev) =>
+          prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)),
+        );
+        addNotification(
+          "Lesson Plan Updated",
+          `Lesson plan "${(lp as LessonPlan).title}" was approved.`,
+          "success",
+          "/dashboard/teacher/lesson-plans",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
-    void api.rejectLessonPlan(id, role, comments).then((lp) => {
-      setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert', '/dashboard/teacher/lesson-plans');
-    }).catch(() => void refreshFromApi());
+  const rejectLessonPlan = (
+    id: string,
+    role: "dept" | "school",
+    comments: string,
+    returnReasonCategory?: string,
+  ) => {
+    void api
+      .rejectLessonPlan(id, role, comments, returnReasonCategory)
+      .then((lp) => {
+        setLessonPlans((prev) =>
+          prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)),
+        );
+        addNotification(
+          "Lesson Plan Rejected",
+          `Lesson plan "${(lp as LessonPlan).title}" was rejected.`,
+          "alert",
+          "/dashboard/teacher/lesson-plans",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const approveAssessment = (id: string, comments: string) => {
-    void api.approveAssessment(id, comments).then((asm) => {
-      setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
-      addNotification('Assessment Approved', `Assessment "${(asm as Assessment).title}" approved.`, 'success', '/dashboard/teacher/manage-students');
-    }).catch(() => void refreshFromApi());
+  const approveAssessment = (
+    id: string,
+    comments: string,
+    moderationRubric?: Record<string, string>,
+  ) => {
+    void api
+      .approveAssessment(id, comments, moderationRubric)
+      .then((asm) => {
+        setAssessments((prev) =>
+          prev.map((a) => (a.id === id ? (asm as Assessment) : a)),
+        );
+        addNotification(
+          "Assessment Approved",
+          `Assessment "${(asm as Assessment).title}" approved.`,
+          "success",
+          "/dashboard/teacher/manage-students",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const rejectAssessment = (id: string, comments: string) => {
-    void api.rejectAssessment(id, comments).then((asm) => {
-      setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
-      addNotification('Assessment Draft Rejected', `Assessment "${(asm as Assessment).title}" sent back.`, 'alert', '/dashboard/teacher/assessments');
-    }).catch(() => void refreshFromApi());
+  const rejectAssessment = (
+    id: string,
+    comments: string,
+    moderationRubric?: Record<string, string>,
+  ) => {
+    void api
+      .rejectAssessment(id, comments, moderationRubric)
+      .then((asm) => {
+        setAssessments((prev) =>
+          prev.map((a) => (a.id === id ? (asm as Assessment) : a)),
+        );
+        addNotification(
+          "Assessment Draft Rejected",
+          `Assessment "${(asm as Assessment).title}" sent back.`,
+          "alert",
+          "/dashboard/teacher/assessments",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const createLessonPlan = (planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => {
-    void api.createLessonPlan({ ...planData, teacherId: resolveTeacherId() }).then((lp) => {
-      setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
-      addNotification('Lesson Plan Submitted', `Lesson plan "${(lp as LessonPlan).title}" submitted.`, 'info', '/dashboard/department-head/lesson-plans');
-    }).catch(() => void refreshFromApi());
+  const disseminateAssessment = (id: string) => {
+    void api
+      .disseminateAssessment(id)
+      .then((asm) => {
+        setAssessments((prev) =>
+          prev.map((a) => (a.id === id ? (asm as Assessment) : a)),
+        );
+        addNotification(
+          "Exam published to teachers",
+          `"${(asm as Assessment).title}" is now live for subject teachers.`,
+          "success",
+          "/dashboard/department-head/assessments",
+        );
+      })
+      .catch(() => void refreshFromApi());
+  };
+
+  const createLessonPlan = (
+    planData: Omit<
+      LessonPlan,
+      "id" | "teacherId" | "teacherName" | "status" | "version" | "createdAt"
+    >,
+  ) => {
+    void api
+      .createLessonPlan({ ...planData, teacherId: resolveTeacherId() })
+      .then((lp) => {
+        setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
+        addNotification(
+          "Lesson Plan Submitted",
+          `Lesson plan "${(lp as LessonPlan).title}" submitted.`,
+          "info",
+          "/dashboard/department-head/lesson-plans",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const createAssessment = (
-    asmData: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
-      createdByRole?: Assessment['createdByRole'];
+    asmData: Omit<
+      Assessment,
+      "id" | "teacherId" | "teacherName" | "status" | "createdAt"
+    > & {
+      createdByRole?: Assessment["createdByRole"];
       teacherName?: string;
       teacherId?: string;
-    }
+    },
   ) => {
-    const createdByRole = asmData.createdByRole ?? 'teacher';
+    const createdByRole = asmData.createdByRole ?? "teacher";
     void api
       .createAssessment({
         ...asmData,
@@ -1021,67 +1430,101 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .then((asm) => {
         setAssessments((prev) => [asm as Assessment, ...prev]);
-        const ready = (asm as Assessment).status === 'Approved';
-        const isDeptExam = createdByRole === 'department-head';
+        const status = (asm as Assessment).status;
+        const ready = status === "Approved";
+        const pendingReview = status === "Pending Reviewer";
+        const isDeptExam = createdByRole === "department-head";
+        if (pendingReview) {
+          addNotification(
+            "Exam sent for review",
+            `"${(asm as Assessment).title}" is waiting on the designated reviewers before it's shared with other teachers.`,
+            "info",
+            "/dashboard/department-head/assessments",
+          );
+          return;
+        }
         addNotification(
           ready
             ? isDeptExam
-              ? 'Exam published to teachers'
-              : 'Assessment ready'
-            : 'Assessment Submitted',
+              ? "Exam published to teachers"
+              : "Assessment ready"
+            : "Assessment Submitted",
           ready
             ? isDeptExam
               ? `"${(asm as Assessment).title}" is live for subject teachers. They can open it under Assessments and record results in the Gradebook.`
               : `"${(asm as Assessment).title}" is ready to link when recording grades.`
             : `Assessment "${(asm as Assessment).title}" submitted for HoD review.`,
-          ready ? 'success' : 'info',
+          ready ? "success" : "info",
           ready
             ? isDeptExam
-              ? '/dashboard/teacher/assessments'
-              : '/dashboard/teacher/manage-students'
-            : '/dashboard/department-head/assessments',
+              ? "/dashboard/teacher/assessments"
+              : "/dashboard/teacher/manage-students"
+            : "/dashboard/department-head/assessments",
         );
       })
       .catch(() => void refreshFromApi());
   };
 
-  const updateAssessmentQuestions = (id: string, questions: Assessment['questions']) => {
-    void api.updateAssessment(id, { questions }).then((asm) => {
-      setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
-      addNotification('Questions Saved', `Assessment questions updated.`, 'success');
-    }).catch(() => {
-      setAssessments((prev) =>
-        prev.map((a) =>
-          a.id === id
-            ? {
-                ...a,
-                questions,
-                status: a.status === 'Rejected' ? 'Pending Dept Head' : a.status,
-              }
-            : a
-        )
-      );
-      addNotification('Questions Saved', 'Assessment questions updated locally.', 'info');
-    });
+  const updateAssessmentQuestions = (
+    id: string,
+    questions: Assessment["questions"],
+  ) => {
+    void api
+      .updateAssessment(id, { questions })
+      .then((asm) => {
+        setAssessments((prev) =>
+          prev.map((a) => (a.id === id ? (asm as Assessment) : a)),
+        );
+        addNotification(
+          "Questions Saved",
+          `Assessment questions updated.`,
+          "success",
+        );
+      })
+      .catch(() => {
+        setAssessments((prev) =>
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  questions,
+                  status:
+                    a.status === "Rejected" ? "Pending Dept Head" : a.status,
+                }
+              : a,
+          ),
+        );
+        addNotification(
+          "Questions Saved",
+          "Assessment questions updated locally.",
+          "info",
+        );
+      });
   };
 
   const saveAttendance = (
-    records: { studentId: string; status: 'Present' | 'Absent' | 'Late'; remarks?: string }[],
+    records: {
+      studentId: string;
+      status: "Present" | "Absent" | "Late";
+      remarks?: string;
+    }[],
     timetableSlotId?: string,
   ) => {
     const applyLocal = () => {
       const today = new Date().toISOString().slice(0, 10);
       setAttendance((prev) => {
         const ids = new Set(records.map((r) => r.studentId));
-        const without = prev.filter((a) => !(a.date === today && ids.has(a.studentId)));
+        const without = prev.filter(
+          (a) => !(a.date === today && ids.has(a.studentId)),
+        );
         const nextRows: Attendance[] = records.map((r, i) => {
           const std = students.find((s) => s.id === r.studentId);
           return {
             id: `att-local-${Date.now()}-${i}`,
             studentId: r.studentId,
-            studentName: std?.name ?? 'Student',
-            grade: std?.grade ?? '',
-            section: std?.section ?? '',
+            studentName: std?.name ?? "Student",
+            grade: std?.grade ?? "",
+            section: std?.section ?? "",
             date: today,
             status: r.status,
             remarks: r.remarks,
@@ -1093,62 +1536,101 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!isBrowserOnline()) {
       applyLocal();
-      void enqueueOutbox('saveAttendance', { records, timetableSlotId });
+      void enqueueOutbox("saveAttendance", { records, timetableSlotId });
       void refreshPendingCount();
-      addNotification('Attendance saved offline', `Recorded for ${records.length} students — will sync when online.`, 'info');
+      addNotification(
+        "Attendance saved offline",
+        `Recorded for ${records.length} students — will sync when online.`,
+        "info",
+      );
       return;
     }
 
-    void api.saveAttendance(records, timetableSlotId).then(() => {
-      void refreshFromApi();
-      addNotification('Attendance Logs Recorded', `Attendance recorded for ${records.length} students.`, 'success');
-    }).catch((err) => {
-      // CM-006: a 409 means this scheduled session already has attendance recorded —
-      // that will never succeed by retrying, so surface it instead of silently queuing
-      // a save that's guaranteed to fail again offline.
-      if (err instanceof ApiError && err.status === 409) {
-        addNotification('Already recorded', err.message || 'Attendance for this session has already been recorded.', 'alert');
-        return;
-      }
-      applyLocal();
-      void enqueueOutbox('saveAttendance', { records, timetableSlotId });
-      void refreshPendingCount();
-      addNotification('Attendance saved offline', `Saved on this device — will sync when online.`, 'alert');
-    });
+    void api
+      .saveAttendance(records, timetableSlotId)
+      .then(() => {
+        void refreshFromApi();
+        addNotification(
+          "Attendance Logs Recorded",
+          `Attendance recorded for ${records.length} students.`,
+          "success",
+        );
+      })
+      .catch((err) => {
+        // CM-006: a 409 means this scheduled session already has attendance recorded —
+        // that will never succeed by retrying, so surface it instead of silently queuing
+        // a save that's guaranteed to fail again offline.
+        if (err instanceof ApiError && err.status === 409) {
+          addNotification(
+            "Already recorded",
+            err.message ||
+              "Attendance for this session has already been recorded.",
+            "alert",
+          );
+          return;
+        }
+        applyLocal();
+        void enqueueOutbox("saveAttendance", { records, timetableSlotId });
+        void refreshPendingCount();
+        addNotification(
+          "Attendance saved offline",
+          `Saved on this device — will sync when online.`,
+          "alert",
+        );
+      });
   };
 
-  const enrollStudent = (studentData: Omit<Student, 'id' | 'studentId' | 'gpa' | 'attendanceRate' | 'status'>) => {
-    void api.createStudent(studentData as unknown as Record<string, unknown>).then((std) => {
-      setStudents((prev) => [...prev, std as Student]);
-      addNotification('Student Enrolled', `Student ${(std as Student).name} enrolled.`, 'success');
-    }).catch(() => void refreshFromApi());
+  const enrollStudent = (
+    studentData: Omit<
+      Student,
+      "id" | "studentId" | "gpa" | "attendanceRate" | "status"
+    >,
+  ) => {
+    void api
+      .createStudent(studentData as unknown as Record<string, unknown>)
+      .then((std) => {
+        setStudents((prev) => [...prev, std as Student]);
+        addNotification(
+          "Student Enrolled",
+          `Student ${(std as Student).name} enrolled.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const submitRegistrationApplication = (
-    appData: Omit<RegistrationApplication, 'id' | 'status' | 'submittedAt'>
+    appData: Omit<RegistrationApplication, "id" | "status" | "submittedAt">,
   ) => {
     // eslint-disable-next-line react-hooks/purity
     const timestamp = Date.now();
     const app: RegistrationApplication = {
       ...appData,
       id: `reg-app-${timestamp}`,
-      status: 'Submitted',
+      status: "Submitted",
       submittedAt: new Date().toISOString().slice(0, 10),
     };
     setRegistrationApplications((prev) => [app, ...prev]);
-    addNotification('Application Submitted', `${app.applicantName}'s registration application received.`, 'info');
+    addNotification(
+      "Application Submitted",
+      `${app.applicantName}'s registration application received.`,
+      "info",
+    );
   };
 
-  const updateRegistrationApplication = (id: string, updates: Partial<RegistrationApplication>) => {
+  const updateRegistrationApplication = (
+    id: string,
+    updates: Partial<RegistrationApplication>,
+  ) => {
     setRegistrationApplications((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+      prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
     );
   };
 
   const reviewRegistrationApplication = (
     id: string,
     status: RegistrationApplicationStatus,
-    reviewerNotes?: string
+    reviewerNotes?: string,
   ) => {
     setRegistrationApplications((prev) =>
       prev.map((a) =>
@@ -1159,20 +1641,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               reviewerNotes: reviewerNotes ?? a.reviewerNotes,
               reviewedAt: new Date().toISOString().slice(0, 10),
             }
-          : a
-      )
+          : a,
+      ),
     );
     const app = registrationApplications.find((a) => a.id === id);
     addNotification(
-      'Application Reviewed',
-      `${app?.applicantName ?? 'Application'} marked as ${status}.`,
-      status === 'Rejected' ? 'alert' : 'success'
+      "Application Reviewed",
+      `${app?.applicantName ?? "Application"} marked as ${status}.`,
+      status === "Rejected" ? "alert" : "success",
     );
   };
 
   const enrollFromApplication = (applicationId: string) => {
     const app = registrationApplications.find((a) => a.id === applicationId);
-    if (!app || app.status !== 'Approved') return;
+    if (!app || app.status !== "Approved") return;
 
     void api
       .createStudent({
@@ -1184,7 +1666,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         parentEmail: app.parentEmail,
         emergencyContact: app.emergencyContact,
         medicalInfo: app.medicalInfo,
-        schoolId: 'sch-1',
+        schoolId: "sch-1",
       } as unknown as Record<string, unknown>)
       .then((std) => {
         const student = std as Student;
@@ -1192,11 +1674,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setRegistrationApplications((prev) =>
           prev.map((a) =>
             a.id === applicationId
-              ? { ...a, status: 'Enrolled' as const, enrolledStudentId: student.id }
-              : a
-          )
+              ? {
+                  ...a,
+                  status: "Enrolled" as const,
+                  enrolledStudentId: student.id,
+                }
+              : a,
+          ),
         );
-        addNotification('Student Enrolled', `${student.name} enrolled from application.`, 'success');
+        addNotification(
+          "Student Enrolled",
+          `${student.name} enrolled from application.`,
+          "success",
+        );
       })
       .catch(() => {
         enrollStudent({
@@ -1208,23 +1698,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           parentEmail: app.parentEmail,
           emergencyContact: app.emergencyContact,
           medicalInfo: app.medicalInfo,
-          schoolId: 'sch-1',
+          schoolId: "sch-1",
         });
         setRegistrationApplications((prev) =>
           prev.map((a) =>
-            a.id === applicationId ? { ...a, status: 'Enrolled' as const } : a
-          )
+            a.id === applicationId ? { ...a, status: "Enrolled" as const } : a,
+          ),
         );
       });
   };
 
-  const addHrEmployee = (employeeData: Omit<HrEmployee, 'id' | 'employeeId' | 'schoolId'>): Promise<HrEmployee> => {
+  const addHrEmployee = (
+    employeeData: Omit<HrEmployee, "id" | "employeeId" | "schoolId">,
+  ): Promise<HrEmployee> => {
     return api
       .createHrEmployee(employeeData as unknown as Record<string, unknown>)
       .then((emp) => {
         const employee = emp as HrEmployee;
         setHrEmployees((prev) => [...prev, employee]);
-        addNotification('Employee Added', `${employee.name} onboarded as ${employee.position}.`, 'success');
+        addNotification(
+          "Employee Added",
+          `${employee.name} onboarded as ${employee.position}.`,
+          "success",
+        );
         return employee;
       })
       .catch((err) => {
@@ -1234,112 +1730,216 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateHrEmployee = (id: string, updates: Partial<HrEmployee>) => {
-    void api.updateHrEmployee(id, updates as Record<string, unknown>).then((emp) => {
-      setHrEmployees((prev) => prev.map((e) => (e.id === id ? (emp as HrEmployee) : e)));
-      addNotification('Employee Updated', `Profile for ${(emp as HrEmployee).name} saved.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateHrEmployee(id, updates as Record<string, unknown>)
+      .then((emp) => {
+        setHrEmployees((prev) =>
+          prev.map((e) => (e.id === id ? (emp as HrEmployee) : e)),
+        );
+        addNotification(
+          "Employee Updated",
+          `Profile for ${(emp as HrEmployee).name} saved.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const toggleHrEmployeeStatus = (id: string) => {
-    void api.toggleHrEmployeeStatus(id).then((emp) => {
-      const updated = emp as HrEmployee;
-      setHrEmployees((prev) => prev.map((e) => (e.id === id ? updated : e)));
-      addNotification('Employee Status Updated', `${updated.name} is now ${updated.status}.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .toggleHrEmployeeStatus(id)
+      .then((emp) => {
+        const updated = emp as HrEmployee;
+        setHrEmployees((prev) => prev.map((e) => (e.id === id ? updated : e)));
+        addNotification(
+          "Employee Status Updated",
+          `${updated.name} is now ${updated.status}.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const submitLeaveRequest = (requestData: Omit<LeaveRequest, 'id' | 'status' | 'submittedAt'>) => {
-    void api.submitLeaveRequest(requestData as unknown as Record<string, unknown>).then((req) => {
-      const request = req as LeaveRequest;
-      setLeaveRequests((prev) => [request, ...prev]);
-      addNotification('Leave Request', `${request.employeeName} submitted ${request.type} leave.`, 'request');
-    }).catch(() => void refreshFromApi());
+  const submitLeaveRequest = (
+    requestData: Omit<LeaveRequest, "id" | "status" | "submittedAt">,
+  ) => {
+    void api
+      .submitLeaveRequest(requestData as unknown as Record<string, unknown>)
+      .then((req) => {
+        const request = req as LeaveRequest;
+        setLeaveRequests((prev) => [request, ...prev]);
+        addNotification(
+          "Leave Request",
+          `${request.employeeName} submitted ${request.type} leave.`,
+          "request",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const reviewLeaveRequest = (id: string, status: LeaveStatus, reviewerNotes?: string) => {
-    void api.reviewLeaveRequest(id, status, reviewerNotes).then(() => {
-      // Approval also flips the employee's (and any linked teacher's) status server-side —
-      // refetch rather than re-deriving those cross-entity effects from stale local state.
-      void refreshFromApi();
-      addNotification('Leave Reviewed', `Leave request ${status.toLowerCase()}.`, status === 'Approved' ? 'success' : 'info');
-    }).catch(() => void refreshFromApi());
+  const reviewLeaveRequest = (
+    id: string,
+    status: LeaveStatus,
+    reviewerNotes?: string,
+  ) => {
+    void api
+      .reviewLeaveRequest(id, status, reviewerNotes)
+      .then(() => {
+        // Approval also flips the employee's (and any linked teacher's) status server-side —
+        // refetch rather than re-deriving those cross-entity effects from stale local state.
+        void refreshFromApi();
+        addNotification(
+          "Leave Reviewed",
+          `Leave request ${status.toLowerCase()}.`,
+          status === "Approved" ? "success" : "info",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const processPayroll = (employeeId: string, month: string) => {
-    void api.processPayroll(employeeId, month).then((rec) => {
-      const record = rec as PayrollRecord;
-      setPayrollRecords((prev) => (prev.some((p) => p.id === record.id) ? prev : [record, ...prev]));
-      addNotification('Payroll Processed', `Payroll for ${record.employeeName} (${month}) processed.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .processPayroll(employeeId, month)
+      .then((rec) => {
+        const record = rec as PayrollRecord;
+        setPayrollRecords((prev) =>
+          prev.some((p) => p.id === record.id) ? prev : [record, ...prev],
+        );
+        addNotification(
+          "Payroll Processed",
+          `Payroll for ${record.employeeName} (${month}) processed.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updatePayrollStatus = (id: string, status: PayrollStatus) => {
-    void api.updatePayrollStatus(id, status).then((rec) => {
-      setPayrollRecords((prev) => prev.map((p) => (p.id === id ? (rec as PayrollRecord) : p)));
-    }).catch(() => void refreshFromApi());
+    void api
+      .updatePayrollStatus(id, status)
+      .then((rec) => {
+        setPayrollRecords((prev) =>
+          prev.map((p) => (p.id === id ? (rec as PayrollRecord) : p)),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const addJobPosting = (postingData: Omit<JobPosting, 'id' | 'postedAt' | 'applicantCount'>) => {
-    void api.createJobPosting(postingData as unknown as Record<string, unknown>).then((posting) => {
-      setJobPostings((prev) => [posting as JobPosting, ...prev]);
-      addNotification('Job Posted', `${(posting as JobPosting).title} is now live.`, 'info');
-    }).catch(() => void refreshFromApi());
+  const addJobPosting = (
+    postingData: Omit<JobPosting, "id" | "postedAt" | "applicantCount">,
+  ) => {
+    void api
+      .createJobPosting(postingData as unknown as Record<string, unknown>)
+      .then((posting) => {
+        setJobPostings((prev) => [posting as JobPosting, ...prev]);
+        addNotification(
+          "Job Posted",
+          `${(posting as JobPosting).title} is now live.`,
+          "info",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updateJobPosting = (id: string, updates: Partial<JobPosting>) => {
-    void api.updateJobPosting(id, updates as Record<string, unknown>).then((posting) => {
-      setJobPostings((prev) => prev.map((j) => (j.id === id ? (posting as JobPosting) : j)));
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateJobPosting(id, updates as Record<string, unknown>)
+      .then((posting) => {
+        setJobPostings((prev) =>
+          prev.map((j) => (j.id === id ? (posting as JobPosting) : j)),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const updateJobApplication = (id: string, status: ApplicationStatus, notes?: string) => {
-    void api.updateJobApplication(id, status, notes).then((app) => {
-      setJobApplications((prev) => prev.map((a) => (a.id === id ? (app as JobApplication) : a)));
-      if (status === 'Hired') {
-        // The server auto-creates the HrEmployee record when a hire happens — refetch to pick it up.
-        void refreshFromApi();
-        addNotification('Employee Hired', `${(app as JobApplication).applicantName} added to HR records.`, 'success');
-      }
-    }).catch(() => void refreshFromApi());
+  const updateJobApplication = (
+    id: string,
+    status: ApplicationStatus,
+    notes?: string,
+  ) => {
+    void api
+      .updateJobApplication(id, status, notes)
+      .then((app) => {
+        setJobApplications((prev) =>
+          prev.map((a) => (a.id === id ? (app as JobApplication) : a)),
+        );
+        if (status === "Hired") {
+          // The server auto-creates the HrEmployee record when a hire happens — refetch to pick it up.
+          void refreshFromApi();
+          addNotification(
+            "Employee Hired",
+            `${(app as JobApplication).applicantName} added to HR records.`,
+            "success",
+          );
+        }
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const addPerformanceReview = (reviewData: Omit<PerformanceReview, 'id' | 'status'>) => {
-    void api.createPerformanceReview(reviewData as unknown as Record<string, unknown>).then((review) => {
-      setPerformanceReviews((prev) => [review as PerformanceReview, ...prev]);
-    }).catch(() => void refreshFromApi());
+  const addPerformanceReview = (
+    reviewData: Omit<PerformanceReview, "id" | "status">,
+  ) => {
+    void api
+      .createPerformanceReview(reviewData as unknown as Record<string, unknown>)
+      .then((review) => {
+        setPerformanceReviews((prev) => [review as PerformanceReview, ...prev]);
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const updatePerformanceReview = (id: string, updates: Partial<PerformanceReview>) => {
-    void api.updatePerformanceReview(id, updates as Record<string, unknown>).then((review) => {
-      setPerformanceReviews((prev) => prev.map((r) => (r.id === id ? (review as PerformanceReview) : r)));
-    }).catch(() => void refreshFromApi());
+  const updatePerformanceReview = (
+    id: string,
+    updates: Partial<PerformanceReview>,
+  ) => {
+    void api
+      .updatePerformanceReview(id, updates as Record<string, unknown>)
+      .then((review) => {
+        setPerformanceReviews((prev) =>
+          prev.map((r) => (r.id === id ? (review as PerformanceReview) : r)),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const addOnboardingTask = (taskData: Omit<OnboardingTask, 'id' | 'completed'>) => {
-    void api.createOnboardingTask(taskData as unknown as Record<string, unknown>).then((task) => {
-      setOnboardingTasks((prev) => [...prev, task as OnboardingTask]);
-    }).catch(() => void refreshFromApi());
+  const addOnboardingTask = (
+    taskData: Omit<OnboardingTask, "id" | "completed">,
+  ) => {
+    void api
+      .createOnboardingTask(taskData as unknown as Record<string, unknown>)
+      .then((task) => {
+        setOnboardingTasks((prev) => [...prev, task as OnboardingTask]);
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const toggleOnboardingTask = (id: string) => {
-    void api.toggleOnboardingTask(id).then((task) => {
-      setOnboardingTasks((prev) => prev.map((t) => (t.id === id ? (task as OnboardingTask) : t)));
-    }).catch(() => void refreshFromApi());
+    void api
+      .toggleOnboardingTask(id)
+      .then((task) => {
+        setOnboardingTasks((prev) =>
+          prev.map((t) => (t.id === id ? (task as OnboardingTask) : t)),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const recordStaffAttendance = (
-    recordData: Omit<StaffAttendanceRecord, 'id' | 'employeeName'> & { employeeName?: string }
+    recordData: Omit<StaffAttendanceRecord, "id" | "employeeName"> & {
+      employeeName?: string;
+    },
   ) => {
     const employee = hrEmployees.find((e) => e.id === recordData.employeeId);
     void api
       .recordStaffAttendance({
         ...recordData,
-        employeeName: recordData.employeeName ?? employee?.name ?? 'Unknown',
+        employeeName: recordData.employeeName ?? employee?.name ?? "Unknown",
       } as Record<string, unknown>)
       .then((record) => {
         const rec = record as StaffAttendanceRecord;
         setStaffAttendance((prev) => {
-          const filtered = prev.filter((r) => !(r.employeeId === rec.employeeId && r.date === rec.date));
+          const filtered = prev.filter(
+            (r) => !(r.employeeId === rec.employeeId && r.date === rec.date),
+          );
           return [rec, ...filtered];
         });
       })
@@ -1347,70 +1947,138 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    void api.updateStudent(id, updates as Record<string, unknown>).then((std) => {
-      setStudents((prev) => prev.map((s) => (s.id === id ? (std as Student) : s)));
-      addNotification('Student Record Updated', `Profile for ${(std as Student).name} saved.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateStudent(id, updates as Record<string, unknown>)
+      .then((std) => {
+        setStudents((prev) =>
+          prev.map((s) => (s.id === id ? (std as Student) : s)),
+        );
+        addNotification(
+          "Student Record Updated",
+          `Profile for ${(std as Student).name} saved.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updateStudentGrade = (id: string, newGpa: number) => {
-    void api.updateStudent(id, { gpa: newGpa }).then((std) => {
-      setStudents((prev) => prev.map((s) => (s.id === id ? (std as Student) : s)));
-      addNotification('Grades Updated', `GPA set to ${newGpa}.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateStudent(id, { gpa: newGpa })
+      .then((std) => {
+        setStudents((prev) =>
+          prev.map((s) => (s.id === id ? (std as Student) : s)),
+        );
+        addNotification("Grades Updated", `GPA set to ${newGpa}.`, "success");
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const addTeacher = (teacherData: Omit<Teacher, 'id' | 'status' | 'trainingProgress'>) => {
-    void api.createTeacher(teacherData as unknown as Record<string, unknown>).then((tch) => {
-      setTeachers((prev) => [...prev, tch as Teacher]);
-      void refreshFromApi();
-      addNotification('Teacher Onboarded', `${(tch as Teacher).name} registered.`, 'success');
-    }).catch(() => void refreshFromApi());
+  const addTeacher = (
+    teacherData: Omit<Teacher, "id" | "status" | "trainingProgress">,
+  ) => {
+    void api
+      .createTeacher(teacherData as unknown as Record<string, unknown>)
+      .then((tch) => {
+        setTeachers((prev) => [...prev, tch as Teacher]);
+        void refreshFromApi();
+        addNotification(
+          "Teacher Onboarded",
+          `${(tch as Teacher).name} registered.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updateTeacher = (id: string, updates: Partial<Teacher>) => {
-    void api.updateTeacher(id, updates as Record<string, unknown>).then((tch) => {
-      setTeachers((prev) => prev.map((t) => (t.id === id ? (tch as Teacher) : t)));
-      addNotification('Instructor Record Updated', `Profile for ${(tch as Teacher).name} saved.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateTeacher(id, updates as Record<string, unknown>)
+      .then((tch) => {
+        setTeachers((prev) =>
+          prev.map((t) => (t.id === id ? (tch as Teacher) : t)),
+        );
+        addNotification(
+          "Instructor Record Updated",
+          `Profile for ${(tch as Teacher).name} saved.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const toggleTeacherStatus = (id: string) => {
-    void api.toggleTeacherStatus(id).then((tch) => {
-      const updated = tch as Teacher;
-      setTeachers((prev) => prev.map((t) => (t.id === id ? updated : t)));
-      addNotification('Teacher Status Updated', `${updated.name} is now ${updated.status}.`, 'success');
+    void api
+      .toggleTeacherStatus(id)
+      .then((tch) => {
+        const updated = tch as Teacher;
+        setTeachers((prev) => prev.map((t) => (t.id === id ? updated : t)));
+        addNotification(
+          "Teacher Status Updated",
+          `${updated.name} is now ${updated.status}.`,
+          "success",
+        );
 
-      // Mirror into the linked HR record, if one exists — but only flip an employee
-      // back to Active if they were On Leave because of this link, not e.g. Terminated.
-      setHrEmployees((prev) =>
-        prev.map((e) => {
-          if (e.teacherId !== id) return e;
-          if (updated.status === 'On Leave') return { ...e, status: 'On Leave' };
-          if (updated.status === 'Active' && e.status === 'On Leave') return { ...e, status: 'Active' };
-          return e;
-        })
-      );
-    }).catch(() => void refreshFromApi());
+        // Mirror into the linked HR record, if one exists — but only flip an employee
+        // back to Active if they were On Leave because of this link, not e.g. Terminated.
+        setHrEmployees((prev) =>
+          prev.map((e) => {
+            if (e.teacherId !== id) return e;
+            if (updated.status === "On Leave")
+              return { ...e, status: "On Leave" };
+            if (updated.status === "Active" && e.status === "On Leave")
+              return { ...e, status: "Active" };
+            return e;
+          }),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const submitSelfAssessment = (data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>) => {
-    void api.submitSelfAssessment(data as unknown as Record<string, unknown>).then((sa) => {
-      setTeacherSelfAssessments((prev) => [sa as TeacherSelfAssessment, ...prev]);
-      addNotification('Self-Assessment Submitted', 'Your STEP self-assessment has been recorded and shared with your HoD.', 'success');
-    }).catch(() => void refreshFromApi());
+  const submitSelfAssessment = (
+    data: Omit<TeacherSelfAssessment, "id" | "submittedAt">,
+  ) => {
+    void api
+      .submitSelfAssessment(data as unknown as Record<string, unknown>)
+      .then((sa) => {
+        setTeacherSelfAssessments((prev) => [
+          sa as TeacherSelfAssessment,
+          ...prev,
+        ]);
+        addNotification(
+          "Self-Assessment Submitted",
+          "Your STEP self-assessment has been recorded and shared with your HoD.",
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const assignTrainingModule = (
     data: Omit<
       TeacherTrainingAssignment,
-      'id' | 'createdAt' | 'status' | 'sessionsCompleted' | 'reflectionSubmitted' | 'overdue'
-    > & { dueDate?: string; sessionsTotal?: number }
+      | "id"
+      | "createdAt"
+      | "status"
+      | "sessionsCompleted"
+      | "reflectionSubmitted"
+      | "overdue"
+    > & { dueDate?: string; sessionsTotal?: number },
   ) => {
-    void api.assignTrainingModule(data as unknown as Record<string, unknown>).then((a) => {
-      setTeacherTrainingAssignments((prev) => [a as TeacherTrainingAssignment, ...prev]);
-      addNotification('Module Assigned', `${data.moduleTitle} assigned.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .assignTrainingModule(data as unknown as Record<string, unknown>)
+      .then((a) => {
+        setTeacherTrainingAssignments((prev) => [
+          a as TeacherTrainingAssignment,
+          ...prev,
+        ]);
+        addNotification(
+          "Module Assigned",
+          `${data.moduleTitle} assigned.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const updateTrainingAssignmentProgress = async (
@@ -1422,65 +2090,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       assessmentPassed?: boolean;
       reflectionSubmitted?: boolean;
       reflectionAnswers?: Record<number, string>;
-    }
+    },
   ) => {
     try {
-      const updated = (await api.updateTrainingAssignmentProgress(id, progress)) as TeacherTrainingAssignment;
-      setTeacherTrainingAssignments((prev) => prev.map((t) => (t.id === id ? updated : t)));
-      if (updated.status === 'completed') {
-        addNotification('Module Completed', `${updated.moduleTitle} is now complete — sessions, assessment, and reflection all done.`, 'success');
+      const updated = (await api.updateTrainingAssignmentProgress(
+        id,
+        progress,
+      )) as TeacherTrainingAssignment;
+      setTeacherTrainingAssignments((prev) =>
+        prev.map((t) => (t.id === id ? updated : t)),
+      );
+      if (updated.status === "completed") {
+        addNotification(
+          "Module Completed",
+          `${updated.moduleTitle} is now complete — sessions, assessment, and reflection all done.`,
+          "success",
+        );
       }
       return updated;
     } catch {
-      addNotification('Could not save progress', 'Try again once you’re back online.', 'alert');
+      addNotification(
+        "Could not save progress",
+        "Try again once you’re back online.",
+        "alert",
+      );
     }
   };
 
-  const updateTrainingAssignmentStatus = (id: string, status: TeacherTrainingAssignment['status']) => {
+  const updateTrainingAssignmentStatus = (
+    id: string,
+    status: TeacherTrainingAssignment["status"],
+  ) => {
     setTeacherTrainingAssignments((prev) =>
       prev.map((t) => (t.id === id ? { ...t, status } : t)),
     );
 
     if (!isBrowserOnline()) {
-      void enqueueOutbox('updateTrainingAssignmentStatus', { id, status });
+      void enqueueOutbox("updateTrainingAssignmentStatus", { id, status });
       void refreshPendingCount();
       return;
     }
 
-    void api.updateTrainingAssignmentStatus(id, status).then((a) => {
-      setTeacherTrainingAssignments((prev) => prev.map((t) => (t.id === id ? (a as TeacherTrainingAssignment) : t)));
-    }).catch(() => {
-      void enqueueOutbox('updateTrainingAssignmentStatus', { id, status });
-      void refreshPendingCount();
-    });
+    void api
+      .updateTrainingAssignmentStatus(id, status)
+      .then((a) => {
+        setTeacherTrainingAssignments((prev) =>
+          prev.map((t) => (t.id === id ? (a as TeacherTrainingAssignment) : t)),
+        );
+      })
+      .catch(() => {
+        void enqueueOutbox("updateTrainingAssignmentStatus", { id, status });
+        void refreshPendingCount();
+      });
   };
 
   const addDepartment = (name: string, headName: string) => {
-    void api.createDepartment(name, headName).then((dept) => {
-      setDepartments((prev) => [...prev, dept as Department]);
-      addNotification('Department Created', `Department "${name}" registered.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .createDepartment(name, headName)
+      .then((dept) => {
+        setDepartments((prev) => [...prev, dept as Department]);
+        addNotification(
+          "Department Created",
+          `Department "${name}" registered.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const addClass = (name: string, grade: string, section: string, homeroomTeacher: string) => {
-    void api.createClass({ name, grade, section, homeroomTeacher }).then((cls) => {
-      setClasses((prev) => [...prev, cls as SchoolClass]);
-      addNotification('Class Created', `Class "${name}" added.`, 'success');
-    }).catch(() => void refreshFromApi());
+  const addClass = (
+    name: string,
+    grade: string,
+    section: string,
+    homeroomTeacher: string,
+  ) => {
+    void api
+      .createClass({ name, grade, section, homeroomTeacher })
+      .then((cls) => {
+        setClasses((prev) => [...prev, cls as SchoolClass]);
+        addNotification("Class Created", `Class "${name}" added.`, "success");
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const approveExam = (id: string, comments: string) => {
-    void api.approveExam(id, comments).then((ex) => {
-      setExams((prev) => prev.map((e) => (e.id === id ? (ex as ExamPaper) : e)));
-      addNotification('Exam Paper Approved', `"${(ex as ExamPaper).title}" approved.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .approveExam(id, comments)
+      .then((ex) => {
+        setExams((prev) =>
+          prev.map((e) => (e.id === id ? (ex as ExamPaper) : e)),
+        );
+        addNotification(
+          "Exam Paper Approved",
+          `"${(ex as ExamPaper).title}" approved.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const rejectExam = (id: string, comments: string) => {
-    void api.rejectExam(id, comments).then((ex) => {
-      setExams((prev) => prev.map((e) => (e.id === id ? (ex as ExamPaper) : e)));
-      addNotification('Exam Paper Rejected', `"${(ex as ExamPaper).title}" rejected.`, 'alert');
-    }).catch(() => void refreshFromApi());
+    void api
+      .rejectExam(id, comments)
+      .then((ex) => {
+        setExams((prev) =>
+          prev.map((e) => (e.id === id ? (ex as ExamPaper) : e)),
+        );
+        addNotification(
+          "Exam Paper Rejected",
+          `"${(ex as ExamPaper).title}" rejected.`,
+          "alert",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const addTrainingMaterial = (data: {
@@ -1488,95 +2210,148 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     description?: string;
     resourceUrl: string;
     category: string;
-    audience?: TrainingMaterial['audience'];
-    trainingType?: TrainingMaterial['trainingType'];
+    audience?: TrainingMaterial["audience"];
+    trainingType?: TrainingMaterial["trainingType"];
     departmentId?: string;
     grade?: string;
     subject?: string;
   }) => {
-    void api.createTrainingMaterial(data).then((mat) => {
-      setTrainingMaterials((prev) => [...prev, mat as TrainingMaterial]);
-      addNotification('Training Resource Added', `"${data.title}" saved.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .createTrainingMaterial(data)
+      .then((mat) => {
+        setTrainingMaterials((prev) => [...prev, mat as TrainingMaterial]);
+        addNotification(
+          "Training Resource Added",
+          `"${data.title}" saved.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const disseminateTrainingMaterial = (id: string) => {
-    void api.disseminateTrainingMaterial(id).then((mat) => {
-      setTrainingMaterials((prev) =>
-        prev.map((m) => (m.id === id ? (mat as TrainingMaterial) : m))
-      );
-      addNotification(
-        'Resource Disseminated',
-        `"${(mat as TrainingMaterial).title}" is now visible to teachers.`,
-        'success'
-      );
-    }).catch(() => void refreshFromApi());
+    void api
+      .disseminateTrainingMaterial(id)
+      .then((mat) => {
+        setTrainingMaterials((prev) =>
+          prev.map((m) => (m.id === id ? (mat as TrainingMaterial) : m)),
+        );
+        addNotification(
+          "Resource Disseminated",
+          `"${(mat as TrainingMaterial).title}" is now visible to teachers.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const addTrainingPlan = (data: {
     title: string;
     description?: string;
-    type: TrainingPlan['type'];
+    type: TrainingPlan["type"];
     category?: string;
-    audience?: TrainingPlan['audience'];
+    audience?: TrainingPlan["audience"];
     startDate: string;
     endDate?: string;
     location?: string;
     facilitator?: string;
     createdByName: string;
   }) => {
-    void api.createTrainingPlan(data).then((plan) => {
-      setTrainingPlans((prev) => [plan as TrainingPlan, ...prev]);
-      addNotification('Training Plan Created', `"${data.title}" scheduled.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .createTrainingPlan(data)
+      .then((plan) => {
+        setTrainingPlans((prev) => [plan as TrainingPlan, ...prev]);
+        addNotification(
+          "Training Plan Created",
+          `"${data.title}" scheduled.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const updateTrainingPlanStatus = (id: string, status: TrainingPlan['status']) => {
-    setTrainingPlans((prev) => prev.map((p) => (p.id === id ? { ...p, status } : p)));
+  const updateTrainingPlanStatus = (
+    id: string,
+    status: TrainingPlan["status"],
+  ) => {
+    setTrainingPlans((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status } : p)),
+    );
 
     if (!isBrowserOnline()) {
-      void enqueueOutbox('updateTrainingPlan', { id, status });
+      void enqueueOutbox("updateTrainingPlan", { id, status });
       void refreshPendingCount();
       return;
     }
 
-    void api.updateTrainingPlan(id, { status }).then((plan) => {
-      setTrainingPlans((prev) => prev.map((p) => (p.id === id ? (plan as TrainingPlan) : p)));
-    }).catch(() => {
-      void enqueueOutbox('updateTrainingPlan', { id, status });
-      void refreshPendingCount();
-    });
+    void api
+      .updateTrainingPlan(id, { status })
+      .then((plan) => {
+        setTrainingPlans((prev) =>
+          prev.map((p) => (p.id === id ? (plan as TrainingPlan) : p)),
+        );
+      })
+      .catch(() => {
+        void enqueueOutbox("updateTrainingPlan", { id, status });
+        void refreshPendingCount();
+      });
   };
 
   const assignTrainingPlan = (
     planId: string,
-    data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
+    data: {
+      targetType: "teacher" | "department";
+      teacherId?: string;
+      departmentId?: string;
+      assignedByName: string;
+    },
   ) => {
-    void api.assignTrainingPlan(planId, data).then((a) => {
-      setTrainingPlanAssignments((prev) => [a as TrainingPlanAssignment, ...prev]);
-      addNotification('Training Assigned', 'Assignment recorded for the training plan.', 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .assignTrainingPlan(planId, data)
+      .then((a) => {
+        setTrainingPlanAssignments((prev) => [
+          a as TrainingPlanAssignment,
+          ...prev,
+        ]);
+        addNotification(
+          "Training Assigned",
+          "Assignment recorded for the training plan.",
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const removeTrainingPlanAssignment = (id: string) => {
     setTrainingPlanAssignments((prev) => prev.filter((a) => a.id !== id));
-    void api.removeTrainingPlanAssignment(id).catch(() => void refreshFromApi());
+    void api
+      .removeTrainingPlanAssignment(id)
+      .catch(() => void refreshFromApi());
   };
 
   const updateTrainingPlanAssignment = (
     id: string,
-    updates: { attended?: boolean; impactRating?: number; impactNotes?: string },
+    updates: {
+      attended?: boolean;
+      impactRating?: number;
+      impactNotes?: string;
+    },
   ) => {
-    void api.updateTrainingPlanAssignment(id, updates).then((updated) => {
-      setTrainingPlanAssignments((prev) =>
-        prev.map((a) => (a.id === id ? (updated as TrainingPlanAssignment) : a))
-      );
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateTrainingPlanAssignment(id, updates)
+      .then((updated) => {
+        setTrainingPlanAssignments((prev) =>
+          prev.map((a) =>
+            a.id === id ? (updated as TrainingPlanAssignment) : a,
+          ),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const addCheckInTemplate = (
     title: string,
-    type: SchoolCheckIn['type'],
+    type: SchoolCheckIn["type"],
     respondentName: string,
     rating: number,
     comment: string,
@@ -1587,36 +2362,76 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const body = {
       title,
       type,
-      respondentName: confidentiality === 'anonymous' ? undefined : respondentName,
+      respondentName:
+        confidentiality === "anonymous" ? undefined : respondentName,
       rating,
       comment,
       confidentiality,
     };
-    void api.createCheckIn(body).then((ch) => {
-      setCheckIns((prev) => [ch as SchoolCheckIn, ...prev]);
-      addNotification('Wellness Survey Created', `Survey "${title}" created.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .createCheckIn(body)
+      .then((ch) => {
+        setCheckIns((prev) => [ch as SchoolCheckIn, ...prev]);
+        addNotification(
+          "Wellness Survey Created",
+          `Survey "${title}" created.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const updateLessonPlan = (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => {
+  const updateLessonPlan = (
+    id: string,
+    title: string,
+    objectives: string[],
+    sessions: number,
+    homework: string,
+    planDetail?: string,
+  ) => {
     // Update local state immediately so an edit (e.g. to planDetail) is visible right
     // away rather than waiting on the round trip.
     setLessonPlans((prev) =>
       prev.map((p) =>
         p.id === id
-          ? { ...p, title, objectives, sessions, homework, ...(planDetail !== undefined ? { planDetail } : {}) }
+          ? {
+              ...p,
+              title,
+              objectives,
+              sessions,
+              homework,
+              ...(planDetail !== undefined ? { planDetail } : {}),
+            }
           : p,
       ),
     );
-    void api.updateLessonPlan(id, { title, objectives, sessions, homework, planDetail }).then((lp) => {
-      setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
-      addNotification('Lesson Plan Updated', `"${title}" resubmitted.`, 'info');
-    }).catch(() => void refreshFromApi());
+    void api
+      .updateLessonPlan(id, {
+        title,
+        objectives,
+        sessions,
+        homework,
+        planDetail,
+      })
+      .then((lp) => {
+        setLessonPlans((prev) =>
+          prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)),
+        );
+        addNotification(
+          "Lesson Plan Updated",
+          `"${title}" resubmitted.`,
+          "info",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const createTeachingNote = (
-    noteData: Omit<TeachingNote, 'id' | 'teacherId' | 'status' | 'createdAt' | 'updatedAt'>,
-    status: TeachingNote['status'] = 'Saved'
+    noteData: Omit<
+      TeachingNote,
+      "id" | "teacherId" | "status" | "createdAt" | "updatedAt"
+    >,
+    status: TeachingNote["status"] = "Saved",
   ) => {
     const id = `tn-${Date.now()}`;
     const today = new Date().toISOString().slice(0, 10);
@@ -1633,38 +2448,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const body = { ...noteData, id, teacherId, status };
     if (!isBrowserOnline()) {
-      void enqueueOutbox('createTeachingNote', body as unknown as Record<string, unknown>);
+      void enqueueOutbox(
+        "createTeachingNote",
+        body as unknown as Record<string, unknown>,
+      );
       void refreshPendingCount();
       return id;
     }
 
-    void api.createTeachingNote(body).then((note) => {
-      setTeachingNotes((prev) => [note as TeachingNote, ...prev.filter((n) => n.id !== id)]);
-    }).catch(() => {
-      void enqueueOutbox('createTeachingNote', body as unknown as Record<string, unknown>);
-      void refreshPendingCount();
-    });
+    void api
+      .createTeachingNote(body)
+      .then((note) => {
+        setTeachingNotes((prev) => [
+          note as TeachingNote,
+          ...prev.filter((n) => n.id !== id),
+        ]);
+      })
+      .catch(() => {
+        void enqueueOutbox(
+          "createTeachingNote",
+          body as unknown as Record<string, unknown>,
+        );
+        void refreshPendingCount();
+      });
     return id;
   };
 
   const updateTeachingNote = (id: string, updates: Partial<TeachingNote>) => {
     const today = new Date().toISOString().slice(0, 10);
     setTeachingNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, ...updates, updatedAt: today } : n)),
+      prev.map((n) =>
+        n.id === id ? { ...n, ...updates, updatedAt: today } : n,
+      ),
     );
 
     if (!isBrowserOnline()) {
-      void enqueueOutbox('updateTeachingNote', { id, updates });
+      void enqueueOutbox("updateTeachingNote", { id, updates });
       void refreshPendingCount();
       return;
     }
 
-    void api.updateTeachingNote(id, updates as Record<string, unknown>).then((note) => {
-      setTeachingNotes((prev) => prev.map((n) => (n.id === id ? (note as TeachingNote) : n)));
-    }).catch(() => {
-      void enqueueOutbox('updateTeachingNote', { id, updates });
-      void refreshPendingCount();
-    });
+    void api
+      .updateTeachingNote(id, updates as Record<string, unknown>)
+      .then((note) => {
+        setTeachingNotes((prev) =>
+          prev.map((n) => (n.id === id ? (note as TeachingNote) : n)),
+        );
+      })
+      .catch(() => {
+        void enqueueOutbox("updateTeachingNote", { id, updates });
+        void refreshPendingCount();
+      });
   };
 
   const deleteTeachingNote = (id: string) => {
@@ -1672,77 +2506,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTeachingNotes((prev) => prev.filter((n) => n.id !== id));
 
     if (!isBrowserOnline()) {
-      void enqueueOutbox('deleteTeachingNote', { id });
+      void enqueueOutbox("deleteTeachingNote", { id });
       void refreshPendingCount();
       if (note) {
-        addNotification('Teaching note deleted', `"${note.title}" removed on this device.`, 'info');
+        addNotification(
+          "Teaching note deleted",
+          `"${note.title}" removed on this device.`,
+          "info",
+        );
       }
       return;
     }
 
-    void api.deleteTeachingNote(id).then(() => {
-      if (note) {
-        addNotification('Teaching note deleted', `"${note.title}" was removed.`, 'info');
-      }
-    }).catch(() => {
-      void enqueueOutbox('deleteTeachingNote', { id });
-      void refreshPendingCount();
-      if (note) {
-        addNotification('Deleted offline', `"${note.title}" removed here — will sync when online.`, 'alert');
-      }
-    });
+    void api
+      .deleteTeachingNote(id)
+      .then(() => {
+        if (note) {
+          addNotification(
+            "Teaching note deleted",
+            `"${note.title}" was removed.`,
+            "info",
+          );
+        }
+      })
+      .catch(() => {
+        void enqueueOutbox("deleteTeachingNote", { id });
+        void refreshPendingCount();
+        if (note) {
+          addNotification(
+            "Deleted offline",
+            `"${note.title}" removed here — will sync when online.`,
+            "alert",
+          );
+        }
+      });
   };
 
   const approveTeachingNote = (id: string, comments: string) => {
     const note = teachingNotes.find((n) => n.id === id);
-    updateTeachingNote(id, { status: 'Approved', deptComments: comments });
+    updateTeachingNote(id, { status: "Approved", deptComments: comments });
     if (note) {
-      addNotification('Lesson Note Approved', `"${note.title}" approved for classroom use.`, 'success', '/dashboard/teacher/lesson-notes');
+      addNotification(
+        "Lesson Note Approved",
+        `"${note.title}" approved for classroom use.`,
+        "success",
+        "/dashboard/teacher/lesson-notes",
+      );
     }
   };
 
   const rejectTeachingNote = (id: string, comments: string) => {
     const note = teachingNotes.find((n) => n.id === id);
-    updateTeachingNote(id, { status: 'Rejected', deptComments: comments });
+    updateTeachingNote(id, { status: "Rejected", deptComments: comments });
     if (note) {
-      addNotification('Teaching Note Rejected', `"${note.title}" returned to teacher.`, 'alert');
+      addNotification(
+        "Teaching Note Rejected",
+        `"${note.title}" returned to teacher.`,
+        "alert",
+      );
     }
   };
 
   const createAcademicCalendar = (
-    calendarData: Omit<AcademicCalendar, 'id' | 'schoolId' | 'status' | 'createdAt' | 'publishedAt'>,
+    calendarData: Omit<
+      AcademicCalendar,
+      "id" | "schoolId" | "status" | "createdAt" | "publishedAt"
+    >,
   ): string => {
     // eslint-disable-next-line react-hooks/purity
     const timestamp = Date.now();
     const calendar: AcademicCalendar = {
       ...calendarData,
       id: `cal-${timestamp}`,
-      schoolId: 'sch-1',
-      status: 'Draft',
+      schoolId: "sch-1",
+      status: "Draft",
       createdAt: new Date().toISOString().slice(0, 10),
     };
     setAcademicCalendars((prev) => {
-      const withoutDraft = prev.filter((c) => c.status !== 'Draft' || c.schoolId !== calendar.schoolId);
+      const withoutDraft = prev.filter(
+        (c) => c.status !== "Draft" || c.schoolId !== calendar.schoolId,
+      );
       const next = [calendar, ...withoutDraft];
       writeStoredCalendars(next);
       return next;
     });
-    void api.createAcademicCalendar(calendar as unknown as Record<string, unknown>).then((saved) => {
-      setAcademicCalendars((prev) => {
-        const next = [saved as AcademicCalendar, ...prev.filter((c) => c.id !== calendar.id && c.id !== (saved as AcademicCalendar).id)];
-        writeStoredCalendars(next);
-        return next;
+    void api
+      .createAcademicCalendar(calendar as unknown as Record<string, unknown>)
+      .then((saved) => {
+        setAcademicCalendars((prev) => {
+          const next = [
+            saved as AcademicCalendar,
+            ...prev.filter(
+              (c) =>
+                c.id !== calendar.id && c.id !== (saved as AcademicCalendar).id,
+            ),
+          ];
+          writeStoredCalendars(next);
+          return next;
+        });
+      })
+      .catch(() => {
+        /* local + localStorage already updated */
       });
-    }).catch(() => {
-      /* local + localStorage already updated */
-    });
-    addNotification('Calendar Draft Saved', `"${calendar.title}" is ready for review.`, 'info');
+    addNotification(
+      "Calendar Draft Saved",
+      `"${calendar.title}" is ready for review.`,
+      "info",
+    );
     return calendar.id;
   };
 
   const updateAcademicCalendar = (
     id: string,
-    updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>,
+    updates: Partial<Omit<AcademicCalendar, "id" | "schoolId" | "createdAt">>,
   ) => {
     let updated: AcademicCalendar | undefined;
     setAcademicCalendars((prev) => {
@@ -1759,7 +2635,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .createAcademicCalendar(updated as unknown as Record<string, unknown>)
         .then((saved) => {
           setAcademicCalendars((prev) => {
-            const next = prev.map((c) => (c.id === id ? (saved as AcademicCalendar) : c));
+            const next = prev.map((c) =>
+              c.id === id ? (saved as AcademicCalendar) : c,
+            );
             writeStoredCalendars(next);
             return next;
           });
@@ -1768,48 +2646,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           /* localStorage already updated */
         });
     }
-    addNotification('Calendar Updated', 'School calendar changes saved.', 'info');
+    addNotification(
+      "Calendar Updated",
+      "School calendar changes saved.",
+      "info",
+    );
   };
 
   const publishAcademicCalendar = (id: string) => {
     const today = new Date().toISOString().slice(0, 10);
     setAcademicCalendars((prev) => {
       const next = prev.map((c) =>
-        c.id === id ? { ...c, status: 'Published' as const, publishedAt: today } : c,
+        c.id === id
+          ? { ...c, status: "Published" as const, publishedAt: today }
+          : c,
       );
       writeStoredCalendars(next);
       return next;
     });
     const cal = academicCalendars.find((c) => c.id === id);
-    void api.publishAcademicCalendar(id).then((saved) => {
-      setAcademicCalendars((prev) => {
-        const next = prev.map((c) => (c.id === id ? (saved as AcademicCalendar) : c));
-        writeStoredCalendars(next);
-        return next;
+    void api
+      .publishAcademicCalendar(id)
+      .then((saved) => {
+        setAcademicCalendars((prev) => {
+          const next = prev.map((c) =>
+            c.id === id ? (saved as AcademicCalendar) : c,
+          );
+          writeStoredCalendars(next);
+          return next;
+        });
+      })
+      .catch(() => {
+        /* local publish already applied */
       });
-    }).catch(() => {
-      /* local publish already applied */
-    });
     addNotification(
-      'Academic Calendar Disseminated',
+      "Academic Calendar Disseminated",
       cal
         ? `"${cal.title}" is now visible to teachers, students, parents, and department heads.`
-        : 'Calendar disseminated to all school portals.',
-      'success',
+        : "Calendar disseminated to all school portals.",
+      "success",
     );
   };
 
-  const saveMoeCalendarDraft = (events: AcademicCalendarEvent[], title: string, academicYear: string) => {
+  const saveMoeCalendarDraft = (
+    events: AcademicCalendarEvent[],
+    title: string,
+    academicYear: string,
+  ) => {
     return api
       .saveMoeCalendar({ id: moeCalendar?.id, academicYear, title, events })
       .then((draft) => {
         setMoeCalendar(draft as MoeCalendarDraft);
         writeStoredMoeCalendar(draft as MoeCalendarDraft);
-        addNotification('MOE Calendar Draft Saved', `"${title}" is ready for review.`, 'info');
+        addNotification(
+          "MOE Calendar Draft Saved",
+          `"${title}" is ready for review.`,
+          "info",
+        );
         return draft as MoeCalendarDraft;
       })
       .catch(() => {
-        addNotification('Could Not Save Calendar', 'The draft could not be saved. Please try again.', 'alert');
+        addNotification(
+          "Could Not Save Calendar",
+          "The draft could not be saved. Please try again.",
+          "alert",
+        );
         return undefined;
       });
   };
@@ -1827,29 +2728,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMoeCalendar(published as MoeCalendarDraft);
         writeStoredMoeCalendar(published as MoeCalendarDraft);
         addNotification(
-          'MOE Calendar Disseminated',
-          'The national reference calendar is now available to school heads.',
-          'success',
+          "MOE Calendar Disseminated",
+          "The national reference calendar is now available to school heads.",
+          "success",
         );
       })
       .catch(() => {
-        addNotification('Could Not Disseminate Calendar', 'Publishing failed. Please try again.', 'alert');
+        addNotification(
+          "Could Not Disseminate Calendar",
+          "Publishing failed. Please try again.",
+          "alert",
+        );
       });
   };
 
   const createDeptAnnualLessonPlan = (
-    planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>,
+    planData: Omit<
+      LessonPlan,
+      | "id"
+      | "teacherId"
+      | "teacherName"
+      | "status"
+      | "version"
+      | "createdAt"
+      | "planType"
+      | "createdByRole"
+    >,
   ) => {
     const teacher = teachers.find((t) => t.email === currentUser?.email);
     const teacherId = teacher?.id ?? resolveTeacherId();
-    const teacherName = currentUser?.displayName ?? teacher?.name ?? 'Department Head';
+    const teacherName =
+      currentUser?.displayName ?? teacher?.name ?? "Department Head";
     const payload = {
       ...planData,
       teacherId,
       teacherName,
-      status: 'Approved',
-      planType: 'yearly',
-      createdByRole: 'department-head',
+      status: "Approved",
+      planType: "yearly",
+      createdByRole: "department-head",
       planDetail: planData.planDetail,
     };
 
@@ -1858,9 +2774,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .then((lp) => {
         setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
         addNotification(
-          'Annual Plan Published',
+          "Annual Plan Published",
           `"${(lp as LessonPlan).title}" is saved and available to department teachers.`,
-          'success',
+          "success",
         );
       })
       .catch(() => {
@@ -1870,24 +2786,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: `lp-${Date.now()}`,
           teacherId,
           teacherName,
-          status: 'Approved',
+          status: "Approved",
           version: 1,
           createdAt: new Date().toISOString().slice(0, 10),
-          planType: 'yearly',
-          createdByRole: 'department-head',
+          planType: "yearly",
+          createdByRole: "department-head",
         };
         setLessonPlans((prev) => [plan, ...prev]);
         addNotification(
-          'Annual Plan Saved Locally',
+          "Annual Plan Saved Locally",
           `"${plan.title}" could not reach the server — retry when online so it persists across sessions.`,
-          'alert',
+          "alert",
         );
       });
   };
 
   const updateDeptAnnualLessonPlan = (
     id: string,
-    planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>,
+    planData: Omit<
+      LessonPlan,
+      | "id"
+      | "teacherId"
+      | "teacherName"
+      | "status"
+      | "version"
+      | "createdAt"
+      | "planType"
+      | "createdByRole"
+    >,
   ) => {
     const payload = {
       title: planData.title,
@@ -1898,7 +2824,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activities: planData.activities,
       assessments: planData.assessments,
       homework: planData.homework,
-      planDetail: planData.planDetail ?? '',
+      planDetail: planData.planDetail ?? "",
     };
 
     setLessonPlans((prev) =>
@@ -1907,9 +2833,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ? {
               ...p,
               ...planData,
-              status: 'Approved' as const,
-              planType: 'yearly' as const,
-              createdByRole: 'department-head' as const,
+              status: "Approved" as const,
+              planType: "yearly" as const,
+              createdByRole: "department-head" as const,
               version: (p.version ?? 1) + 1,
             }
           : p,
@@ -1919,18 +2845,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void api
       .updateDeptAnnualLessonPlan(id, payload)
       .then((lp) => {
-        setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
+        setLessonPlans((prev) =>
+          prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)),
+        );
         addNotification(
-          'Annual Plan Updated',
+          "Annual Plan Updated",
           `"${(lp as LessonPlan).title}" changes were saved.`,
-          'success',
+          "success",
         );
       })
       .catch(() => {
         addNotification(
-          'Annual Plan Updated Locally',
+          "Annual Plan Updated Locally",
           `"${planData.title}" saved on this device — sync when the server is available.`,
-          'alert',
+          "alert",
         );
       });
   };
@@ -1938,24 +2866,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteLessonPlan = (id: string) => {
     const existing = lessonPlans.find((p) => p.id === id);
     setLessonPlans((prev) => prev.filter((p) => p.id !== id));
-    void api.deleteLessonPlan(id).then(() => {
-      addNotification(
-        'Lesson plan deleted',
-        existing ? `"${existing.title}" was removed.` : 'Lesson plan deleted.',
-        'success',
-      );
-    }).catch(() => {
-      addNotification(
-        'Deleted Locally',
-        existing
-          ? `"${existing.title}" removed here — confirm server sync when online.`
-          : 'Lesson plan removed locally.',
-        'alert',
-      );
-    });
+    void api
+      .deleteLessonPlan(id)
+      .then(() => {
+        addNotification(
+          "Lesson plan deleted",
+          existing
+            ? `"${existing.title}" was removed.`
+            : "Lesson plan deleted.",
+          "success",
+        );
+      })
+      .catch(() => {
+        addNotification(
+          "Deleted Locally",
+          existing
+            ? `"${existing.title}" removed here — confirm server sync when online.`
+            : "Lesson plan removed locally.",
+          "alert",
+        );
+      });
   };
 
-  const applyGpaFromGradeEntries = (studentId: string, entries: StudentGradeEntry[]) => {
+  const applyGpaFromGradeEntries = (
+    studentId: string,
+    entries: StudentGradeEntry[],
+  ) => {
     const studentEntries = entries.filter((e) => e.studentId === studentId);
     if (studentEntries.length === 0) return;
     const totalWeight = studentEntries.reduce((a, e) => a + e.weight, 0);
@@ -1966,12 +2902,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 0);
     const gpa = percentToGpa(weighted / totalWeight);
     setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, gpa: parseFloat(gpa.toFixed(2)) } : s))
+      prev.map((s) =>
+        s.id === studentId ? { ...s, gpa: parseFloat(gpa.toFixed(2)) } : s,
+      ),
     );
   };
 
   const upsertStudentGradeEntry = (
-    entryData: Omit<StudentGradeEntry, 'id' | 'teacherId' | 'recordedAt'> & { id?: string }
+    entryData: Omit<StudentGradeEntry, "id" | "teacherId" | "recordedAt"> & {
+      id?: string;
+    },
   ) => {
     const teacherId = resolveTeacherId();
     const applyLocal = () => {
@@ -1990,12 +2930,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         applyGpaFromGradeEntries(entryData.studentId, next);
         return next;
       });
-      void enqueueOutbox('upsertGradeEntry', { ...local } as unknown as Record<string, unknown>);
+      void enqueueOutbox("upsertGradeEntry", { ...local } as unknown as Record<
+        string,
+        unknown
+      >);
       void refreshPendingCount();
       addNotification(
-        entryData.id ? 'Grade Updated' : 'Grade Recorded',
+        entryData.id ? "Grade Updated" : "Grade Recorded",
         `${entryData.title} (saved on this device)`,
-        isBrowserOnline() ? 'alert' : 'info',
+        isBrowserOnline() ? "alert" : "info",
       );
     };
 
@@ -2008,17 +2951,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .upsertGradeEntry({ ...entryData, teacherId })
       .then((entry) => {
         setStudentGradeEntries((prev) => {
-          const exists = prev.some((e) => e.id === (entry as StudentGradeEntry).id);
+          const exists = prev.some(
+            (e) => e.id === (entry as StudentGradeEntry).id,
+          );
           const next = exists
             ? prev.map((e) =>
-                e.id === (entry as StudentGradeEntry).id ? (entry as StudentGradeEntry) : e,
+                e.id === (entry as StudentGradeEntry).id
+                  ? (entry as StudentGradeEntry)
+                  : e,
               )
             : [entry as StudentGradeEntry, ...prev];
           applyGpaFromGradeEntries(entryData.studentId, next);
           return next;
         });
-        void api.recalculateGpa(entryData.studentId).then(() => void refreshFromApi());
-        addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
+        void api
+          .recalculateGpa(entryData.studentId)
+          .then(() => void refreshFromApi());
+        addNotification(
+          entryData.id ? "Grade Updated" : "Grade Recorded",
+          entryData.title,
+          "success",
+        );
       })
       .catch((err) => {
         // A 409 means the server deliberately rejected this — the subject/term is
@@ -2028,9 +2981,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // reason alike, defeating the lock entirely).
         if (err instanceof ApiError && err.status === 409) {
           addNotification(
-            'Result Locked',
-            err.message || 'This result has been submitted or finalized and cannot be edited without approval.',
-            'alert',
+            "Result Locked",
+            err.message ||
+              "This result has been submitted or finalized and cannot be edited without approval.",
+            "alert",
           );
           return;
         }
@@ -2046,9 +3000,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (entry) applyGpaFromGradeEntries(entry.studentId, next);
         return next;
       });
-      void enqueueOutbox('deleteGradeEntry', { id });
+      void enqueueOutbox("deleteGradeEntry", { id });
       void refreshPendingCount();
-      addNotification('Grade Removed', 'Removed on this device — will sync when online.', 'info');
+      addNotification(
+        "Grade Removed",
+        "Removed on this device — will sync when online.",
+        "info",
+      );
     };
 
     if (!isBrowserOnline()) {
@@ -2056,94 +3014,165 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    void api.deleteGradeEntry(id).then(() => {
-      setStudentGradeEntries((prev) => {
-        const next = prev.filter((e) => e.id !== id);
-        if (entry) applyGpaFromGradeEntries(entry.studentId, next);
-        return next;
+    void api
+      .deleteGradeEntry(id)
+      .then(() => {
+        setStudentGradeEntries((prev) => {
+          const next = prev.filter((e) => e.id !== id);
+          if (entry) applyGpaFromGradeEntries(entry.studentId, next);
+          return next;
+        });
+        if (entry) void api.recalculateGpa(entry.studentId);
+        addNotification("Grade Removed", "Assessment result deleted.", "info");
+      })
+      .catch((err) => {
+        // Same lock-integrity rule as upsert: a 409 is a deliberate server rejection
+        // (submitted/finalized, no override) and must not be masked by the
+        // offline-queue fallback, which would delete it locally anyway.
+        if (err instanceof ApiError && err.status === 409) {
+          addNotification(
+            "Result Locked",
+            err.message ||
+              "This result has been submitted or finalized and cannot be deleted without approval.",
+            "alert",
+          );
+          return;
+        }
+        applyLocal();
       });
-      if (entry) void api.recalculateGpa(entry.studentId);
-      addNotification('Grade Removed', 'Assessment result deleted.', 'info');
-    }).catch((err) => {
-      // Same lock-integrity rule as upsert: a 409 is a deliberate server rejection
-      // (submitted/finalized, no override) and must not be masked by the
-      // offline-queue fallback, which would delete it locally anyway.
-      if (err instanceof ApiError && err.status === 409) {
-        addNotification(
-          'Result Locked',
-          err.message || 'This result has been submitted or finalized and cannot be deleted without approval.',
-          'alert',
-        );
-        return;
-      }
-      applyLocal();
-    });
   };
 
   const recalculateStudentGpaFromGrades = (studentId: string) => {
-    void api.recalculateGpa(studentId).then(({ gpa }) => {
-      setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, gpa } : s)));
-    }).catch(() => void refreshFromApi());
+    void api
+      .recalculateGpa(studentId)
+      .then(({ gpa }) => {
+        setStudents((prev) =>
+          prev.map((s) => (s.id === studentId ? { ...s, gpa } : s)),
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const addTeacherResource = (
-    resourceData: Omit<TeacherResource, 'id' | 'teacherId' | 'downloads' | 'createdAt' | 'status'>
+    resourceData: Omit<
+      TeacherResource,
+      "id" | "teacherId" | "downloads" | "createdAt" | "status"
+    >,
   ) => {
-    void api.createTeacherResource({ ...resourceData, teacherId: resolveTeacherId() }).then((res) => {
-      setTeacherResources((prev) => [res as TeacherResource, ...prev]);
-      addNotification('Resource Submitted', `"${(res as TeacherResource).title}" was sent to your department head for review.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .createTeacherResource({ ...resourceData, teacherId: resolveTeacherId() })
+      .then((res) => {
+        setTeacherResources((prev) => [res as TeacherResource, ...prev]);
+        addNotification(
+          "Resource Submitted",
+          `"${(res as TeacherResource).title}" was sent to your department head for review.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const respondToTeacherCheckIn = (id: string, response: string) => {
-    void api.respondCheckIn(id, response).then((p) => {
-      setTeacherCheckInPrompts((prev) => prev.map((x) => (x.id === id ? (p as TeacherCheckInPrompt) : x)));
-      addNotification('Check-in Response Saved', 'Your survey response has been recorded.', 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .respondCheckIn(id, response)
+      .then((p) => {
+        setTeacherCheckInPrompts((prev) =>
+          prev.map((x) => (x.id === id ? (p as TeacherCheckInPrompt) : x)),
+        );
+        addNotification(
+          "Check-in Response Saved",
+          "Your survey response has been recorded.",
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
-  const sendParentMessage = (msgData: Omit<ParentMessage, 'id' | 'teacherId' | 'sentAt'>) => {
-    void api.sendParentMessage({ ...msgData, teacherId: resolveTeacherId() }).then((msg) => {
-      setParentMessages((prev) => [msg as ParentMessage, ...prev]);
-      addNotification('Message Sent to Parent', `Message sent regarding ${(msg as ParentMessage).studentName}.`, 'success');
-    }).catch(() => void refreshFromApi());
+  const sendParentMessage = (
+    msgData: Omit<ParentMessage, "id" | "teacherId" | "sentAt">,
+  ) => {
+    void api
+      .sendParentMessage({ ...msgData, teacherId: resolveTeacherId() })
+      .then((msg) => {
+        setParentMessages((prev) => [msg as ParentMessage, ...prev]);
+        addNotification(
+          "Message Sent to Parent",
+          `Message sent regarding ${(msg as ParentMessage).studentName}.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const addStudentFeedback = (
-    feedbackData: Omit<TeacherFeedback, 'id' | 'teacherId' | 'direction' | 'authorName' | 'date'>
+    feedbackData: Omit<
+      TeacherFeedback,
+      "id" | "teacherId" | "direction" | "authorName" | "date"
+    >,
   ) => {
-    void api.addTeacherFeedback({ ...feedbackData, teacherId: resolveTeacherId() }).then((fb) => {
-      setTeacherFeedbacks((prev) => [fb as TeacherFeedback, ...prev]);
-      addNotification('Student Feedback Recorded', `Feedback saved for ${feedbackData.studentName ?? 'student'}.`, 'success');
-    }).catch(() => void refreshFromApi());
+    void api
+      .addTeacherFeedback({ ...feedbackData, teacherId: resolveTeacherId() })
+      .then((fb) => {
+        setTeacherFeedbacks((prev) => [fb as TeacherFeedback, ...prev]);
+        addNotification(
+          "Student Feedback Recorded",
+          `Feedback saved for ${feedbackData.studentName ?? "student"}.`,
+          "success",
+        );
+      })
+      .catch(() => void refreshFromApi());
   };
 
   const giveTeacherFeedback = (input: {
     teacherId: string;
-    authorRole: 'peer' | 'department-head';
-    category?: 'coaching' | 'classroom_observation' | 'formal_performance';
+    authorRole: "peer" | "department-head";
+    category?: "coaching" | "classroom_observation" | "formal_performance";
     subject: string;
     comment: string;
     rating?: number;
+    strength?: string;
+    developmentArea?: string;
+    agreedAction?: string;
+    followUpRequired?: boolean;
+    followUpDueDate?: string;
   }) => {
     const authorName =
-      currentUser?.displayName ?? (input.authorRole === 'department-head' ? 'Department Head' : 'Colleague');
+      currentUser?.displayName ??
+      (input.authorRole === "department-head"
+        ? "Department Head"
+        : "Colleague");
+    const isStructured = input.authorRole === "department-head";
     const record: TeacherFeedback = {
       id: `local-fb-${Date.now()}`,
       teacherId: input.teacherId,
-      direction: 'to_teacher',
+      direction: "to_teacher",
       authorRole: input.authorRole,
-      category: input.authorRole === 'peer' ? 'informal_peer' : input.category ?? 'coaching',
+      category:
+        input.authorRole === "peer"
+          ? "informal_peer"
+          : (input.category ?? "coaching"),
       authorName,
       subject: input.subject,
       comment: input.comment,
       rating: input.rating,
       date: new Date().toISOString().slice(0, 10),
+      strength: isStructured ? input.strength : undefined,
+      developmentArea: isStructured ? input.developmentArea : undefined,
+      agreedAction: isStructured ? input.agreedAction : undefined,
+      followUpRequired: isStructured ? input.followUpRequired : undefined,
+      followUpDueDate:
+        isStructured && input.followUpRequired
+          ? input.followUpDueDate
+          : undefined,
     };
     setTeacherFeedbacks((prev) => [record, ...prev]);
-    addNotification('Feedback Sent', `Your feedback was recorded for the teacher.`, 'success');
+    addNotification(
+      "Feedback Sent",
+      `Your feedback was recorded for the teacher.`,
+      "success",
+    );
     void api
-      .sendPortalFeedback({ ...input, authorName, direction: 'to_teacher' })
+      .sendPortalFeedback({ ...input, authorName, direction: "to_teacher" })
       .catch(() => {
         /* recorded locally; will sync once the server accepts this feedback type */
       });
@@ -2154,13 +3183,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     lessonPlanId?: string;
     graspOutcome: GraspOutcome;
     challengeText?: string;
-    postTo: 'hod' | 'community' | 'both' | 'none';
+    postTo: "hod" | "community" | "both" | "none";
     communityId?: string;
     channelId?: string;
   }) => {
     const teacherId = resolveTeacherId();
-    const postedToHod = payload.postTo === 'hod' || payload.postTo === 'both';
-    const postedToCommunity = payload.postTo === 'community' || payload.postTo === 'both';
+    const postedToHod = payload.postTo === "hod" || payload.postTo === "both";
+    const postedToCommunity =
+      payload.postTo === "community" || payload.postTo === "both";
     try {
       const result = await api.createLessonDelivery({
         teachingNoteId: payload.teachingNoteId,
@@ -2173,31 +3203,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         communityId: payload.communityId,
         channelId: payload.channelId,
       });
-      setLessonDeliveries((prev) => [result.delivery, ...prev.filter((d) => d.id !== result.delivery.id)]);
+      setLessonDeliveries((prev) => [
+        result.delivery,
+        ...prev.filter((d) => d.id !== result.delivery.id),
+      ]);
       if (result.communityPost) {
-        setCommunityPosts((prev) => [result.communityPost!, ...prev.filter((p) => p.id !== result.communityPost!.id)]);
+        setCommunityPosts((prev) => [
+          result.communityPost!,
+          ...prev.filter((p) => p.id !== result.communityPost!.id),
+        ]);
       }
       if (result.communityMessage) {
         window.dispatchEvent(
-          new CustomEvent('community:channel-message', { detail: result.communityMessage }),
+          new CustomEvent("community:channel-message", {
+            detail: result.communityMessage,
+          }),
         );
       }
       if (postedToHod) {
         void refreshStaffMessages({ teacherId });
       }
       addNotification(
-        'Lesson marked delivered',
-        payload.graspOutcome === 'challenged'
+        "Lesson marked delivered",
+        payload.graspOutcome === "challenged"
           ? postedToCommunity
-            ? 'Delivery saved and challenge posted to your community.'
-            : 'Delivery saved and challenge shared.'
-          : 'Classroom delivery feedback recorded.',
-        'success',
-        postedToCommunity ? '/dashboard/teacher/communication' : undefined,
+            ? "Delivery saved and challenge posted to your community."
+            : "Delivery saved and challenge shared."
+          : "Classroom delivery feedback recorded.",
+        "success",
+        postedToCommunity ? "/dashboard/teacher/communication" : undefined,
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not mark delivered.';
-      addNotification('Delivery failed', message, 'alert');
+      const message =
+        err instanceof Error ? err.message : "Could not mark delivered.";
+      addNotification("Delivery failed", message, "alert");
       throw err;
     }
   };
@@ -2209,43 +3248,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     grade?: string;
   }) => {
     const teacher = teachers.find((t) => t.id === resolveTeacherId());
-    const authorName = teacher?.name ?? currentUser?.displayName ?? 'Teacher';
+    const authorName = teacher?.name ?? currentUser?.displayName ?? "Teacher";
     const post = await api.createCommunityPost({
       ...payload,
       authorId: resolveTeacherId(),
       authorName,
-      authorRole: 'teacher',
+      authorRole: "teacher",
       departmentId: teacher?.departmentId,
     });
     setCommunityPosts((prev) => [post, ...prev]);
-    addNotification('Posted to community', 'Your challenge is visible to other teachers.', 'success');
+    addNotification(
+      "Posted to community",
+      "Your challenge is visible to other teachers.",
+      "success",
+    );
   };
 
-  const replyToCommunityPost = async (postId: string, body: string, parentReplyId?: string) => {
+  const replyToCommunityPost = async (
+    postId: string,
+    body: string,
+    parentReplyId?: string,
+  ) => {
     const teacher = teachers.find((t) => t.id === resolveTeacherId());
-    const isHod = currentUser?.role === 'department-head';
+    const isHod = currentUser?.role === "department-head";
     const authorName = isHod
-      ? currentUser?.displayName ?? 'Department Head'
-      : teacher?.name ?? currentUser?.displayName ?? 'Teacher';
-    const authorId = isHod ? currentUser?.id ?? 'hod' : resolveTeacherId();
+      ? (currentUser?.displayName ?? "Department Head")
+      : (teacher?.name ?? currentUser?.displayName ?? "Teacher");
+    const authorId = isHod ? (currentUser?.id ?? "hod") : resolveTeacherId();
     const reply = await api.createCommunityReply(postId, {
       body,
       parentReplyId,
       authorId,
       authorName,
-      authorRole: isHod ? 'department-head' : 'teacher',
+      authorRole: isHod ? "department-head" : "teacher",
     });
     setCommunityReplies((prev) => [...prev, reply]);
   };
 
-  const refreshStaffMessages = async (params?: { teacherId?: string; departmentId?: string }) => {
+  const refreshStaffMessages = async (params?: {
+    teacherId?: string;
+    departmentId?: string;
+  }) => {
     try {
       const messages = await api.getStaffMessages(params);
       setStaffMessages((prev) => {
         const byId = new Map(prev.map((m) => [m.id, m]));
         for (const m of messages) byId.set(m.id, m);
         return [...byId.values()].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
       });
     } catch {
@@ -2256,16 +3307,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const sendStaffMessage = async (payload: {
     teacherId: string;
     body: string;
-    senderRole: 'teacher' | 'department-head';
+    senderRole: "teacher" | "department-head";
   }) => {
     const teacher = teachers.find((t) => t.id === payload.teacherId);
     const senderName =
-      payload.senderRole === 'department-head'
-        ? currentUser?.displayName ?? 'Department Head'
-        : teacher?.name ?? currentUser?.displayName ?? 'Teacher';
+      payload.senderRole === "department-head"
+        ? (currentUser?.displayName ?? "Department Head")
+        : (teacher?.name ?? currentUser?.displayName ?? "Teacher");
     const senderId =
-      payload.senderRole === 'department-head'
-        ? currentUser?.id ?? 'hod'
+      payload.senderRole === "department-head"
+        ? (currentUser?.id ?? "hod")
         : resolveTeacherId();
     const msg = await api.sendStaffMessage({
       teacherId: payload.teacherId,
@@ -2278,14 +3329,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStaffMessages((prev) => [...prev.filter((m) => m.id !== msg.id), msg]);
   };
 
-  const markStaffMessagesRead = (teacherId: string, readerRole: 'teacher' | 'department-head') => {
+  const markStaffMessagesRead = (
+    teacherId: string,
+    readerRole: "teacher" | "department-head",
+  ) => {
     void api
       .markStaffMessagesRead(teacherId, readerRole)
       .then(() => {
-        const opposite = readerRole === 'teacher' ? 'department-head' : 'teacher';
+        const opposite =
+          readerRole === "teacher" ? "department-head" : "teacher";
         setStaffMessages((prev) =>
           prev.map((m) =>
-            m.teacherId === teacherId && m.senderRole === opposite ? { ...m, read: true } : m,
+            m.teacherId === teacherId && m.senderRole === opposite
+              ? { ...m, read: true }
+              : m,
           ),
         );
       })
@@ -2299,13 +3356,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const sendDeptHeadMessage = (payload: {
     departmentId: string;
     body: string;
-    senderRole: 'department-head' | 'school-head';
+    senderRole: "department-head" | "school-head";
   }) => {
     const dept = departments.find((d) => d.id === payload.departmentId);
     const senderName =
-      payload.senderRole === 'school-head'
-        ? currentUser?.displayName ?? 'School Head'
-        : currentUser?.displayName ?? dept?.headName ?? 'Department Head';
+      payload.senderRole === "school-head"
+        ? (currentUser?.displayName ?? "School Head")
+        : (currentUser?.displayName ?? dept?.headName ?? "Department Head");
     const msg: DeptHeadMessage = {
       id: `dhm-${Date.now()}`,
       departmentId: payload.departmentId,
@@ -2325,12 +3382,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markDeptHeadMessagesRead = (
     departmentId: string,
-    readerRole: 'department-head' | 'school-head',
+    readerRole: "department-head" | "school-head",
   ) => {
-    const opposite = readerRole === 'department-head' ? 'school-head' : 'department-head';
+    const opposite =
+      readerRole === "department-head" ? "school-head" : "department-head";
     setDeptHeadMessages((prev) => {
       const next = prev.map((m) =>
-        m.departmentId === departmentId && m.senderRole === opposite ? { ...m, read: true } : m,
+        m.departmentId === departmentId && m.senderRole === opposite
+          ? { ...m, read: true }
+          : m,
       );
       writeStoredDeptHeadMessages(next);
       return next;
@@ -2340,50 +3400,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const distributeLessonPlan = (id: string) => {
     setLessonPlans(
       lessonPlans.map((lp) => {
-        if (lp.id === id && lp.status === 'Approved') {
-          addNotification('Lesson Plan Distributed', `Approved lesson plan "${lp.title}" has been distributed to subject teachers.`, 'success');
+        if (lp.id === id && lp.status === "Approved") {
+          addNotification(
+            "Lesson Plan Distributed",
+            `Approved lesson plan "${lp.title}" has been distributed to subject teachers.`,
+            "success",
+          );
           return lp;
         }
         return lp;
-      })
+      }),
     );
   };
 
   const addNotification = (
     title: string,
     description: string,
-    type: AppNotification['type'],
+    type: AppNotification["type"],
     linkPath?: string,
-    scope?: 'self' | 'school'
+    scope?: "self" | "school",
   ) => {
     toast({ title, description, variant: type });
-    void api.createNotification(title, description, type, linkPath, scope).then((notif) => {
-      setNotifications((prev) => [notif as AppNotification, ...prev]);
-    }).catch(() => {
-      const newNotif: AppNotification = {
-        id: `not-gen-${Math.random().toString(36).slice(2, 11)}`,
-        title,
-        description,
-        timestamp: 'Just now',
-        read: false,
-        type,
-        linkPath,
-      };
-      setNotifications((prev) => [newNotif, ...prev]);
-    });
+    void api
+      .createNotification(title, description, type, linkPath, scope)
+      .then((notif) => {
+        setNotifications((prev) => [notif as AppNotification, ...prev]);
+      })
+      .catch(() => {
+        const newNotif: AppNotification = {
+          id: `not-gen-${Math.random().toString(36).slice(2, 11)}`,
+          title,
+          description,
+          timestamp: "Just now",
+          read: false,
+          type,
+          linkPath,
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+      });
   };
 
   const markNotificationAsRead = (id: string) => {
-    void api.markNotificationRead(id).then((notif) => {
-      setNotifications((prev) => prev.map((n) => (n.id === id ? (notif as AppNotification) : n)));
-    }).catch(() => {
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    });
+    void api
+      .markNotificationRead(id)
+      .then((notif) => {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? (notif as AppNotification) : n)),
+        );
+      })
+      .catch(() => {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+        );
+      });
   };
 
   const markNotificationAsUnread = (id: string) => {
     setNotifications(
-      notifications.map((not) => (not.id === id ? { ...not, read: false } : not))
+      notifications.map((not) =>
+        not.id === id ? { ...not, read: false } : not,
+      ),
     );
   };
 
@@ -2392,7 +3468,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearNotifications = () => {
-    void api.clearNotifications().then(() => setNotifications([])).catch(() => setNotifications([]));
+    void api
+      .clearNotifications()
+      .then(() => setNotifications([]))
+      .catch(() => setNotifications([]));
   };
 
   return (
@@ -2415,6 +3494,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         students,
         lessonPlans,
         assessments,
+        reviewerDepartmentIds,
         attendance,
         trainings,
         checkIns,
@@ -2459,6 +3539,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rejectLessonPlan,
         approveAssessment,
         rejectAssessment,
+        disseminateAssessment,
         createLessonPlan,
         createAssessment,
         updateAssessmentQuestions,
@@ -2557,7 +3638,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 export const useApp = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
+    throw new Error("useApp must be used within an AppProvider");
   }
   return context;
 };

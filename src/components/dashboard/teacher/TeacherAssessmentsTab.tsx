@@ -32,11 +32,12 @@ const PAGE_SIZE = 10;
 
 export const TeacherAssessmentsTab: React.FC = () => {
   const router = useRouter();
-  const { assessments, teachers, resolveTeacherId } = useApp();
+  const { assessments, teachers, resolveTeacherId, reviewerDepartmentIds } = useApp();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(teachers, teacherId);
   const myAssessments = filterTeacherAssessments(assessments, teacherId, {
     subjects: teacherProfile.subjects,
+    reviewerDepartmentIds,
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'All' | Assessment['type']>('All');
@@ -50,7 +51,7 @@ export const TeacherAssessmentsTab: React.FC = () => {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assessments, teacherId, typeFilter, statusFilter, searchQuery]);
+  }, [assessments, teacherId, typeFilter, statusFilter, searchQuery, reviewerDepartmentIds]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(filteredAssessments.length / PAGE_SIZE));
@@ -79,6 +80,12 @@ export const TeacherAssessmentsTab: React.FC = () => {
               <Upload className="h-3.5 w-3.5" aria-hidden />
               Upload quiz file
             </AisBtnSecondary>
+            {reviewerDepartmentIds.length > 0 && (
+              <AisBtnSecondary onClick={() => router.push('/dashboard/teacher/assessments/generate-exam')}>
+                <FilePlus className="h-3.5 w-3.5" aria-hidden />
+                Generate Mid/Final Exam
+              </AisBtnSecondary>
+            )}
           </>
         }
       >

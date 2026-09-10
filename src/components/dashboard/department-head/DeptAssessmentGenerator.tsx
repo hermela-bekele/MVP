@@ -10,7 +10,7 @@ import { GenerationStatusPanel } from '@/components/ui/GenerationStatusPanel';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { buildLessonPlanContext, generateAssessmentWithAI, questionLimitsForAssessmentType, getWeeklyPlanSessionTopicOptions, parseWeeklyPlanDetail } from '@/lib/ai';
 import { GRADE_OPTIONS, graspOutcomeLabel, normalizeGradeLabel } from '@/lib/teacherPortal';
-import { filterDeptTeachingNotes, resolveDeptHeadScope } from '@/lib/departmentHead';
+import { filterDeptTeachingNotes, resolveDeptHeadScope, type DeptHeadScope } from '@/lib/departmentHead';
 import { portalTabPath } from '@/lib/portalPaths';
 import type { Assessment, GraspOutcome, LessonDelivery, LessonPlan, TeachingNote } from '@/lib/mockData';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
@@ -69,7 +69,16 @@ function graspBadgeVariant(outcome: GraspOutcome): 'success' | 'warning' | 'neut
  * indicator instead of a bare "Generating…" button label, and navigating back to the assessment
  * desk on publish instead of closing a dialog.
  */
-export function DeptAssessmentGenerator() {
+interface DeptAssessmentGeneratorProps {
+  /** When set, generate "as HoD" for a department the signed-in teacher reviews rather
+   * than for the signed-in user's own department-head scope. Used by the reviewer-teacher
+   * exam generator page. */
+  scopeOverride?: DeptHeadScope;
+  /** Where "back" / publish navigates to. Defaults to the department-head assessment desk. */
+  backPath?: string;
+}
+
+export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessmentGeneratorProps = {}) {
   const router = useRouter();
   const {
     createAssessment,
@@ -79,8 +88,11 @@ export function DeptAssessmentGenerator() {
     teachingNotes,
     lessonDeliveries,
     addNotification,
+    resolveTeacherId,
   } = useApp();
-  const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
+  const ownScope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
+  const scope = scopeOverride ?? ownScope;
+  const isReviewerActingAsHod = Boolean(scopeOverride);
 
   const deptTeacherId = useMemo(() => {
     const active = teachers.filter(
@@ -207,7 +219,8 @@ export function DeptAssessmentGenerator() {
     }
   }, [topicOptions, topicValues]);
 
-  const goBackToDesk = () => router.push(portalTabPath('department-head', 'assessments'));
+  const goBackToDesk = () =>
+    router.push(backPath ?? portalTabPath('department-head', 'assessments'));
 
   const handleGenerate = async () => {
     if (!selectedTopics.length) return;
@@ -304,9 +317,10 @@ export function DeptAssessmentGenerator() {
       subject,
       grade,
       difficulty,
-      createdByRole: 'department-head',
-      teacherName: currentUser?.displayName || 'Department Head',
-      teacherId: deptTeacherId,
+      createdByRole: isReviewerActingAsHod ? 'teacher' : 'department-head',
+      teacherName: isReviewerActingAsHod ? undefined : currentUser?.displayName || 'Department Head',
+      teacherId: isReviewerActingAsHod ? resolveTeacherId() : deptTeacherId,
+      reviewDepartmentId: isReviewerActingAsHod ? scope?.departmentId : undefined,
       questions:
         parsedQuestions && parsedQuestions.length > 0
           ? parsedQuestions
@@ -383,7 +397,7 @@ export function DeptAssessmentGenerator() {
             type="checkbox"
             checked={useMlcMix}
             onChange={(e) => setUseMlcMix(e.target.checked)}
-            className="rounded border-input text-primary focus:ring-ring"
+            className="rounded border-input accent-btn-primary focus:ring-ring"
           />
           Set MLC vs. advanced mix
         </label>
@@ -396,7 +410,7 @@ export function DeptAssessmentGenerator() {
               step={5}
               value={mlcPercent}
               onChange={(e) => setMlcPercent(Number(e.target.value))}
-              className="flex-1"
+              className="flex-1 accent-btn-primary"
             />
             <span className="w-40 shrink-0 text-xs text-muted-foreground">
               {mlcPercent}% MLC (minimum competency) · {100 - mlcPercent}% advanced

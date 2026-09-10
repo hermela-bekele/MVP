@@ -60,6 +60,13 @@ export function departmentIdForSubject(subject: string): string {
   return SUBJECT_DEPARTMENT_IDS[subject] ?? 'dept-stem';
 }
 
+/** Reverse of departmentIdForSubject — used when a teacher only has a departmentId
+ * (e.g. from their reviewer grants) and needs a DeptHeadScope-shaped subject. */
+export function subjectForDepartmentId(departmentId: string): string {
+  const entry = Object.entries(SUBJECT_DEPARTMENT_IDS).find(([, id]) => id === departmentId);
+  return entry?.[0] ?? 'Mathematics';
+}
+
 export function resolveDeptHeadScope(
   user: Pick<AuthUser, 'email' | 'role' | 'subject' | 'departmentId'> | null | undefined,
 ): DeptHeadScope | null {

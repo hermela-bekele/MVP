@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Tooltip } from '@/components/ui/tooltip';
 
 /** Green & white KPI variants */
 const toneStyles = {
@@ -108,6 +109,14 @@ export interface KpiWidgetProps {
   /** Animate numeric values counting up from 0 on mount */
   animated?: boolean;
   className?: string;
+  /** Descriptive hover content explaining what this metric measures and how it's
+   * computed — e.g. { description: '...', detail: 'Threshold: ...' }. When set, the
+   * whole card becomes a hover target showing this, matching the teacher dashboard's
+   * indicator-tooltip pattern. */
+  tooltip?: {
+    description: React.ReactNode;
+    detail?: React.ReactNode;
+  };
 }
 
 /**
@@ -123,14 +132,15 @@ export const KpiWidget: React.FC<KpiWidgetProps> = ({
   trend,
   animated = false,
   className = '',
+  tooltip,
 }) => {
   const styles = toneStyles[tone];
   const numericValue = typeof value === 'number' ? value : null;
   const animatedValue = useAnimatedNumber(numericValue ?? 0, animated && numericValue !== null);
 
-  return (
+  const card = (
     <div
-      className={`group relative overflow-hidden rounded-lg border p-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] ${styles.card} ${className}`}
+      className={`group relative w-full overflow-hidden rounded-lg border p-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] ${styles.card} ${className}`}
     >
       {/* Gradient accent line */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-60" />
@@ -158,6 +168,25 @@ export const KpiWidget: React.FC<KpiWidgetProps> = ({
       {/* Animated pulse indicator */}
       <div className="absolute bottom-2 right-2 h-1.5 w-1.5 rounded-full bg-primary/40 animate-pulse" />
     </div>
+  );
+
+  if (!tooltip) return card;
+
+  return (
+    <Tooltip
+      position="bottom"
+      className="w-full"
+      tooltipClassName="whitespace-normal max-w-[15rem] text-left"
+      content={
+        <div className="space-y-1">
+          <p className="font-semibold">{label}</p>
+          <p>{tooltip.description}</p>
+          {tooltip.detail && <p className="text-background/70">{tooltip.detail}</p>}
+        </div>
+      }
+    >
+      {card}
+    </Tooltip>
   );
 };
 

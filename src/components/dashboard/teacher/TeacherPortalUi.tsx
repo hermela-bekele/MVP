@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { Info } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   aisBadgeError,
   aisBadgeNeutral,
@@ -68,8 +70,20 @@ export function AisPanel({
       {(title || description || actions) && (
         <div className={aisPanelHeader}>
           <div className="min-w-0">
-            {title && <h3 className={`${aisHeadlineSm} !text-title`}>{title}</h3>}
-            {description && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
+            {title && (
+              <h3 className={`${aisHeadlineSm} !text-title flex items-center gap-1.5`}>
+                {title}
+                {description && (
+                  <Tooltip content={description}>
+                    <Info
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-colors hover:text-primary cursor-help"
+                      aria-label={description}
+                    />
+                  </Tooltip>
+                )}
+              </h3>
+            )}
+            {description && !title && <p className={`${aisBodyMd} mt-0.5`}>{description}</p>}
           </div>
           {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </div>
