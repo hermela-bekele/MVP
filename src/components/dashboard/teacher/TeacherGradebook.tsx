@@ -440,7 +440,7 @@ export const TeacherGradebook: React.FC = () => {
 
   return (
     <div className="relative space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
         <Select
           variant="ais"
           label="Class grade"
@@ -461,25 +461,23 @@ export const TeacherGradebook: React.FC = () => {
           value={classSection}
           onChange={(e) => setClassSection(e.target.value)}
         />
+        <AisBtnPrimary
+          type="button"
+          onClick={() => openAdd()}
+          disabled={roster.length === 0 || isLocked}
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          Add result
+        </AisBtnPrimary>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <AisBtnPrimary
-            type="button"
-            className="!text-xs"
-            onClick={() => openAdd()}
-            disabled={roster.length === 0 || isLocked}
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            Add result
-          </AisBtnPrimary>
-          {isLocked && (
-            <span className={`${aisBodySm} text-muted-foreground`}>
-              Editing is locked until an Academic Head reopens this class/subject/term.
-            </span>
-          )}
-        </div>
+      {isLocked && (
+        <p className={`${aisBodySm} text-muted-foreground`}>
+          Editing is locked until an Academic Head reopens this class/subject/term.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {classSection !== 'All' && (
           <div className="flex items-center gap-2">
             <AisStatusBadge

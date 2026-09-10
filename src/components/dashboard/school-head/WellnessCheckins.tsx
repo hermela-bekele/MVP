@@ -19,7 +19,7 @@ export const WellnessCheckins: React.FC = () => {
 
   // Form States
   const [checkInTitle, setCheckInTitle] = useState('Weekly Wellness Check-in');
-  const [checkInType, setCheckInType] = useState<'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback'>('Teacher Wellness');
+  const [checkInType, setCheckInType] = useState<'Wellness' | 'Student Feedback' | 'Parent Feedback'>('Wellness');
   const [checkInRespondent, setCheckInRespondent] = useState('');
   const [checkInRating, setCheckInRating] = useState(5);
   const [checkInComment, setCheckInComment] = useState('');
@@ -41,12 +41,12 @@ export const WellnessCheckins: React.FC = () => {
     const overallSum = checkIns.reduce((acc, curr) => acc + curr.rating, 0);
     const overall = Math.round((overallSum / total) * 20); // Scale of 5 to percentage
 
-    const teachersCheck = checkIns.filter(c => c.type === 'Teacher Wellness');
+    const teachersCheck = checkIns.filter(c => c.type === 'Wellness');
     const teacher = teachersCheck.length > 0
       ? Math.round((teachersCheck.reduce((acc, c) => acc + c.rating, 0) / teachersCheck.length) * 20)
       : 0;
 
-    const studentsCheck = checkIns.filter(c => c.type === 'Student Satisfaction');
+    const studentsCheck = checkIns.filter(c => c.type === 'Student Feedback');
     const student = studentsCheck.length > 0
       ? Math.round((studentsCheck.reduce((acc, c) => acc + c.rating, 0) / studentsCheck.length) * 20)
       : 0;
@@ -97,7 +97,7 @@ export const WellnessCheckins: React.FC = () => {
       header: 'Target Cohort',
       sortable: true,
       render: (row) => (
-        <Badge variant={row.type === 'Teacher Wellness' ? 'primary' : row.type === 'Student Satisfaction' ? 'primary' : 'info'} size="sm" className="font-medium">
+        <Badge variant={row.type === 'Wellness' ? 'primary' : row.type === 'Student Feedback' ? 'primary' : 'info'} size="sm" className="font-medium">
           {row.type}
         </Badge>
       ),
@@ -211,8 +211,8 @@ export const WellnessCheckins: React.FC = () => {
                 onChange={(e) => setCheckInType(e.target.value as any)}
                 className={formFieldInputClass}
               >
-                <option value="Teacher Wellness">Teaching Faculty</option>
-                <option value="Student Satisfaction">Student Body</option>
+                <option value="Wellness">Teaching Faculty</option>
+                <option value="Student Feedback">Student Body</option>
                 <option value="Parent Feedback">Parent Roster</option>
               </select>
             </FormField>

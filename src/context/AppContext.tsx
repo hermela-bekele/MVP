@@ -185,9 +185,11 @@ interface AppContextType {
   addSchool: (school: Omit<School, 'id' | 'code' | 'studentsCount' | 'teachersCount' | 'status' | 'gps'>) => void;
   toggleSchoolStatus: (id: string) => void;
   approveLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
-  rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
-  approveAssessment: (id: string, comments: string) => void;
-  rejectAssessment: (id: string, comments: string) => void;
+  /** returnReasonCategory is required in practice whenever role is 'dept' — the HoD's
+   * return dialog blocks submission until one is chosen. */
+  rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string, returnReasonCategory?: string) => void;
+  approveAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) => void;
+  rejectAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) => void;
   createLessonPlan: (plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => void;
   createAssessment: (
     asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
@@ -288,7 +290,7 @@ interface AppContextType {
     data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
   ) => void;
   removeTrainingPlanAssignment: (id: string) => void;
-  addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
+  addCheckInTemplate: (title: string, type: 'Wellness' | 'Student Feedback' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
   updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
   distributeLessonPlan: (id: string) => void;
   createTeachingNote: (
@@ -341,6 +343,12 @@ interface AppContextType {
     subject: string;
     comment: string;
     rating?: number;
+    /** FB-004: structured coaching/observation fields — 'department-head' only. */
+    strength?: string;
+    developmentArea?: string;
+    agreedAction?: string;
+    followUpRequired?: boolean;
+    followUpDueDate?: string;
   }) => void;
   markLessonDelivered: (payload: {
     teachingNoteId: string;
@@ -914,22 +922,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
-  const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
-    void api.rejectLessonPlan(id, role, comments).then((lp) => {
+  const rejectLessonPlan = (id: string, role: 'dept' | 'school', comments: string, returnReasonCategory?: string) => {
+    void api.rejectLessonPlan(id, role, comments, returnReasonCategory).then((lp) => {
       setLessonPlans((prev) => prev.map((p) => (p.id === id ? (lp as LessonPlan) : p)));
       addNotification('Lesson Plan Rejected', `Lesson plan "${(lp as LessonPlan).title}" was rejected.`, 'alert', '/dashboard/teacher/lesson-plans');
     }).catch(() => void refreshFromApi());
   };
 
-  const approveAssessment = (id: string, comments: string) => {
-    void api.approveAssessment(id, comments).then((asm) => {
+  const approveAssessment = (id: string, comments: string, moderationRubric?: Record<string, string>) => {
+    void api.approveAssessment(id, comments, moderationRubric).then((asm) => {
       setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
       addNotification('Assessment Approved', `Assessment "${(asm as Assessment).title}" approved.`, 'success', '/dashboard/teacher/manage-students');
     }).catch(() => void refreshFromApi());
   };
 
-  const rejectAssessment = (id: string, comments: string) => {
-    void api.rejectAssessment(id, comments).then((asm) => {
+  const rejectAssessment = (id: string, comments: string, moderationRubric?: Record<string, string>) => {
+    void api.rejectAssessment(id, comments, moderationRubric).then((asm) => {
       setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
       addNotification('Assessment Draft Rejected', `Assessment "${(asm as Assessment).title}" sent back.`, 'alert', '/dashboard/teacher/assessments');
     }).catch(() => void refreshFromApi());
@@ -1497,7 +1505,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void api.removeTrainingPlanAssignment(id).catch(() => void refreshFromApi());
   };
 
-  const addCheckInTemplate = (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
+  const addCheckInTemplate = (title: string, type: 'Wellness' | 'Student Feedback' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
     void api.createCheckIn({ title, type, respondentName, rating, comment }).then((ch) => {
       setCheckIns((prev) => [ch as SchoolCheckIn, ...prev]);
       addNotification('Wellness Survey Created', `Survey "${title}" created.`, 'success');
@@ -2000,9 +2008,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     subject: string;
     comment: string;
     rating?: number;
+    strength?: string;
+    developmentArea?: string;
+    agreedAction?: string;
+    followUpRequired?: boolean;
+    followUpDueDate?: string;
   }) => {
     const authorName =
       currentUser?.displayName ?? (input.authorRole === 'department-head' ? 'Department Head' : 'Colleague');
+    const isStructured = input.authorRole === 'department-head';
     const record: TeacherFeedback = {
       id: `local-fb-${Date.now()}`,
       teacherId: input.teacherId,
@@ -2014,6 +2028,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       comment: input.comment,
       rating: input.rating,
       date: new Date().toISOString().slice(0, 10),
+      strength: isStructured ? input.strength : undefined,
+      developmentArea: isStructured ? input.developmentArea : undefined,
+      agreedAction: isStructured ? input.agreedAction : undefined,
+      followUpRequired: isStructured ? input.followUpRequired : undefined,
+      followUpDueDate: isStructured && input.followUpRequired ? input.followUpDueDate : undefined,
     };
     setTeacherFeedbacks((prev) => [record, ...prev]);
     addNotification('Feedback Sent', `Your feedback was recorded for the teacher.`, 'success');

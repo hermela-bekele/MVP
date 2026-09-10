@@ -9,6 +9,7 @@ import { GenerationStatusPanel } from '@/components/ui/GenerationStatusPanel';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import type { AITeachingNotesResult } from '@/lib/ai';
 import { getWeeklyPlanSessionTopicOptions, parseWeeklyPlanDetail } from '@/lib/ai';
+import { weekNumberLabel, weekPageLabel } from '@/lib/annualLessonPlan';
 import {
   GRADE_OPTIONS,
   SUBJECT_OPTIONS,
@@ -51,11 +52,11 @@ function RendererLoading() {
 
 function weeklyPlanWeekLabel(plan: LessonPlan): string {
   const detail = parseWeeklyPlanDetail(plan) as AIDetailedLessonPlanResult & {
-    calendarWeek?: { month?: string; week?: string; date?: string; unit?: string };
+    calendarWeek?: { month?: string; week?: string; page?: string; unit?: string };
   } | null;
   const cw = detail?.calendarWeek;
   if (cw?.month && cw?.week) {
-    return `${cw.month} ${cw.week}${cw.date ? ` (${cw.date})` : ''}${cw.unit ? ` · ${cw.unit}` : ''}`;
+    return `${cw.month} ${weekNumberLabel(cw.week)} · ${weekPageLabel(cw.page)}${cw.unit ? ` · ${cw.unit}` : ''}`;
   }
   return plan.title;
 }
@@ -155,12 +156,27 @@ export function TeacherLessonNoteGenerator() {
   const [explainingMore, setExplainingMore] = useState(false);
   const [explainMoreUsed, setExplainMoreUsed] = useState(false);
   const [generationError, setGenerationError] = useState('');
-  const [presetTopics, setPresetTopics] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
 
   const elapsedSeconds = useElapsedTime(generatingNotes);
 
   const activePlan = ownWeeklyPlans.find((p) => p.id === linkedPlanId);
+
+  // TE-005 follow-up: Supplementary / Unplanned Session notes are meant to stay a rare
+  // exception, not a routine substitute for planned lessons — cap at 3 per teacher per
+  // calendar month. Editing an existing note never counts as creating a new one.
+  const STANDALONE_MONTHLY_LIMIT = 3;
+  const standaloneNotesThisMonth = useMemo(() => {
+    const now = new Date();
+    return teachingNotes.filter((n) => {
+      if (n.teacherId !== teacherId || n.lessonPlanId) return false;
+      const created = new Date(n.createdAt);
+      return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
+    }).length;
+  }, [teachingNotes, teacherId]);
+  const standaloneLimitReached =
+    !linkedPlanId && !editingNoteId && standaloneNotesThisMonth >= STANDALONE_MONTHLY_LIMIT;
+
   const noteWeekPlanChoices = (() => {
     if (activePlan && !approvedWeeklyPlans.some((p) => p.id === activePlan.id)) {
       return [...approvedWeeklyPlans, activePlan];
@@ -168,25 +184,6 @@ export function TeacherLessonNoteGenerator() {
     return approvedWeeklyPlans;
   })();
   const sessionTopicOptions = activePlan ? getWeeklyPlanSessionTopicOptions(activePlan) : [];
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetch('/api/ai/topics')
-      .then((r) => r.json())
-      .then((data: { topics?: string[] }) => {
-        if (!cancelled && Array.isArray(data.topics)) {
-          setPresetTopics(data.topics.map((t) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPresetTopics(['Functions', 'Trigonometry', 'Algebra', 'Probability', 'Statistics', 'Calculus']);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const applySessionTopic = (plan: LessonPlan, scope: string) => {
     const options = getWeeklyPlanSessionTopicOptions(plan);
@@ -234,6 +231,12 @@ export function TeacherLessonNoteGenerator() {
 
   const handleGenerateNotes = async () => {
     setGenerationError('');
+    if (standaloneLimitReached) {
+      setGenerationError(
+        `You've reached the limit of ${STANDALONE_MONTHLY_LIMIT} Supplementary / Unplanned Session notes this month. Link this note to a weekly plan instead, or wait until next month.`,
+      );
+      return;
+    }
     if (activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan)) {
       setGenerationError('This weekly plan must be approved by the department head before you generate teaching notes.');
       return;
@@ -433,6 +436,14 @@ export function TeacherLessonNoteGenerator() {
       addNotification('Content required', 'Add or edit note content before saving.', 'alert');
       return;
     }
+    if (standaloneLimitReached) {
+      addNotification(
+        'Monthly limit reached',
+        `You've reached the limit of ${STANDALONE_MONTHLY_LIMIT} Supplementary / Unplanned Session notes this month.`,
+        'alert',
+      );
+      return;
+    }
     if (!linkedPlanId && !standaloneReason.trim()) {
       addNotification(
         'Reason required',
@@ -455,6 +466,14 @@ export function TeacherLessonNoteGenerator() {
     const payload = buildNotePayload();
     if (!hasNoteContent) {
       addNotification('Nothing to submit', 'Add note content or generate with AI first.', 'alert');
+      return;
+    }
+    if (standaloneLimitReached) {
+      addNotification(
+        'Monthly limit reached',
+        `You've reached the limit of ${STANDALONE_MONTHLY_LIMIT} Supplementary / Unplanned Session notes this month.`,
+        'alert',
+      );
       return;
     }
     if (!linkedPlanId && !standaloneReason.trim()) {
@@ -499,11 +518,27 @@ export function TeacherLessonNoteGenerator() {
             } else {
               setSelectedSessionScope('');
               setNotesTopic('');
+              // Switching to Supplementary/Unplanned must not leave behind the previously
+              // linked plan's week-derived title (e.g. "Meskerem W1 · P1-16 · Unit-1 ...") —
+              // that stale title made a standalone note look like it was still following the
+              // old plan even after the teacher typed a brand-new custom topic.
+              if (!editingNoteId) setNoteTitle('');
             }
           }}
         />
         {!linkedPlanId && (
           <div className="space-y-1.5">
+            {!editingNoteId && (
+              <p
+                className={`text-xs font-medium ${
+                  standaloneLimitReached ? 'text-ais-error' : 'text-ais-on-surface-variant'
+                }`}
+              >
+                {standaloneLimitReached
+                  ? `Limit reached: ${standaloneNotesThisMonth}/${STANDALONE_MONTHLY_LIMIT} Supplementary / Unplanned Session notes used this month.`
+                  : `${standaloneNotesThisMonth}/${STANDALONE_MONTHLY_LIMIT} Supplementary / Unplanned Session notes used this month.`}
+              </p>
+            )}
             <label className={aisFormLabel}>
               Why is this note Supplementary / Unplanned? <span className="text-ais-error">*</span>
             </label>
@@ -513,6 +548,7 @@ export function TeacherLessonNoteGenerator() {
               placeholder="e.g. Covered an extra review session not on the weekly plan; substitute-taught another section; addressed a topic students struggled with."
               value={standaloneReason}
               onChange={(e) => setStandaloneReason(e.target.value)}
+              disabled={standaloneLimitReached}
             />
             <p className="text-xs text-ais-on-surface-variant">
               Notes without a linked weekly plan are an exception to normal curriculum tracking and are
@@ -554,40 +590,32 @@ export function TeacherLessonNoteGenerator() {
       </section>
 
       <section className="space-y-2 rounded-xl border border-ais-card-border bg-card p-5">
-        <label className={`${aisFormLabel} block min-h-[14px] leading-[14px]`}>
-          Topic {activePlan && !editingNoteId ? '(preset or custom)' : ''}
-        </label>
-        {presetTopics.length > 0 ? (
-          <Select
-            variant="ais"
-            options={[
-              { value: '', label: 'Choose a preset topic…' },
-              ...presetTopics.map((t) => ({ value: t, label: t })),
-              ...(notesTopic && !presetTopics.includes(notesTopic) ? [{ value: notesTopic, label: `${notesTopic} (custom)` }] : []),
-            ]}
-            value={presetTopics.includes(notesTopic) ? notesTopic : notesTopic || ''}
-            onChange={(e) => {
-              if (e.target.value) setNotesTopic(e.target.value);
-            }}
+        <label className={`${aisFormLabel} block min-h-[14px] leading-[14px]`}>Topic</label>
+        {/* No preset picker in either case: a plan-linked note's topic comes directly from
+            the session chosen above and is locked (traceable to what was actually planned),
+            and a Supplementary/Unplanned note's topic is a deliberately-typed custom entry —
+            neither should be a shortcut around picking/typing the real topic. */}
+        {linkedPlanId ? (
+          <input
+            className={`${aisInput} min-w-0 cursor-not-allowed bg-muted/50 text-muted-foreground`}
+            value={notesTopic}
+            readOnly
+            aria-readonly="true"
           />
-        ) : null}
-        <input
-          className={`${aisInput} min-w-0`}
-          value={notesTopic}
-          onChange={(e) => setNotesTopic(e.target.value)}
-          placeholder="Or type a custom topic"
-          list="lesson-note-preset-topics"
-        />
-        <datalist id="lesson-note-preset-topics">
-          {presetTopics.map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
+        ) : (
+          <input
+            className={`${aisInput} min-w-0`}
+            value={notesTopic}
+            onChange={(e) => setNotesTopic(e.target.value)}
+            placeholder="Type the topic for this supplementary session"
+          />
+        )}
         {activePlan && !editingNoteId && (
           <div className="space-y-1 pt-1">
             <p className="text-xs text-ais-on-surface-variant">
-              Choose <strong>All sessions</strong> or one session from this week. The topic above is
-              editable. Generation uses your selection plus the weekly plan objectives.
+              Choose <strong>All sessions</strong> or one session from this week — the topic above comes
+              directly from that choice and can&apos;t be edited. Generation uses your selection plus the
+              weekly plan objectives.
             </p>
             {(activePlan.objectives?.length ?? 0) > 0 && (
               <div className="rounded-xl border border-ais-card-border bg-ais-surface-container-low/50 px-3 py-2">

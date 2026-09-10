@@ -236,6 +236,7 @@ function KpiCard({
   accent = 'primary',
   indicatorId,
   tooltipPosition = 'bottom',
+  tooltipDetail,
 }: {
   label: string;
   value: React.ReactNode;
@@ -248,9 +249,14 @@ function KpiCard({
    * hovering explains what it measures and what to do; clicking drills into the tab
    * where that data lives. */
   indicatorId?: DashboardIndicatorId;
-  /** The last card in the row sits near the right edge — center-under overflows off
-   * the viewport there, so it needs to open leftward instead. */
-  tooltipPosition?: 'bottom' | 'left';
+  /** The last card in the row sits near the right edge — a centered bottom tooltip
+   * would overflow off-screen there, so it opens downward but right-aligned instead,
+   * keeping the same open-direction as every other card. */
+  tooltipPosition?: 'bottom' | 'bottom-right';
+  /** Extra line appended to the tooltip content, below the dictionary's standard fields
+   * — e.g. the At-Risk card's live attendance-vs-mark breakdown. Kept out of the visible
+   * pill badge so every card's pill stays the same short, fixed-length shape. */
+  tooltipDetail?: React.ReactNode;
 }) {
   const pillClass =
     pillVariant === 'success'
@@ -277,22 +283,19 @@ function KpiCard({
           : undefined
       }
     >
-      <div
-        className={
-          pill
-            ? 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2'
-            : 'flex items-center'
-        }
-      >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <p
           className={`${aisKpiLabel} flex min-w-0 items-center gap-2 ${
             accent === 'error' ? '!text-ais-error' : ''
           }`}
         >
           <Icon className="h-4 w-4 shrink-0" aria-hidden />
-          <span className="truncate">{label}</span>
+          {/* Never truncated: on a narrow card the pill wraps to its own line below
+              instead of eating into the label's space (TE/UI: a cut-off "TOTAL
+              STUDE…" label looked broken next to the other cards' full labels). */}
+          <span className="whitespace-nowrap">{label}</span>
         </p>
-        {pill && <span className={`${pillClass} justify-self-end`}>{pill}</span>}
+        {pill && <span className={`${pillClass} shrink-0`}>{pill}</span>}
       </div>
       <div className="mt-4 flex items-end gap-2">
         <span
@@ -318,6 +321,7 @@ function KpiCard({
           <p>{indicator.measures}</p>
           <p className="text-background/70">Threshold: {indicator.threshold}</p>
           <p className="text-background/70">Action: {indicator.teacherAction}</p>
+          {tooltipDetail && <p className="text-background/70">{tooltipDetail}</p>}
         </div>
       }
     >
@@ -380,16 +384,17 @@ export const TeacherDashboard: React.FC = () => {
         <KpiCard
           label="At Risk"
           value={atRisk.length}
-          pill={
-            atRisk.length === 0
-              ? 'None'
-              : `${attendanceRiskCount} attendance · ${academicRiskCount} mark`
-          }
+          pill={atRisk.length === 0 ? 'None' : 'Action req.'}
           pillVariant="error"
           icon={AlertTriangle}
           accent="error"
           indicatorId="studentsAtRisk"
-          tooltipPosition="left"
+          tooltipPosition="bottom-right"
+          tooltipDetail={
+            atRisk.length > 0
+              ? `Currently: ${attendanceRiskCount} for attendance, ${academicRiskCount} for mark`
+              : undefined
+          }
         />
       </section>
 

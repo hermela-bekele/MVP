@@ -235,7 +235,15 @@ export const TeacherTrainingTab: React.FC<{
         {/* Module Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {currentModules.map((module) => {
-            const progress = calculateModuleProgress(module);
+            // A module formally assigned by the HoD is only really "complete" once its
+            // TeacherTrainingAssignment record says so (sessions + assessment + reflection,
+            // enforced server-side) — the session-toggle percentage alone can't be trusted
+            // to reflect that, so it's overridden to 100% once the assignment confirms it.
+            const assignment = teacherTrainingAssignments.find(
+              (a) => a.teacherId === teacher.id && a.moduleId === module.id,
+            );
+            const isCompleted = assignment?.status === 'completed';
+            const progress = isCompleted ? 100 : calculateModuleProgress(module);
 
             return (
               <button
@@ -244,8 +252,11 @@ export const TeacherTrainingTab: React.FC<{
                 className={`${aisCard} group relative overflow-hidden p-5 text-left transition-all duration-300 hover:shadow-md hover:border-primary/30`}
               >
                 {/* Category Badge */}
-                <div className={`${aisBadgePrimary} mb-3`}>
-                  {module.category}
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className={aisBadgePrimary}>{module.category}</div>
+                  {isCompleted && (
+                    <span className={aisBadgeSuccess}>Completed</span>
+                  )}
                 </div>
 
                 {/* Title */}

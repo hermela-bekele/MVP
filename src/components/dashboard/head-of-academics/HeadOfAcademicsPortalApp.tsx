@@ -15,6 +15,7 @@ import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { departmentIdForSubject } from '@/lib/departmentHead';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 import { FileText, GraduationCap, Settings2, Users } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
 import { TeacherOverviewPanel } from './TeacherOverviewPanel';
 import { VPAcademicResults } from './VPAcademicResults';
 import { VPClassReportPanel } from './VPClassReportPanel';
@@ -23,7 +24,9 @@ import { VPReportTemplateBuilder } from './VPReportTemplateBuilder';
 import { AnnualLessonPlanPanel } from './AnnualLessonPlanPanel';
 import { AcademicCalendarPanel } from './AcademicCalendarPanel';
 import { ResourcesPanel } from './ResourcesPanel';
-import { TrainingPanel } from './TrainingPanel';
+import { SchoolProfessionalDevelopmentPanel } from './SchoolProfessionalDevelopmentPanel';
+import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
+import { CommunicationModule } from '@/components/dashboard/communication/CommunicationModule';
 
 const COVERAGE_TARGET = 80;
 
@@ -80,16 +83,18 @@ export default function HeadOfAcademicsPortalApp() {
       .sort((a, b) => a.gradeLevel.localeCompare(b.gradeLevel));
   }, [studentGradeEntries]);
 
-  // Real per-grade completion index, derived from actual recorded grade entries rather than
-  // a fixed demo array — one aggregate score per grade level so it moves as real data comes in.
+  // Real per-grade average academic performance, derived from actual recorded grade
+  // entries rather than a fixed demo array. This is a student-score metric — its status
+  // labels describe score standing, never curriculum pacing/completion (a different,
+  // separately-tracked thing: see Curriculum Implementation Rate on Teacher Progress).
   const gradeCoverage = useMemo(() => {
     return gradeSubjectAverages.map((grp) => {
       const avg = grp.subjects.length > 0
         ? grp.subjects.reduce((sum, s) => sum + s.average, 0) / grp.subjects.length
         : 0;
       const coverage = parseFloat(avg.toFixed(1));
-      const status: 'Completed' | 'On Track' | 'Behind Schedule' =
-        coverage >= 90 ? 'Completed' : coverage >= COVERAGE_TARGET ? 'On Track' : 'Behind Schedule';
+      const status: 'Excellent' | 'On Target' | 'Below Target' =
+        coverage >= 90 ? 'Excellent' : coverage >= COVERAGE_TARGET ? 'On Target' : 'Below Target';
       return { gradeLevel: grp.gradeLevel, coverage, status };
     });
   }, [gradeSubjectAverages]);
@@ -121,12 +126,16 @@ export default function HeadOfAcademicsPortalApp() {
         return { title: 'Academic Calendar', subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.' };
       case 'resources':
         return { title: 'School Resources', subtitle: 'Upload and disseminate school-wide pedagogy and policy materials.' };
-      case 'training':
-        return { title: 'Training', subtitle: 'Browse every training type — leadership, subject-matter, induction, and continuous development' };
+      case 'my-development':
+        return { title: 'My Development', subtitle: 'Your own ELEP leadership learning — personal, not a teacher\'s learning path' };
+      case 'school-development':
+        return { title: 'School Professional Development', subtitle: 'Teacher development aggregated by department, programme, completion, development need, and impact' };
+      case 'communication':
+        return { title: 'Community', subtitle: 'School-wide announcements and communities across every department' };
       case 'settings':
         return { title: 'Portal Settings', subtitle: 'Your account and school details' };
       default:
-        return { title: 'Head of Academics Dashboard', subtitle: 'Overview of school-wide academic records and curriculum coverage' };
+        return { title: 'Head of Academics Dashboard', subtitle: 'Overview of school-wide academic performance records' };
     }
   }, [activeTab]);
 
@@ -155,6 +164,7 @@ export default function HeadOfAcademicsPortalApp() {
               value={students.length}
               hint="School-wide enrollment"
               icon={<Users className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{ description: 'Every enrolled student record at this school, across all grades and sections.' }}
             />
             <KpiWidget
               label="Classes"
@@ -162,6 +172,7 @@ export default function HeadOfAcademicsPortalApp() {
               hint="Grade/section combinations"
               tone="default"
               icon={<GraduationCap className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{ description: 'Distinct grade + section combinations configured at this school.' }}
             />
             <KpiWidget
               label="Class Reports"
@@ -169,19 +180,28 @@ export default function HeadOfAcademicsPortalApp() {
               hint="Term report cards by class"
               tone="emphasis"
               icon={<FileText className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{ description: 'Shortcut to the Class Reports tab, where you generate term report cards for a chosen class.' }}
             />
             <KpiWidget
               label="Templates"
               value="Configure"
               hint="Per-school document layout"
               icon={<Settings2 className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{ description: 'Shortcut to the Student Report Card Builder, where this school\'s report card and transcript layout is configured.' }}
             />
           </KpiGrid>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">Syllabus Completion Index by Grade</CardTitle>
+                <Tooltip
+                  content="Average of recorded student scores (score ÷ max score) across all subjects, per grade level. This measures student academic performance — it is NOT a measure of syllabus/curriculum completion, sessions delivered, or lesson plans submitted."
+                  tooltipClassName="whitespace-normal max-w-[18rem] text-left"
+                >
+                  <CardTitle className="text-sm font-semibold cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 w-fit">
+                    Average Academic Performance by Grade
+                  </CardTitle>
+                </Tooltip>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
@@ -196,7 +216,7 @@ export default function HeadOfAcademicsPortalApp() {
                         <span className="text-xs font-medium text-muted-foreground">{cov.status}</span>
                       }
                       value={cov.coverage}
-                      barClassName={cov.status === 'Behind Schedule' ? 'bg-primary/50' : 'bg-primary'}
+                      barClassName={cov.status === 'Below Target' ? 'bg-primary/50' : 'bg-primary'}
                       targetPercent={COVERAGE_TARGET}
                     />
                   ))}
@@ -206,7 +226,14 @@ export default function HeadOfAcademicsPortalApp() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">National Curriculum Sync Rates</CardTitle>
+                <Tooltip
+                  content="Average of recorded student scores (score ÷ max score) per subject, school-wide, compared against an 80% target. This measures student academic performance — it is NOT a measure of national curriculum sync, pacing, or lesson-plan submission."
+                  tooltipClassName="whitespace-normal max-w-[18rem] text-left"
+                >
+                  <CardTitle className="text-sm font-semibold cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 w-fit">
+                    Subject Performance vs Target
+                  </CardTitle>
+                </Tooltip>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
@@ -238,7 +265,14 @@ export default function HeadOfAcademicsPortalApp() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">Curriculum Progress by Department</CardTitle>
+                <Tooltip
+                  content="Average of recorded student scores (score ÷ max score) across all subjects taught by each department. This measures student academic performance — it is NOT a measure of curriculum delivery or lesson-plan pacing; see Curriculum Implementation Rate on the Teacher Progress tab for that."
+                  tooltipClassName="whitespace-normal max-w-[18rem] text-left"
+                >
+                  <CardTitle className="text-sm font-semibold cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-4 w-fit">
+                    Average Academic Performance by Department
+                  </CardTitle>
+                </Tooltip>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="space-y-4">
@@ -301,7 +335,14 @@ export default function HeadOfAcademicsPortalApp() {
         <AcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
       )}
       {activeTab === 'resources' && <ResourcesPanel />}
-      {activeTab === 'training' && <TrainingPanel />}
+
+      {activeTab === 'my-development' && (
+        <div className="animate-fade-in text-left">
+          <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
+        </div>
+      )}
+      {activeTab === 'school-development' && <SchoolProfessionalDevelopmentPanel />}
+      {activeTab === 'communication' && <CommunicationModule mode="head-of-academics" />}
 
       {activeTab === 'settings' && (
         <div className="space-y-6 animate-fade-in text-left">

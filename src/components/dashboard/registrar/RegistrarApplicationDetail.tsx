@@ -16,7 +16,7 @@ import {
   Undo2,
   CheckCircle2,
 } from 'lucide-react';
-import { api, type AdmissionApplication } from '@/lib/api';
+import { api, resolveResourceUrl, type AdmissionApplication } from '@/lib/api';
 import { readStoredSession } from '@/lib/auth';
 import { statusVariant } from '@/components/dashboard/registrar/RegistrarApplications';
 import { DetailField } from '@/components/dashboard/shared/DetailField';
@@ -170,7 +170,7 @@ export const RegistrarApplicationDetail: React.FC<RegistrarApplicationDetailProp
                     <p className="text-xs font-medium text-foreground">{formatDocType(docType)}</p>
                     {doc ? (
                       <a
-                        href={doc.fileUrl}
+                        href={resolveResourceUrl(doc.fileUrl)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[10px] text-primary hover:underline truncate block"
@@ -211,7 +211,7 @@ export const RegistrarApplicationDetail: React.FC<RegistrarApplicationDetailProp
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-foreground">{formatDocType(doc.docType)}</p>
                     <a
-                      href={doc.fileUrl}
+                      href={resolveResourceUrl(doc.fileUrl)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] text-primary hover:underline truncate block"

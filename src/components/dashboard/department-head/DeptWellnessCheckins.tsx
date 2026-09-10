@@ -46,8 +46,8 @@ export const DeptWellnessCheckins: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [checkInTitle, setCheckInTitle] = useState('Weekly Wellness Check-in');
-  const [checkInType, setCheckInType] = useState<'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback'>(
-    'Teacher Wellness',
+  const [checkInType, setCheckInType] = useState<'Wellness' | 'Student Feedback' | 'Parent Feedback'>(
+    'Wellness',
   );
   const [checkInRespondent, setCheckInRespondent] = useState('');
   const [checkInRating, setCheckInRating] = useState(5);
@@ -82,7 +82,7 @@ export const DeptWellnessCheckins: React.FC = () => {
       header: 'Cohort',
       sortable: true,
       render: (row) => (
-        <Badge variant={row.type === 'Teacher Wellness' ? 'primary' : 'info'} size="sm" className="font-medium">
+        <Badge variant={row.type === 'Wellness' ? 'primary' : 'info'} size="sm" className="font-medium">
           {row.type}
         </Badge>
       ),
@@ -173,8 +173,8 @@ export const DeptWellnessCheckins: React.FC = () => {
                 onChange={(e) => setCheckInType(e.target.value as typeof checkInType)}
                 className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none"
               >
-                <option value="Teacher Wellness">Department Teachers</option>
-                <option value="Student Satisfaction">Student Body</option>
+                <option value="Wellness">Department Teachers</option>
+                <option value="Student Feedback">Student Body</option>
                 <option value="Parent Feedback">Parent Roster</option>
               </select>
             </div>

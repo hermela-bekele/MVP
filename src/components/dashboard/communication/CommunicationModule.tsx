@@ -46,7 +46,7 @@ export function CommunicationModule({
   mainTab,
   onMainTabChange: _onMainTabChange,
 }: {
-  mode: 'teacher' | 'department-head' | 'school-head' | 'student';
+  mode: 'teacher' | 'department-head' | 'school-head' | 'student' | 'head-of-academics';
   mainTab?: CommunicationMainTab;
   onMainTabChange?: (tab: CommunicationMainTab) => void;
 }) {
@@ -199,7 +199,7 @@ export function CommunicationModule({
   if (communityId) {
     return (
       <AisPage>
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-1 w-full max-w-none sm:mx-2">
           <CommunityChannelsPanel communityId={communityId} onBack={() => setCommunityId(null)} />
         </div>
       </AisPage>
@@ -215,7 +215,7 @@ export function CommunicationModule({
 
   return (
     <AisPage>
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="mx-1 w-full max-w-none space-y-8 sm:mx-2">
         <div className="space-y-4 rounded-2xl border border-ais-card-border bg-white p-4 dark:bg-ais-surface">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ais-primary/10 text-ais-primary">

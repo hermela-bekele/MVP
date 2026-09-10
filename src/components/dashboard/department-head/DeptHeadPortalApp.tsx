@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
-import { uploadFile } from "@/lib/api";
+import { resolveResourceUrl, uploadFile } from "@/lib/api";
 import { gpaToMark } from "@/lib/grading";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { KpiWidget, KpiGrid } from "@/components/dashboard/KpiWidget";
@@ -53,11 +53,21 @@ import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-hea
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
 import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
 import { DetailField } from "@/components/dashboard/shared/DetailField";
+import { Tooltip } from "@/components/ui/tooltip";
 
+/** Transparent, fixed thresholds on overall mark — never a black-box or teacher-set
+ * judgment call. gpaToMark(3.5) = 87.5%, gpaToMark(2.5) = 62.5%. */
 function studentReportStatus(gpa: number): "Excellent" | "On Track" | "At Risk" {
   if (gpa >= 3.5) return "Excellent";
   if (gpa >= 2.5) return "On Track";
   return "At Risk";
+}
+
+function studentReportStatusReason(gpa: number): string {
+  const mark = gpaToMark(gpa);
+  if (gpa >= 3.5) return `Excellent: overall mark ${mark}% meets the ≥88% (GPA ≥ 3.5) threshold.`;
+  if (gpa >= 2.5) return `On Track: overall mark ${mark}% is between the At Risk floor (63%) and the Excellent threshold (88%).`;
+  return `At Risk: overall mark ${mark}% is below the 63% (GPA ≥ 2.5) On Track threshold.`;
 }
 
 function ProgressBar({ value }: { value: number }) {
@@ -131,6 +141,8 @@ export default function DeptHeadPortalApp() {
     addNotification,
     currentUser,
     schools,
+    teacherFeedbacks,
+    teacherTrainingAssignments,
   } = useApp();
 
   const scope = useMemo(
@@ -389,10 +401,65 @@ export default function DeptHeadPortalApp() {
     [departmentTeachers],
   );
 
+  const deptTeacherIds = useMemo(
+    () => new Set(departmentTeachers.map((t) => t.id)),
+    [departmentTeachers],
+  );
+
   const departmentCheckIns = useMemo(
     () => checkIns.filter((c) => deptTeacherNames.has(c.respondentName)),
     [checkIns, deptTeacherNames],
   );
+
+  // Pending Academic Actions: every category of work this HoD still owes a decision on,
+  // grouped so nothing (a returned plan, a coaching follow-up, an overdue module) gets
+  // lost inside a single generic "reviews" count.
+  const weeklyPlansAwaitingApproval = useMemo(
+    () =>
+      departmentLessonPlans.filter(
+        (lp) => lp.status === "Pending Dept Head" && lp.planType !== "yearly",
+      ),
+    [departmentLessonPlans],
+  );
+
+  const returnedItemsAwaitingRevision = useMemo(() => {
+    const plans = departmentLessonPlans
+      .filter((lp) => lp.status === "Rejected")
+      .map((lp) => ({
+        id: lp.id,
+        label: `${lp.planType === "yearly" ? "Annual" : "Weekly"} plan · ${lp.teacherName}`,
+      }));
+    const asms = departmentAssessments
+      .filter((asm) => asm.status === "Rejected")
+      .map((asm) => ({ id: asm.id, label: `Assessment · ${asm.title}` }));
+    return [...plans, ...asms];
+  }, [departmentLessonPlans, departmentAssessments]);
+
+  const coachingFollowUps = useMemo(
+    () =>
+      teacherFeedbacks.filter(
+        (f) =>
+          f.direction === "to_teacher" &&
+          f.followUpRequired &&
+          deptTeacherIds.has(f.teacherId),
+      ),
+    [teacherFeedbacks, deptTeacherIds],
+  );
+
+  const overdueTeacherDevelopmentActions = useMemo(
+    () =>
+      teacherTrainingAssignments.filter(
+        (a) => deptTeacherIds.has(a.teacherId) && a.overdue && a.status !== "completed",
+      ),
+    [teacherTrainingAssignments, deptTeacherIds],
+  );
+
+  const pendingAcademicActionsTotal =
+    weeklyPlansAwaitingApproval.length +
+    pendingAssessments.length +
+    returnedItemsAwaitingRevision.length +
+    coachingFollowUps.length +
+    overdueTeacherDevelopmentActions.length;
 
   const departmentStudyResources = useMemo(
     () =>
@@ -479,7 +546,7 @@ export default function DeptHeadPortalApp() {
       subtitle: "Section-level academic reports.",
     },
     timetable: {
-      title: "Class room view",
+      title: "Class & Section View",
       subtitle: "Scheduling and sessions.",
     },
     "academic-calendar": {
@@ -539,12 +606,12 @@ export default function DeptHeadPortalApp() {
       title: "Wellness Check-ins",
       subtitle: "Recurrent questionnaire towards general challenges and school improvement ideas.",
     },
-    settings: { title: "Portal Settings", subtitle: "Department preferences." },
     "leadership-development": {
       title: "ELEP · Leadership Development",
       subtitle: "Education Leadership Excellence Program modules for department heads.",
     },
-    profile: { title: "My Profile", subtitle: "Your department head account information." },
+    profile: { title: "My Profile & Preferences", subtitle: "Your department head account information." },
+    settings: { title: "My Profile & Preferences", subtitle: "Your department head account information." },
   };
   const meta = tabTitles[activeTab] ?? tabTitles.dashboard;
 
@@ -569,13 +636,21 @@ export default function DeptHeadPortalApp() {
               value={`${avgDeptGrade}%`}
               hint="Target: 70%"
               icon={<BarChart3 className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{
+                description: `Average of every ${scope?.subject ?? "subject"} student grade entry across all department classes.`,
+                detail: "Threshold: 70% · below this, the subject shows as a risk in the performance index below.",
+              }}
             />
             <KpiWidget
               label="Pending Reviews"
               value={pendingAssessments.length}
               hint={`${pendingAssessments.length} tests`}
-              tone="emphasis"
+              tone="default"
               icon={<ClipboardList className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{
+                description: "Teacher-submitted tests and quizzes awaiting your endorsement before students can see them.",
+                detail: "Action: review each submission in the Verification Desk Inbox or Manage Assessments.",
+              }}
             />
             <KpiWidget
               label="Active Instructors"
@@ -583,13 +658,21 @@ export default function DeptHeadPortalApp() {
               hint={`${departmentTeachers.length} on roster`}
               tone="default"
               icon={<Users className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{
+                description: `Teachers on the ${scope?.subject ?? "subject"} roster currently marked Active (not on leave or inactive).`,
+                detail: `${departmentTeachers.length} total instructors on roster.`,
+              }}
             />
             <KpiWidget
               label="Subject Alerts"
               value={subjectAlerts}
               hint="Critical & warning"
-              tone="emphasis"
+              tone="default"
               icon={<AlertTriangle className="h-5 w-5" strokeWidth={1.75} />}
+              tooltip={{
+                description: "Count of subjects in the performance index below flagged Critical or Warning against the 70% target.",
+                detail: "Action: open the Performance Indicators panel to see which subject and why.",
+              }}
             />
           </KpiGrid>
 
@@ -636,45 +719,52 @@ export default function DeptHeadPortalApp() {
               </div>
             </ContentCard>
 
-            {/* Inbox Alert Desk */}
+            {/* Pending Academic Actions */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">
-                  Verification Desk Inbox
-                </CardTitle>
-                <CardDescription>
-                  Tests and quizzes submitted by teachers awaiting department head endorsement.
-                </CardDescription>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-sm font-semibold">Pending Academic Actions</CardTitle>
+                  <Badge variant="warning" size="sm">{pendingAcademicActionsTotal}</Badge>
+                </div>
               </CardHeader>
               <CardContent className="pt-2 space-y-3">
-                {pendingAssessments.length === 0 ? (
+                {pendingAcademicActionsTotal === 0 ? (
                   <div className="text-center py-10 text-xxs text-muted-foreground font-semibold">
-                    All reviews are fully completed. Good job!
+                    All caught up. Good job!
                   </div>
                 ) : (
-                  pendingAssessments.map((asm) => (
-                    <div
-                      key={asm.id}
-                      className="flex justify-between items-center p-3 bg-muted/40 border border-border/40 rounded-lg"
-                    >
-                      <div className="flex flex-col text-left">
-                        <span className="text-xs font-semibold text-foreground">
-                          {asm.title}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground mt-0.5">
-                          {asm.grade} {asm.subject} • Difficulty:{" "}
-                          {asm.difficulty}
-                        </span>
+                  <>
+                    {weeklyPlansAwaitingApproval.length > 0 && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/40 p-3">
+                        <span className="text-xs font-semibold text-foreground">Weekly plans awaiting approval</span>
+                        <Badge variant="neutral" size="sm">{weeklyPlansAwaitingApproval.length}</Badge>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => router.push(`/dashboard/department-head/assessments/${asm.id}`)}
-                        className="text-xxs cursor-pointer h-8"
-                      >
-                        Review
-                      </Button>
-                    </div>
-                  ))
+                    )}
+                    {pendingAssessments.length > 0 && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/40 p-3">
+                        <span className="text-xs font-semibold text-foreground">Assessments awaiting approval</span>
+                        <Badge variant="neutral" size="sm">{pendingAssessments.length}</Badge>
+                      </div>
+                    )}
+                    {returnedItemsAwaitingRevision.length > 0 && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/40 p-3">
+                        <span className="text-xs font-semibold text-foreground">Returned items awaiting revision</span>
+                        <Badge variant="danger" size="sm">{returnedItemsAwaitingRevision.length}</Badge>
+                      </div>
+                    )}
+                    {coachingFollowUps.length > 0 && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/40 p-3">
+                        <span className="text-xs font-semibold text-foreground">Coaching follow-ups</span>
+                        <Badge variant="neutral" size="sm">{coachingFollowUps.length}</Badge>
+                      </div>
+                    )}
+                    {overdueTeacherDevelopmentActions.length > 0 && (
+                      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/40 p-3">
+                        <span className="text-xs font-semibold text-foreground">Overdue teacher-development actions</span>
+                        <Badge variant="warning" size="sm">{overdueTeacherDevelopmentActions.length}</Badge>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -693,10 +783,27 @@ export default function DeptHeadPortalApp() {
             </CardHeader>
             <CardContent>
               <KpiGrid>
-                <KpiWidget label="Instructors" value={departmentTeachers.length} />
-                <KpiWidget label="Class sections" value={departmentClasses.length} />
-                <KpiWidget label="Students" value={departmentStudents.length} />
-                <KpiWidget label="Pending tests" value={pendingAssessments.length} tone="emphasis" />
+                <KpiWidget
+                  label="Instructors"
+                  value={departmentTeachers.length}
+                  tooltip={{ description: `Total teachers assigned to the ${scope?.subject ?? "subject"} department, active or not.` }}
+                />
+                <KpiWidget
+                  label="Class sections"
+                  value={departmentClasses.length}
+                  tooltip={{ description: `Class sections with a homeroom teacher from the ${scope?.subject ?? "subject"} department.` }}
+                />
+                <KpiWidget
+                  label="Students"
+                  value={departmentStudents.length}
+                  tooltip={{ description: `Students enrolled in a class section taught by a ${scope?.subject ?? "subject"} department teacher.` }}
+                />
+                <KpiWidget
+                  label="Pending tests"
+                  value={pendingAssessments.length}
+                  tone="default"
+                  tooltip={{ description: "Teacher-submitted tests and quizzes still awaiting your approval." }}
+                />
               </KpiGrid>
             </CardContent>
           </Card>
@@ -833,12 +940,14 @@ export default function DeptHeadPortalApp() {
                       </td>
                       <td className="p-3">{std.attendanceRate}%</td>
                       <td className="p-3">
-                        <Badge
-                          variant={std.gpa >= 2.5 ? "success" : "warning"}
-                          size="sm"
-                        >
-                          {studentReportStatus(std.gpa)}
-                        </Badge>
+                        <Tooltip content={studentReportStatusReason(std.gpa)} tooltipClassName="whitespace-normal max-w-[16rem] text-left">
+                          <Badge
+                            variant={std.gpa >= 2.5 ? "success" : "warning"}
+                            size="sm"
+                          >
+                            {studentReportStatus(std.gpa)}
+                          </Badge>
+                        </Tooltip>
                       </td>
                     </tr>
                   ))
@@ -1144,7 +1253,7 @@ export default function DeptHeadPortalApp() {
                     <tr key={mat.id} className="hover:bg-muted/20">
                       <td className="p-3 font-semibold text-foreground">
                         <a
-                          href={mat.resourceUrl}
+                          href={resolveResourceUrl(mat.resourceUrl)}
                           target="_blank"
                           rel="noreferrer"
                           className="hover:text-primary hover:underline"
@@ -1303,57 +1412,23 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "checkins" && <DeptWellnessCheckins />}
 
-      {activeTab === "settings" && (
-        <div className="space-y-6 animate-fade-in">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                Department portal settings
-              </CardTitle>
-              <CardDescription>
-                {scope?.subject ?? "Subject"} department preferences at {schoolName}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex justify-between py-2 border-b border-border/40">
-                <span className="text-muted-foreground">Department head</span>
-                <span className="font-semibold">
-                  {currentUser?.displayName ?? department?.headName ?? "—"}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border/40">
-                <span className="text-muted-foreground">School</span>
-                <span className="font-semibold">{schoolName}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border/40">
-                <span className="text-muted-foreground">Subject overseen</span>
-                <span className="font-semibold">{scope?.subject ?? "—"}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-muted-foreground">
-                  Auto-notify on new submissions
-                </span>
-                <span className="font-semibold text-primary">Enabled</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
       {activeTab === "leadership-development" && (
         <div className="animate-fade-in text-left">
           <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
         </div>
       )}
 
-      {activeTab === "profile" && (
+      {(activeTab === "profile" || activeTab === "settings") && (
         <div className="space-y-6 animate-fade-in text-left">
           <PortalProfileCard
             roleLabel="Department Head"
             fields={[
+              { label: 'Department head', value: currentUser?.displayName ?? department?.headName ?? '—' },
+              { label: 'School', value: schoolName },
               { label: 'Subject overseen', value: scope?.subject ?? '—' },
               { label: 'Department', value: department?.name ?? scope?.subject ?? '—' },
               { label: 'Leadership track', value: 'ELEP' },
+              { label: 'Auto-notify on new submissions', value: 'Enabled' },
             ]}
           />
         </div>
@@ -1446,7 +1521,7 @@ export default function DeptHeadPortalApp() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold">
-                Class room view
+                Class & Section View
               </CardTitle>
               <CardDescription>
                 Browse {scope?.subject ?? "subject"} class sections. Click a class to view its
@@ -1506,7 +1581,7 @@ export default function DeptHeadPortalApp() {
               onClick={() => setIsOnboardOpen(true)}
               className="text-xs h-10 font-semibold cursor-pointer border-none"
             >
-              + Onboard Instructor
+              + Assign Teacher to Department
             </Button>
           </div>
 
@@ -1587,8 +1662,8 @@ export default function DeptHeadPortalApp() {
           <Dialog
             isOpen={isOnboardOpen}
             onClose={() => setIsOnboardOpen(false)}
-            title={`${scope?.subject ?? "Subject"} Instructor Onboarding`}
-            description={`Register a new ${scope?.subject ?? "subject"} educator into the department system registry.`}
+            title={`Assign Teacher to ${scope?.subject ?? "Subject"} Department`}
+            description={`Register and assign a new ${scope?.subject ?? "subject"} educator to this department.`}
           >
             <form
               onSubmit={handleOnboardTeacher}
@@ -1693,7 +1768,7 @@ export default function DeptHeadPortalApp() {
                   variant="organic"
                   className="text-xs h-10 border-none cursor-pointer"
                 >
-                  Complete Registration
+                  Assign to Department
                 </Button>
               </DialogFooter>
             </form>
@@ -1817,7 +1892,6 @@ export default function DeptHeadPortalApp() {
       {activeTab === "assessments" && (
         <div className="space-y-6 animate-fade-in text-left">
           <DeptAssessmentCreatePanel />
-          <DeptGapAnalysisPanel />
           <TablePanel
             title="Department assessment desk"
             description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."

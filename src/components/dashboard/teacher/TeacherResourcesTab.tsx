@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
-import { api, uploadFile } from '@/lib/api';
+import { api, resolveResourceUrl, uploadFile } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { GRADE_OPTIONS } from '@/lib/teacherPortal';
 import { filterTrainingMaterialsForTeacher } from '@/lib/trainingResources';
 import type { TeacherResource, TeacherResourceStatus, TrainingMaterial } from '@/lib/mockData';
 import {
+  AisBtnPrimary,
   AisBtnSecondary,
   AisPage,
   AisPanel,
@@ -21,7 +22,8 @@ import { Pagination } from '@/components/ui/pagination';
 const PAGE_SIZE = 9; // 3-column card grid
 
 function resourceUrlOf(row: ResourceRow): string | undefined {
-  return row.kind === 'department' ? row.resource.resourceUrl : row.resource.url;
+  const raw = row.kind === 'department' ? row.resource.resourceUrl : row.resource.url;
+  return raw ? resolveResourceUrl(raw) : raw;
 }
 
 function isImageUrl(url: string) {
@@ -37,9 +39,13 @@ function isPdfUrl(url: string) {
 }
 
 const RESOURCE_TYPES: TeacherResource['type'][] = [
+  'Teaching Material',
   'Worksheet',
   'Slide Deck',
   'Lab Guide',
+  'Guide Book',
+  'Syllabus',
+  'Textbook',
   'Reference PDF',
   'Video Link',
 ];
@@ -119,10 +125,21 @@ export const TeacherResourcesTab: React.FC = () => {
     return [...ownRows, ...peerRows, ...deptRows];
   }, [departmentResources, myResources, peerResources, teachers]);
 
+  const [categoryFilter, setCategoryFilter] = useState<'All' | TeacherResource['type']>('All');
+  const filteredResources = useMemo(
+    () =>
+      categoryFilter === 'All'
+        ? allResources
+        : allResources.filter(
+            (row) => (row.kind === 'department' ? categoryToType(row.resource.category) : row.resource.type) === categoryFilter,
+          ),
+    [allResources, categoryFilter],
+  );
+
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(allResources.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredResources.length / PAGE_SIZE));
   const page = Math.min(currentPage, totalPages);
-  const pagedResources = allResources.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pagedResources = filteredResources.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const [viewingResource, setViewingResource] = useState<ResourceRow | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -178,9 +195,29 @@ export const TeacherResourcesTab: React.FC = () => {
       <AisPanel
         title="Classroom resources"
         description="Your uploads, approved resources shared by colleagues, and department-shared study materials — click a card to view it"
+        actions={
+          <>
+            <div className="w-44">
+              <Select
+                variant="ais"
+                options={[{ value: 'All', label: 'All categories' }, ...RESOURCE_TYPES.map((t) => ({ value: t, label: t }))]}
+                value={categoryFilter}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value as 'All' | TeacherResource['type']);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <AisBtnPrimary type="button" onClick={() => setIsOpen(true)}>
+              + Upload Resource
+            </AisBtnPrimary>
+          </>
+        }
       >
-        {allResources.length === 0 ? (
-          <p className={`${aisBodyMd} py-8 text-center`}>No resources available yet.</p>
+        {filteredResources.length === 0 ? (
+          <p className={`${aisBodyMd} py-8 text-center`}>
+            {allResources.length === 0 ? 'No resources available yet.' : 'No resources match this category.'}
+          </p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pagedResources.map((row) => {
@@ -228,7 +265,7 @@ export const TeacherResourcesTab: React.FC = () => {
           currentPage={page}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
-          totalItems={allResources.length}
+          totalItems={filteredResources.length}
           pageSize={PAGE_SIZE}
           entityLabel="resources"
         />

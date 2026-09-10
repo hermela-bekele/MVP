@@ -27,6 +27,7 @@ import {
   mergeAiWeeksOntoCalendar,
   summarizeNonTeachingWindows,
   TEACHING_AID_OPTIONS,
+  weekNumberLabel,
   type AnnualLessonPlanResult,
 } from '@/lib/annualLessonPlan';
 import { AnnualLessonPlanTable } from '@/components/ui/AnnualLessonPlanTable';
@@ -80,9 +81,13 @@ function toAnnualResult(
     periodsPerYear: number;
     minutesPerPeriod: number;
     teachingAidsAvailable: string[];
+    academicCalendarVersion?: string;
   },
 ): AnnualLessonPlanResult {
   const meta = plan.meta ?? {};
+  const units = Array.from(
+    new Set((plan.weeks ?? []).map((w) => w.unit).filter((u): u is string => Boolean(u?.trim()))),
+  );
   return {
     type: 'yearly',
     subject: plan.subject || defaults.subject,
@@ -108,6 +113,8 @@ function toAnnualResult(
         meta.generalObjectives?.length
           ? meta.generalObjectives
           : plan.objectives ?? [],
+      academicCalendarVersion: defaults.academicCalendarVersion,
+      units,
     },
     weeks: plan.weeks ?? [],
   };
@@ -185,15 +192,19 @@ export const DeptAnnualPlanPanel: React.FC<{
   // editable while that flow is active.
   const [isEditingDraft, setIsEditingDraft] = useState(false);
 
+  const viewingPublishedRecord = useMemo(
+    () => publishedAnnuals.find((p) => p.id === viewingPublishedId) ?? null,
+    [publishedAnnuals, viewingPublishedId],
+  );
+
   const viewingPublished = useMemo(() => {
-    const plan = publishedAnnuals.find((p) => p.id === viewingPublishedId);
-    if (!plan?.planDetail) return null;
+    if (!viewingPublishedRecord?.planDetail) return null;
     try {
-      return JSON.parse(plan.planDetail) as AnnualLessonPlanResult;
+      return JSON.parse(viewingPublishedRecord.planDetail) as AnnualLessonPlanResult;
     } catch {
       return null;
     }
-  }, [publishedAnnuals, viewingPublishedId]);
+  }, [viewingPublishedRecord]);
 
   const schoolName = useMemo(() => {
     const id = publishedCalendar?.schoolId ?? 'sch-1';
@@ -538,6 +549,9 @@ export const DeptAnnualPlanPanel: React.FC<{
           periodsPerYear: totalPeriods,
           minutesPerPeriod: effectiveMinutes,
           teachingAidsAvailable: aids,
+          academicCalendarVersion: publishedCalendar
+            ? `${publishedCalendar.academicYear} (published ${(publishedCalendar.publishedAt ?? publishedCalendar.createdAt).slice(0, 10)})`
+            : undefined,
         },
       );
 
@@ -637,7 +651,7 @@ export const DeptAnnualPlanPanel: React.FC<{
       plan.meta.generalObjectives?.length ? plan.meta.generalObjectives : plan.objectives;
     const activities = weeks.slice(0, 40).map((w, idx) => ({
       session: idx + 1,
-      activity: `${w.month} ${w.week}: ${w.unit || 'Unit'} — ${(w.contents || []).join('; ')} (pp. ${w.page || '?'})`,
+      activity: `${w.month} ${weekNumberLabel(w.week)}: ${w.unit || 'Unit'} — ${(w.contents || []).join('; ')} (pp. ${w.page || '?'})`,
       duration: `${w.periodsNeeded} periods`,
     }));
     return {
@@ -1145,6 +1159,55 @@ export const DeptAnnualPlanPanel: React.FC<{
               ))}
             </ul>
           )}
+          {viewingPublished && viewingPublishedRecord ? (
+            <div className="mt-4 rounded-lg border border-border/60 bg-muted/20 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+                Plan record — always retained
+              </p>
+              <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-2 text-xs">
+                <div>
+                  <dt className="text-muted-foreground">Academic calendar version</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.meta.academicCalendarVersion ?? '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Subject</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.meta.subject}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Grade</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.meta.grade}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Planned instructional days</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.meta.schoolDaysPerYear}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Units</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.meta.units?.length ?? 0}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Objectives</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.objectives?.length ?? 0}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Expected periods</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublished.meta.periodsPerYear}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Plan version</dt>
+                  <dd className="font-semibold text-foreground">v{viewingPublishedRecord.version}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Creator</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublishedRecord.teacherName}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Publication date</dt>
+                  <dd className="font-semibold text-foreground">{viewingPublishedRecord.createdAt.slice(0, 10)}</dd>
+                </div>
+              </dl>
+            </div>
+          ) : null}
           {viewingPublished?.weeks?.length ? (
             <div className="mt-4 max-h-[60vh] overflow-auto rounded-lg border border-border/60 p-2">
               <AnnualLessonPlanTable plan={viewingPublished} showTitle={false} />

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Inbox } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { api } from '@/lib/api';
+import { api, resolveResourceUrl } from '@/lib/api';
 import type { TeacherResource } from '@/lib/mockData';
 
 /**
@@ -18,7 +18,7 @@ import type { TeacherResource } from '@/lib/mockData';
  * app-wide `teacherResources` (which only ever holds APPROVED rows).
  */
 export const DeptResourcesReviewPanel: React.FC = () => {
-  const { teachers, addNotification } = useApp();
+  const { teachers, teacherResources, addNotification, refreshFromApi } = useApp();
   const [pending, setPending] = useState<TeacherResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -41,6 +41,12 @@ export const DeptResourcesReviewPanel: React.FC = () => {
       else if (action === 'reject') await api.rejectTeacherResource(id, 'Please revise and resubmit.');
       else await api.removeTeacherResource(id, 'Removed by department head.');
       setPending((prev) => prev.filter((r) => r.id !== id));
+      if (action === 'remove') {
+        // Already-approved resources live in the shared bootstrap state, not this
+        // panel's own `pending` list — refresh it so the removed one disappears
+        // from every teacher's resource list too.
+        void refreshFromApi();
+      }
       addNotification(
         action === 'approve' ? 'Resource approved' : action === 'reject' ? 'Resource rejected' : 'Resource removed',
         `"${title}" ${action === 'approve' ? 'is now visible to teachers and students.' : action === 'reject' ? 'was sent back to the uploader.' : 'was removed.'}`,
@@ -88,7 +94,7 @@ export const DeptResourcesReviewPanel: React.FC = () => {
               return (
                 <tr key={r.id} className="hover:bg-muted/20">
                   <td className="p-3 font-semibold text-foreground">
-                    <a href={r.url} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
+                    <a href={resolveResourceUrl(r.url)} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
                       {r.title}
                     </a>
                   </td>
@@ -122,6 +128,61 @@ export const DeptResourcesReviewPanel: React.FC = () => {
           )}
         </tbody>
       </table>
+
+      <div className="mt-8">
+        <h3 className="mb-1 text-sm font-semibold text-foreground">Approved resources</h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Visible to every teacher and student. Remove one if it&apos;s no longer appropriate.
+        </p>
+        <table className="eskooly-table">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Uploaded by</th>
+              <th>Grade / Subject</th>
+              <th>Type</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {teacherResources.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="p-0">
+                  <EmptyState icon={<Inbox />} title="No approved resources yet." className="py-8" />
+                </td>
+              </tr>
+            ) : (
+              teacherResources.map((r) => {
+                const teacher = teachers.find((t) => t.id === r.teacherId);
+                return (
+                  <tr key={r.id} className="hover:bg-muted/20">
+                    <td className="p-3 font-semibold text-foreground">
+                      <a href={resolveResourceUrl(r.url)} target="_blank" rel="noreferrer" className="hover:text-primary hover:underline">
+                        {r.title}
+                      </a>
+                    </td>
+                    <td className="p-3">{teacher?.name ?? r.teacherId}</td>
+                    <td className="p-3">{r.grade} · {r.subject}</td>
+                    <td className="p-3">
+                      <Badge variant="neutral" size="sm">{r.type}</Badge>
+                    </td>
+                    <td className="p-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={actingId === r.id}
+                        onClick={() => void act(r.id, 'remove', r.title)}
+                      >
+                        Remove
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </TablePanel>
   );
 };

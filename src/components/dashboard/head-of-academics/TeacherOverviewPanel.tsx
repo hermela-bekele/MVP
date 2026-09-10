@@ -14,6 +14,7 @@ import type { Teacher, LessonPlan } from '@/lib/mockData';
 import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { CalendarCheck, ClipboardList, Inbox, Users } from 'lucide-react';
 import { Pagination } from '@/components/ui/pagination';
+import { Tooltip } from '@/components/ui/tooltip';
 
 const ROWS_PAGE_SIZE = 10;
 
@@ -34,12 +35,48 @@ function planStageProgress(status: LessonPlan['status'] | undefined): number {
   }
 }
 
-type PaceStatus = 'On Track' | 'Ahead of Plan' | 'At Risk';
+// Never "At Risk" — a teacher is not algorithmically labelled at risk from an opaque
+// score. Every status traces to one of three explicit, disclosed conditions (see
+// statusReason below), and the label names the needed action, not a judgment.
+type PaceStatus = 'On Track' | 'Ahead of Plan' | 'Needs Follow-Up';
 
 function paceStatusBadgeVariant(status: PaceStatus): 'success' | 'info' | 'danger' {
   if (status === 'Ahead of Plan') return 'info';
-  if (status === 'At Risk') return 'danger';
+  if (status === 'Needs Follow-Up') return 'danger';
   return 'success';
+}
+
+/** The specific, disclosed reason a teacher's pace status is what it is — never left as
+ * an opaque score. Shown on hover wherever the status badge appears. */
+function statusReason(
+  row: { hasRejected: boolean; attendanceRate: number | null; weeklyTotal: number },
+  schoolAvgWeekly: number,
+  status: PaceStatus,
+): string {
+  if (status === 'Needs Follow-Up') {
+    const reasons: string[] = [];
+    if (row.hasRejected) reasons.push('a submitted lesson plan was returned/rejected and not yet resubmitted');
+    if (row.attendanceRate != null && row.attendanceRate < 75) {
+      reasons.push(`attendance rate is ${row.attendanceRate}% (below the 75% floor)`);
+    }
+    if (
+      !row.hasRejected &&
+      !(row.attendanceRate != null && row.attendanceRate < 75) &&
+      schoolAvgWeekly > 0 &&
+      row.weeklyTotal / schoolAvgWeekly < 0.7
+    ) {
+      reasons.push(
+        `weekly-plan submission count (${row.weeklyTotal}) is below 70% of the school average (${schoolAvgWeekly.toFixed(1)})`,
+      );
+    }
+    return reasons.length
+      ? `Flagged for follow-up because: ${reasons.join('; ')}.`
+      : 'Flagged for follow-up.';
+  }
+  if (status === 'Ahead of Plan') {
+    return `Weekly-plan submission count (${row.weeklyTotal}) is at least 15% above the school average (${schoolAvgWeekly.toFixed(1)}).`;
+  }
+  return `Rejections: none. Attendance: ${row.attendanceRate != null ? `${row.attendanceRate}% (≥75%)` : 'no records'}. Weekly-plan pace is within the normal range of the school average (${schoolAvgWeekly.toFixed(1)}).`;
 }
 
 function ProgressBar({ value }: { value: number }) {
@@ -111,22 +148,28 @@ export const TeacherOverviewPanel: React.FC = () => {
       return { teacher: t, weeklyTotal, weeklyProgress, annualProgress, hasRejected, attendanceRecords, attendanceRate };
     });
 
-    const schoolAvgWeekly =
-      base.length > 0 ? base.reduce((sum, r) => sum + r.weeklyTotal, 0) / base.length : 0;
+    return base;
+  }, [schoolTeachers, lessonPlans, hrByTeacherId, attendanceByEmployeeId]);
 
-    return base.map((row) => {
+  const schoolAvgWeekly = useMemo(
+    () => (rows.length > 0 ? rows.reduce((sum, r) => sum + r.weeklyTotal, 0) / rows.length : 0),
+    [rows],
+  );
+
+  const rowsWithStatus = useMemo(() => {
+    return rows.map((row) => {
       let status: PaceStatus;
       if (row.hasRejected || (row.attendanceRate != null && row.attendanceRate < 75)) {
-        status = 'At Risk';
+        status = 'Needs Follow-Up';
       } else if (schoolAvgWeekly <= 0) {
         status = row.weeklyTotal > 0 ? 'Ahead of Plan' : 'On Track';
       } else {
         const ratio = row.weeklyTotal / schoolAvgWeekly;
-        status = ratio >= 1.15 ? 'Ahead of Plan' : ratio < 0.7 ? 'At Risk' : 'On Track';
+        status = ratio >= 1.15 ? 'Ahead of Plan' : ratio < 0.7 ? 'Needs Follow-Up' : 'On Track';
       }
       return { ...row, status };
     });
-  }, [schoolTeachers, lessonPlans, hrByTeacherId, attendanceByEmployeeId]);
+  }, [rows, schoolAvgWeekly]);
 
   const avgWeeklyProgress = useMemo(
     () => (rows.length > 0 ? Math.round(rows.reduce((sum, r) => sum + r.weeklyProgress, 0) / rows.length) : 0),
@@ -139,30 +182,58 @@ export const TeacherOverviewPanel: React.FC = () => {
     return Math.round(rated.reduce((sum, r) => sum + (r.attendanceRate ?? 0), 0) / rated.length);
   }, [rows]);
 
-  const atRiskCount = useMemo(() => rows.filter((r) => r.status === 'At Risk').length, [rows]);
-
-  const detailRow = useMemo(
-    () => (detailTeacher ? rows.find((r) => r.teacher.id === detailTeacher.id) : undefined),
-    [detailTeacher, rows],
+  const needsFollowUpCount = useMemo(
+    () => rowsWithStatus.filter((r) => r.status === 'Needs Follow-Up').length,
+    [rowsWithStatus],
   );
 
-  const rowsTotalPages = Math.max(1, Math.ceil(rows.length / ROWS_PAGE_SIZE));
+  const detailRow = useMemo(
+    () => (detailTeacher ? rowsWithStatus.find((r) => r.teacher.id === detailTeacher.id) : undefined),
+    [detailTeacher, rowsWithStatus],
+  );
+
+  const rowsTotalPages = Math.max(1, Math.ceil(rowsWithStatus.length / ROWS_PAGE_SIZE));
   const rowsCurrentPage = Math.min(rowsPage, rowsTotalPages);
-  const pagedRows = rows.slice((rowsCurrentPage - 1) * ROWS_PAGE_SIZE, rowsCurrentPage * ROWS_PAGE_SIZE);
+  const pagedRows = rowsWithStatus.slice((rowsCurrentPage - 1) * ROWS_PAGE_SIZE, rowsCurrentPage * ROWS_PAGE_SIZE);
 
   return (
     <div className="space-y-6 animate-fade-in text-left">
       <KpiGrid className="sm:grid-cols-2 xl:grid-cols-4">
-        <KpiWidget label="Teachers" value={schoolTeachers.length} hint="School-wide roster" icon={<Users className="h-5 w-5" strokeWidth={1.75} />} />
-        <KpiWidget label="Avg Weekly Plan Progress" value={`${avgWeeklyProgress}%`} hint="Approval rate across submitted plans" icon={<ClipboardList className="h-5 w-5" strokeWidth={1.75} />} />
+        <KpiWidget
+          label="Teachers"
+          value={schoolTeachers.length}
+          hint="School-wide roster"
+          icon={<Users className="h-5 w-5" strokeWidth={1.75} />}
+          tooltip={{ description: 'Every teacher account assigned to this school, regardless of department or subject.' }}
+        />
+        <KpiWidget
+          label="Curriculum Implementation Rate"
+          value={`${avgWeeklyProgress}%`}
+          hint="Approved weekly plans, school-wide"
+          icon={<ClipboardList className="h-5 w-5" strokeWidth={1.75} />}
+          tooltip={{
+            description: 'Percentage of submitted weekly lesson plans, school-wide, that have passed department-head (or school-head) approval — i.e. recorded as delivered through approved planning evidence.',
+            detail: 'Source: weekly lesson plan approval status only. This does NOT measure sessions actually delivered in class, or syllabus topics marked complete — those are tracked separately.',
+          }}
+        />
         <KpiWidget
           label="Attendance Rate"
           value={schoolAttendanceRate != null ? `${schoolAttendanceRate}%` : '—'}
           hint="Present/late across recorded days"
           tone="emphasis"
           icon={<CalendarCheck className="h-5 w-5" strokeWidth={1.75} />}
+          tooltip={{ description: 'Average of every teacher\'s (Present + Late) days ÷ total recorded days, across the whole school.' }}
         />
-        <KpiWidget label="At Risk" value={atRiskCount} hint="Behind on plans or attendance" tone={atRiskCount > 0 ? 'emphasis' : 'default'} />
+        <KpiWidget
+          label="Teachers Requiring Follow-Up"
+          value={needsFollowUpCount}
+          hint="Flagged by an explicit rule, not a score"
+          tone={needsFollowUpCount > 0 ? 'emphasis' : 'default'}
+          tooltip={{
+            description: 'Flagged when any one of three explicit, disclosed conditions is true: a submitted lesson plan was rejected and not resubmitted, OR attendance rate is below 75%, OR weekly-plan submission pace is below 70% of the school average.',
+            detail: 'Never an opaque algorithmic score — hover the Status badge on any teacher\'s row to see exactly which condition applies to them.',
+          }}
+        />
       </KpiGrid>
 
       <TablePanel
@@ -212,9 +283,14 @@ export const TeacherOverviewPanel: React.FC = () => {
                     )}
                   </td>
                   <td className="p-3">
-                    <Badge variant={paceStatusBadgeVariant(row.status)} size="sm">
-                      {row.status}
-                    </Badge>
+                    <Tooltip
+                      content={statusReason(row, schoolAvgWeekly, row.status)}
+                      tooltipClassName="whitespace-normal max-w-[18rem] text-left"
+                    >
+                      <Badge variant={paceStatusBadgeVariant(row.status)} size="sm">
+                        {row.status}
+                      </Badge>
+                    </Tooltip>
                   </td>
                   <td className="p-3">
                     <button
@@ -259,9 +335,15 @@ export const TeacherOverviewPanel: React.FC = () => {
                   {departmentNameById.get(detailTeacher.departmentId) ?? '—'} · {detailTeacher.subjects.join(', ')}
                 </p>
               </div>
-              <Badge variant={paceStatusBadgeVariant(detailRow.status)} size="sm" className="ml-auto">
-                {detailRow.status}
-              </Badge>
+              <Tooltip
+                content={statusReason(detailRow, schoolAvgWeekly, detailRow.status)}
+                tooltipClassName="whitespace-normal max-w-[18rem] text-left"
+                className="ml-auto"
+              >
+                <Badge variant={paceStatusBadgeVariant(detailRow.status)} size="sm">
+                  {detailRow.status}
+                </Badge>
+              </Tooltip>
             </div>
 
             <div className="space-y-2.5">

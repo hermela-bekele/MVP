@@ -13,7 +13,7 @@ import {
   aisFormLabel,
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
-import type { AnnualLessonPlanWeekRow } from '@/lib/annualLessonPlan';
+import { weekNumberLabel, weekPageLabel, type AnnualLessonPlanWeekRow } from '@/lib/annualLessonPlan';
 import {
   getAnnualMonthOptions,
   getAnnualWeeksForMonth,
@@ -37,7 +37,7 @@ function weekKey(w: AnnualLessonPlanWeekRow) {
 }
 
 function weekLabel(w: AnnualLessonPlanWeekRow) {
-  return `${w.week} · ${w.date}${w.unit ? ` · ${w.unit}` : ''}`;
+  return `${weekNumberLabel(w.week)} · ${weekPageLabel(w.page)}${w.unit ? ` · ${w.unit}` : ''}`;
 }
 
 /**
@@ -68,6 +68,11 @@ export function TeacherWeeklyPlanGenerator() {
   const [unit, setUnit] = useState('');
   const [page, setPage] = useState('');
   const [selectedContents, setSelectedContents] = useState<string[]>([]);
+  // Required only for the multi-week merge special case — a teacher can no longer freely
+  // retype the Unit/Pages the annual plan already assigned, but merging several weeks into
+  // one special-case plan still needs a stated reason and an explicit session count.
+  const [mergeReason, setMergeReason] = useState('');
+  const [mergeSessionCount, setMergeSessionCount] = useState<number | ''>('');
   const [periodsPerWeek, setPeriodsPerWeek] = useState(3);
   const [sessionDuration, setSessionDuration] = useState(45);
   const [studentLevel, setStudentLevel] = useState<string>('differentiated');
@@ -202,6 +207,8 @@ export function TeacherWeeklyPlanGenerator() {
     setUnit(units.join(' + '));
     setPage(pages.join(', '));
     setPeriodsPerWeek(totalPeriods || annualDetail?.meta?.periodsPerWeek || 3);
+    setMergeReason('');
+    setMergeSessionCount(totalPeriods || '');
     setPlanTitle('');
     setAiResult(null);
     setIsEditing(false);
@@ -213,6 +220,12 @@ export function TeacherWeeklyPlanGenerator() {
   }, [contentPool]);
 
   const goBackToList = () => router.push(portalTabPath('teacher', 'lesson-plans'));
+
+  // The merge special case has its own explicit session count instead of the general
+  // Sessions-per-week field, since a merged multi-week block isn't a normal single week.
+  const effectivePeriodsPerWeek = isMerging
+    ? (typeof mergeSessionCount === 'number' ? mergeSessionCount : periodsPerWeek)
+    : periodsPerWeek;
 
   const buildWeekContext = () => {
     if (!selectedWeek) return '';
@@ -231,6 +244,14 @@ export function TeacherWeeklyPlanGenerator() {
     setGenerationError('');
     if (!selectedAnnual || !selectedWeek) {
       setGenerationError('Select an annual plan month and at least one week first.');
+      return;
+    }
+    if (isMerging && !mergeReason.trim()) {
+      setGenerationError('Merging multiple weeks is a special case — state why these weeks are being combined.');
+      return;
+    }
+    if (isMerging && (!mergeSessionCount || mergeSessionCount < 1)) {
+      setGenerationError('Enter how many sessions this merged special-case plan will use.');
       return;
     }
     const topic = selectedContents[0] || unit || selectedWeek.contents?.[0] || selectedAnnual.title;
@@ -252,9 +273,9 @@ export function TeacherWeeklyPlanGenerator() {
         topic: topic.trim(),
         subtopic: buildWeekContext().slice(0, 800),
         student_level: studentLevel as 'differentiated' | 'beginner' | 'intermediate' | 'advanced',
-        periods_per_week: periodsPerWeek,
+        periods_per_week: effectivePeriodsPerWeek,
         session_duration: sessionDuration,
-        days_per_week: Math.min(5, Math.max(1, periodsPerWeek)),
+        days_per_week: Math.min(5, Math.max(1, effectivePeriodsPerWeek)),
         annual_contents: selectedContents,
         annual_general_objectives: selectedWeek.generalObjectives || [],
         annual_unit_label: unit,
@@ -272,11 +293,17 @@ export function TeacherWeeklyPlanGenerator() {
             month: selectedWeek.month,
             week: selectedWeek.week,
             date: selectedWeek.date,
+            // The real Monday this instructional week starts on — lets the timetable
+            // and attendance/delivery views find "this week's plan" by date instead of
+            // by re-deriving the Ethiopian week number every time.
+            startDateIso: selectedWeek.startDateIso,
             unit,
             page,
             contents: selectedContents,
             weekContext: buildWeekContext(),
             mergedWeeks: isMerging ? selectedWeeks.map((w) => weekKey(w)) : undefined,
+            mergeReason: isMerging ? mergeReason.trim() : undefined,
+            mergeSessionCount: isMerging ? effectivePeriodsPerWeek : undefined,
           },
         } as object),
       };
@@ -284,7 +311,7 @@ export function TeacherWeeklyPlanGenerator() {
       setAiResult(withContext);
       setIsEditing(false);
       if (!planTitle) {
-        setPlanTitle(`${selectedAnnual.grade} ${selectedAnnual.subject} — ${selectedWeek.month} ${selectedWeek.week}`);
+        setPlanTitle(`${selectedAnnual.grade} ${selectedAnnual.subject} — ${selectedWeek.month} ${weekNumberLabel(selectedWeek.week)}`);
       }
     } catch (err) {
       console.error(err);
@@ -308,7 +335,7 @@ export function TeacherWeeklyPlanGenerator() {
         }`,
         duration: `${session.durationMinutes || sessionDuration} mins`,
       })) ??
-      Array.from({ length: periodsPerWeek }).map((_, i) => ({
+      Array.from({ length: effectivePeriodsPerWeek }).map((_, i) => ({
         session: i + 1,
         activity: `Session ${i + 1}`,
         duration: `${sessionDuration} mins`,
@@ -337,10 +364,10 @@ export function TeacherWeeklyPlanGenerator() {
         .join('; ') || 'Complete the textbook exercise cited in the Assessment row of each session.';
 
     createLessonPlan({
-      title: planTitle || `${selectedAnnual.grade} ${selectedAnnual.subject} — ${selectedWeek.month} ${selectedWeek.week}`,
+      title: planTitle || `${selectedAnnual.grade} ${selectedAnnual.subject} — ${selectedWeek.month} ${weekNumberLabel(selectedWeek.week)}`,
       grade: selectedAnnual.grade || defaultGrade,
       subject: selectedAnnual.subject || defaultSubject,
-      sessions: periodsPerWeek,
+      sessions: effectivePeriodsPerWeek,
       objectives,
       activities,
       assessments: assessments.length
@@ -414,18 +441,50 @@ export function TeacherWeeklyPlanGenerator() {
           {selectedWeek && (
             <section className="space-y-4 rounded-xl border border-ais-card-border bg-ais-surface-container-low/40 p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-ais-on-surface-variant">
-                {isMerging ? 'Merged from selected weeks (editable)' : 'From annual plan (editable)'} — weekly generation uses only these
+                {isMerging ? 'Merged from selected weeks' : 'From annual plan'} — locked to the published plan, weekly generation uses only these
               </p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <label className={aisFormLabel}>Unit</label>
-                  <input className={aisInput} value={unit} onChange={(e) => setUnit(e.target.value)} />
+                  <input className={`${aisInput} cursor-not-allowed bg-muted/50 text-muted-foreground`} value={unit} readOnly aria-readonly="true" />
                 </div>
                 <div className="space-y-1">
                   <label className={aisFormLabel}>Pages</label>
-                  <input className={aisInput} value={page} onChange={(e) => setPage(e.target.value)} />
+                  <input className={`${aisInput} cursor-not-allowed bg-muted/50 text-muted-foreground`} value={page} readOnly aria-readonly="true" />
                 </div>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                Unit and pages come directly from the published annual plan and can&apos;t be changed here — this keeps weekly plans traceable back to what was actually approved.
+              </p>
+
+              {isMerging && (
+                <div className="space-y-3 rounded-lg border border-amber-300/70 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                    Special case — merging {selectedWeeks.length} weeks into one plan
+                  </p>
+                  <div className="space-y-1">
+                    <label className={aisFormLabel}>Reason for merging these weeks *</label>
+                    <input
+                      className={aisInput}
+                      placeholder="e.g. Short week due to holiday — combining with the following week's content"
+                      value={mergeReason}
+                      onChange={(e) => setMergeReason(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1 md:w-1/2">
+                    <label className={aisFormLabel}>Number of sessions this merged plan will use *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      className={aisInput}
+                      value={mergeSessionCount}
+                      onChange={(e) => setMergeSessionCount(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className={aisFormLabel}>
                   Content — pick which items to include ({selectedContents.length}/{contentPool.length})
@@ -455,17 +514,19 @@ export function TeacherWeeklyPlanGenerator() {
 
           <section className="rounded-xl border border-ais-card-border bg-card p-5">
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-              <div className="space-y-1">
-                <label className={aisFormLabel}>Sessions per week *</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  className={aisInput}
-                  value={periodsPerWeek}
-                  onChange={(e) => setPeriodsPerWeek(Number(e.target.value))}
-                />
-              </div>
+              {!isMerging && (
+                <div className="space-y-1">
+                  <label className={aisFormLabel}>Sessions per week *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    className={aisInput}
+                    value={periodsPerWeek}
+                    onChange={(e) => setPeriodsPerWeek(Number(e.target.value))}
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <label className={aisFormLabel}>Minutes per session *</label>
                 <input

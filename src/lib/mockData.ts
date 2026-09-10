@@ -141,6 +141,9 @@ export interface LessonPlan {
   status: 'Draft' | 'Pending Dept Head' | 'Pending School Head' | 'Approved' | 'Rejected';
   deptComments?: string;
   schoolHeadComments?: string;
+  /** Only ever set when a department head returns a weekly plan — names which kind of
+   * problem it is so the teacher knows exactly what to revise, never just free text. */
+  returnReasonCategory?: 'curriculum_alignment' | 'pacing' | 'pedagogy' | 'assessment' | 'differentiation' | 'resource_issue';
   version: number;
   objectives: string[];
   activities: { session: number; activity: string; duration: string }[];
@@ -264,8 +267,28 @@ export interface Assessment {
   createdByRole?: 'teacher' | 'department-head';
   /** TE-007: for a Unit Test, the delivered teaching notes it covers, by real ID. */
   coveredTeachingNoteIds?: string[];
+  /** Assessment Moderation Rubric — a department head's structured review, one verdict
+   * per fixed quality criterion, never a single blended score. */
+  moderationRubric?: AssessmentModerationRubric;
   createdAt: string;
 }
+
+export type ModerationVerdict = 'meets' | 'needs_improvement' | 'not_applicable';
+
+export const MODERATION_RUBRIC_CRITERIA = [
+  'curriculumAlignment',
+  'cognitiveLevel',
+  'clarity',
+  'difficulty',
+  'coverage',
+  'fairness',
+  'answerKey',
+  'appropriateness',
+] as const;
+
+export type ModerationRubricCriterion = (typeof MODERATION_RUBRIC_CRITERIA)[number];
+
+export type AssessmentModerationRubric = Partial<Record<ModerationRubricCriterion, ModerationVerdict>>;
 
 export interface Attendance {
   id: string;
@@ -276,6 +299,10 @@ export interface Attendance {
   date: string;
   status: 'Present' | 'Absent' | 'Late';
   remarks?: string;
+  teacherId?: string;
+  /** CM-006: the real scheduled timetable session this record was taken against, when
+   * recorded through the "Teaching session" picker rather than the manual fallback. */
+  timetableSlotId?: string;
 }
 
 export interface TeacherTraining {
@@ -292,7 +319,7 @@ export interface TeacherTraining {
 export interface SchoolCheckIn {
   id: string;
   title?: string;
-  type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback';
+  type: 'Wellness' | 'Student Feedback' | 'Parent Feedback' | 'Teacher Reflection';
   respondentName: string;
   rating: number; // 1-5
   comment: string;
@@ -1025,12 +1052,12 @@ export const mockTrainingPrograms: TeacherTraining[] = [
 ];
 
 export const mockCheckIns: SchoolCheckIn[] = [
-  { id: 'ch-1', type: 'Teacher Wellness', respondentName: 'Martha Feyissa', rating: 4, comment: 'Sufficient resources. AI tools have saved me hours of scheduling and typing!', date: '2026-05-18' },
+  { id: 'ch-1', type: 'Wellness', respondentName: 'Martha Feyissa', rating: 4, comment: 'Sufficient resources. AI tools have saved me hours of scheduling and typing!', date: '2026-05-18' },
   { id: 'ch-2', type: 'Parent Feedback', respondentName: 'Abebe Demeke', rating: 5, comment: 'Extremely glad to see child grades instantly. AI advice helps me review math worksheets at home.', date: '2026-05-19' },
-  { id: 'ch-3', type: 'Student Satisfaction', respondentName: 'Selam Abebe', rating: 5, comment: 'AI Study Assistant explained fractions easily. The mock quiz was fun!', date: '2026-05-20' },
-  { id: 'ch-4', type: 'Teacher Wellness', respondentName: 'Abebe Kebede', rating: 4, comment: 'STEM lab scheduling is smoother this term. Need more graphing calculators for Grade 11.', date: '2026-05-17' },
-  { id: 'ch-5', type: 'Teacher Wellness', respondentName: 'W/ro Almaz Tekle', rating: 3, comment: 'Chemistry practical kits running low — reorder before midterm week.', date: '2026-05-16' },
-  { id: 'ch-6', type: 'Student Satisfaction', respondentName: 'Yonas Kassa', rating: 4, comment: 'Physics demonstrations in class 9-B were very clear this week.', date: '2026-05-19' },
+  { id: 'ch-3', type: 'Student Feedback', respondentName: 'Selam Abebe', rating: 5, comment: 'AI Study Assistant explained fractions easily. The mock quiz was fun!', date: '2026-05-20' },
+  { id: 'ch-4', type: 'Wellness', respondentName: 'Abebe Kebede', rating: 4, comment: 'STEM lab scheduling is smoother this term. Need more graphing calculators for Grade 11.', date: '2026-05-17' },
+  { id: 'ch-5', type: 'Wellness', respondentName: 'W/ro Almaz Tekle', rating: 3, comment: 'Chemistry practical kits running low — reorder before midterm week.', date: '2026-05-16' },
+  { id: 'ch-6', type: 'Student Feedback', respondentName: 'Yonas Kassa', rating: 4, comment: 'Physics demonstrations in class 9-B were very clear this week.', date: '2026-05-19' },
 ];
 
 // ----------------------------------------------------
@@ -1223,7 +1250,16 @@ export interface TeacherResource {
   id: string;
   teacherId: string;
   title: string;
-  type: 'Worksheet' | 'Slide Deck' | 'Lab Guide' | 'Reference PDF' | 'Video Link';
+  type:
+    | 'Worksheet'
+    | 'Slide Deck'
+    | 'Lab Guide'
+    | 'Reference PDF'
+    | 'Video Link'
+    | 'Teaching Material'
+    | 'Guide Book'
+    | 'Syllabus'
+    | 'Textbook';
   grade: string;
   subject: string;
   url: string;
@@ -1260,6 +1296,14 @@ export interface TeacherFeedback {
   comment: string;
   rating?: number;
   date: string;
+  /** Structured coaching/observation fields — kept optional since peer/parent/student
+   * feedback and anonymous surveys don't fill these in, only a department head's direct,
+   * coaching, classroom-observation, or formal-performance feedback does. */
+  strength?: string;
+  developmentArea?: string;
+  agreedAction?: string;
+  followUpRequired?: boolean;
+  followUpDueDate?: string;
 }
 
 export interface ParentMessage {
@@ -1275,7 +1319,7 @@ export interface ParentMessage {
 export interface TeacherCheckInPrompt {
   id: string;
   title: string;
-  type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback';
+  type: 'Wellness' | 'Student Feedback' | 'Parent Feedback' | 'Teacher Reflection';
   dueDate: string;
   teacherResponse?: string;
   respondedAt?: string;
@@ -1882,13 +1926,13 @@ export const mockTeacherCheckInPrompts: TeacherCheckInPrompt[] = [
   {
     id: 'tcp-1',
     title: 'Q2 Teacher Wellness Pulse Survey',
-    type: 'Teacher Wellness',
+    type: 'Wellness',
     dueDate: '2026-05-28',
   },
   {
     id: 'tcp-2',
     title: 'Instructional Delivery Reflection',
-    type: 'Student Satisfaction',
+    type: 'Teacher Reflection',
     dueDate: '2026-05-30',
     teacherResponse: 'Students were highly engaged during the genetics practicum; pacing on session 3 could improve.',
     respondedAt: '2026-05-22',

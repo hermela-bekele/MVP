@@ -8,6 +8,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { FileX, CheckCircle2, XCircle, Download, Printer } from 'lucide-react';
 import { filterBySubjectScope, resolveDeptHeadScope } from '@/lib/departmentHead';
 import { assessmentNeedsApproval } from '@/lib/teacherPortal';
+import {
+  MODERATION_RUBRIC_CRITERIA,
+  type AssessmentModerationRubric,
+  type ModerationRubricCriterion,
+  type ModerationVerdict,
+} from '@/lib/mockData';
 import { DetailField } from '@/components/dashboard/shared/DetailField';
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { MathRenderer } from '@/components/ui/MathRenderer';
@@ -23,6 +29,23 @@ interface DeptAssessmentReviewProps {
   assessmentId: string;
 }
 
+const RUBRIC_CRITERION_LABEL: Record<ModerationRubricCriterion, string> = {
+  curriculumAlignment: 'Curriculum alignment',
+  cognitiveLevel: 'Cognitive level',
+  clarity: 'Clarity',
+  difficulty: 'Difficulty',
+  coverage: 'Coverage',
+  fairness: 'Fairness',
+  answerKey: 'Answer key',
+  appropriateness: 'Appropriateness',
+};
+
+const VERDICT_OPTIONS: { value: ModerationVerdict; label: string }[] = [
+  { value: 'meets', label: 'Meets' },
+  { value: 'needs_improvement', label: 'Needs improvement' },
+  { value: 'not_applicable', label: 'N/A' },
+];
+
 export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ assessmentId }) => {
   const router = useRouter();
   const { assessments, currentUser, approveAssessment, rejectAssessment, addNotification } = useApp();
@@ -37,6 +60,10 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
   );
   const [comments, setComments] = useState('');
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  // Assessment Moderation Rubric: one verdict per fixed quality criterion, never a
+  // single blended score — every criterion must be judged before a decision is final.
+  const [rubric, setRubric] = useState<AssessmentModerationRubric>({});
+  const rubricComplete = MODERATION_RUBRIC_CRITERIA.every((c) => Boolean(rubric[c]));
 
   if (!assessment) {
     return (
@@ -59,12 +86,12 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
   const isAiDocument = isGeneratedAssessmentBlob(assessment.questions);
 
   const handleApprove = () => {
-    approveAssessment(assessment.id, comments || 'Verified layout and syllabus alignment.');
+    approveAssessment(assessment.id, comments || 'Verified layout and syllabus alignment.', rubric);
     router.push('/dashboard/department-head/assessments');
   };
 
   const handleReject = () => {
-    rejectAssessment(assessment.id, comments || 'Needs revision.');
+    rejectAssessment(assessment.id, comments || 'Needs revision.', rubric);
     router.push('/dashboard/department-head/assessments');
   };
 
@@ -158,6 +185,49 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
         )}
       </div>
 
+      {canReview && (
+        <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-3">
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Assessment Moderation Rubric</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Judge each criterion on its own terms — these are never blended into one score.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {MODERATION_RUBRIC_CRITERIA.map((criterion) => (
+              <div key={criterion} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 p-2.5">
+                <span className="text-xs font-semibold text-foreground">{RUBRIC_CRITERION_LABEL[criterion]}</span>
+                <div className="flex gap-1">
+                  {VERDICT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setRubric((prev) => ({ ...prev, [criterion]: opt.value }))}
+                      className={`px-2 py-1 rounded-md text-[10px] font-semibold border transition-colors ${
+                        rubric[criterion] === opt.value
+                          ? opt.value === 'meets'
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : opt.value === 'needs_improvement'
+                              ? 'bg-amber-600 text-white border-amber-600'
+                              : 'bg-muted-foreground text-white border-muted-foreground'
+                          : 'bg-muted/40 text-muted-foreground border-border/60 hover:bg-muted/70'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {!rubricComplete && (
+            <p className="text-[11px] text-amber-700">
+              Every criterion must have a verdict before you can approve or reject.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6 space-y-2">
         <label className="text-[10px] font-bold text-muted-foreground uppercase">Evaluation Comments</label>
         <textarea
@@ -171,11 +241,25 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
       <div className="flex flex-wrap justify-end items-center gap-2">
         {canReview ? (
           <>
-            <Button variant="destructive" size="sm" className="gap-1.5" onClick={handleReject}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleReject}
+              disabled={!rubricComplete}
+              title={!rubricComplete ? 'Complete the moderation rubric first' : undefined}
+            >
               <XCircle className="h-3.5 w-3.5" aria-hidden />
               Reject Draft
             </Button>
-            <Button variant="organic" size="sm" className="gap-1.5 border-none" onClick={handleApprove}>
+            <Button
+              variant="organic"
+              size="sm"
+              className="gap-1.5 border-none"
+              onClick={handleApprove}
+              disabled={!rubricComplete}
+              title={!rubricComplete ? 'Complete the moderation rubric first' : undefined}
+            >
               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
               Approve &amp; Circulate
             </Button>

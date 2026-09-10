@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { Info } from 'lucide-react';
+import { Tooltip } from '@/components/ui/tooltip';
 
 export interface PageHeaderProps {
   title: string;
@@ -14,6 +16,20 @@ export interface PageHeaderProps {
    * landing/tab pages that want a softer, more spacious top-of-page treatment.
    */
   variant?: 'default' | 'portal';
+}
+
+/** The descriptive line under a page title used to always render as a permanently-visible
+ * paragraph, which cluttered every page. It now shows only on hover, via a small info icon
+ * next to the title, for a cleaner default look. */
+function SubtitleInfo({ subtitle }: { subtitle: string }) {
+  return (
+    <Tooltip content={subtitle}>
+      <Info
+        className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-colors hover:text-primary cursor-help"
+        aria-label={subtitle}
+      />
+    </Tooltip>
+  );
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -42,16 +58,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </p>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-xl sm:text-2xl font-bold leading-tight tracking-tight text-title">
+          <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold leading-tight tracking-tight text-title">
             {title}
+            {subtitle && <SubtitleInfo subtitle={subtitle} />}
           </h1>
           {hasActions && (
             <div className="flex shrink-0 flex-nowrap items-center gap-2">{headerActions}</div>
           )}
         </div>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
-        )}
       </div>
     );
   }
@@ -67,12 +81,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             {eyebrow}
           </p>
         )}
-        <h1 className="text-xl font-bold tracking-tight text-title sm:text-2xl">
+        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-title sm:text-2xl">
           {title}
+          {subtitle && <SubtitleInfo subtitle={subtitle} />}
         </h1>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
-        )}
       </div>
       {hasActions && (
         <div className="flex shrink-0 flex-nowrap items-center gap-2">{headerActions}</div>

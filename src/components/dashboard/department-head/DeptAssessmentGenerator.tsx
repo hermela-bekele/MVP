@@ -383,7 +383,7 @@ export function DeptAssessmentGenerator() {
             type="checkbox"
             checked={useMlcMix}
             onChange={(e) => setUseMlcMix(e.target.checked)}
-            className="rounded border-input text-primary focus:ring-ring"
+            className="rounded border-input accent-btn-primary focus:ring-ring"
           />
           Set MLC vs. advanced mix
         </label>
@@ -396,7 +396,7 @@ export function DeptAssessmentGenerator() {
               step={5}
               value={mlcPercent}
               onChange={(e) => setMlcPercent(Number(e.target.value))}
-              className="flex-1"
+              className="flex-1 accent-btn-primary"
             />
             <span className="w-40 shrink-0 text-xs text-muted-foreground">
               {mlcPercent}% MLC (minimum competency) · {100 - mlcPercent}% advanced

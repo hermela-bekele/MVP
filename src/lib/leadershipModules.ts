@@ -93,7 +93,12 @@ A conversation without a follow-up resource often fades. Once you've agreed on a
 Put a date on the calendar to revisit — even two weeks out. Coaching without a follow-up point rarely produces lasting change.`,
       },
     ],
-    assessmentContent: 'Reflect on the coaching approach covered in this module.',
+    assessmentContent: `Reflect on the coaching approach covered in this module.
+
+## Reflection After Assessment
+- Think of a recent coaching conversation you had — was it closer to compliance monitoring or genuine instructional coaching?
+- Which teacher on your team would benefit most from a coaching conversation this month?
+- What follow-up date will you put on the calendar, and for which conversation?`,
     assessmentQuestions: [
       {
         id: 'elep-1-q1',
@@ -202,7 +207,12 @@ Some resistance to change is about the change itself; a lot of it is about *how*
 Leading change across a team is a repeatable skill, not a personality trait — the sequencing in this module works the same way whether the change is a new rubric, a new lesson-plan format, or a new communication norm.`,
       },
     ],
-    assessmentContent: 'Check your understanding of leading change across a team.',
+    assessmentContent: `Check your understanding of leading change across a team.
+
+## Reflection After Assessment
+- Think of a change you tried to lead recently — which part of the sequencing in this module did you skip?
+- Which member of your team is most likely to respond with silence to a new initiative, and why?
+- What is the next change you need to roll out, and how will you pilot-and-share it?`,
     assessmentQuestions: [
       {
         id: 'elep-2-q1',

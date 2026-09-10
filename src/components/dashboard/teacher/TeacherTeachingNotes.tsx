@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import type { TeacherLessonAdjustment } from '@/lib/mockData';
 import type { AITeachingNotesResult, AIDetailedLessonPlanResult } from '@/lib/ai';
 import { parseWeeklyPlanDetail } from '@/lib/ai';
+import { weekNumberLabel, weekPageLabel } from '@/lib/annualLessonPlan';
 import {
   filterTeacherLessonPlans,
   notesForLessonPlan,
@@ -61,11 +62,11 @@ const TeachingNotesRenderer = lazy(() =>
 
 function weeklyPlanWeekLabel(plan: LessonPlan): string {
   const detail = parseWeeklyPlanDetail(plan) as AIDetailedLessonPlanResult & {
-    calendarWeek?: { month?: string; week?: string; date?: string; unit?: string };
+    calendarWeek?: { month?: string; week?: string; page?: string; unit?: string };
   } | null;
   const cw = detail?.calendarWeek;
   if (cw?.month && cw?.week) {
-    return `${cw.month} ${cw.week}${cw.date ? ` (${cw.date})` : ''}${cw.unit ? ` · ${cw.unit}` : ''}`;
+    return `${cw.month} ${weekNumberLabel(cw.week)} · ${weekPageLabel(cw.page)}${cw.unit ? ` · ${cw.unit}` : ''}`;
   }
   return plan.title;
 }
@@ -422,15 +423,14 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
             </span>
           </>
         ) : (
-          <button
-            type="button"
-            className="inline-flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-center text-[11px] font-bold leading-tight text-ais-primary transition-colors hover:bg-ais-primary/10"
+          <AisBtnPrimary
+            className="!flex-row items-center gap-1.5 !rounded-xl !px-3 !py-2 !text-[11px] leading-tight"
             onClick={() => setDeliverNote(note)}
-            title="Record that this lesson was taught in class"
+            title="Confirm Lesson Delivery"
           >
-            <ClipboardCheck className="h-5 w-5" aria-hidden />
-            Confirm Lesson Delivery
-          </button>
+            <ClipboardCheck className="h-4 w-4 shrink-0" aria-hidden />
+            Confirm
+          </AisBtnPrimary>
         )}
       </div>
     </div>

@@ -232,7 +232,12 @@ After your next lesson:
 ## Section B — Short Answer
 
 3. Design a known-to-unknown introduction for a difficult topic in your subject (5 marks)
-4. Give specific advice on chunking and pacing (5 marks)`,
+4. Give specific advice on chunking and pacing (5 marks)
+
+## Reflection After Assessment
+- Which part of your own teaching practice does the known-to-unknown principle challenge the most?
+- Think of a recent lesson — where could you have chunked the content more deliberately?
+- What will you change about how you check for understanding in your next lesson?`,
     
     assessmentQuestions: [
       {
@@ -388,7 +393,12 @@ Cold calling — calling on a student who did not raise their hand — is the si
 
 ## Section B — Short Answer
 
-3. Design a complete 40-minute lesson using the 10-minute engagement rule (5 marks)`,
+3. Design a complete 40-minute lesson using the 10-minute engagement rule (5 marks)
+
+## Reflection After Assessment
+- How often do students in your class experience passive listening versus active engagement?
+- Which of your students would benefit most from cold-calling with think time — and why?
+- What is one change you will make to your next lesson's engagement rhythm?`,
     
     assessmentQuestions: [
       {
@@ -527,7 +537,12 @@ This process takes 10 minutes. It will save you hours of re-teaching later.`
     
     assessmentContent: `# Module 4 Assessment
 
-Questions on formative vs summative assessment, three cognitive levels, and using assessment data.`,
+Questions on formative vs summative assessment, three cognitive levels, and using assessment data.
+
+## Reflection After Assessment
+- Think of your most recent assessment — was it primarily formative or summative, and was that the right choice?
+- What is one misconception your last assessment data revealed that you haven't yet addressed?
+- How will you use assessment data to plan your very next lesson?`,
     
     assessmentQuestions: [],
     passingScore: 70,
@@ -640,7 +655,12 @@ When disruption happens, the quality of your response determines whether it esca
       }
     ],
     
-    assessmentContent: `# Module 5 Assessment`,
+    assessmentContent: `# Module 5 Assessment
+
+## Reflection After Assessment
+- What is the biggest classroom-management challenge you currently face with 50-70 students?
+- Which strategy from this module will you try first, and in which class?
+- How will you know within one week whether it's working?`,
     assessmentQuestions: [],
     passingScore: 70,
     completed: false,
@@ -753,7 +773,12 @@ Zewditu teaches Grade 11 physics. Fatima, a student disengaged for two months, c
       }
     ],
     
-    assessmentContent: `# Module 6 Assessment`,
+    assessmentContent: `# Module 6 Assessment
+
+## Reflection After Assessment
+- Which of your students' behavior makes more sense now that you understand adolescent development better?
+- What is one motivational strategy from this module you haven't tried yet?
+- How will you adjust your approach for a student you currently find hard to motivate?`,
     assessmentQuestions: [],
     passingScore: 70,
     completed: false,
@@ -861,7 +886,12 @@ Three months later, four of the five students have improved their grades. The fi
       }
     ],
     
-    assessmentContent: `# Module 7 Assessment`,
+    assessmentContent: `# Module 7 Assessment
+
+## Reflection After Assessment
+- How do you currently communicate with parents, and where does that break down most often?
+- Think of one family you should reach out to this week — what will you say?
+- What would "accountability" to your students and their families look like in practice for you?`,
     assessmentQuestions: [],
     passingScore: 70,
     completed: false,
