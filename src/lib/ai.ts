@@ -209,7 +209,9 @@ class AIService {
 
   private setCache(key: string, data: any): void {
     this.cache.set(key, data);
-    this.saveCacheToStorage(); // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => this.saveCacheToStorage(), 0);
+    }
     console.log(`💾 Cached AI response permanently (Total cached: ${this.cache.size})`);
   }
 
