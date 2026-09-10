@@ -112,6 +112,30 @@ export interface ReportTemplateRecord {
   updatedAt: string;
 }
 
+export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'consumed' | 'expired';
+
+export interface ResultChangeRequest {
+  id: string;
+  schoolId: string | null;
+  teacherId: string;
+  subject: string;
+  gradeLevel: string;
+  section: string;
+  academicYear: string;
+  term: string;
+  reason: string;
+  status: ChangeRequestStatus;
+  previousStatus: 'submitted' | 'finalized' | null;
+  source: 'teacher' | 'academic_head_direct';
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  teacherName?: string;
+}
+
 function qs(params: object): string {
   const entries = Object.entries(params).filter(([, v]) => v != null && v !== '');
   if (!entries.length) return '';
@@ -136,8 +160,53 @@ export const academicResultsApi = {
       body: JSON.stringify(body),
     }),
 
-  reopen: (body: { gradeLevel: string; section: string; academicYear: string; term: string; schoolId?: string }) =>
+  reopen: (body: {
+    gradeLevel: string;
+    section: string;
+    academicYear: string;
+    term: string;
+    reason: string;
+    subject?: string;
+    schoolId?: string;
+  }) =>
     request<{ reopened: SubjectTermResult[] }>('/academic-results/reopen', { method: 'POST', body: JSON.stringify(body) }),
+
+  listChangeRequests: (query: {
+    schoolId?: string;
+    status?: ChangeRequestStatus;
+    subject?: string;
+    gradeLevel?: string;
+    section?: string;
+    term?: string;
+    academicYear?: string;
+  } = {}) => request<ResultChangeRequest[]>(`/academic-results/change-requests${qs(query)}`),
+
+  createChangeRequest: (body: {
+    subject: string;
+    gradeLevel: string;
+    section: string;
+    term: string;
+    reason: string;
+    academicYear?: string;
+    teacherId?: string;
+    schoolId?: string;
+  }) =>
+    request<ResultChangeRequest>('/academic-results/change-requests', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  approveChangeRequest: (id: string, body: { reviewNote?: string } = {}) =>
+    request<ResultChangeRequest>(`/academic-results/change-requests/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  rejectChangeRequest: (id: string, body: { reviewNote?: string } = {}) =>
+    request<ResultChangeRequest>(`/academic-results/change-requests/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   getReportCard: (query: { studentId: string; academicYear?: string; term: string; gradeLevel?: string; section?: string; schoolId?: string }) =>
     request<ReportCardData>(`/academic-results/report-card${qs(query)}`),

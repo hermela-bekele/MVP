@@ -24,6 +24,7 @@ import {
 import { flushOfflineOutbox } from '@/lib/offlineSync';
 import {
   School,
+  Region,
   Teacher,
   Student,
   LessonPlan,
@@ -31,6 +32,7 @@ import {
   Attendance,
   TeacherTraining,
   SchoolCheckIn,
+  SchoolCheckInConfidentiality,
   Department,
   SchoolClass,
   ExamPaper,
@@ -142,6 +144,7 @@ interface AppContextType {
   
   // Tables
   schools: School[];
+  regions: Region[];
   teachers: Teacher[];
   students: Student[];
   lessonPlans: LessonPlan[];
@@ -182,8 +185,16 @@ interface AppContextType {
   notifications: AppNotification[];
   
   // Actions
-  addSchool: (school: Omit<School, 'id' | 'code' | 'studentsCount' | 'teachersCount' | 'status' | 'gps'>) => void;
-  toggleSchoolStatus: (id: string) => void;
+  addRegion: (name: string) => Promise<Region>;
+  updateRegionName: (id: string, name: string) => Promise<Region>;
+  connectSchool: (body: {
+    name: string; region: string; type: 'Public' | 'Private'; principal: string;
+    email: string; phone?: string; capacity?: number; emisId?: string;
+    adminName: string; adminEmail: string; confirmDuplicate?: boolean;
+  }) => Promise<{ school: School; admin: { id: string; email: string; displayName: string; temporaryPassword: string } }>;
+  updateSchoolIntegrationStatus: (id: string, status: 'Active' | 'Suspended') => Promise<School>;
+  updateSchool: (id: string, patch: Partial<Pick<School, 'name' | 'principal' | 'email' | 'phone' | 'region'>>) => Promise<School>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   approveLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
   rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string) => void;
   approveAssessment: (id: string, comments: string) => void;
@@ -264,8 +275,10 @@ interface AppContextType {
   rejectExam: (id: string, comments: string) => void;
   addTrainingMaterial: (data: {
     title: string;
+    description?: string;
     resourceUrl: string;
     category: string;
+    audience?: TrainingMaterial['audience'];
     trainingType?: TrainingMaterial['trainingType'];
     departmentId?: string;
     grade?: string;
@@ -276,6 +289,8 @@ interface AppContextType {
     title: string;
     description?: string;
     type: TrainingPlan['type'];
+    category?: string;
+    audience?: TrainingPlan['audience'];
     startDate: string;
     endDate?: string;
     location?: string;
@@ -288,7 +303,18 @@ interface AppContextType {
     data: { targetType: 'teacher' | 'department'; teacherId?: string; departmentId?: string; assignedByName: string }
   ) => void;
   removeTrainingPlanAssignment: (id: string) => void;
-  addCheckInTemplate: (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => void;
+  updateTrainingPlanAssignment: (
+    id: string,
+    updates: { attended?: boolean; impactRating?: number; impactNotes?: string },
+  ) => void;
+  addCheckInTemplate: (
+    title: string,
+    type: SchoolCheckIn['type'],
+    respondentName: string,
+    rating: number,
+    comment: string,
+    confidentiality: SchoolCheckInConfidentiality,
+  ) => void;
   updateLessonPlan: (id: string, title: string, objectives: string[], sessions: number, homework: string, planDetail?: string) => void;
   distributeLessonPlan: (id: string) => void;
   createTeachingNote: (
@@ -307,8 +333,8 @@ interface AppContextType {
     updates: Partial<Omit<AcademicCalendar, 'id' | 'schoolId' | 'createdAt'>>
   ) => void;
   publishAcademicCalendar: (id: string) => void;
-  saveMoeCalendarDraft: (events: AcademicCalendarEvent[], title: string, academicYear: string) => void;
-  disseminateMoeCalendar: () => void;
+  saveMoeCalendarDraft: (events: AcademicCalendarEvent[], title: string, academicYear: string) => Promise<MoeCalendarDraft | undefined>;
+  disseminateMoeCalendar: (calendarId?: string) => void;
   createDeptAnnualLessonPlan: (
     plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt' | 'planType' | 'createdByRole'>
   ) => void;
@@ -378,7 +404,8 @@ interface AppContextType {
     title: string,
     description: string,
     type: AppNotification['type'],
-    linkPath?: string
+    linkPath?: string,
+    scope?: 'self' | 'school'
   ) => void;
   markNotificationAsRead: (id: string) => void;
   markNotificationAsUnread: (id: string) => void;
@@ -453,6 +480,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Collections state (loaded from PostgreSQL API)
   const [schools, setSchools] = useState<School[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
@@ -506,6 +534,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const applyMockFallback = useCallback(() => {
     setSchools(mockSchools);
+    setRegions([
+      { id: 'reg-addis-ababa', name: 'Addis Ababa' },
+      { id: 'reg-oromia', name: 'Oromia' },
+      { id: 'reg-amhara', name: 'Amhara' },
+      { id: 'reg-tigray', name: 'Tigray' },
+      { id: 'reg-sidama', name: 'Sidama' },
+      { id: 'reg-snnpr', name: 'SNNPR' },
+    ]);
     setTeachers(mockTeachers);
     setStudents(mockStudents);
     setLessonPlans(mockLessonPlans);
@@ -554,6 +590,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const applyBootstrapPayload = useCallback((data: BootstrapPayload, source: DataSource) => {
     setSchools(data.schools ?? []);
+    setRegions(data.regions ?? []);
     setTeachers(data.teachers ?? []);
     setStudents(data.students ?? []);
     setLessonPlans(data.lessonPlans ?? []);
@@ -578,6 +615,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : mockAcademicCalendars;
     setAcademicCalendars(mergedCalendars);
     writeStoredCalendars(mergedCalendars);
+    setMoeCalendar(data.moeCalendar ?? null);
     setTeacherResources(data.teacherResources ?? []);
     setTeacherFeedbacks(data.teacherFeedbacks ?? []);
     setParentMessages(data.parentMessages ?? []);
@@ -611,6 +649,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return {
       ...emptyBootstrapPayload(),
       schools,
+      regions,
       departments,
       teachers,
       students,
@@ -656,6 +695,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [
     schools,
+    regions,
     departments,
     teachers,
     students,
@@ -892,19 +932,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Actions
-  const addSchool = (schoolData: Omit<School, 'id' | 'code' | 'studentsCount' | 'teachersCount' | 'status' | 'gps'>) => {
-    void api.createSchool(schoolData as unknown as Record<string, unknown>).then((school) => {
-      setSchools((prev) => [school as School, ...prev]);
-      addNotification('New School Registered', `School ${(school as School).name} registered.`, 'success');
-    }).catch(() => void refreshFromApi());
+  const addRegion: AppContextType['addRegion'] = async (name) => {
+    const region = await api.createRegion(name);
+    setRegions((prev) => [...prev, region].sort((a, b) => a.name.localeCompare(b.name)));
+    return region;
   };
 
-  const toggleSchoolStatus = (id: string) => {
-    void api.toggleSchoolStatus(id).then((school) => {
-      setSchools((prev) => prev.map((sch) => (sch.id === id ? (school as School) : sch)));
-      const s = school as School;
-      addNotification(`School ${s.status}`, `School ${s.name} status updated to ${s.status}.`, s.status === 'Active' ? 'success' : 'alert');
-    }).catch(() => void refreshFromApi());
+  const updateRegionName: AppContextType['updateRegionName'] = async (id, name) => {
+    const region = await api.updateRegion(id, name);
+    setRegions((prev) => prev.map((r) => (r.id === id ? region : r)).sort((a, b) => a.name.localeCompare(b.name)));
+    await refreshFromApi();
+    return region;
+  };
+
+  const connectSchool: AppContextType['connectSchool'] = async (body) => {
+    const result = (await api.connectSchool(body)) as { school: School; admin: { id: string; email: string; displayName: string; temporaryPassword: string } };
+    setSchools((prev) => [result.school, ...prev]);
+    addNotification('School Connected to PRIME EduAI', `${result.school.name} was connected and activated.`, 'success');
+    return result;
+  };
+
+  const updateSchoolIntegrationStatus: AppContextType['updateSchoolIntegrationStatus'] = async (id, status) => {
+    const school = (await api.updateSchoolIntegrationStatus(id, status)) as School;
+    setSchools((prev) => prev.map((sch) => (sch.id === id ? school : sch)));
+    addNotification(`School ${school.status}`, `School ${school.name} PRIME participation set to ${school.status}.`, school.status === 'Active' ? 'success' : 'alert');
+    return school;
+  };
+
+  const updateSchool: AppContextType['updateSchool'] = async (id, patch) => {
+    const school = (await api.updateSchool(id, patch)) as School;
+    setSchools((prev) => prev.map((sch) => (sch.id === id ? school : sch)));
+    return school;
+  };
+
+  const changePassword: AppContextType['changePassword'] = async (currentPassword, newPassword) => {
+    await api.changePassword(currentPassword, newPassword);
   };
 
   const approveLessonPlan = (id: string, role: 'dept' | 'school', comments: string) => {
@@ -1423,8 +1485,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addTrainingMaterial = (data: {
     title: string;
+    description?: string;
     resourceUrl: string;
     category: string;
+    audience?: TrainingMaterial['audience'];
     trainingType?: TrainingMaterial['trainingType'];
     departmentId?: string;
     grade?: string;
@@ -1453,6 +1517,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     title: string;
     description?: string;
     type: TrainingPlan['type'];
+    category?: string;
+    audience?: TrainingPlan['audience'];
     startDate: string;
     endDate?: string;
     location?: string;
@@ -1497,8 +1563,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     void api.removeTrainingPlanAssignment(id).catch(() => void refreshFromApi());
   };
 
-  const addCheckInTemplate = (title: string, type: 'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback', respondentName: string, rating: number, comment: string) => {
-    void api.createCheckIn({ title, type, respondentName, rating, comment }).then((ch) => {
+  const updateTrainingPlanAssignment = (
+    id: string,
+    updates: { attended?: boolean; impactRating?: number; impactNotes?: string },
+  ) => {
+    void api.updateTrainingPlanAssignment(id, updates).then((updated) => {
+      setTrainingPlanAssignments((prev) =>
+        prev.map((a) => (a.id === id ? (updated as TrainingPlanAssignment) : a))
+      );
+    }).catch(() => void refreshFromApi());
+  };
+
+  const addCheckInTemplate = (
+    title: string,
+    type: SchoolCheckIn['type'],
+    respondentName: string,
+    rating: number,
+    comment: string,
+    confidentiality: SchoolCheckInConfidentiality,
+  ) => {
+    // Never send a name for an anonymous submission — the server also enforces
+    // this, but the client shouldn't transmit it in the first place either.
+    const body = {
+      title,
+      type,
+      respondentName: confidentiality === 'anonymous' ? undefined : respondentName,
+      rating,
+      comment,
+      confidentiality,
+    };
+    void api.createCheckIn(body).then((ch) => {
       setCheckIns((prev) => [ch as SchoolCheckIn, ...prev]);
       addNotification('Wellness Survey Created', `Survey "${title}" created.`, 'success');
     }).catch(() => void refreshFromApi());
@@ -1706,34 +1800,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveMoeCalendarDraft = (events: AcademicCalendarEvent[], title: string, academicYear: string) => {
-    const createdAtFallback = new Date().toISOString().slice(0, 10);
-    setMoeCalendar((prev) => {
-      const draft: MoeCalendarDraft = {
-        academicYear,
-        title,
-        events,
-        status: 'Draft',
-        createdAt: prev?.createdAt ?? createdAtFallback,
-      };
-      writeStoredMoeCalendar(draft);
-      return draft;
-    });
-    addNotification('MOE Calendar Draft Saved', `"${title}" is ready for review.`, 'info');
+    return api
+      .saveMoeCalendar({ id: moeCalendar?.id, academicYear, title, events })
+      .then((draft) => {
+        setMoeCalendar(draft as MoeCalendarDraft);
+        writeStoredMoeCalendar(draft as MoeCalendarDraft);
+        addNotification('MOE Calendar Draft Saved', `"${title}" is ready for review.`, 'info');
+        return draft as MoeCalendarDraft;
+      })
+      .catch(() => {
+        addNotification('Could Not Save Calendar', 'The draft could not be saved. Please try again.', 'alert');
+        return undefined;
+      });
   };
 
-  const disseminateMoeCalendar = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    setMoeCalendar((prev) => {
-      if (!prev) return prev;
-      const published: MoeCalendarDraft = { ...prev, status: 'Published', publishedAt: today };
-      writeStoredMoeCalendar(published);
-      return published;
-    });
-    addNotification(
-      'MOE Calendar Disseminated',
-      'The national reference calendar is now available to school heads.',
-      'success',
-    );
+  // Accepts an explicit id so a caller that just saved a brand-new draft can
+  // publish it immediately without waiting on a re-render to see the new id
+  // land in `moeCalendar` (a stale-closure trap otherwise, since save+publish
+  // often happen back to back in the same handler).
+  const disseminateMoeCalendar = (calendarId?: string) => {
+    const id = calendarId ?? moeCalendar?.id;
+    if (!id) return;
+    void api
+      .publishMoeCalendar(id)
+      .then((published) => {
+        setMoeCalendar(published as MoeCalendarDraft);
+        writeStoredMoeCalendar(published as MoeCalendarDraft);
+        addNotification(
+          'MOE Calendar Disseminated',
+          'The national reference calendar is now available to school heads.',
+          'success',
+        );
+      })
+      .catch(() => {
+        addNotification('Could Not Disseminate Calendar', 'Publishing failed. Please try again.', 'alert');
+      });
   };
 
   const createDeptAnnualLessonPlan = (
@@ -1919,7 +2020,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         void api.recalculateGpa(entryData.studentId).then(() => void refreshFromApi());
         addNotification(entryData.id ? 'Grade Updated' : 'Grade Recorded', entryData.title, 'success');
       })
-      .catch(() => {
+      .catch((err) => {
+        // A 409 means the server deliberately rejected this — the subject/term is
+        // submitted or finalized and this teacher has no override. That is the whole
+        // point of the lock, so it must never be silently re-applied to local state
+        // via the offline-queue fallback (which used to happen for every failure
+        // reason alike, defeating the lock entirely).
+        if (err instanceof ApiError && err.status === 409) {
+          addNotification(
+            'Result Locked',
+            err.message || 'This result has been submitted or finalized and cannot be edited without approval.',
+            'alert',
+          );
+          return;
+        }
         applyLocal();
       });
   };
@@ -1950,7 +2064,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (entry) void api.recalculateGpa(entry.studentId);
       addNotification('Grade Removed', 'Assessment result deleted.', 'info');
-    }).catch(() => {
+    }).catch((err) => {
+      // Same lock-integrity rule as upsert: a 409 is a deliberate server rejection
+      // (submitted/finalized, no override) and must not be masked by the
+      // offline-queue fallback, which would delete it locally anyway.
+      if (err instanceof ApiError && err.status === 409) {
+        addNotification(
+          'Result Locked',
+          err.message || 'This result has been submitted or finalized and cannot be deleted without approval.',
+          'alert',
+        );
+        return;
+      }
       applyLocal();
     });
   };
@@ -2228,10 +2353,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     title: string,
     description: string,
     type: AppNotification['type'],
-    linkPath?: string
+    linkPath?: string,
+    scope?: 'self' | 'school'
   ) => {
     toast({ title, description, variant: type });
-    void api.createNotification(title, description, type, linkPath).then((notif) => {
+    void api.createNotification(title, description, type, linkPath, scope).then((notif) => {
       setNotifications((prev) => [notif as AppNotification, ...prev]);
     }).catch(() => {
       const newNotif: AppNotification = {
@@ -2284,6 +2410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         theme,
         toggleTheme,
         schools,
+        regions,
         teachers,
         students,
         lessonPlans,
@@ -2322,8 +2449,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         performanceReviews,
         onboardingTasks,
         staffAttendance,
-        addSchool,
-        toggleSchoolStatus,
+        addRegion,
+        updateRegionName,
+        connectSchool,
+        updateSchoolIntegrationStatus,
+        updateSchool,
+        changePassword,
         approveLessonPlan,
         rejectLessonPlan,
         approveAssessment,
@@ -2371,6 +2502,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTrainingPlanStatus,
         assignTrainingPlan,
         removeTrainingPlanAssignment,
+        updateTrainingPlanAssignment,
         addCheckInTemplate,
         updateLessonPlan,
         distributeLessonPlan,

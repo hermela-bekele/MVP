@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { TablePanel } from '@/components/dashboard/TablePanel';
@@ -12,6 +12,8 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { Teacher } from '@/lib/mockData';
 import { DetailField } from '@/components/dashboard/shared/DetailField';
+import { readStoredSession } from '@/lib/auth';
+import { api, ApiError, type TeacherReplacementReason, type TeacherReplacementRequest } from '@/lib/api';
 
 const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
@@ -22,14 +24,25 @@ function subjectToDeptId(subject: string) {
   return 'dept-stem';
 }
 
+const REASON_OPTIONS: { value: TeacherReplacementReason; label: string }[] = [
+  { value: 'resignation', label: 'Resignation' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'retirement', label: 'Retirement' },
+  { value: 'other', label: 'Other' },
+];
+
 export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
   const router = useRouter();
-  const { teachers, addTeacher, updateTeacher, toggleTeacherStatus } = useApp();
+  const { teachers, schools, addTeacher, updateTeacher, toggleTeacherStatus, addNotification, refreshFromApi } = useApp();
+  const session = readStoredSession();
+  const schoolId = session?.schoolId || 'sch-1';
+  const school = schools.find((s) => s.id === schoolId);
+  const isPublicSchool = school?.type === 'Public';
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
   const [detailMode, setDetailMode] = useState<'view' | 'edit' | null>(null);
 
-  // Form States
   const [employeeName, setEmployeeName] = useState('');
   const [employeeEmail, setEmployeeEmail] = useState('');
   const [employeePhone, setEmployeePhone] = useState('');
@@ -37,12 +50,33 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
   const [employeeGrade, setEmployeeGrade] = useState('Grade 9');
   const [employeeCert, setEmployeeCert] = useState('Professional License A');
 
-  // Filter teachers for this school
-  const schoolTeachers = React.useMemo(() => {
-    return teachers.filter(t => t.schoolId === 'sch-1');
-  }, [teachers]);
+  const [replacementTeacher, setReplacementTeacher] = useState<Teacher | null>(null);
+  const [departureDate, setDepartureDate] = useState('');
+  const [departureReason, setDepartureReason] = useState<TeacherReplacementReason>('resignation');
+  const [departureNotes, setDepartureNotes] = useState('');
+  const [replacementBusy, setReplacementBusy] = useState(false);
+  const [replacementError, setReplacementError] = useState('');
+  const [replacementRequests, setReplacementRequests] = useState<TeacherReplacementRequest[]>([]);
 
-  // Handle external open event
+  const schoolTeachers = React.useMemo(() => {
+    return teachers.filter((t) => t.schoolId === schoolId);
+  }, [teachers, schoolId]);
+
+  const loadReplacementRequests = useCallback(() => {
+    if (!isPublicSchool) {
+      setReplacementRequests([]);
+      return;
+    }
+    api
+      .listTeacherReplacementRequests()
+      .then(setReplacementRequests)
+      .catch(() => setReplacementRequests([]));
+  }, [isPublicSchool]);
+
+  useEffect(() => {
+    loadReplacementRequests();
+  }, [loadReplacementRequests]);
+
   useEffect(() => {
     if (readOnly) return;
     const handleOpenModal = () => {
@@ -78,6 +112,45 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
     setDetailMode(null);
   };
 
+  const openReplacementDialog = (teacher: Teacher) => {
+    setReplacementTeacher(teacher);
+    setDepartureDate(new Date().toISOString().slice(0, 10));
+    setDepartureReason('resignation');
+    setDepartureNotes('');
+    setReplacementError('');
+    closeEmployeeDetail();
+  };
+
+  const handleReplacementSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replacementTeacher || !departureDate) return;
+    setReplacementBusy(true);
+    setReplacementError('');
+    try {
+      await api.createTeacherReplacementRequest({
+        departingTeacherId: replacementTeacher.id,
+        departureDate,
+        reason: departureReason,
+        subjectsNeeded: replacementTeacher.subjects,
+        gradeLevelsNeeded: replacementTeacher.grades,
+        notes: departureNotes.trim() || undefined,
+        schoolId,
+      });
+      addNotification(
+        'MOE notified',
+        `Departure notice and replacement request filed for ${replacementTeacher.name}.`,
+        'success',
+      );
+      setReplacementTeacher(null);
+      loadReplacementRequests();
+      void refreshFromApi();
+    } catch (err) {
+      setReplacementError(err instanceof ApiError ? err.message : 'Failed to file replacement request.');
+    } finally {
+      setReplacementBusy(false);
+    }
+  };
+
   const handleOnboardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeName || !employeeEmail || !employeePhone) return;
@@ -91,17 +164,14 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
       subjects: [employeeSubject],
       grades: [employeeGrade],
       certification: employeeCert,
-      schoolId: 'sch-1',
+      schoolId,
       departmentId: deptId,
       yearsOfExperience: 0,
     });
 
-    // Reset Form
     setEmployeeName('');
     setEmployeeEmail('');
     setEmployeePhone('');
-
-    // Close Modal
     setIsModalOpen(false);
   };
 
@@ -176,7 +246,10 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
       header: 'Roster Status',
       sortable: true,
       render: (row) => (
-        <Badge variant={row.status === 'Active' ? 'success' : 'neutral'} size="sm">
+        <Badge
+          variant={row.status === 'Active' ? 'success' : row.status === 'Left' ? 'danger' : 'neutral'}
+          size="sm"
+        >
           {row.status}
         </Badge>
       ),
@@ -185,7 +258,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
       key: 'actions',
       header: 'Actions',
       render: (row) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button
             type="button"
             variant="outline"
@@ -210,6 +283,17 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
               Edit
             </Button>
           )}
+          {!readOnly && isPublicSchool && row.status !== 'Left' && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => openReplacementDialog(row)}
+              className="text-[10px] h-7 px-2"
+            >
+              Notify MOE
+            </Button>
+          )}
         </div>
       ),
     },
@@ -217,144 +301,179 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {!isPublicSchool && (
+        <p className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          MOE teacher assignment applies to Public (government) schools only. Private schools hire and replace staff locally.
+        </p>
+      )}
+
       <TablePanel
         title="Instructional Staff Roster"
         description="Monitor educational practitioners and curriculum licenses"
       >
-          <DataTable<Teacher>
-            columns={employeeColumns}
-            data={schoolTeachers}
-            searchable
-            searchKeys={['name', 'subjects', 'email']}
-            pageSize={10}
-          />
+        <DataTable<Teacher>
+          columns={employeeColumns}
+          data={schoolTeachers}
+          searchable
+          searchKeys={['name', 'subjects', 'email']}
+          pageSize={10}
+        />
       </TablePanel>
 
-      {/* Onboard Instructor dialog Modal */}
+      {isPublicSchool && (
+        <TablePanel
+          title="MOE replacement requests"
+          description={
+            replacementRequests.length
+              ? `${replacementRequests.length} notice${replacementRequests.length === 1 ? '' : 's'} filed with MOE`
+              : 'No departure notices filed yet'
+          }
+        >
+          {replacementRequests.length === 0 ? (
+            <p className="px-3 py-4 text-sm text-muted-foreground">
+              When a teacher leaves, file a departure notice to request an MOE replacement assignment.
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 text-left text-xs uppercase text-muted-foreground">
+                  <th className="px-3 py-2">Teacher</th>
+                  <th className="px-3 py-2">Departure</th>
+                  <th className="px-3 py-2">Reason</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Assigned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {replacementRequests.map((req) => (
+                  <tr key={req.id} className="border-b border-border/40">
+                    <td className="px-3 py-2 font-medium">{req.departingTeacherName || req.departingTeacherId}</td>
+                    <td className="px-3 py-2">{String(req.departureDate).slice(0, 10)}</td>
+                    <td className="px-3 py-2 capitalize">{req.reason}</td>
+                    <td className="px-3 py-2">
+                      <Badge
+                        variant={
+                          req.status === 'assigned'
+                            ? 'success'
+                            : req.status === 'rejected'
+                              ? 'danger'
+                              : 'warning'
+                        }
+                        size="sm"
+                      >
+                        {req.status.replace('_', ' ')}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{req.assignedTeacherName || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </TablePanel>
+      )}
+
       {!readOnly && (
-      <Dialog
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Onboard Instructor Profile"
-        size="lg"
-      >
-        <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2">
-
-          {/* Section 1 */}
-          <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Employee Coordinates</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Ato Demis"
-                  value={employeeName}
-                  onChange={(e) => setEmployeeName(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. instructor@school.edu.et"
-                  value={employeeEmail}
-                  onChange={(e) => setEmployeeEmail(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Mobile Phone</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="e.g. +251-912-345678"
-                  value={employeePhone}
-                  onChange={(e) => setEmployeePhone(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
+        <Dialog
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Onboard Instructor Profile"
+          size="lg"
+        >
+          <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2.5">
+              <h4 className="text-[10px] font-bold text-primary uppercase tracking-wider">Employee Coordinates</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ato Demis"
+                    value={employeeName}
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. instructor@school.edu.et"
+                    value={employeeEmail}
+                    onChange={(e) => setEmployeeEmail(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Mobile Phone</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. +251-912-345678"
+                    value={employeePhone}
+                    onChange={(e) => setEmployeePhone(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <hr className="border-border/30" />
+            <hr className="border-border/30" />
 
-          {/* Section 2 */}
-          <div className="space-y-2.5">
-            <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">Instructional Allocation</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Primary Subject Domain</label>
-                <select
-                  value={employeeSubject}
-                  onChange={(e) => setEmployeeSubject(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="Biology">Biology Science</option>
-                  <option value="Chemistry">Chemistry Science</option>
-                  <option value="Physics">Physics Science</option>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="English Language">English Language</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">Grade Level Allocation</label>
-                <select
-                  value={employeeGrade}
-                  onChange={(e) => setEmployeeGrade(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="Grade 9">Grade 9</option>
-                  <option value="Grade 10">Grade 10</option>
-                  <option value="Grade 11">Grade 11</option>
-                  <option value="Grade 12">Grade 12</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase">MOE License Classification</label>
-                <select
-                  value={employeeCert}
-                  onChange={(e) => setEmployeeCert(e.target.value)}
-                  className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="Professional License A">Professional License A</option>
-                  <option value="Professional License B">Professional License B</option>
-                  <option value="Expert Educator License">Expert Educator License</option>
-                  <option value="Novice Teaching Permit">Novice Teaching Permit</option>
-                </select>
+            <div className="space-y-2.5">
+              <h4 className="text-[10px] font-bold text-accent uppercase tracking-wider">Instructional Allocation</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Primary Subject Domain</label>
+                  <select
+                    value={employeeSubject}
+                    onChange={(e) => setEmployeeSubject(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="Biology">Biology Science</option>
+                    <option value="Chemistry">Chemistry Science</option>
+                    <option value="Physics">Physics Science</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="English Language">English Language</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Grade Level Allocation</label>
+                  <select
+                    value={employeeGrade}
+                    onChange={(e) => setEmployeeGrade(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="Grade 9">Grade 9</option>
+                    <option value="Grade 10">Grade 10</option>
+                    <option value="Grade 11">Grade 11</option>
+                    <option value="Grade 12">Grade 12</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Accreditation</label>
+                  <input
+                    type="text"
+                    value={employeeCert}
+                    onChange={(e) => setEmployeeCert(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <DialogFooter className="mt-6 border-t border-border/20 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsModalOpen(false)}
-              className="text-xs h-9"
-            >
-              Cancel Profile
-            </Button>
-            <Button
-              type="submit"
-              variant="organic"
-              size="sm"
-              className="text-xs h-9 border-none font-semibold"
-            >
-              Complete Roster Onboarding
-            </Button>
-          </DialogFooter>
-
-        </form>
-      </Dialog>
+            <DialogFooter className="mt-4 border-t border-border/20 pt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsModalOpen(false)} className="text-xs h-9">
+                Cancel
+              </Button>
+              <Button type="submit" variant="organic" size="sm" className="text-xs h-9 border-none font-semibold">
+                Complete Roster Onboarding
+              </Button>
+            </DialogFooter>
+          </form>
+        </Dialog>
       )}
 
       <Dialog
@@ -370,7 +489,17 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
               <Avatar name={detailTeacher.name} size="md" />
               <div>
                 <p className="text-sm font-bold text-foreground">{detailTeacher.name}</p>
-                <Badge variant={detailTeacher.status === 'Active' ? 'success' : 'neutral'} size="sm" className="mt-1">
+                <Badge
+                  variant={
+                    detailTeacher.status === 'Active'
+                      ? 'success'
+                      : detailTeacher.status === 'Left'
+                        ? 'danger'
+                        : 'neutral'
+                  }
+                  size="sm"
+                  className="mt-1"
+                >
                   {detailTeacher.status}
                 </Badge>
               </div>
@@ -395,7 +524,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
             </div>
 
             <DialogFooter className="mt-4 border-t border-border/20 pt-4 flex-wrap gap-2">
-              {!readOnly && (
+              {!readOnly && detailTeacher.status !== 'Left' && (
                 <Button
                   type="button"
                   variant={detailTeacher.status === 'Active' ? 'destructive' : 'organic'}
@@ -407,6 +536,17 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
                   className="text-xs h-9 border-none mr-auto"
                 >
                   {detailTeacher.status === 'Active' ? 'Deactivate roster' : 'Activate roster'}
+                </Button>
+              )}
+              {!readOnly && isPublicSchool && detailTeacher.status !== 'Left' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openReplacementDialog(detailTeacher)}
+                  className="text-xs h-9"
+                >
+                  Notify MOE / Request replacement
                 </Button>
               )}
               <Button type="button" variant="outline" size="sm" onClick={closeEmployeeDetail} className="text-xs h-9">
@@ -466,27 +606,21 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Grade level</label>
                   <select value={employeeGrade} onChange={(e) => setEmployeeGrade(e.target.value)} className={inputClass}>
                     {['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map((g) => (
-                      <option key={g} value={g}>{g}</option>
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase">MOE license</label>
-                  <select value={employeeCert} onChange={(e) => setEmployeeCert(e.target.value)} className={inputClass}>
-                    <option value="Professional License A">Professional License A</option>
-                    <option value="Professional License B">Professional License B</option>
-                    <option value="Expert Educator License">Expert Educator License</option>
-                    <option value="Novice Teaching Permit">Novice Teaching Permit</option>
-                  </select>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Accreditation</label>
+                  <input type="text" value={employeeCert} onChange={(e) => setEmployeeCert(e.target.value)} className={inputClass} />
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Training progress: <span className="font-semibold text-foreground">{detailTeacher.trainingProgress}%</span> (synced from MOE portal)
-              </p>
             </div>
 
             <DialogFooter className="mt-4 border-t border-border/20 pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDetailMode('view')} className="text-xs h-9">
+              <Button type="button" variant="outline" size="sm" onClick={closeEmployeeDetail} className="text-xs h-9">
                 Cancel
               </Button>
               <Button type="submit" variant="organic" size="sm" className="text-xs h-9 border-none font-semibold">
@@ -497,6 +631,65 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
         )}
       </Dialog>
 
+      <Dialog
+        isOpen={replacementTeacher != null}
+        onClose={() => !replacementBusy && setReplacementTeacher(null)}
+        title="Notify MOE — request replacement"
+        description={
+          replacementTeacher
+            ? `File a departure notice for ${replacementTeacher.name}. MOE assigns replacement teachers for Public schools.`
+            : undefined
+        }
+      >
+        {replacementTeacher && (
+          <form onSubmit={handleReplacementSubmit} className="space-y-4 pt-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Departure date</label>
+                <input
+                  type="date"
+                  required
+                  value={departureDate}
+                  onChange={(e) => setDepartureDate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Reason</label>
+                <select
+                  value={departureReason}
+                  onChange={(e) => setDepartureReason(e.target.value as TeacherReplacementReason)}
+                  className={inputClass}
+                >
+                  {REASON_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Notes for MOE</label>
+              <textarea
+                className={`${inputClass} h-24 py-2`}
+                value={departureNotes}
+                onChange={(e) => setDepartureNotes(e.target.value)}
+                placeholder="Subjects coverage needs, timing, or other context"
+              />
+            </div>
+            {replacementError && <p className="text-sm text-red-600">{replacementError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setReplacementTeacher(null)} disabled={replacementBusy}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="organic" className="border-none" disabled={replacementBusy}>
+                {replacementBusy ? 'Submitting…' : 'Submit to MOE'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </Dialog>
     </div>
   );
 };

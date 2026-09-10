@@ -3,6 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
+import { api } from "@/lib/api";
 import { KpiWidget } from "@/components/dashboard/KpiWidget";
 import { ChartCard } from "@/components/ui/chart-card";
 import {
@@ -15,27 +16,45 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { staggerContainer, staggerItem } from "@/lib/animations";
 import { gpaToMark } from "@/lib/grading";
+import { computeLessonPlanRollup, computeTeacherDevelopmentRollup } from "@/lib/schoolHeadAnalytics";
 import { PerformanceReports } from "@/components/dashboard/school-head/PerformanceReports";
-import { EmptyState } from "@/components/ui/empty-state";
+import { LeadershipAttentionQueue } from "@/components/dashboard/school-head/LeadershipAttentionQueue";
+import { SchoolImprovementTracker } from "@/components/dashboard/school-head/SchoolImprovementTracker";
 import {
-  BellOff,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
   GraduationCap,
   Briefcase,
   ClipboardList,
   HeartPulse,
+  Megaphone,
 } from "lucide-react";
 
 export const OverviewDashboard: React.FC = () => {
-  const { students, teachers, checkIns, notifications, classes, schools, currentUser } = useApp();
+  const {
+    students, teachers, checkIns, classes, schools, currentUser,
+    departments, lessonPlans, leaveRequests, teacherTrainingAssignments,
+  } = useApp();
 
   const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
   const schoolName = currentSchool?.name ?? 'your school';
+  const schoolId = currentSchool?.id;
+
+  // Announcements are published in one place (SchoolHeadAnnouncements) and
+  // surfaced read-only here — this dashboard never publishes a second copy.
+  const [recentAnnouncements, setRecentAnnouncements] = React.useState<{ id: string; title: string; publishedAt?: string }[]>([]);
+  React.useEffect(() => {
+    api.portalAnnouncements(schoolId).then((rows) => {
+      setRecentAnnouncements((rows as { id: string; title: string; publishedAt?: string }[]).slice(0, 3));
+    }).catch(() => setRecentAnnouncements([]));
+  }, [schoolId]);
+
+  const schoolTeachers = React.useMemo(
+    () => teachers.filter((t) => !schoolId || t.schoolId === schoolId),
+    [teachers, schoolId],
+  );
+  const schoolTeacherIds = React.useMemo(() => new Set(schoolTeachers.map((t) => t.id)), [schoolTeachers]);
 
   const totalStudents = students.length;
-  const activeTeachers = teachers.filter((t) => t.status === "Active").length;
+  const activeTeachers = schoolTeachers.filter((t) => t.status === "Active").length;
   const totalClasses = classes.length;
 
   const avgSatisfaction = React.useMemo(() => {
@@ -43,11 +62,6 @@ export const OverviewDashboard: React.FC = () => {
     const sum = checkIns.reduce((acc, curr) => acc + curr.rating, 0);
     return Math.round((sum / checkIns.length) * 20);
   }, [checkIns]);
-
-  const recentNotifications = React.useMemo(
-    () => notifications.slice(0, 5),
-    [notifications],
-  );
 
   const enrollmentTrend = React.useMemo(() => {
     const grades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
@@ -71,6 +85,40 @@ export const OverviewDashboard: React.FC = () => {
       return { name: grade.replace("Grade ", "G"), mark: avgMark };
     });
   }, [students]);
+
+  // --- 1. Academic & Student Outcome: "Are students learning?" ---
+  const passRate = React.useMemo(() => {
+    if (students.length === 0) return 0;
+    return Math.round((students.filter((s) => s.gpa >= 2.0).length / students.length) * 100);
+  }, [students]);
+  const avgAttendance = React.useMemo(() => {
+    if (students.length === 0) return 0;
+    return Math.round(students.reduce((acc, s) => acc + s.attendanceRate, 0) / students.length);
+  }, [students]);
+  const atRiskStudents = React.useMemo(
+    () => students.filter((s) => s.gpa < 2.0 || s.attendanceRate < 75).length,
+    [students],
+  );
+
+  // --- 2. Curriculum & Instruction: "Are we implementing the curriculum?" ---
+  const lessonPlanRollup = React.useMemo(
+    () => computeLessonPlanRollup(lessonPlans, schoolTeachers, departments, schoolTeacherIds),
+    [lessonPlans, schoolTeachers, departments, schoolTeacherIds],
+  );
+  const { approved: plansApproved, pendingReview: plansPending, returned: plansReturned, draft: plansDraft } = lessonPlanRollup;
+  const departmentIssues = lessonPlanRollup.departmentsWithRecurringIssues.slice(0, 3);
+
+  // --- 3. People & Professional Development: "Are teachers and departments performing effectively?" ---
+  const onLeaveTeachers = schoolTeachers.filter((t) => t.status === 'On Leave').length;
+  const expectedTeachers = Math.ceil(totalStudents / 30);
+  const staffingGap = Math.max(0, expectedTeachers - schoolTeachers.length);
+  const pendingLeaveRequests = leaveRequests.filter((r) => r.status === 'Pending').length;
+  const developmentRollup = React.useMemo(
+    () => computeTeacherDevelopmentRollup(teacherTrainingAssignments, schoolTeacherIds),
+    [teacherTrainingAssignments, schoolTeacherIds],
+  );
+  const trainingCompletionRate = developmentRollup.overallCompletionRate;
+  const overdueTraining = developmentRollup.byProgram.reduce((acc, p) => acc + p.overdueCount, 0);
 
   const handleQuickAction = (tabId: string, eventName?: string) => {
     window.dispatchEvent(new CustomEvent("change-tab", { detail: tabId }));
@@ -101,10 +149,10 @@ export const OverviewDashboard: React.FC = () => {
         <div className="pointer-events-none absolute top-0 right-0 h-full w-1/2 opacity-60 bg-[hsl(var(--primary-light)/0.3)] rounded-full blur-3xl translate-x-1/4" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-title">
               Welcome Back{currentUser?.displayName ? `, ${currentUser.displayName}` : ''}
             </h1>
-            <p className="text-sm text-white/80 max-w-xl leading-relaxed">
+            <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
               Empowering {schoolName} with data-driven academic insights
               and seamless staff alignment for the 2018 Ethiopian E.C. academic
               year.
@@ -139,7 +187,6 @@ export const OverviewDashboard: React.FC = () => {
           hint="Registered Active Students"
           tone="default"
           animated
-          trend={{ direction: "up", value: "+4.2%" }}
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 017.731-4.41 60.437 60.437 0 00-.491-6.347M4.26 10.147a48.47 48.47 0 017.741-4.153 48.47 48.47 0 017.741 4.153m-15.482 0a48.53 48.53 0 013.44 1.598m11.052-1.598a48.53 48.53 0 00-3.44 1.598" />
@@ -153,7 +200,6 @@ export const OverviewDashboard: React.FC = () => {
           hint="Certified Teaching Staff"
           tone="muted"
           animated
-          trend={{ direction: "neutral", value: "0.0%" }}
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.964 0a9 9 0 10-11.964 0m11.964 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -166,7 +212,6 @@ export const OverviewDashboard: React.FC = () => {
           hint="Registered Homeroom Divisions"
           tone="emphasis"
           animated
-          trend={{ direction: "neutral", value: "0.0%" }}
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
@@ -175,10 +220,9 @@ export const OverviewDashboard: React.FC = () => {
         />
         <KpiWidget
           label="Wellness & Satisfaction"
-          value={`${avgSatisfaction}%`}
+          value={checkIns.length > 0 ? `${avgSatisfaction}%` : '—'}
           hint="Teacher & Student Index"
           tone="muted"
-          trend={{ direction: "up", value: "+3.5%" }}
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -187,106 +231,118 @@ export const OverviewDashboard: React.FC = () => {
         />
       </motion.div>
 
-      <motion.div
-        variants={staggerItem}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-      >
-        <ChartCard
-          title="Enrollment by Grade"
-          description="Active student distribution across grade levels"
-          data={enrollmentTrend}
-          type="bar"
-          dataKey="students"
-          xKey="name"
-          colors={["hsl(var(--primary))", "hsl(var(--primary-light))", "hsl(43 65% 78%)", "hsl(43 55% 90%)"]}
-        />
-        <ChartCard
-          title="Average Mark Trend"
-          description="Academic performance index by grade level"
-          data={performanceTrend}
-          type="area"
-          dataKey="mark"
-          xKey="name"
-          color="hsl(var(--primary-light))"
-        />
+      {/* 1. Academic & Student Outcome */}
+      <motion.div variants={staggerItem} className="space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-title">Academic & Student Outcome</h2>
+          <p className="text-xs text-muted-foreground">Are students learning?</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="border-border/60">
+            <CardContent className="pt-5 space-y-3">
+              <div><p className="text-2xl font-bold text-primary">{passRate}%</p><p className="text-xs text-muted-foreground">Pass rate (GPA ≥ 2.0)</p></div>
+              <div><p className="text-2xl font-bold text-foreground">{avgAttendance}%</p><p className="text-xs text-muted-foreground">Average attendance rate</p></div>
+              <div><p className={`text-2xl font-bold ${atRiskStudents > 0 ? 'text-red-600' : 'text-foreground'}`}>{atRiskStudents}</p><p className="text-xs text-muted-foreground">Students at learning risk (low GPA or attendance)</p></div>
+            </CardContent>
+          </Card>
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ChartCard
+              title="Enrollment by Grade"
+              description="Active student distribution"
+              data={enrollmentTrend}
+              type="bar"
+              dataKey="students"
+              xKey="name"
+              colors={["hsl(var(--primary))", "hsl(var(--primary-light))", "hsl(43 65% 78%)", "hsl(43 55% 90%)"]}
+            />
+            <ChartCard
+              title="Average Mark Trend"
+              description="By grade level"
+              data={performanceTrend}
+              type="area"
+              dataKey="mark"
+              xKey="name"
+              color="hsl(var(--primary-light))"
+            />
+          </div>
+        </div>
       </motion.div>
 
-      <motion.div
-        variants={staggerItem}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-      >
-        <Card className="lg:col-span-2 border-border/60">
-          <CardHeader className="pb-3 border-b border-border/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-bold">
-                  Principal Attention Feed
-                </CardTitle>
-              </div>
-              <Badge
-                badgeStyle="subtle"
-                size="sm"
-                variant="danger"
-                className="font-semibold px-2 py-0.5"
-              >
-                Action Needed
-              </Badge>
+      {/* 2. Curriculum & Instruction */}
+      <motion.div variants={staggerItem} className="space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-title">Curriculum & Instruction</h2>
+          <p className="text-xs text-muted-foreground">Are we implementing the curriculum?</p>
+        </div>
+        <Card className="border-border/60">
+          <CardContent className="pt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-3 gap-3">
+              <div><p className="text-xl font-bold text-foreground">{plansApproved}</p><p className="text-[10px] text-muted-foreground">Approved</p></div>
+              <div><p className="text-xl font-bold text-amber-600">{plansPending}</p><p className="text-[10px] text-muted-foreground">Pending review</p></div>
+              <div><p className="text-xl font-bold text-red-600">{plansReturned + plansDraft}</p><p className="text-[10px] text-muted-foreground">Draft / returned</p></div>
             </div>
-          </CardHeader>
-          <CardContent className="pt-4 px-0">
-            <div className="divide-y divide-border/30">
-              {recentNotifications.length === 0 ? (
-                <EmptyState
-                  icon={<BellOff />}
-                  title="No pending alerts"
-                  description="You're all caught up — new alerts and notifications will appear here."
-                />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Departments with the most recurring issues</p>
+              {departmentIssues.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No outstanding lesson-plan issues.</p>
               ) : (
-                recentNotifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    className="px-6 py-4 flex gap-4 items-start hover:bg-muted/30 transition-colors duration-200"
-                  >
-                    <div className="mt-1 shrink-0">
-                      {notif.type === "alert" ? (
-                        <div className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
-                          <AlertTriangle className="h-4 w-4" aria-hidden />
-                        </div>
-                      ) : notif.type === "success" ? (
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                          <CheckCircle2 className="h-4 w-4" aria-hidden />
-                        </div>
-                      ) : (
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                          <Info className="h-4 w-4" aria-hidden />
-                        </div>
-                      )}
+                <div className="space-y-1.5">
+                  {departmentIssues.map(({ name, unresolvedCount }) => (
+                    <div key={name} className="flex items-center justify-between text-xs">
+                      <span className="text-foreground">{name}</span>
+                      <Badge variant="warning" badgeStyle="subtle" size="sm">{unresolvedCount} unresolved</Badge>
                     </div>
-                    <div className="flex-1 space-y-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h4 className="text-xs font-bold text-title truncate">
-                          {notif.title}
-                        </h4>
-                        <span className="text-[10px] text-muted-foreground font-semibold shrink-0">
-                          {notif.timestamp}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-normal">
-                        {notif.description}
-                      </p>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
+      </motion.div>
 
+      {/* 3. People & Professional Development */}
+      <motion.div variants={staggerItem} className="space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-title">People & Professional Development</h2>
+          <p className="text-xs text-muted-foreground">Are teachers and departments performing effectively?</p>
+        </div>
+        <Card className="border-border/60">
+          <CardContent className="pt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div><p className="text-xl font-bold text-foreground">{activeTeachers}</p><p className="text-[10px] text-muted-foreground">Active teachers</p></div>
+            <div><p className="text-xl font-bold text-foreground">{onLeaveTeachers}</p><p className="text-[10px] text-muted-foreground">On leave</p></div>
+            <div><p className={`text-xl font-bold ${staffingGap > 0 ? 'text-red-600' : 'text-foreground'}`}>{staffingGap}</p><p className="text-[10px] text-muted-foreground">Estimated staffing gap</p></div>
+            <div><p className={`text-xl font-bold ${pendingLeaveRequests > 0 ? 'text-amber-600' : 'text-foreground'}`}>{pendingLeaveRequests}</p><p className="text-[10px] text-muted-foreground">Pending leave requests</p></div>
+            <div>
+              <p className="text-xl font-bold text-foreground">{trainingCompletionRate !== null ? `${trainingCompletionRate}%` : '—'}</p>
+              <p className="text-[10px] text-muted-foreground">Training completion{overdueTraining > 0 ? ` (${overdueTraining} overdue)` : ''}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* 4. Leadership Attention & Actions + Quick Actions */}
+      <motion.div variants={staggerItem} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <LeadershipAttentionQueue />
+          {recentAnnouncements.length > 0 && (
+            <Card className="border-border/60">
+              <CardHeader className="pb-3 border-b border-border/30">
+                <div className="flex items-center gap-2">
+                  <Megaphone className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  <CardTitle className="text-sm font-bold">Recent Announcements</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-3 space-y-2">
+                {recentAnnouncements.map((a) => (
+                  <p key={a.id} className="text-xs text-foreground font-medium truncate">{a.title}</p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
         <Card className="border-border/60">
           <CardHeader className="pb-3 border-b border-border/30">
-            <CardTitle className="text-base font-bold">
-              Portal Quick Actions
-            </CardTitle>
+            <CardTitle className="text-base font-bold">Portal Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-3">
             {[
@@ -347,6 +403,11 @@ export const OverviewDashboard: React.FC = () => {
             ))}
           </CardContent>
         </Card>
+      </motion.div>
+
+      {/* 5. School Improvement & Quality */}
+      <motion.div variants={staggerItem}>
+        <SchoolImprovementTracker />
       </motion.div>
 
       <motion.div id="performance-reports" variants={staggerItem} className="space-y-3 scroll-mt-6">

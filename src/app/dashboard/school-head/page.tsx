@@ -6,7 +6,6 @@ import { useApp } from '@/context/AppContext';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { portalTabPath, tabFromPortalPath } from '@/lib/portalPaths';
 
 // Decomposed Sub-components
@@ -14,23 +13,24 @@ import { OverviewDashboard } from '@/components/dashboard/school-head/OverviewDa
 import { StudentManagement } from '@/components/dashboard/school-head/StudentManagement';
 import { EmployeeManagement } from '@/components/dashboard/school-head/EmployeeManagement';
 import { WellnessCheckins } from '@/components/dashboard/school-head/WellnessCheckins';
-import { SettingsPanel } from '@/components/dashboard/school-head/SettingsPanel';
+import { SchoolHeadSettingsHub } from '@/components/dashboard/school-head/SchoolHeadSettingsHub';
 import { MoeUpdatesPanel } from '@/components/dashboard/school-head/MoeUpdatesPanel';
 import { MoeMessagesPanel } from '@/components/dashboard/school-head/MoeMessagesPanel';
 import { HrOverviewPanel } from '@/components/dashboard/school-head/HrOverviewPanel';
 import { RegistrarOverviewPanel } from '@/components/dashboard/school-head/RegistrarOverviewPanel';
 import { FinanceOverviewPanel } from '@/components/dashboard/school-head/FinanceOverviewPanel';
-import { TablePanel } from '@/components/dashboard/TablePanel';
 import { CommunicationModule } from '@/components/dashboard/communication/CommunicationModule';
 import { SchoolHeadHodMessagesPanel } from '@/components/dashboard/school-head/SchoolHeadHodMessagesPanel';
 import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 import { SchoolHeadAnnouncements } from '@/components/dashboard/school-head/SchoolHeadAnnouncements';
 import { SchoolHeadCalendar } from '@/components/dashboard/school-head/SchoolHeadCalendar';
-import { SchoolBillingSettings } from '@/components/dashboard/school-head/SchoolBillingSettings';
-import { PermissionsAdminPanel } from '@/components/dashboard/school-head/PermissionsAdminPanel';
 import { ApplicationFormBuilder } from '@/components/dashboard/school-head/ApplicationFormBuilder';
-import { LessonPlanReview } from '@/components/dashboard/school-head/LessonPlanReview';
+import { InstructionalPlanningOversight } from '@/components/dashboard/school-head/InstructionalPlanningOversight';
+import { FacultyDevelopmentProgress } from '@/components/dashboard/school-head/FacultyDevelopmentProgress';
+import { SchoolResourceLibrary } from '@/components/dashboard/school-head/SchoolResourceLibrary';
+import { StudentAttendanceOversight } from '@/components/dashboard/school-head/StudentAttendanceOversight';
+import { StaffAttendanceOversight } from '@/components/dashboard/school-head/StaffAttendanceOversight';
 import { SchoolHeadAcademicCalendarPanel } from '@/components/dashboard/school-head/SchoolHeadAcademicCalendarPanel';
 import { TEACHER_CLASS_ASSIGNMENTS } from '@/lib/teacherPortal';
 import { formatMark } from '@/lib/grading';
@@ -42,11 +42,10 @@ export default function SchoolHeadPortalPage() {
     classes,
     trainingMaterials,
     addTrainingMaterial,
-    attendance,
-    teachers,
     schools,
     currentUser,
     students,
+    activeEngine,
   } = useApp();
   const [detailClass, setDetailClass] = useState<SchoolClass | null>(null);
 
@@ -75,6 +74,17 @@ export default function SchoolHeadPortalPage() {
     return () => window.removeEventListener('change-tab', handleTabChange);
   }, [router]);
 
+  // The Overview Dashboard belongs to the Administrative Engine only — a direct link
+  // into /dashboard/school-head/dashboard while another engine is active must not render it.
+  React.useEffect(() => {
+    if (activeTab !== 'dashboard' || !activeEngine || activeEngine === 'administrative') return;
+    const fallbackTab =
+      activeEngine === 'regulatory' ? 'moe-updates'
+      : activeEngine === 'training' ? 'teachers-development'
+      : 'announcements';
+    router.push(portalTabPath('school-head', fallbackTab));
+  }, [activeTab, activeEngine, router]);
+
   // Compute breadcrumbs
   const getBreadcrumbs = () => {
     const base = [{ label: 'School Head Portal', href: '#' }];
@@ -90,17 +100,16 @@ export default function SchoolHeadPortalPage() {
       case 'finance-overview': return [...base, { label: 'Finance Overview' }];
       case 'moe-updates': return [...base, { label: 'MOE Updates & Compliance' }];
       case 'moe-messages': return [...base, { label: 'Message MOE' }];
-      case 'lesson-plan-review': return [...base, { label: 'Lesson Plan Review' }];
+      case 'lesson-plan-review': return [...base, { label: 'Instructional Planning Oversight' }];
       case 'announcements': return [...base, { label: 'Announcements' }];
-      case 'school-calendar': return [...base, { label: 'School Calendar' }];
+      case 'school-calendar': return [...base, { label: 'School Event Calendar' }];
       case 'admissions-form-builder': return [...base, { label: 'Application Form Builder' }];
-      case 'billing-settings': return [...base, { label: 'Billing Settings' }];
-      case 'permissions-admin': return [...base, { label: 'Permissions' }];
+      case 'settings': return [...base, { label: 'Settings' }];
       case 'teachers-development': return [...base, { label: 'Professional Development' }];
+      case 'resource-library': return [...base, { label: 'Resource Library' }];
       case 'communication': return [...base, { label: 'Community' }];
       case 'department-messages': return [...base, { label: 'Direct Messages' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
-      case 'account-settings': return [...base, { label: 'Portal Settings' }];
       case 'leadership-development': return [...base, { label: 'ELEP Leadership Development' }];
       case 'profile': return [...base, { label: 'My Profile' }];
       case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
@@ -160,7 +169,7 @@ export default function SchoolHeadPortalPage() {
     },
     'hr-overview': {
       title: 'HR Overview',
-      subtitle: 'Cross-functional read-only view of staff leave and payroll status.',
+      subtitle: 'Institutional staffing patterns: headcount, vacancies, credentials, development, and workload.',
     },
     'registrar-overview': {
       title: 'Registrar Overview',
@@ -179,32 +188,28 @@ export default function SchoolHeadPortalPage() {
       subtitle: 'Direct communication channel with the Ministry of Education regional desk.',
     },
     'lesson-plan-review': {
-      title: 'Lesson Plan Review',
-      subtitle: 'Review lesson plans submitted for school-head approval.',
+      title: 'Instructional Planning Oversight',
+      subtitle: 'Institution-wide visibility into lesson-plan submission and review status.',
     },
     announcements: {
       title: 'Announcements',
       subtitle: 'Post and manage school-wide announcements.',
     },
     'school-calendar': {
-      title: 'School Calendar',
+      title: 'School Event Calendar',
       subtitle: 'Manage academic events and published dates for this school.',
     },
     'admissions-form-builder': {
       title: 'Application Form Builder',
       subtitle: 'Configure the fields collected on the admissions application form.',
     },
-    'billing-settings': {
-      title: 'Billing Settings',
-      subtitle: 'Configure fee schedules and billing preferences for this school.',
-    },
-    'permissions-admin': {
-      title: 'Permissions',
-      subtitle: 'Manage staff role permissions across the portal.',
-    },
     'teachers-development': {
       title: 'Professional Development',
       subtitle: 'Monitor MOE training participation rates and upload pedagogy instructional guidelines.',
+    },
+    'resource-library': {
+      title: 'Resource Library',
+      subtitle: 'Every resource available to your school, classified by source: MOE, department, school-approved, PRIME, and external.',
     },
     communication: {
       title: 'Community',
@@ -218,9 +223,9 @@ export default function SchoolHeadPortalPage() {
       title: 'Wellness Check-ins',
       subtitle: 'Recurrent questionnaire towards general challenges and school improvement ideas.',
     },
-    'account-settings': {
-      title: 'Portal Settings',
-      subtitle: 'Adjust school coordinates visible on regional reports and update administrative password credentials.',
+    settings: {
+      title: 'Settings',
+      subtitle: 'Institution profile, users & roles, security, billing, integrations, branding, and data & privacy for this school.',
     },
     'leadership-development': {
       title: 'ELEP · Leadership Development',
@@ -264,7 +269,7 @@ export default function SchoolHeadPortalPage() {
       actions={shellActions}
       showPageHeader={activeTab !== 'dashboard'}
     >
-          {activeTab === 'dashboard' && <OverviewDashboard />}
+          {activeTab === 'dashboard' && (!activeEngine || activeEngine === 'administrative') && <OverviewDashboard />}
 
           {/* Communication */}
           {activeTab === 'communication' && <CommunicationModule mode="school-head" />}
@@ -412,7 +417,7 @@ export default function SchoolHeadPortalPage() {
                       attendanceTab === 'student' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    Student Cohorts
+                    Student Attendance
                   </button>
                   <button
                     onClick={() => setAttendanceTab('employee')}
@@ -420,76 +425,12 @@ export default function SchoolHeadPortalPage() {
                       attendanceTab === 'employee' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    Faculty Check-ins
+                    Staff Attendance
                   </button>
                 </div>
               </div>
 
-              <TablePanel
-                title={attendanceTab === 'student' ? 'Student Roster Attendance Logs' : 'Faculty Checked-in Ledger'}
-              >
-                  {attendanceTab === 'student' ? (
-                      <table className="eskooly-table">
-                        <thead>
-                          <tr>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Student Name</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Grade Segment</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Date Logged</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Status Indicator</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/40 text-muted-foreground">
-                          {attendance.slice(0, 8).map((record) => (
-                            <tr key={record.id} className="hover:bg-muted/10">
-                              <td className="p-3 text-foreground font-bold">{record.studentName}</td>
-                              <td className="p-3">{record.grade} Section {record.section}</td>
-                              <td className="p-3">{record.date}</td>
-                              <td className="p-3">
-                                <Badge
-                                  variant={
-                                    record.status === 'Present' 
-                                      ? 'success' 
-                                      : record.status === 'Absent' 
-                                      ? 'danger' 
-                                      : 'warning'
-                                  }
-                                  size="sm"
-                                  className="font-bold"
-                                >
-                                  {record.status}
-                                </Badge>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                  ) : (
-                      <table className="eskooly-table">
-                        <thead>
-                          <tr>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Faculty Instructor</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Phone Contact</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Subject Focus</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Check-in Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/40 text-muted-foreground">
-                          {teachers.filter(t => t.schoolId === currentSchoolId).map((teacher) => (
-                            <tr key={teacher.id} className="hover:bg-muted/10">
-                              <td className="p-3 text-foreground font-bold">{teacher.name}</td>
-                              <td className="p-3">{teacher.phone}</td>
-                              <td className="p-3 font-semibold text-primary">{teacher.subjects.join(', ')}</td>
-                              <td className="p-3">
-                                <Badge variant={teacher.status === 'Active' ? 'success' : 'neutral'} size="sm" className="font-bold">
-                                  {teacher.status === 'Active' ? 'Active Duty' : 'Checked-out'}
-                                </Badge>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                  )}
-              </TablePanel>
+              {attendanceTab === 'student' ? <StudentAttendanceOversight /> : <StaffAttendanceOversight />}
             </div>
           )}
 
@@ -501,14 +442,12 @@ export default function SchoolHeadPortalPage() {
           {/* Regulatory Engine: MOE updates & communication */}
           {activeTab === 'moe-updates' && <MoeUpdatesPanel />}
           {activeTab === 'moe-messages' && <MoeMessagesPanel />}
-          {activeTab === 'lesson-plan-review' && <LessonPlanReview />}
+          {activeTab === 'lesson-plan-review' && <InstructionalPlanningOversight />}
 
           {/* Announcements & calendar */}
           {activeTab === 'announcements' && <SchoolHeadAnnouncements />}
           {activeTab === 'school-calendar' && <SchoolHeadCalendar />}
           {activeTab === 'admissions-form-builder' && <ApplicationFormBuilder />}
-          {activeTab === 'billing-settings' && <SchoolBillingSettings />}
-          {activeTab === 'permissions-admin' && <PermissionsAdminPanel />}
 
           {/* 11. Teacher Development */}
           {activeTab === 'teachers-development' && (
@@ -614,40 +553,19 @@ export default function SchoolHeadPortalPage() {
 
                 </div>
               ) : (
-                <TablePanel
-                  title="Faculty Enrollment Course Progress"
-                  description={`Track certification status of educational practitioners at ${schoolName}`}
-                >
-                      <table className="eskooly-table">
-                        <thead>
-                          <tr>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Faculty Member</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Designated Role</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Active Certification Course</th>
-                            <th className="p-3 text-left text-muted-foreground font-semibold">Program Progress</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/40 text-muted-foreground">
-                          {teachers.filter(t => t.schoolId === currentSchoolId).map((teacher) => (
-                            <tr key={teacher.id} className="hover:bg-muted/10">
-                              <td className="p-3 text-foreground font-bold">{teacher.name}</td>
-                              <td className="p-3 font-semibold text-primary">{teacher.subjects[0] ?? 'General'} Instructor</td>
-                              <td className="p-3 text-foreground">National Pedagogy Masterclass</td>
-                              <td className="p-3 font-bold text-foreground font-mono">{teacher.trainingProgress}% Completed</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                </TablePanel>
+                <FacultyDevelopmentProgress schoolId={currentSchoolId} />
               )}
             </div>
           )}
+
+          {/* Resource Library: MOE / Department / School Approved / PRIME / External */}
+          {activeTab === 'resource-library' && <SchoolResourceLibrary schoolId={currentSchoolId} />}
 
           {/* 12. Wellness Checkins */}
           {activeTab === 'manage-checkins' && <WellnessCheckins />}
 
           {/* 13. Settings Panel */}
-          {activeTab === 'account-settings' && <SettingsPanel />}
+          {activeTab === 'settings' && <SchoolHeadSettingsHub />}
 
           {/* 14. ELEP Leadership Development */}
           {activeTab === 'leadership-development' && (

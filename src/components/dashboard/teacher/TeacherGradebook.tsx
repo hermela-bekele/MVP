@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { readStoredSession } from '@/lib/auth';
-import { academicResultsApi, type ResultStatus } from '@/lib/academicResults';
+import { academicResultsApi, type ResultChangeRequest, type ResultStatus } from '@/lib/academicResults';
 import { ApiError } from '@/lib/api';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
@@ -188,11 +188,16 @@ export const TeacherGradebook: React.FC = () => {
   const [resultStatus, setResultStatus] = useState<ResultStatus | 'none'>('none');
   const [submitting, setSubmitting] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [changeRequest, setChangeRequest] = useState<ResultChangeRequest | null>(null);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestReason, setRequestReason] = useState('');
+  const [requestBusy, setRequestBusy] = useState(false);
   const schoolId = readStoredSession()?.schoolId ?? undefined;
 
   const refreshResultStatus = React.useCallback(() => {
     if (classSection === 'All' || !defaultSubject) {
       setResultStatus('none');
+      setChangeRequest(null);
       return;
     }
     academicResultsApi
@@ -216,6 +221,20 @@ export const TeacherGradebook: React.FC = () => {
         }
       })
       .catch(() => setResultStatus('none'));
+
+    academicResultsApi
+      .listChangeRequests({
+        schoolId,
+        subject: defaultSubject,
+        gradeLevel: classGrade,
+        section: classSection,
+        term: CURRENT_TERM,
+      })
+      .then((rows) => {
+        const open = rows.find((r) => r.status === 'pending' || r.status === 'approved') ?? null;
+        setChangeRequest(open);
+      })
+      .catch(() => setChangeRequest(null));
   }, [classGrade, classSection, defaultSubject, schoolId, teacherId]);
 
   useEffect(() => {
@@ -223,6 +242,8 @@ export const TeacherGradebook: React.FC = () => {
   }, [refreshResultStatus]);
 
   const isLocked = resultStatus === 'submitted' || resultStatus === 'finalized';
+  const hasPendingRequest = changeRequest?.status === 'pending';
+  const hasApprovedWindow = changeRequest?.status === 'approved';
 
   const handleSubmitResults = async () => {
     setSubmitting(true);
@@ -246,6 +267,35 @@ export const TeacherGradebook: React.FC = () => {
       setStatusError(err instanceof ApiError ? err.message : 'Failed to submit results.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRequestEditApproval = async () => {
+    if (!requestReason.trim()) return;
+    setRequestBusy(true);
+    setStatusError(null);
+    try {
+      const created = await academicResultsApi.createChangeRequest({
+        subject: defaultSubject,
+        gradeLevel: classGrade,
+        section: classSection,
+        term: CURRENT_TERM,
+        reason: requestReason.trim(),
+        teacherId,
+        schoolId,
+      });
+      setChangeRequest(created);
+      setRequestDialogOpen(false);
+      setRequestReason('');
+      addNotification(
+        'Edit approval requested',
+        'Your Academic Head will review this change request.',
+        'success',
+      );
+    } catch (err) {
+      setStatusError(err instanceof ApiError ? err.message : 'Failed to submit change request.');
+    } finally {
+      setRequestBusy(false);
     }
   };
 
@@ -475,8 +525,30 @@ export const TeacherGradebook: React.FC = () => {
             Add result
           </AisBtnPrimary>
           {isLocked && (
-            <span className={`${aisBodySm} text-muted-foreground`}>
-              Editing is locked until an Academic Head reopens this class/subject/term.
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`${aisBodySm} text-muted-foreground`}>
+                {hasPendingRequest
+                  ? 'Edit approval pending Academic Head review.'
+                  : 'Editing is locked. Request approval from your Academic Head to change these results.'}
+              </span>
+              {!hasPendingRequest && (
+                <AisBtnSecondary
+                  type="button"
+                  className="!text-xs"
+                  onClick={() => setRequestDialogOpen(true)}
+                >
+                  Request edit approval
+                </AisBtnSecondary>
+              )}
+            </div>
+          )}
+          {hasApprovedWindow && !isLocked && (
+            <span className={`${aisBodySm} text-emerald-700`}>
+              Edit window approved
+              {changeRequest?.expiresAt
+                ? ` until ${new Date(changeRequest.expiresAt).toLocaleString()}`
+                : ''}
+              . Resubmit when finished.
             </span>
           )}
         </div>
@@ -726,19 +798,34 @@ export const TeacherGradebook: React.FC = () => {
             </div>
 
             <div className="flex gap-2 border-t border-border p-4">
-              <AisBtnSecondary className="flex-1 !justify-center" onClick={() => openEdit(detailEntry)}>
-                Edit result
-              </AisBtnSecondary>
-              <button
-                type="button"
-                className="rounded-2xl border border-destructive/30 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  deleteStudentGradeEntry(detailEntry.id);
-                  setDetailEntry(null);
-                }}
-              >
-                Delete
-              </button>
+              {isLocked ? (
+                <div className="flex flex-1 flex-col items-center gap-2">
+                  <p className={`${aisBodySm} text-center italic`}>
+                    Locked — {hasPendingRequest ? 'edit approval pending.' : 'request Academic Head approval to edit.'}
+                  </p>
+                  {!hasPendingRequest && (
+                    <AisBtnSecondary className="!text-xs" onClick={() => setRequestDialogOpen(true)}>
+                      Request edit approval
+                    </AisBtnSecondary>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <AisBtnSecondary className="flex-1 !justify-center" onClick={() => openEdit(detailEntry)}>
+                    Edit result
+                  </AisBtnSecondary>
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-destructive/30 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      deleteStudentGradeEntry(detailEntry.id);
+                      setDetailEntry(null);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           </aside>
         </div>
@@ -968,6 +1055,38 @@ export const TeacherGradebook: React.FC = () => {
             </AisBtnPrimary>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      <Dialog
+        isOpen={requestDialogOpen}
+        onClose={() => !requestBusy && setRequestDialogOpen(false)}
+        title="Request edit approval"
+        description={`Ask your Academic Head to unlock ${defaultSubject} · ${classGrade} · ${classSection} · ${CURRENT_TERM} for corrections.`}
+      >
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className={aisFormLabel}>Reason</label>
+            <textarea
+              className={`${aisInput} min-h-[96px]`}
+              value={requestReason}
+              onChange={(e) => setRequestReason(e.target.value)}
+              placeholder="Explain what needs to change and why"
+              required
+            />
+          </div>
+        </div>
+        <DialogFooter className="mt-4">
+          <AisBtnSecondary type="button" onClick={() => setRequestDialogOpen(false)} disabled={requestBusy}>
+            Cancel
+          </AisBtnSecondary>
+          <AisBtnPrimary
+            type="button"
+            onClick={handleRequestEditApproval}
+            disabled={requestBusy || !requestReason.trim()}
+          >
+            {requestBusy ? 'Submitting…' : 'Submit request'}
+          </AisBtnPrimary>
+        </DialogFooter>
       </Dialog>
     </div>
   );

@@ -10,19 +10,35 @@ import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { FormField, formFieldInputClass } from '@/components/ui/form-field';
 import type { DataTableColumn } from '@/components/ui/data-table';
-import type { SchoolCheckIn } from '@/lib/mockData';
+import type { SchoolCheckIn, SchoolCheckInConfidentiality } from '@/lib/mockData';
 import { CircularProgress } from '@/components/ui/progress';
+
+const CONFIDENTIALITY_LABEL: Record<SchoolCheckInConfidentiality, string> = {
+  identified: 'Identified',
+  restricted: 'Restricted',
+  anonymous: 'Anonymous',
+};
 
 export const WellnessCheckins: React.FC = () => {
   const { checkIns, addCheckInTemplate } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+
+  const toggleReveal = (id: string) => {
+    setRevealedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // Form States
   const [checkInTitle, setCheckInTitle] = useState('Weekly Wellness Check-in');
-  const [checkInType, setCheckInType] = useState<'Teacher Wellness' | 'Student Satisfaction' | 'Parent Feedback'>('Teacher Wellness');
+  const [checkInType, setCheckInType] = useState<SchoolCheckIn['type']>('Teacher Wellness');
   const [checkInRespondent, setCheckInRespondent] = useState('');
   const [checkInRating, setCheckInRating] = useState(5);
   const [checkInComment, setCheckInComment] = useState('');
+  const [checkInConfidentiality, setCheckInConfidentiality] = useState<SchoolCheckInConfidentiality>('identified');
 
   // Handle external modal open trigger (from OverviewDashboard quick actions)
   useEffect(() => {
@@ -61,20 +77,23 @@ export const WellnessCheckins: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkInRespondent || !checkInComment) return;
+    if (!checkInComment) return;
+    if (checkInConfidentiality !== 'anonymous' && !checkInRespondent) return;
 
     addCheckInTemplate(
       checkInTitle,
       checkInType,
       checkInRespondent,
       Number(checkInRating),
-      checkInComment
+      checkInComment,
+      checkInConfidentiality,
     );
 
     // Reset Form
     setCheckInRespondent('');
     setCheckInComment('');
     setCheckInRating(5);
+    setCheckInConfidentiality('identified');
 
     // Close Modal
     setIsModalOpen(false);
@@ -88,7 +107,18 @@ export const WellnessCheckins: React.FC = () => {
       render: (row) => (
         <div className="flex flex-col text-left">
           <span className="font-semibold text-foreground text-xs">{row.title ?? row.type}</span>
-          <span className="text-[9px] text-muted-foreground mt-0.5">Filing Respondent: {row.respondentName}</span>
+          <span className="text-[9px] text-muted-foreground mt-0.5">
+            Respondent:{' '}
+            {row.confidentiality === 'anonymous' ? (
+              <span className="italic">Anonymous</span>
+            ) : row.confidentiality === 'restricted' && !revealedIds.has(row.id) ? (
+              <button type="button" onClick={() => toggleReveal(row.id)} className="text-primary hover:underline font-semibold not-italic">
+                Restricted — click to reveal
+              </button>
+            ) : (
+              row.respondentName
+            )}
+          </span>
         </div>
       ),
     },
@@ -97,8 +127,22 @@ export const WellnessCheckins: React.FC = () => {
       header: 'Target Cohort',
       sortable: true,
       render: (row) => (
-        <Badge variant={row.type === 'Teacher Wellness' ? 'primary' : row.type === 'Student Satisfaction' ? 'primary' : 'info'} size="sm" className="font-medium">
+        <Badge variant={row.type === 'Teacher Wellness' || row.type === 'Student Satisfaction' ? 'primary' : 'info'} size="sm" className="font-medium">
           {row.type}
+        </Badge>
+      ),
+    },
+    {
+      key: 'confidentiality',
+      header: 'Confidentiality',
+      sortable: true,
+      render: (row) => (
+        <Badge
+          variant={row.confidentiality === 'anonymous' ? 'neutral' : row.confidentiality === 'restricted' ? 'warning' : 'success'}
+          badgeStyle="subtle"
+          size="sm"
+        >
+          {CONFIDENTIALITY_LABEL[row.confidentiality]}
         </Badge>
       ),
     },
@@ -208,12 +252,14 @@ export const WellnessCheckins: React.FC = () => {
             <FormField label="Respondent Cohort">
               <select
                 value={checkInType}
-                onChange={(e) => setCheckInType(e.target.value as any)}
+                onChange={(e) => setCheckInType(e.target.value as SchoolCheckIn['type'])}
                 className={formFieldInputClass}
               >
                 <option value="Teacher Wellness">Teaching Faculty</option>
                 <option value="Student Satisfaction">Student Body</option>
                 <option value="Parent Feedback">Parent Roster</option>
+                <option value="School Climate">School Climate</option>
+                <option value="Service Satisfaction">Service Satisfaction</option>
               </select>
             </FormField>
 
@@ -232,16 +278,34 @@ export const WellnessCheckins: React.FC = () => {
             </FormField>
           </div>
 
-          <FormField label="Respondent Name (Or Anonymous)" className="text-left">
-            <input
-              type="text"
-              required
-              placeholder="e.g. Ato Demeke (Or Anonymous)"
-              value={checkInRespondent}
-              onChange={(e) => setCheckInRespondent(e.target.value)}
+          <FormField label="Confidentiality" className="text-left">
+            <select
+              value={checkInConfidentiality}
+              onChange={(e) => setCheckInConfidentiality(e.target.value as SchoolCheckInConfidentiality)}
               className={formFieldInputClass}
-            />
+            >
+              <option value="identified">Identified — respondent name shown</option>
+              <option value="restricted">Restricted — name on file, hidden by default</option>
+              <option value="anonymous">Anonymous — name is never recorded</option>
+            </select>
           </FormField>
+
+          {checkInConfidentiality !== 'anonymous' ? (
+            <FormField label="Respondent Name" className="text-left">
+              <input
+                type="text"
+                required
+                placeholder="e.g. Ato Demeke"
+                value={checkInRespondent}
+                onChange={(e) => setCheckInRespondent(e.target.value)}
+                className={formFieldInputClass}
+              />
+            </FormField>
+          ) : (
+            <p className="text-xxs text-muted-foreground -mt-1">
+              This response will be saved with no respondent name at all.
+            </p>
+          )}
 
           <FormField label="Detailed Comments & Feedback" className="text-left">
             <textarea

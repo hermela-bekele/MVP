@@ -390,7 +390,7 @@ export default function DeptHeadPortalApp() {
   );
 
   const departmentCheckIns = useMemo(
-    () => checkIns.filter((c) => deptTeacherNames.has(c.respondentName)),
+    () => checkIns.filter((c) => c.respondentName && deptTeacherNames.has(c.respondentName)),
     [checkIns, deptTeacherNames],
   );
 

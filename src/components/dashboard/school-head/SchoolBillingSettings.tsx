@@ -16,8 +16,6 @@ export function SchoolBillingSettings() {
   const [registrationFee, setRegistrationFee] = useState('500');
   const [monthlyTuition, setMonthlyTuition] = useState('2500');
   const [siblingPct, setSiblingPct] = useState('10');
-  const [primaryColor, setPrimaryColor] = useState('#1d4ed8');
-  const [tagline, setTagline] = useState('');
   const [requiredDocs, setRequiredDocs] = useState('birth_certificate,previous_report');
   const [plans, setPlans] = useState<{ grade: string; registrationFee: string; monthlyTuition: string }[]>(
     GRADES.map((g) => ({ grade: g, registrationFee: '500', monthlyTuition: '2500' }))
@@ -34,9 +32,6 @@ export function SchoolBillingSettings() {
       setRegistrationFee(String(s.registration_fee ?? 500));
       setMonthlyTuition(String(s.monthly_tuition ?? 2500));
       setSiblingPct(String(s.sibling_discount_percent ?? 0));
-      const branding = (s.branding as { primaryColor?: string; tagline?: string }) || {};
-      setPrimaryColor(branding.primaryColor || '#1d4ed8');
-      setTagline(branding.tagline || '');
       const docs = Array.isArray(s.required_documents)
         ? (s.required_documents as string[]).join(',')
         : 'birth_certificate,previous_report';
@@ -68,7 +63,6 @@ export function SchoolBillingSettings() {
           .split(',')
           .map((d) => d.trim())
           .filter(Boolean),
-        branding: { primaryColor, tagline },
       });
       await api.saveFeePlans(
         schoolId,
@@ -89,8 +83,8 @@ export function SchoolBillingSettings() {
   return (
     <PermissionGuard code="school.settings">
       <ContentCard
-        title="Billing & branding"
-        description="Default fees, sibling discount, required docs, and apply-page branding"
+        title="Billing"
+        description="Default fees, sibling discount, and required application documents"
         actions={
           <Button size="sm" variant="organic" className="border-none" disabled={saving} onClick={save}>
             {saving ? 'Saving…' : 'Save settings'}
@@ -102,10 +96,6 @@ export function SchoolBillingSettings() {
             <Input label="Default registration" value={registrationFee} onChange={(e) => setRegistrationFee(e.target.value)} />
             <Input label="Default monthly tuition" value={monthlyTuition} onChange={(e) => setMonthlyTuition(e.target.value)} />
             <Input label="Sibling discount %" value={siblingPct} onChange={(e) => setSiblingPct(e.target.value)} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input label="Brand color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} />
-            <Input label="Apply page tagline" value={tagline} onChange={(e) => setTagline(e.target.value)} />
           </div>
           <Input
             label="Required document types (comma-separated)"

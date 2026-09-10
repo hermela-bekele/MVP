@@ -7,10 +7,155 @@ export function getApiBase() {
   return API_BASE;
 }
 
+export const MOE_DOCUMENT_CATEGORIES = [
+  'Policy', 'Syllabus', 'Curriculum Framework', 'Text Books', 'Teachers Guide',
+  'Training Manuals', 'Compliance Checklist', 'Directives', 'SOP',
+  'Assessment Blueprint', 'Exam Guideline', 'Annual Performance Report',
+  'Audit and Inspection Reports', 'Budget Allocation',
+] as const;
+export const MOE_DOCUMENT_AUDIENCES = ['All', 'Regional', 'Woredas', 'Schools'] as const;
+
+export interface MoeDocument {
+  id: string;
+  title: string;
+  category: (typeof MOE_DOCUMENT_CATEGORIES)[number];
+  audience: (typeof MOE_DOCUMENT_AUDIENCES)[number];
+  fileUrl: string;
+  fileName: string;
+  fileSize: number | null;
+  uploadedBy: string | null;
+  uploadedByName: string | null;
+  createdAt: string;
+}
+
+export const LEADERSHIP_ACTION_SEVERITIES = ['Low', 'Medium', 'High', 'Critical'] as const;
+export const LEADERSHIP_ACTION_STATUSES = ['open', 'in_progress', 'resolved'] as const;
+
+export interface LeadershipAction {
+  id: string;
+  schoolId: string;
+  category: 'exception' | 'improvement_initiative';
+  issue: string;
+  evidence?: string;
+  source?: string;
+  severity: (typeof LEADERSHIP_ACTION_SEVERITIES)[number];
+  owner?: string;
+  decisionRequired?: string;
+  recommendedAction?: string;
+  dueDate?: string;
+  status: (typeof LEADERSHIP_ACTION_STATUSES)[number];
+  progressPercent?: number;
+  createdBy?: string;
+  createdByName?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface SchoolResource {
+  id: string;
+  schoolId: string;
+  title: string;
+  description?: string;
+  url: string;
+  grade?: string;
+  subject?: string;
+  addedBy?: string;
+  addedByName?: string;
+  createdAt: string;
+}
+
+export const COMPLIANCE_STATUS_VALUES = ['Not Started', 'In Progress', 'Submitted', 'Verified', 'Rejected'] as const;
+
+export interface ComplianceRequirement {
+  id: string;
+  title: string;
+  description?: string;
+  authority: string;
+  dueDate?: string;
+  evidenceRequired?: string;
+  audience: (typeof MOE_DOCUMENT_AUDIENCES)[number];
+  createdBy?: string;
+  createdByName?: string;
+  createdAt: string;
+}
+
+export interface SchoolComplianceStatus {
+  id: string | null;
+  requirementId: string;
+  schoolId: string;
+  status: (typeof COMPLIANCE_STATUS_VALUES)[number];
+  responsiblePerson?: string;
+  evidenceSubmittedUrl?: string;
+  evidenceSubmittedAt?: string;
+  outstandingIssue?: string;
+  verifiedBy?: string;
+  verifiedByName?: string;
+  verifiedAt?: string;
+  verificationNote?: string;
+  updatedAt: string;
+  requirementTitle?: string;
+  requirementAuthority?: string;
+  requirementDueDate?: string;
+  requirementEvidenceRequired?: string;
+}
+
+export const MOE_THREAD_STATUSES = ['open', 'awaiting_moe', 'awaiting_school', 'resolved', 'closed'] as const;
+
+export interface MoeMessageThread {
+  id: string;
+  referenceNumber: string;
+  schoolId: string;
+  subject: string;
+  status: (typeof MOE_THREAD_STATUSES)[number];
+  createdBy?: string;
+  createdByName?: string;
+  createdAt: string;
+  lastMessageAt: string;
+  schoolLastReadAt: string;
+  moeLastReadAt?: string;
+}
+
+export interface MoeThreadMessage {
+  id: string;
+  threadId: string;
+  senderUserId?: string;
+  senderRole: 'school-head' | 'moe';
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
+
+export type TeacherReplacementReason = 'resignation' | 'transfer' | 'retirement' | 'other';
+export type TeacherReplacementStatus = 'pending' | 'under_review' | 'assigned' | 'rejected' | 'cancelled';
+
+export interface TeacherReplacementRequest {
+  id: string;
+  schoolId: string;
+  departingTeacherId: string;
+  departureDate: string;
+  reason: TeacherReplacementReason;
+  subjectsNeeded: string[];
+  gradeLevelsNeeded: string[];
+  notes: string | null;
+  status: TeacherReplacementStatus;
+  assignedTeacherId: string | null;
+  moeReviewedBy: string | null;
+  moeNotes: string | null;
+  moeThreadId: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  schoolName?: string;
+  departingTeacherName?: string;
+  assignedTeacherName?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
-    public status: number
+    public status: number,
+    public body?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -51,13 +196,16 @@ export async function request<T>(
   });
   if (!res.ok) {
     let message = res.statusText;
+    let body: unknown;
     try {
-      const body = await res.json();
-      if (body?.error) message = body.error;
+      body = await res.json();
+      if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
+        message = body.error;
+      }
     } catch {
       /* ignore */
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, body);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -65,30 +213,53 @@ export async function request<T>(
 
 const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
 
-export async function uploadFile(file: File): Promise<string> {
+export interface UploadResult {
+  url: string;
+  filename: string;
+  originalName: string;
+  size: number;
+}
+
+async function uploadFileRaw(file: File): Promise<UploadResult> {
   const formData = new FormData();
   formData.append('file', file);
   const res = await fetch(`${API_BASE}/api/uploads`, {
     method: 'POST',
     body: formData,
+    headers: authHeaders(),
     signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
   });
   if (!res.ok) {
     let message = res.statusText;
+    let body: unknown;
     try {
-      const body = await res.json();
-      if (body?.error) message = body.error;
+      body = await res.json();
+      if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
+        message = body.error;
+      }
     } catch {
       /* ignore */
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, body);
   }
-  const data = (await res.json()) as { url: string };
-  return data.url;
+  return (await res.json()) as UploadResult;
+}
+
+export async function uploadFile(file: File): Promise<string> {
+  const result = await uploadFileRaw(file);
+  return result.url;
+}
+
+/** Same upload endpoint as uploadFile(), but returns the full result (original
+ * filename, size) for features that need to persist a real document record
+ * rather than just a bare URL. */
+export async function uploadFileWithMeta(file: File): Promise<UploadResult> {
+  return uploadFileRaw(file);
 }
 
 export interface BootstrapPayload {
   schools: import('@/lib/mockData').School[];
+  regions: import('@/lib/mockData').Region[];
   departments: import('@/lib/mockData').Department[];
   teachers: import('@/lib/mockData').Teacher[];
   students: import('@/lib/mockData').Student[];
@@ -104,6 +275,7 @@ export interface BootstrapPayload {
   trainingPlanAssignments: import('@/lib/mockData').TrainingPlanAssignment[];
   teachingNotes: import('@/lib/mockData').TeachingNote[];
   academicCalendars: import('@/lib/mockData').AcademicCalendar[];
+  moeCalendar: import('@/lib/mockData').MoeCalendarDraft | null;
   studentGradeEntries: import('@/lib/mockData').StudentGradeEntry[];
   teacherResources: import('@/lib/mockData').TeacherResource[];
   teacherFeedbacks: import('@/lib/mockData').TeacherFeedback[];
@@ -167,16 +339,131 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  createSchool: (body: Record<string, unknown>) =>
-    request('/schools', { method: 'POST', body: JSON.stringify(body) }),
-  toggleSchoolStatus: (id: string) =>
-    request(`/schools/${id}/status`, { method: 'PATCH' }),
+  updateSchool: (id: string, body: Record<string, unknown>) =>
+    request(`/schools/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  listRegions: () => request<{ id: string; name: string }[]>('/regions'),
+  createRegion: (name: string) =>
+    request<{ id: string; name: string }>('/regions', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateRegion: (id: string, name: string) =>
+    request<{ id: string; name: string }>(`/regions/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
+  connectSchool: (body: Record<string, unknown>) =>
+    request('/schools/connect', { method: 'POST', body: JSON.stringify(body) }),
+  updateSchoolIntegrationStatus: (id: string, status: 'Active' | 'Suspended') =>
+    request(`/schools/${id}/integration-status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  listMoeDocuments: (filters?: { category?: string; audience?: string; search?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.category) params.set('category', filters.category);
+    if (filters?.audience) params.set('audience', filters.audience);
+    if (filters?.search) params.set('search', filters.search);
+    const qs = params.toString();
+    return request<MoeDocument[]>(`/moe-documents${qs ? `?${qs}` : ''}`);
+  },
+  uploadMoeDocument: (body: { title: string; category: string; audience: string; fileUrl: string; fileName: string; fileSize: number }) =>
+    request<MoeDocument>('/moe-documents', { method: 'POST', body: JSON.stringify(body) }),
+  deleteMoeDocument: (id: string) => request(`/moe-documents/${id}`, { method: 'DELETE' }),
+  listLeadershipActions: (filters?: { schoolId?: string; category?: 'exception' | 'improvement_initiative' }) => {
+    const params = new URLSearchParams();
+    if (filters?.schoolId) params.set('schoolId', filters.schoolId);
+    if (filters?.category) params.set('category', filters.category);
+    const qs = params.toString();
+    return request<LeadershipAction[]>(`/leadership-actions${qs ? `?${qs}` : ''}`);
+  },
+  createLeadershipAction: (body: Partial<LeadershipAction> & { issue: string }) =>
+    request<LeadershipAction>('/leadership-actions', { method: 'POST', body: JSON.stringify(body) }),
+  updateLeadershipAction: (id: string, body: Partial<LeadershipAction>) =>
+    request<LeadershipAction>(`/leadership-actions/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  listSchoolResources: (schoolId?: string) => {
+    const qs = schoolId ? `?schoolId=${encodeURIComponent(schoolId)}` : '';
+    return request<SchoolResource[]>(`/school-resources${qs}`);
+  },
+  createSchoolResource: (body: { title: string; url: string; description?: string; grade?: string; subject?: string; schoolId?: string }) =>
+    request<SchoolResource>('/school-resources', { method: 'POST', body: JSON.stringify(body) }),
+  deleteSchoolResource: (id: string) => request(`/school-resources/${id}`, { method: 'DELETE' }),
+  listComplianceRequirements: () => request<ComplianceRequirement[]>('/compliance-requirements'),
+  createComplianceRequirement: (body: {
+    title: string; authority: string; description?: string; dueDate?: string; evidenceRequired?: string; audience?: string;
+  }) => request<ComplianceRequirement>('/compliance-requirements', { method: 'POST', body: JSON.stringify(body) }),
+  deleteComplianceRequirement: (id: string) => request(`/compliance-requirements/${id}`, { method: 'DELETE' }),
+  listComplianceStatus: (schoolId?: string) => {
+    const qs = schoolId ? `?schoolId=${encodeURIComponent(schoolId)}` : '';
+    return request<SchoolComplianceStatus[]>(`/compliance-status${qs}`);
+  },
+  updateComplianceStatus: (body: {
+    requirementId: string; schoolId?: string; status?: string; responsiblePerson?: string;
+    evidenceSubmittedUrl?: string; outstandingIssue?: string;
+  }) => request<SchoolComplianceStatus>('/compliance-status', { method: 'POST', body: JSON.stringify(body) }),
+  verifyComplianceStatus: (id: string, body: { status: 'Verified' | 'Rejected'; verificationNote?: string }) =>
+    request<SchoolComplianceStatus>(`/compliance-status/${id}/verify`, { method: 'PATCH', body: JSON.stringify(body) }),
+  listMoeMessageThreads: (schoolId?: string) => {
+    const qs = schoolId ? `?schoolId=${encodeURIComponent(schoolId)}` : '';
+    return request<MoeMessageThread[]>(`/moe-message-threads${qs}`);
+  },
+  createMoeMessageThread: (body: { subject: string; body: string; schoolId?: string }) =>
+    request<MoeMessageThread>('/moe-message-threads', { method: 'POST', body: JSON.stringify(body) }),
+  listMoeThreadMessages: (threadId: string) => request<MoeThreadMessage[]>(`/moe-message-threads/${threadId}/messages`),
+  sendMoeThreadMessage: (threadId: string, body: string) =>
+    request<MoeThreadMessage>(`/moe-message-threads/${threadId}/messages`, { method: 'POST', body: JSON.stringify({ body }) }),
+  updateMoeMessageThread: (threadId: string, body: { status?: string; markRead?: boolean }) =>
+    request<MoeMessageThread>(`/moe-message-threads/${threadId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  listSessions: () => request('/auth/sessions'),
+  revokeSession: (id: string) => request(`/auth/sessions/${id}`, { method: 'DELETE' }),
+  revokeOtherSessions: () => request('/auth/sessions/revoke-others', { method: 'POST' }),
+  getSchoolIntegrations: (schoolId: string) => request(`/schools/${schoolId}/integrations`),
+  updateSchoolIntegration: (schoolId: string, type: string, body: Record<string, unknown>) =>
+    request(`/schools/${schoolId}/integrations/${type}`, { method: 'PUT', body: JSON.stringify(body) }),
+  downloadSchoolDataExport: async (schoolId: string) => {
+    const res = await fetch(`${API_BASE}/api/schools/${schoolId}/data-export`, {
+      headers: { ...authHeaders() },
+    });
+    if (!res.ok) throw new ApiError(res.statusText, res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `school-${schoolId}-export.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
   createTeacher: (body: Record<string, unknown>) =>
     request('/teachers', { method: 'POST', body: JSON.stringify(body) }),
   updateTeacher: (id: string, body: Record<string, unknown>) =>
     request(`/teachers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   toggleTeacherStatus: (id: string) =>
     request(`/teachers/${id}/toggle-status`, { method: 'PATCH' }),
+  listTeacherReplacementRequests: (query: { status?: string } = {}) => {
+    const qs = query.status ? `?status=${encodeURIComponent(query.status)}` : '';
+    return request<TeacherReplacementRequest[]>(`/teacher-replacement-requests${qs}`);
+  },
+  createTeacherReplacementRequest: (body: {
+    departingTeacherId: string;
+    departureDate: string;
+    reason: 'resignation' | 'transfer' | 'retirement' | 'other';
+    subjectsNeeded?: string[];
+    gradeLevelsNeeded?: string[];
+    notes?: string;
+    schoolId?: string;
+  }) =>
+    request<TeacherReplacementRequest>('/teacher-replacement-requests', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  assignTeacherReplacement: (id: string, body: { assignedTeacherId: string; moeNotes?: string }) =>
+    request<TeacherReplacementRequest>(`/teacher-replacement-requests/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  rejectTeacherReplacement: (id: string, body: { moeNotes: string }) =>
+    request<TeacherReplacementRequest>(`/teacher-replacement-requests/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   createHrEmployee: (body: Record<string, unknown>) =>
     request('/hr/employees', { method: 'POST', body: JSON.stringify(body) }),
   updateHrEmployee: (id: string, body: Record<string, unknown>) =>
@@ -279,8 +566,10 @@ export const api = {
     }),
   createTrainingMaterial: (body: {
     title: string;
+    description?: string;
     resourceUrl: string;
     category: string;
+    audience?: string;
     trainingType?: string;
     departmentId?: string;
     grade?: string;
@@ -296,6 +585,8 @@ export const api = {
     title: string;
     description?: string;
     type: string;
+    category?: string;
+    audience?: string;
     startDate: string;
     endDate?: string;
     location?: string;
@@ -315,6 +606,8 @@ export const api = {
     request(`/training-plans/${planId}/assignments`, { method: 'POST', body: JSON.stringify(body) }),
   removeTrainingPlanAssignment: (id: string) =>
     request(`/training-plan-assignments/${id}`, { method: 'DELETE' }),
+  updateTrainingPlanAssignment: (id: string, body: { attended?: boolean; impactRating?: number; impactNotes?: string }) =>
+    request(`/training-plan-assignments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   createCheckIn: (body: Record<string, unknown>) =>
     request('/check-ins', { method: 'POST', body: JSON.stringify(body) }),
   submitSelfAssessment: (body: Record<string, unknown>) =>
@@ -370,10 +663,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ response }),
     }),
-  createNotification: (title: string, description: string, type: string, linkPath?: string) =>
+  createNotification: (title: string, description: string, type: string, linkPath?: string, scope?: 'self' | 'school') =>
     request('/notifications', {
       method: 'POST',
-      body: JSON.stringify({ title, description, type, linkPath }),
+      body: JSON.stringify({ title, description, type, linkPath, scope }),
     }),
   markNotificationRead: (id: string) =>
     request(`/notifications/${id}/read`, { method: 'PATCH' }),
@@ -925,6 +1218,15 @@ export const api = {
     return request<Record<string, unknown>[]>(`/portal/timetable?${q}`);
   },
   myTimetable: () => request<Record<string, unknown>[]>('/portal/timetable/mine'),
+  staffWorkload: (schoolId?: string) => {
+    const qs = schoolId ? `?schoolId=${encodeURIComponent(schoolId)}` : '';
+    return request<{ teacherId: string; teacherName: string; periodsPerWeek: number }[]>(`/portal/timetable/workload${qs}`);
+  },
+  getMoeCalendar: () => request<import('@/lib/mockData').MoeCalendarDraft | null>('/moe-calendar'),
+  saveMoeCalendar: (body: { id?: string; academicYear: string; title: string; events: unknown[] }) =>
+    request<import('@/lib/mockData').MoeCalendarDraft>('/moe-calendar', { method: 'POST', body: JSON.stringify(body) }),
+  publishMoeCalendar: (id: string) =>
+    request<import('@/lib/mockData').MoeCalendarDraft>(`/moe-calendar/${id}/publish`, { method: 'PATCH' }),
   portalDocuments: (studentId: string) =>
     request<Record<string, unknown>[]>(`/portal/documents?studentId=${studentId}`),
   portalGrades: (studentId: string) =>
@@ -966,10 +1268,12 @@ export const api = {
     request<{ id: string }>('/portal/feedback', { method: 'POST', body: JSON.stringify(body) }),
   createCalendarEvent: (body: Record<string, unknown>) =>
     request<{ id: string }>('/portal/calendar', { method: 'POST', body: JSON.stringify(body) }),
-  listPortalUsers: (schoolId?: string) =>
+  listPortalUsers: (schoolId?: string, includeInactive?: boolean) =>
     request<PortalUserSummary[]>(
-      `/permissions/users${schoolId ? `?schoolId=${schoolId}` : ''}`
+      `/permissions/users?${schoolId ? `schoolId=${schoolId}&` : ''}${includeInactive ? 'includeInactive=true' : ''}`
     ),
+  toggleUserStatus: (userId: string) =>
+    request<{ id: string; isActive: boolean }>(`/permissions/users/${userId}/status`, { method: 'PATCH' }),
   listPortalContacts: (schoolId?: string) =>
     request<{
       teachers: { teacherId: string; userId?: string | null; displayName: string; email: string; role: string }[];
@@ -1029,6 +1333,7 @@ export interface AdmissionApplication {
   waitlistStatus?: string | null;
   documents?: ApplicationDocument[];
   formTemplateId?: string;
+  academicYear?: string;
 }
 
 export interface RegistrationFormField {
@@ -1367,4 +1672,5 @@ export interface PortalUserSummary {
   role: string;
   displayName: string;
   schoolId?: string | null;
+  isActive?: boolean;
 }

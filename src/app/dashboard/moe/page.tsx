@@ -10,31 +10,65 @@ import { MetricProgressRow } from '@/components/ui/metric-progress-row';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import { Dialog, DialogFooter } from '@/components/ui/dialog';
-import { FormField, FormSectionHeading, formFieldInputClass } from '@/components/ui/form-field';
 import { Pagination } from '@/components/ui/pagination';
-import { computeNationalStats, computeRegionalPerformance, computeSubjectPerformance } from '@/lib/analytics';
-import { uploadFile } from '@/lib/api';
+import { computeNationalStats, computeRegionalPerformance, computeSubjectPassRate, computeTeacherDevelopmentNeeds } from '@/lib/analytics';
 import { usePortalTab } from '@/lib/usePortalTab';
 import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
 import { MoeAcademicCalendarPanel } from '@/components/dashboard/moe/MoeAcademicCalendarPanel';
+import { ConnectSchoolDialog } from '@/components/dashboard/moe/ConnectSchoolDialog';
+import { RegionsPanel } from '@/components/dashboard/moe/RegionsPanel';
+import { MoeDocumentsPanel } from '@/components/dashboard/moe/MoeDocumentsPanel';
+import { MoeTrainingPanel } from '@/components/dashboard/moe/MoeTrainingPanel';
+import { MoeCompliancePanel } from '@/components/dashboard/moe/MoeCompliancePanel';
+import { MoeSchoolMessagesPanel } from '@/components/dashboard/moe/MoeSchoolMessagesPanel';
+import { MoeTeacherStaffingPanel } from '@/components/dashboard/moe/MoeTeacherStaffingPanel';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 export default function MoePortalPage() {
-  const { 
-    schools, 
+  const {
+    schools,
+    regions,
     teachers,
     students,
     studentGradeEntries,
-    addSchool,
-    toggleSchoolStatus,
-    trainings,
+    academicCalendars,
+    teacherTrainingAssignments,
+    updateSchoolIntegrationStatus,
     addNotification,
+    activeEngine,
   } = useApp();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
-  const nationalStats = React.useMemo(() => computeNationalStats(schools, teachers, students), [schools, teachers, students]);
+  // Dashboard reporting scope — every metric below respects these two selections.
+  const [dashboardRegion, setDashboardRegion] = useState('All');
+  const [dashboardYear, setDashboardYear] = useState('All');
+  const dashboardScope = React.useMemo(() => ({ region: dashboardRegion, academicYear: dashboardYear }), [dashboardRegion, dashboardYear]);
+  const academicYearOptions = React.useMemo(
+    () => Array.from(new Set(academicCalendars.map((c) => c.academicYear))).sort(),
+    [academicCalendars]
+  );
+
+  const nationalStats = React.useMemo(
+    () => computeNationalStats(schools, teachers, students, dashboardScope, academicCalendars),
+    [schools, teachers, students, dashboardScope, academicCalendars]
+  );
   const regionalPerformance = React.useMemo(() => computeRegionalPerformance(schools, teachers, students), [schools, teachers, students]);
-  const subjectPerformance = React.useMemo(() => computeSubjectPerformance(studentGradeEntries), [studentGradeEntries]);
+  const subjectPassRate = React.useMemo(
+    () => computeSubjectPassRate(studentGradeEntries, students, schools, dashboardScope),
+    [studentGradeEntries, students, schools, dashboardScope]
+  );
+  const teacherDevelopmentNeeds = React.useMemo(
+    () => computeTeacherDevelopmentNeeds(teacherTrainingAssignments, teachers, schools, dashboardScope),
+    [teacherTrainingAssignments, teachers, schools, dashboardScope]
+  );
 
   const { activeTab, setActiveTab } = usePortalTab('moe');
+
+  // The National Dashboard belongs to the Administrative Engine only — a direct link
+  // into /dashboard/moe/dashboard while another engine is active must not render it.
+  React.useEffect(() => {
+    if (activeTab !== 'dashboard' || !activeEngine || activeEngine === 'administrative') return;
+    setActiveTab(activeEngine === 'curriculum' ? 'curriculum' : 'training');
+  }, [activeTab, activeEngine, setActiveTab]);
   const [searchSchool, setSearchSchool] = useState('');
   const [filterRegion, setFilterRegion] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -43,62 +77,33 @@ export default function MoePortalPage() {
   // Pagination state
   const SCHOOLS_PAGE_SIZE = 10;
   const [schoolsPage, setSchoolsPage] = useState(1);
-  const TRAININGS_PAGE_SIZE = 9;
-  const [trainingsPage, setTrainingsPage] = useState(1);
 
-  // Add School Modal State
+  // Connect/Activate School dialog + Schools/Regions sub-view
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [schoolName, setSchoolName] = useState('');
-  const [schoolRegion, setSchoolRegion] = useState('Addis Ababa');
-  const [schoolType, setSchoolType] = useState('Public');
-  const [schoolPrincipal, setSchoolPrincipal] = useState('');
-  const [schoolCapacity, setSchoolCapacity] = useState(1000);
-  const [schoolEmail, setSchoolEmail] = useState('');
-  const [schoolPhone, setSchoolPhone] = useState('');
+  const [schoolsSubView, setSchoolsSubView] = useState<'schools' | 'regions'>('schools');
 
   // AI Generation State
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReportOutput, setAiReportOutput] = useState<string | null>(null);
 
-  // Syllabus upload state
-  const [uploadingSyllabus, setUploadingSyllabus] = useState(false);
-  const syllabusFileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleSyllabusFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setUploadingSyllabus(true);
-    uploadFile(file)
-      .then(() => {
-        addNotification('Syllabus Uploaded', `${file.name} was uploaded successfully.`, 'success');
-      })
-      .catch(() => {
-        addNotification('Upload Failed', `${file.name} could not be uploaded — try again.`, 'alert');
-      })
-      .finally(() => setUploadingSyllabus(false));
-  };
-
-  const handleRegisterSchool = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!schoolName || !schoolPrincipal || !schoolEmail) return;
-
-    addSchool({
-      name: schoolName,
-      region: schoolRegion,
-      type: schoolType as 'Public' | 'Private',
-      principal: schoolPrincipal,
-      capacity: Number(schoolCapacity),
-      email: schoolEmail,
-      phone: schoolPhone || '+251-11-000-0000',
-    });
-
-    // Reset Form
-    setSchoolName('');
-    setSchoolPrincipal('');
-    setSchoolEmail('');
-    setSchoolPhone('');
-    setIsAddOpen(false);
+  const handleManageConnection = async (schoolId: string, schoolName: string, nextStatus: 'Active' | 'Suspended') => {
+    const ok = await confirm(
+      nextStatus === 'Suspended' ? `Deactivate ${schoolName}'s PRIME participation?` : `Reactivate ${schoolName}'s PRIME participation?`,
+      {
+        description:
+          nextStatus === 'Suspended'
+            ? 'Staff and students at this school will lose portal access until it is reactivated.'
+            : 'This school will regain full portal access immediately.',
+        confirmLabel: nextStatus === 'Suspended' ? 'Deactivate' : 'Reactivate',
+        danger: nextStatus === 'Suspended',
+      }
+    );
+    if (!ok) return;
+    try {
+      await updateSchoolIntegrationStatus(schoolId, nextStatus);
+    } catch {
+      addNotification('Action Failed', 'Could not update this school’s connection status.', 'alert');
+    }
   };
 
   const handleGenerateAIReport = () => {
@@ -106,7 +111,7 @@ export default function MoePortalPage() {
     setTimeout(() => {
       const worstPassRateRegion = [...regionalPerformance].sort((a, b) => a.passRate - b.passRate)[0];
       const worstShortageRegion = [...regionalPerformance].sort((a, b) => b.teachersShortage - a.teachersShortage)[0];
-      const worstSubject = [...subjectPerformance].sort((a, b) => a.average - b.average)[0];
+      const worstSubject = [...subjectPassRate].sort((a, b) => a.passRate - b.passRate)[0];
       const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
 
       const lines = [
@@ -124,7 +129,7 @@ export default function MoePortalPage() {
         '',
         '3. Subject Performance:',
         worstSubject
-          ? `   - ${worstSubject.subject} has the lowest national average at ${worstSubject.average}% (status: ${worstSubject.status}).`
+          ? `   - ${worstSubject.subject} has the lowest pass rate at ${worstSubject.passRate}% (status: ${worstSubject.status}).`
           : '   - No graded assessment data available yet.',
         '',
         `Based on ${nationalStats.schoolsCount} school(s), ${nationalStats.teachersCount} teacher(s), and ${nationalStats.studentsCount} student(s) currently on record.`,
@@ -147,12 +152,24 @@ export default function MoePortalPage() {
       subtitle: 'Register and monitor schools across all regions.',
     },
     curriculum: {
-      title: 'Curriculum Management',
-      subtitle: 'National curriculum standards and textbook alignment.',
+      title: 'Documents',
+      subtitle: 'Upload and manage national policy, curriculum, and compliance documents.',
     },
     training: {
-      title: 'Teacher Training',
-      subtitle: 'Professional development programs nationwide.',
+      title: 'Training',
+      subtitle: 'National training programs and resources for schools and teachers.',
+    },
+    compliance: {
+      title: 'Compliance',
+      subtitle: 'Issue regulatory requirements and verify what schools submit against them.',
+    },
+    'school-messages': {
+      title: 'School Messages',
+      subtitle: 'Direct case-numbered communication threads with individual schools.',
+    },
+    'teacher-staffing': {
+      title: 'Teacher Staffing',
+      subtitle: 'Review Public-school departure notices and assign replacement teachers.',
     },
     'academic-calendar': {
       title: 'Academic Calendar',
@@ -166,15 +183,12 @@ export default function MoePortalPage() {
 
   const meta = portalMeta[activeTab] ?? portalMeta.dashboard;
 
-  // Region options for the filter — derived from actual schools on record, so a school
-  // registered in any region can always be filtered, not just the five originally seeded ones.
-  const regionFilterOptions = React.useMemo(() => {
-    const distinctRegions = Array.from(new Set(schools.map((sch) => sch.region))).sort();
-    const regions = distinctRegions.length > 0
-      ? distinctRegions
-      : ['Addis Ababa', 'Oromia', 'Amhara', 'Tigray', 'Sidama', 'SNNPR'];
-    return [{ value: 'All', label: 'All Regions' }, ...regions.map((region) => ({ value: region, label: region }))];
-  }, [schools]);
+  // Region options for the filter — sourced from MOE's region catalog, the one
+  // authoritative list (replacing what used to be several separately-hardcoded ones).
+  const regionFilterOptions = React.useMemo(
+    () => [{ value: 'All', label: 'All Regions' }, ...regions.map((r) => ({ value: r.name, label: r.name }))],
+    [regions]
+  );
 
   // Filtered schools
   const filteredSchools = schools.filter(sch => {
@@ -191,13 +205,6 @@ export default function MoePortalPage() {
     schoolsCurrentPage * SCHOOLS_PAGE_SIZE,
   );
 
-  const trainingsTotalPages = Math.max(1, Math.ceil(trainings.length / TRAININGS_PAGE_SIZE));
-  const trainingsCurrentPage = Math.min(trainingsPage, trainingsTotalPages);
-  const pagedTrainings = trainings.slice(
-    (trainingsCurrentPage - 1) * TRAININGS_PAGE_SIZE,
-    trainingsCurrentPage * TRAININGS_PAGE_SIZE,
-  );
-
   return (
     <DashboardShell
       activeTab={activeTab}
@@ -206,11 +213,7 @@ export default function MoePortalPage() {
       subtitle={meta.subtitle}
       eyebrow={meta.eyebrow}
       actions={
-        activeTab === 'schools' ? (
-          <Button size="sm" onClick={() => setIsAddOpen(true)}>
-            + Register School
-          </Button>
-        ) : activeTab === 'academic-calendar' ? (
+        activeTab === 'academic-calendar' ? (
           calendarHeaderActions
         ) : (
           <Badge variant="success" badgeStyle="subtle" size="md">
@@ -219,18 +222,39 @@ export default function MoePortalPage() {
         )
       }
     >
-          {activeTab === 'dashboard' && (
+          {activeTab === 'dashboard' && (!activeEngine || activeEngine === 'administrative') && (
             <div className="space-y-6">
+              {/* Reporting scope — every metric on this dashboard respects these two selections */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border border-border/60">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Reporting Scope</span>
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                  <div className="w-44">
+                    <Select
+                      options={[{ value: 'All', label: 'All Regions (National)' }, ...regions.map((r) => ({ value: r.name, label: r.name }))]}
+                      value={dashboardRegion}
+                      onChange={(e) => setDashboardRegion(e.target.value)}
+                    />
+                  </div>
+                  <div className="w-44">
+                    <Select
+                      options={[{ value: 'All', label: 'All Academic Years' }, ...academicYearOptions.map((y) => ({ value: y, label: y }))]}
+                      value={dashboardYear}
+                      onChange={(e) => setDashboardYear(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <KpiGrid>
-                <KpiWidget label="National Schools" value={nationalStats.schoolsCount} hint="↑ +4.2% year-over-year" tone="default" icon={<span className="text-lg">🏫</span>} />
-                <KpiWidget label="Certified Teachers" value={nationalStats.teachersCount.toLocaleString()} hint="↑ +8.1% training" tone="emphasis" icon={<span className="text-lg">👩‍🏫</span>} />
-                <KpiWidget label="Enrolled Students" value={nationalStats.studentsCount.toLocaleString()} hint="All regions" tone="default" icon={<span className="text-lg">🎓</span>} />
-                <KpiWidget label="Average Pass Rate" value={`${nationalStats.averagePassRate}%`} hint="↑ +1.4% above target" tone="emphasis" icon={<span className="text-lg">📊</span>} />
+                <KpiWidget label="Unique Active Institutions" value={nationalStats.uniqueActiveInstitutions} hint={dashboardRegion === 'All' ? 'All regions' : dashboardRegion} tone="default" icon={<span className="text-lg">🏫</span>} />
+                <KpiWidget label="Certified Teachers" value={nationalStats.teachersCount.toLocaleString()} hint={dashboardRegion === 'All' ? 'All regions' : dashboardRegion} tone="emphasis" icon={<span className="text-lg">👩‍🏫</span>} />
+                <KpiWidget label="Enrolled Students" value={nationalStats.studentsCount.toLocaleString()} hint={dashboardRegion === 'All' ? 'All regions' : dashboardRegion} tone="default" icon={<span className="text-lg">🎓</span>} />
+                <KpiWidget label="Average Pass Rate" value={`${nationalStats.averagePassRate}%`} hint="Based on recorded student GPA" tone="emphasis" icon={<span className="text-lg">📊</span>} />
               </KpiGrid>
 
               {/* Data Visualization Charts Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
+
                 {/* SVG-based Region Comparison Chart */}
                 <Card>
                   <CardHeader>
@@ -250,37 +274,69 @@ export default function MoePortalPage() {
                   </CardContent>
                 </Card>
 
-                {/* Subject Risk and Vacancy Analytics */}
+                {/* Subject Pass Rate */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Subject Coverage Performance & Risks</CardTitle>
+                    <CardTitle className="text-sm font-semibold">Subject Pass Rate</CardTitle>
+                    <CardDescription>Share of recorded results at or above the pass mark{dashboardRegion !== 'All' ? ` in ${dashboardRegion}` : ''}.</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-2">
-                    <div className="space-y-4">
-                      {subjectPerformance.map((sub) => (
-                        <div key={sub.subject} className="flex items-center justify-between p-3 bg-muted/40 border border-border/40 rounded-lg">
-                          <div className="flex flex-col text-left">
-                            <span className="text-xs font-semibold text-foreground">{sub.subject}</span>
-                            <span className="text-[10px] text-muted-foreground mt-0.5">National Average: {sub.average}%</span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-3">
-                            <div className="text-right">
-                              <p className="text-[10px] font-semibold text-muted-foreground">Dropout Correlation</p>
-                              <p className="text-xs font-bold text-foreground">{sub.riskIndex}%</p>
+                    {subjectPassRate.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-6 text-center">No recorded results in this scope yet.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {subjectPassRate.map((sub) => (
+                          <div key={sub.subject} className="flex items-center justify-between p-3 bg-muted/40 border border-border/40 rounded-lg">
+                            <div className="flex flex-col text-left">
+                              <span className="text-xs font-semibold text-foreground">{sub.subject}</span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">{sub.resultsCount} recorded results</span>
                             </div>
-                            
-                            <Badge
-                              variant={sub.status === 'Critical' ? 'danger' : sub.status === 'Warning' ? 'warning' : 'success'}
-                              badgeStyle="subtle"
-                              size="sm"
-                            >
-                              {sub.status}
-                            </Badge>
+
+                            <div className="flex items-center space-x-3">
+                              <div className="text-right">
+                                <p className="text-[10px] font-semibold text-muted-foreground">Pass Rate</p>
+                                <p className="text-xs font-bold text-foreground">{sub.passRate}%</p>
+                              </div>
+
+                              <Badge
+                                variant={sub.status === 'Critical' ? 'danger' : sub.status === 'Warning' ? 'warning' : 'success'}
+                                badgeStyle="subtle"
+                                size="sm"
+                              >
+                                {sub.status}
+                              </Badge>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Teacher Development */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-semibold">Teacher Development</CardTitle>
+                    <CardDescription>What professional-development needs are emerging{dashboardRegion !== 'All' ? ` in ${dashboardRegion}` : ''}?</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-2">
+                    {teacherDevelopmentNeeds.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-6 text-center">No training assignment data in this scope yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {teacherDevelopmentNeeds.map((need) => (
+                          <div key={need.program} className="p-3 bg-muted/40 border border-border/40 rounded-lg">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-foreground">{need.program}</span>
+                              {need.overdueCount > 0 && (
+                                <Badge variant="danger" badgeStyle="subtle" size="sm">{need.overdueCount} overdue</Badge>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">{need.assignedCount} assigned · {need.completionRate}% completed</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -294,7 +350,28 @@ export default function MoePortalPage() {
           {/* ==================================================== */}
           {activeTab === 'schools' && (
             <div className="space-y-6 animate-fade-in">
-              
+
+              <div className="inline-flex rounded-xl border border-border bg-white p-1 shadow-sm dark:bg-card">
+                <button
+                  type="button"
+                  onClick={() => setSchoolsSubView('schools')}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${schoolsSubView === 'schools' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Schools
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSchoolsSubView('regions')}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${schoolsSubView === 'regions' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Regions
+                </button>
+              </div>
+
+              {schoolsSubView === 'regions' ? (
+                <RegionsPanel onViewSchools={(name) => { setFilterRegion(name); setSchoolsSubView('schools'); }} />
+              ) : (
+              <>
               {/* Directory Filter Controls */}
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border border-border/60">
                 <div className="relative w-full sm:w-72">
@@ -334,7 +411,7 @@ export default function MoePortalPage() {
                   </div>
 
                   <Button onClick={() => setIsAddOpen(true)} size="sm" className="h-10 font-semibold">
-                    + Add School
+                    + Connect / Activate School
                   </Button>
                 </div>
               </div>
@@ -351,7 +428,7 @@ export default function MoePortalPage() {
                       <th>Type</th>
                       <th>Principal</th>
                       <th>Enrollment</th>
-                      <th>Status</th>
+                      <th>Integration Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -391,10 +468,10 @@ export default function MoePortalPage() {
                               type="button"
                               size="sm"
                               variant="outline"
-                              onClick={() => toggleSchoolStatus(sch.id)}
+                              onClick={() => void handleManageConnection(sch.id, sch.name, sch.status === 'Active' ? 'Suspended' : 'Active')}
                               className="h-8 text-xs"
                             >
-                              {sch.status === 'Active' ? 'Suspend' : 'Activate'}
+                              {sch.status === 'Active' ? 'Deactivate Connection' : 'Reactivate Connection'}
                             </Button>
                           </td>
                         </tr>
@@ -413,111 +490,11 @@ export default function MoePortalPage() {
                 pageSize={SCHOOLS_PAGE_SIZE}
                 entityLabel="schools"
               />
+              </>
+              )}
 
-              {/* Add School Dialog */}
-              <Dialog
-                isOpen={isAddOpen}
-                onClose={() => setIsAddOpen(false)}
-                title="Register New School Node"
-                description="Input institutional profile details to assign federal identification codes."
-              >
-                <form onSubmit={handleRegisterSchool} className="space-y-5 text-left">
-                  <div className="space-y-4">
-                    <FormSectionHeading>School Identity</FormSectionHeading>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField label="School Name">
-                        <input
-                          type="text"
-                          required
-                          value={schoolName}
-                          onChange={(e) => setSchoolName(e.target.value)}
-                          placeholder="e.g. Hawassa Academy"
-                          className={formFieldInputClass}
-                        />
-                      </FormField>
-                      <FormField label="Institution Principal">
-                        <input
-                          type="text"
-                          required
-                          value={schoolPrincipal}
-                          onChange={(e) => setSchoolPrincipal(e.target.value)}
-                          placeholder="e.g. Ato Martha"
-                          className={formFieldInputClass}
-                        />
-                      </FormField>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <FormField label="Region Zone">
-                        <Select
-                          options={[
-                            { value: 'Addis Ababa', label: 'Addis Ababa' },
-                            { value: 'Oromia', label: 'Oromia' },
-                            { value: 'Amhara', label: 'Amhara' },
-                            { value: 'Tigray', label: 'Tigray' },
-                            { value: 'Sidama', label: 'Sidama' },
-                          ]}
-                          value={schoolRegion}
-                          onChange={(e) => setSchoolRegion(e.target.value)}
-                        />
-                      </FormField>
-                      <FormField label="Funding Sector">
-                        <Select
-                          options={[
-                            { value: 'Public', label: 'Public Sector' },
-                            { value: 'Private', label: 'Private Sector' },
-                          ]}
-                          value={schoolType}
-                          onChange={(e) => setSchoolType(e.target.value)}
-                        />
-                      </FormField>
-                      <FormField label="Total Student Capacity">
-                        <input
-                          type="number"
-                          required
-                          value={schoolCapacity}
-                          onChange={(e) => setSchoolCapacity(Number(e.target.value))}
-                          className={formFieldInputClass}
-                        />
-                      </FormField>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <FormSectionHeading>Contact Information</FormSectionHeading>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField label="Administrative Email">
-                        <input
-                          type="email"
-                          required
-                          value={schoolEmail}
-                          onChange={(e) => setSchoolEmail(e.target.value)}
-                          placeholder="office@academy.edu.et"
-                          className={formFieldInputClass}
-                        />
-                      </FormField>
-                      <FormField label="Direct Hotline Phone">
-                        <input
-                          type="text"
-                          value={schoolPhone}
-                          onChange={(e) => setSchoolPhone(e.target.value)}
-                          placeholder="+251-46-XXX-XXXX"
-                          className={formFieldInputClass}
-                        />
-                      </FormField>
-                    </div>
-                  </div>
-
-                  <DialogFooter className="mt-2">
-                    <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)} className="text-xs h-10 cursor-pointer">
-                      Cancel
-                    </Button>
-                    <Button type="submit" variant="organic" className="text-xs h-10 border-none cursor-pointer">
-                      Register School Node
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Dialog>
+              <ConnectSchoolDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+              {ConfirmDialog}
 
             </div>
           )}
@@ -525,119 +502,15 @@ export default function MoePortalPage() {
           {/* ==================================================== */}
           {/* TAB 3: CURRICULUM MANAGEMENT                        */}
           {/* ==================================================== */}
-          {activeTab === 'curriculum' && (
-            <div className="space-y-6 animate-fade-in">
-              <TablePanel
-                title="Federal Curriculum Syllabi Registry"
-                actions={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] bg-muted text-foreground border border-border px-3 py-1 rounded-full font-bold">
-                      Academic Year: 2026 / 2027
-                    </span>
-                    <input
-                      ref={syllabusFileInputRef}
-                      type="file"
-                      accept="application/pdf"
-                      className="hidden"
-                      onChange={handleSyllabusFileSelected}
-                    />
-                    <Button
-                      variant="outline"
-                      className="text-xxs h-8 cursor-pointer"
-                      loading={uploadingSyllabus}
-                      onClick={() => syllabusFileInputRef.current?.click()}
-                    >
-                      + Upload Syllabus PDF
-                    </Button>
-                  </div>
-                }
-              >
-                    <table className="eskooly-table">
-                      <thead>
-                        <tr>
-                          <th>Stream</th>
-                          <th>Grade</th>
-                          <th>Core Subjects</th>
-                          <th>Syllabus Code</th>
-                          <th>Active Version</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40 text-muted-foreground">
-                        <tr>
-                          <td className="p-3 font-bold text-foreground">Natural Science</td>
-                          <td className="p-3 font-semibold">Grade 9</td>
-                          <td className="p-3 text-foreground">Biology, Chemistry, Math, Physics, English</td>
-                          <td className="p-3 font-mono">ETH-NS-09-V3</td>
-                          <td className="p-3">v3.4.1 (May 2026)</td>
-                          <td className="p-3"><Badge variant="success" badgeStyle="subtle" size="sm">Approved</Badge></td>
-                        </tr>
-                        <tr>
-                          <td className="p-3 font-bold text-foreground">Natural Science</td>
-                          <td className="p-3 font-semibold">Grade 10</td>
-                          <td className="p-3 text-foreground">Biology, Chemistry, Math, Physics, English</td>
-                          <td className="p-3 font-mono">ETH-NS-10-V2</td>
-                          <td className="p-3">v2.1.2 (Dec 2025)</td>
-                          <td className="p-3"><Badge variant="success" badgeStyle="subtle" size="sm">Approved</Badge></td>
-                        </tr>
-                        <tr>
-                          <td className="p-3 font-bold text-foreground">Social Science</td>
-                          <td className="p-3 font-semibold">Grade 11</td>
-                          <td className="p-3 text-foreground">History, Geography, Economics, Civics, Amharic</td>
-                          <td className="p-3 font-mono">ETH-SS-11-V4</td>
-                          <td className="p-3">v4.0.0 (New Draft)</td>
-                          <td className="p-3"><Badge variant="warning" badgeStyle="subtle" size="sm">In Review</Badge></td>
-                        </tr>
-                      </tbody>
-                    </table>
-              </TablePanel>
-            </div>
-          )}
+          {activeTab === 'curriculum' && <MoeDocumentsPanel />}
 
-          {/* ==================================================== */}
-          {/* TAB 4: TEACHER TRAINING                             */}
-          {/* ==================================================== */}
-          {activeTab === 'training' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {activeTab === 'training' && <MoeTrainingPanel />}
 
-                {pagedTrainings.map((tr) => (
-                  <Card key={tr.id} hoverGlow>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start">
-                        <Badge variant={tr.status === 'Active' ? 'success' : 'neutral'} badgeStyle="subtle" size="sm">
-                          {tr.status}
-                        </Badge>
-                        <span className="text-[9px] text-muted-foreground">{tr.duration}</span>
-                      </div>
-                      <CardTitle className="text-sm font-bold text-foreground mt-2 leading-snug">{tr.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-2 text-xxs font-medium text-muted-foreground">
-                      <MetricProgressRow
-                        label="Teachers Graduated"
-                        value={(tr.completedCount / tr.totalCount) * 100}
-                        valueDisplay={`${tr.completedCount} / ${tr.totalCount}`}
-                        barClassName="bg-primary"
-                        className="mb-1"
-                      />
-                      <p className="text-[10px] text-muted-foreground mt-2.5">Start Date: {tr.startDate}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+          {activeTab === 'compliance' && <MoeCompliancePanel />}
 
-              </div>
+          {activeTab === 'school-messages' && <MoeSchoolMessagesPanel />}
 
-              <Pagination
-                className="mt-3"
-                currentPage={trainingsCurrentPage}
-                totalPages={trainingsTotalPages}
-                onPageChange={setTrainingsPage}
-                totalItems={trainings.length}
-                pageSize={TRAININGS_PAGE_SIZE}
-                entityLabel="training programs"
-              />
-            </div>
-          )}
+          {activeTab === 'teacher-staffing' && <MoeTeacherStaffingPanel />}
 
           {/* ==================================================== */}
           {/* TAB: ACADEMIC CALENDAR                              */}
