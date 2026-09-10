@@ -148,6 +148,9 @@ export interface LessonPlan {
   status: 'Draft' | 'Pending Dept Head' | 'Pending School Head' | 'Approved' | 'Rejected';
   deptComments?: string;
   schoolHeadComments?: string;
+  /** Only ever set when a department head returns a weekly plan — names which kind of
+   * problem it is so the teacher knows exactly what to revise, never just free text. */
+  returnReasonCategory?: 'curriculum_alignment' | 'pacing' | 'pedagogy' | 'assessment' | 'differentiation' | 'resource_issue';
   version: number;
   objectives: string[];
   activities: { session: number; activity: string; duration: string }[];
@@ -254,7 +257,7 @@ export interface Assessment {
   grade: string;
   teacherId: string;
   teacherName: string;
-  status: 'Draft' | 'Pending Dept Head' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Pending Dept Head' | 'Pending Reviewer' | 'Approved' | 'Rejected';
   comments?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   questions: {
@@ -272,8 +275,32 @@ export interface Assessment {
   createdByRole?: 'teacher' | 'department-head';
   /** TE-007: for a Unit Test, the delivered teaching notes it covers, by real ID. */
   coveredTeachingNoteIds?: string[];
+  /** Set on a Mid/Final Exam only when its department has designated reviewers — the
+   * assessment sits at status 'Pending Reviewer' for this department's reviewers + HoD
+   * until explicitly disseminated to the rest of the department's teachers. */
+  reviewDepartmentId?: string;
+  /** Assessment Moderation Rubric — a department head's structured review, one verdict
+   * per fixed quality criterion, never a single blended score. */
+  moderationRubric?: AssessmentModerationRubric;
   createdAt: string;
 }
+
+export type ModerationVerdict = 'meets' | 'needs_improvement' | 'not_applicable';
+
+export const MODERATION_RUBRIC_CRITERIA = [
+  'curriculumAlignment',
+  'cognitiveLevel',
+  'clarity',
+  'difficulty',
+  'coverage',
+  'fairness',
+  'answerKey',
+  'appropriateness',
+] as const;
+
+export type ModerationRubricCriterion = (typeof MODERATION_RUBRIC_CRITERIA)[number];
+
+export type AssessmentModerationRubric = Partial<Record<ModerationRubricCriterion, ModerationVerdict>>;
 
 export interface Attendance {
   id: string;
@@ -284,6 +311,9 @@ export interface Attendance {
   date: string;
   status: 'Present' | 'Absent' | 'Late';
   remarks?: string;
+  /** CM-006: the real scheduled timetable session this record was taken against, when
+   * recorded through the "Teaching session" picker rather than the manual fallback. */
+  timetableSlotId?: string;
 }
 
 export interface TeacherTraining {
@@ -1248,7 +1278,16 @@ export interface TeacherResource {
   id: string;
   teacherId: string;
   title: string;
-  type: 'Worksheet' | 'Slide Deck' | 'Lab Guide' | 'Reference PDF' | 'Video Link';
+  type:
+    | 'Worksheet'
+    | 'Slide Deck'
+    | 'Lab Guide'
+    | 'Reference PDF'
+    | 'Video Link'
+    | 'Teaching Material'
+    | 'Guide Book'
+    | 'Syllabus'
+    | 'Textbook';
   grade: string;
   subject: string;
   url: string;
@@ -1285,6 +1324,14 @@ export interface TeacherFeedback {
   comment: string;
   rating?: number;
   date: string;
+  /** Structured coaching/observation fields — kept optional since peer/parent/student
+   * feedback and anonymous surveys don't fill these in, only a department head's direct,
+   * coaching, classroom-observation, or formal-performance feedback does. */
+  strength?: string;
+  developmentArea?: string;
+  agreedAction?: string;
+  followUpRequired?: boolean;
+  followUpDueDate?: string;
 }
 
 export interface ParentMessage {

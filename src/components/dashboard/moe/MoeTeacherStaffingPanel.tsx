@@ -241,7 +241,7 @@ export function MoeTeacherStaffingPanel() {
         )}
         {error && actionMode && <p className="mt-2 text-sm text-red-600">{error}</p>}
         <DialogFooter>
-          <Button variant="outline" onClick={closeDialog} disabled={busy}>
+          <Button variant="outline" onClick={() => closeDialog()} disabled={busy}>
             Cancel
           </Button>
           <Button
