@@ -63,7 +63,7 @@ interface TeacherAssessmentDetailProps {
 export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = ({
   assessmentId,
 }) => {
-  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers, addNotification } = useApp();
+  const { assessments, updateAssessmentQuestions, resolveTeacherId, teachers, addNotification, reviewerDepartmentIds, disseminateAssessment } = useApp();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(
@@ -75,8 +75,9 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
     () =>
       filterTeacherAssessments(assessments, teacherId, {
         subjects: teacherProfile.subjects,
+        reviewerDepartmentIds,
       }).find((a) => a.id === assessmentId),
-    [assessments, assessmentId, teacherId, teacherProfile.subjects],
+    [assessments, assessmentId, teacherId, teacherProfile.subjects, reviewerDepartmentIds],
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -235,6 +236,14 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
             <AisStatusBadge variant={approvalBadgeVariant(assessment.status)}>
               {assessment.status}
             </AisStatusBadge>
+            {assessment.status === 'Pending Reviewer' &&
+              assessment.reviewDepartmentId &&
+              reviewerDepartmentIds.includes(assessment.reviewDepartmentId) && (
+                <AisBtnPrimary onClick={() => disseminateAssessment(assessment.id)}>
+                  <Check className="h-3.5 w-3.5" aria-hidden />
+                  Disseminate to teachers
+                </AisBtnPrimary>
+              )}
             <AisBtnSecondary onClick={handlePrintAssessment} disabled={assessment.questions.length === 0}>
               <Printer className="h-3.5 w-3.5" aria-hidden />
               Print

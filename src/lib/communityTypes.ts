@@ -1,4 +1,4 @@
-export type CommunityType = 'department' | 'general' | 'custom' | 'hod';
+export type CommunityType = 'department' | 'general' | 'custom' | 'hod' | 'reviewers';
 export type CommunityMemberRole = 'owner' | 'admin' | 'member';
 export type ChannelType = 'text' | 'announcement';
 

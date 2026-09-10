@@ -146,6 +146,8 @@ interface AppContextType {
   students: Student[];
   lessonPlans: LessonPlan[];
   assessments: Assessment[];
+  /** Department ids the signed-in teacher is a designated Mid/Final Exam reviewer for. */
+  reviewerDepartmentIds: string[];
   attendance: Attendance[];
   trainings: TeacherTraining[];
   checkIns: SchoolCheckIn[];
@@ -190,6 +192,8 @@ interface AppContextType {
   rejectLessonPlan: (id: string, role: 'dept' | 'school', comments: string, returnReasonCategory?: string) => void;
   approveAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) => void;
   rejectAssessment: (id: string, comments: string, moderationRubric?: Record<string, string>) => void;
+  /** Publishes a 'Pending Reviewer' Mid/Final Exam to the rest of the department's teachers. */
+  disseminateAssessment: (id: string) => void;
   createLessonPlan: (plan: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => void;
   createAssessment: (
     asm: Omit<Assessment, 'id' | 'teacherId' | 'teacherName' | 'status' | 'createdAt'> & {
@@ -458,6 +462,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     dataSourceRef.current = dataSource;
   }, [dataSource]);
+  const currentUserRef = useRef<AuthUser | null>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   // Collections state (loaded from PostgreSQL API)
   const [schools, setSchools] = useState<School[]>([]);
@@ -465,6 +473,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [students, setStudents] = useState<Student[]>([]);
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [reviewerDepartmentIds, setReviewerDepartmentIds] = useState<string[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [trainings, setTrainings] = useState<TeacherTraining[]>([]);
   const [checkIns, setCheckIns] = useState<SchoolCheckIn[]>([]);
@@ -736,6 +745,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     writeOfflineMeta({ pendingCount: n });
   }, []);
 
+  const refreshReviewerDepartments = useCallback((role?: string | null) => {
+    if (role !== 'teacher') {
+      setReviewerDepartmentIds([]);
+      return;
+    }
+    void api
+      .listMyAssessmentReviewerDepartments()
+      .then((rows) =>
+        setReviewerDepartmentIds((rows as { departmentId: string }[]).map((r) => r.departmentId)),
+      )
+      .catch(() => {});
+  }, []);
+
   const refreshFromApi = useCallback(async () => {
     setIsDataLoading(true);
     const online = isBrowserOnline();
@@ -774,6 +796,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLastSyncedAt(syncedAt);
       setDataError(null);
       await persistPortalSnapshot(data, syncedAt);
+      refreshReviewerDepartments(currentUserRef.current?.role);
 
       const { flushed, remaining, dropped } = await flushOfflineOutbox();
       setPendingSyncCount(remaining);
@@ -806,7 +829,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsDataLoading(false);
     }
-  }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount]);
+  }, [applyBootstrapPayload, applyMockFallback, persistPortalSnapshot, refreshPendingCount, refreshReviewerDepartments]);
 
   useEffect(() => {
     // /bootstrap now requires auth (PR-002) — an anonymous mount (e.g. the login
@@ -859,13 +882,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveRoleState(user.role);
     setActiveEngineState(defaultEngineForRole(user.role));
     persistSession(user, remember);
+    refreshReviewerDepartments(user.role);
     void refreshFromApi();
-  }, [refreshFromApi]);
+  }, [refreshFromApi, refreshReviewerDepartments]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
     setActiveRoleState('login');
     setActiveEngineState(null);
+    setReviewerDepartmentIds([]);
     clearSession();
   }, []);
 
@@ -943,6 +968,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }).catch(() => void refreshFromApi());
   };
 
+  const disseminateAssessment = (id: string) => {
+    void api.disseminateAssessment(id).then((asm) => {
+      setAssessments((prev) => prev.map((a) => (a.id === id ? (asm as Assessment) : a)));
+      addNotification('Exam published to teachers', `"${(asm as Assessment).title}" is now live for subject teachers.`, 'success', '/dashboard/department-head/assessments');
+    }).catch(() => void refreshFromApi());
+  };
+
   const createLessonPlan = (planData: Omit<LessonPlan, 'id' | 'teacherId' | 'teacherName' | 'status' | 'version' | 'createdAt'>) => {
     void api.createLessonPlan({ ...planData, teacherId: resolveTeacherId() }).then((lp) => {
       setLessonPlans((prev) => [lp as LessonPlan, ...prev]);
@@ -967,8 +999,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .then((asm) => {
         setAssessments((prev) => [asm as Assessment, ...prev]);
-        const ready = (asm as Assessment).status === 'Approved';
+        const status = (asm as Assessment).status;
+        const ready = status === 'Approved';
+        const pendingReview = status === 'Pending Reviewer';
         const isDeptExam = createdByRole === 'department-head';
+        if (pendingReview) {
+          addNotification(
+            'Exam sent for review',
+            `"${(asm as Assessment).title}" is waiting on the designated reviewers before it's shared with other teachers.`,
+            'info',
+            '/dashboard/department-head/assessments',
+          );
+          return;
+        }
         addNotification(
           ready
             ? isDeptExam
@@ -2307,6 +2350,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         students,
         lessonPlans,
         assessments,
+        reviewerDepartmentIds,
         attendance,
         trainings,
         checkIns,
@@ -2347,6 +2391,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rejectLessonPlan,
         approveAssessment,
         rejectAssessment,
+        disseminateAssessment,
         createLessonPlan,
         createAssessment,
         updateAssessmentQuestions,

@@ -50,6 +50,7 @@ import { CommunicationModule } from "@/components/dashboard/communication/Commun
 import { DeptHodMessagesPanel } from "@/components/dashboard/department-head/DeptHodMessagesPanel";
 import { DeptHeadSchoolHeadMessagesTab } from "@/components/dashboard/department-head/DeptHeadSchoolHeadMessagesTab";
 import { DeptAssessmentCreatePanel } from "@/components/dashboard/department-head/DeptAssessmentCreatePanel";
+import { DeptAssessmentReviewersPanel } from "@/components/dashboard/department-head/DeptAssessmentReviewersPanel";
 import { TeacherTrainingTab } from "@/components/dashboard/teacher/TeacherTrainingTab";
 import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
 import { DetailField } from "@/components/dashboard/shared/DetailField";
@@ -134,6 +135,7 @@ export default function DeptHeadPortalApp() {
     studentGradeEntries,
     approveAssessment,
     rejectAssessment,
+    disseminateAssessment,
     addTeacher,
     checkIns,
     addTrainingMaterial,
@@ -1892,6 +1894,7 @@ export default function DeptHeadPortalApp() {
       {activeTab === "assessments" && (
         <div className="space-y-6 animate-fade-in text-left">
           <DeptAssessmentCreatePanel />
+          <DeptAssessmentReviewersPanel />
           <TablePanel
             title="Department assessment desk"
             description="HoD-generated exams are published immediately. Quizzes never need approval. Only non-quiz teacher submissions appear for review."
@@ -1966,12 +1969,22 @@ export default function DeptHeadPortalApp() {
                       })()}
                     </td>
                     <td className="p-3">
-                      <button
-                        onClick={() => router.push(`/dashboard/department-head/assessments/${asm.id}`)}
-                        className="text-primary hover:underline font-semibold cursor-pointer"
-                      >
-                        View Details
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => router.push(`/dashboard/department-head/assessments/${asm.id}`)}
+                          className="text-primary hover:underline font-semibold cursor-pointer"
+                        >
+                          View Details
+                        </button>
+                        {asm.status === "Pending Reviewer" && (
+                          <button
+                            onClick={() => disseminateAssessment(asm.id)}
+                            className="text-primary hover:underline font-semibold cursor-pointer"
+                          >
+                            Disseminate to teachers
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

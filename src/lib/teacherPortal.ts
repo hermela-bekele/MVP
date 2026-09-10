@@ -304,7 +304,7 @@ export function keepLatestLessonPlansByGradeSubject(plans: LessonPlan[]): Lesson
 export function filterTeacherAssessments(
   assessments: Assessment[],
   teacherId = DEMO_TEACHER_ID,
-  opts?: { subjects?: string[] },
+  opts?: { subjects?: string[]; reviewerDepartmentIds?: string[] },
 ) {
   const subjects = (opts?.subjects || []).map((s) => s.toLowerCase()).filter(Boolean);
   const subjectMatch = (subject: string) => {
@@ -312,11 +312,18 @@ export function filterTeacherAssessments(
     const s = (subject || '').toLowerCase();
     return subjects.some((sub) => s.includes(sub) || sub.includes(s));
   };
+  const reviewerDeptIds = new Set(opts?.reviewerDepartmentIds || []);
 
   return assessments
     .filter((a) => {
       if (!a?.id || a.status === 'Rejected') return false;
       if (String(a.teacherId) === String(teacherId)) return true;
+
+      // A designated reviewer can see a Mid/Final Exam for their department while it's
+      // still gated at 'Pending Reviewer', before it's disseminated to other teachers.
+      if (a.status === 'Pending Reviewer' && a.reviewDepartmentId && reviewerDeptIds.has(a.reviewDepartmentId)) {
+        return true;
+      }
 
       // Published department exams shared with subject teachers
       const isDeptPublished =

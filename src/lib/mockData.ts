@@ -249,7 +249,7 @@ export interface Assessment {
   grade: string;
   teacherId: string;
   teacherName: string;
-  status: 'Draft' | 'Pending Dept Head' | 'Approved' | 'Rejected';
+  status: 'Draft' | 'Pending Dept Head' | 'Pending Reviewer' | 'Approved' | 'Rejected';
   comments?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   questions: {
@@ -267,6 +267,10 @@ export interface Assessment {
   createdByRole?: 'teacher' | 'department-head';
   /** TE-007: for a Unit Test, the delivered teaching notes it covers, by real ID. */
   coveredTeachingNoteIds?: string[];
+  /** Set on a Mid/Final Exam only when its department has designated reviewers — the
+   * assessment sits at status 'Pending Reviewer' for this department's reviewers + HoD
+   * until explicitly disseminated to the rest of the department's teachers. */
+  reviewDepartmentId?: string;
   /** Assessment Moderation Rubric — a department head's structured review, one verdict
    * per fixed quality criterion, never a single blended score. */
   moderationRubric?: AssessmentModerationRubric;

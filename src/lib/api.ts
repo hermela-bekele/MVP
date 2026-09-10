@@ -276,6 +276,17 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ comments, moderationRubric }),
     }),
+  disseminateAssessment: (id: string) =>
+    request(`/assessments/${id}/disseminate`, { method: 'PATCH' }),
+  listAssessmentReviewers: (departmentId?: string) =>
+    request(`/assessment-reviewers${departmentId ? `?departmentId=${departmentId}` : ''}`),
+  listMyAssessmentReviewerDepartments: () =>
+    request('/assessment-reviewers/mine'),
+  setAssessmentReviewers: (teacherIds: string[]) =>
+    request('/assessment-reviewers', {
+      method: 'POST',
+      body: JSON.stringify({ teacherIds }),
+    }),
   saveAttendance: (
     records: { studentId: string; status: string; remarks?: string }[],
     timetableSlotId?: string,
