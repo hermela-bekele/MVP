@@ -79,10 +79,22 @@ export function defaultEngineForRole(role: PortalRole): EngineId | null {
 
 export function defaultTabForEngine(role: PortalRole, engine: EngineId): string {
   if (role === 'department-head') {
-    return { administrative: 'dashboard', academic: 'reports', training: 'training', communications: 'communication' }[engine] ?? 'dashboard';
+    const tabs: Partial<Record<EngineId, string>> = {
+      administrative: 'dashboard',
+      academic: 'reports',
+      training: 'training',
+      communications: 'communication',
+    };
+    return tabs[engine] ?? 'dashboard';
   }
   if (role === 'head-of-academics') {
-    return { administrative: 'dashboard', curriculum: 'academic-results', training: 'my-development', communications: 'communication' }[engine] ?? 'dashboard';
+    const tabs: Partial<Record<EngineId, string>> = {
+      administrative: 'dashboard',
+      curriculum: 'academic-results',
+      training: 'my-development',
+      communications: 'communication',
+    };
+    return tabs[engine] ?? 'dashboard';
   }
   return 'dashboard';
 }
