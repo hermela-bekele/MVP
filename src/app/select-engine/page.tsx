@@ -79,13 +79,13 @@ export default function SelectEnginePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex flex-wrap justify-center gap-4">
           {engines.map((engine) => (
             <button
               key={engine}
               type="button"
               onClick={() => handleSelect(engine)}
-              className="text-left bg-card rounded-xl border border-border/80 shadow-sm hover:shadow-lg hover:border-primary/60 transition-all p-5 flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="text-left bg-card rounded-xl border border-border/80 shadow-sm hover:shadow-lg hover:border-primary/60 transition-all p-5 flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-[calc(50%-0.5rem)]"
             >
               <div className="h-11 w-11 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                 {ENGINE_ICONS[engine]}

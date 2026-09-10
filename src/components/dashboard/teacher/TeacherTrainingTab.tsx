@@ -69,8 +69,23 @@ export const TeacherTrainingTab: React.FC<{
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { teachers, currentUser, teacherTrainingAssignments, addNotification, updateTrainingAssignmentProgress } = useApp();
+  const { teachers, schools, currentUser, teacherTrainingAssignments, addNotification, updateTrainingAssignmentProgress } = useApp();
   const teacher = getDemoTeacher(teachers, currentUser?.email, currentUser?.displayName);
+
+  // School-level training overview (§16: the training engine's landing card
+  // represents the whole school's development picture, not just this one
+  // teacher's — individual assignments still show underneath, unchanged).
+  const school = schools.find((s) => s.id === teacher.schoolId);
+  const schoolActiveTeachers = teachers.filter((t) => t.schoolId === teacher.schoolId && t.status === 'Active');
+  const schoolAssignments = teacherTrainingAssignments.filter((a) =>
+    schoolActiveTeachers.some((t) => t.id === a.teacherId)
+  );
+  const schoolCompletedCount = schoolAssignments.filter((a) => a.status === 'completed').length;
+  const schoolOverdueCount = schoolAssignments.filter((a) => a.overdue).length;
+  const schoolCompletionRate = schoolAssignments.length
+    ? Math.round((schoolCompletedCount / schoolAssignments.length) * 100)
+    : 0;
+  const teachersWithAssignments = new Set(schoolAssignments.map((a) => a.teacherId)).size;
 
   // TR-002: "Assigned to Me" (the bare 'training' tab) is a cross-program landing view —
   // it doesn't belong to one module library, so it shows the union of all of them.
@@ -198,6 +213,33 @@ export const TeacherTrainingTab: React.FC<{
   if (!selectedModule) {
     return (
       <AisPage>
+        {isAssignedToMeView && (
+          <div className={`${aisCard} p-5`}>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-title">
+                {school?.name ?? 'School'} Training Overview
+              </h3>
+              <span className="text-xs font-semibold text-muted-foreground">
+                {teachersWithAssignments} of {schoolActiveTeachers.length} teachers with assigned training
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-2xl font-bold text-primary">{schoolCompletionRate}%</p>
+                <p className="text-xs text-muted-foreground">School-wide completion rate</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{schoolCompletedCount}/{schoolAssignments.length}</p>
+                <p className="text-xs text-muted-foreground">Assignments completed</p>
+              </div>
+              <div>
+                <p className={`text-2xl font-bold ${schoolOverdueCount > 0 ? 'text-red-600' : 'text-foreground'}`}>{schoolOverdueCount}</p>
+                <p className="text-xs text-muted-foreground">Overdue across the school</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {assignedModules.length > 0 && (
           <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">

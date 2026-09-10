@@ -539,6 +539,22 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs, hideSearch = false 
                 >
                   My Profile & Preferences
                 </button>
+                {role === 'school-head' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfile(false);
+                      const path = portalTabPath(role, 'settings');
+                      router.push(path);
+                      window.dispatchEvent(
+                        new CustomEvent('dashboard-navigate', { detail: { tab: 'settings' } }),
+                      );
+                    }}
+                    className={aisNavbarDropdownItem}
+                  >
+                    Settings
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

@@ -9,7 +9,6 @@ import type { CommunicationMainTab } from '@/components/dashboard/communication/
 import {
   AisPage,
   aisInput,
-  aisTextarea,
   AisBtnPrimary,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import {
@@ -50,7 +49,7 @@ export function CommunicationModule({
   mainTab?: CommunicationMainTab;
   onMainTabChange?: (tab: CommunicationMainTab) => void;
 }) {
-  const { currentUser, communityPosts, refreshFromApi, teachers, resolveTeacherId } = useApp();
+  const { currentUser, teachers, resolveTeacherId } = useApp();
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loadingCommunities, setLoadingCommunities] = useState(true);
@@ -60,18 +59,12 @@ export function CommunicationModule({
   const [creating, setCreating] = useState(false);
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [announceTitle, setAnnounceTitle] = useState('');
-  const [announceBody, setAnnounceBody] = useState('');
-  const [posting, setPosting] = useState(false);
   const [announcementsPage, setAnnouncementsPage] = useState(1);
 
   const scope = useMemo(
     () => (mode === 'department-head' ? resolveDeptHeadScope(currentUser) : null),
     [currentUser, mode],
   );
-
-  const canPostAnnouncement =
-    mode === 'school-head' || currentUser?.role === 'school-head';
 
   // CO-001: only school admins/leadership/department heads may create permanent
   // communities — a plain teacher must not see (or be able to trigger) this affordance.
@@ -106,68 +99,26 @@ export function CommunicationModule({
     void loadCommunities();
   }, [loadCommunities]);
 
+  // Real announcements from the one source of truth (the `announcements` table,
+  // the same one SchoolHeadAnnouncements.tsx publishes to) — this module only
+  // displays them; publishing happens on the school head's dedicated Announcements
+  // page so there is exactly one write path, not two.
   useEffect(() => {
-    // Seed announcements from challenge/community posts tagged as announcements,
-    // plus any local posts the HoD creates in this session.
-    const fromFeed = (communityPosts || [])
-      .filter((p) => p.title?.toLowerCase().includes('announcement') || p.authorRole === 'department-head')
-      .map((p) => ({
-        id: p.id,
-        title: p.title || 'Announcement',
-        body: p.body,
-        authorName: p.authorName,
-        createdAt: p.createdAt,
-      }));
-    setAnnouncements((prev) => {
-      const ids = new Set(fromFeed.map((a) => a.id));
-      const localOnly = prev.filter((a) => !ids.has(a.id) && a.id.startsWith('local-'));
-      return [...localOnly, ...fromFeed];
-    });
-  }, [communityPosts]);
-
-  const postAnnouncement = async () => {
-    if (!announceTitle.trim() || !announceBody.trim()) return;
-    setPosting(true);
-    try {
-      const local: Announcement = {
-        id: `local-${Date.now()}`,
-        title: announceTitle.trim(),
-        body: announceBody.trim(),
-        authorName: currentUser?.displayName || 'School Head',
-        createdAt: new Date().toISOString(),
-      };
-      try {
-        await api.createCommunityPost({
-          title: `Announcement: ${local.title}`,
-          body: local.body,
-          authorId: currentUser?.id,
-          authorName: local.authorName,
-          authorRole: 'school-head',
-          departmentId: scope?.departmentId,
-        });
-        try {
-          await api.createAnnouncement({
-            title: local.title,
-            body: local.body,
-            schoolId: currentUser?.schoolId,
-            audience: 'all',
-            authorName: local.authorName,
-            authorRole: 'school-head',
-          });
-        } catch {
-          /* portal announcements table may be unavailable — community post still works */
-        }
-        await refreshFromApi();
-        setAnnouncements((prev) => [local, ...prev.filter((a) => a.id !== local.id)]);
-      } catch {
-        setAnnouncements((prev) => [local, ...prev]);
-      }
-      setAnnounceTitle('');
-      setAnnounceBody('');
-    } finally {
-      setPosting(false);
-    }
-  };
+    api
+      .portalAnnouncements(currentUser?.schoolId ?? undefined)
+      .then((rows) =>
+        setAnnouncements(
+          (rows as Record<string, unknown>[]).map((r) => ({
+            id: String(r.id),
+            title: String(r.title ?? ''),
+            body: String(r.body ?? ''),
+            authorName: 'School Head',
+            createdAt: String(r.publishedAt ?? ''),
+          })),
+        ),
+      )
+      .catch(() => setAnnouncements([]));
+  }, [currentUser?.schoolId]);
 
   const createCommunity = async () => {
     if (!newCommunityName.trim()) return;
@@ -224,35 +175,10 @@ export function CommunicationModule({
             <div>
               <p className={aisLabelCaps}>#announcements</p>
               <p className={aisBodySm}>
-                School-wide notices from the school head. Only the school head can publish here.
+                School-wide notices from the school head.
               </p>
             </div>
           </div>
-
-          {canPostAnnouncement && (
-            <div className="space-y-2 rounded-xl border border-ais-card-border p-3">
-              <input
-                className={aisInput}
-                placeholder="Announcement title"
-                value={announceTitle}
-                onChange={(e) => setAnnounceTitle(e.target.value)}
-              />
-              <textarea
-                className={aisTextarea}
-                placeholder="Write the announcement…"
-                value={announceBody}
-                onChange={(e) => setAnnounceBody(e.target.value)}
-                rows={3}
-              />
-              <AisBtnPrimary
-                type="button"
-                disabled={posting || !announceTitle.trim() || !announceBody.trim()}
-                onClick={() => void postAnnouncement()}
-              >
-                Post announcement
-              </AisBtnPrimary>
-            </div>
-          )}
 
           {announcements.length === 0 ? (
             <p className={`${aisBodySm} py-4 text-center`}>No announcements yet.</p>

@@ -1,13 +1,17 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Plus, X } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
-import { readStoredSession } from '@/lib/auth';
-import { academicResultsApi, type ResultStatus } from '@/lib/academicResults';
-import { ApiError } from '@/lib/api';
-import { Select } from '@/components/ui/select';
-import { Dialog, DialogFooter } from '@/components/ui/dialog';
+import React, { useEffect, useMemo, useState } from "react";
+import { Check, Plus, X } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { readStoredSession } from "@/lib/auth";
+import {
+  academicResultsApi,
+  type ResultChangeRequest,
+  type ResultStatus,
+} from "@/lib/academicResults";
+import { ApiError } from "@/lib/api";
+import { Select } from "@/components/ui/select";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import {
   CURRENT_TERM,
   GRADE_ENTRY_TYPES,
@@ -23,18 +27,18 @@ import {
   primarySubjectForTeacher,
   resolveTeacherProfile,
   weightedTermAverage,
-} from '@/lib/teacherPortal';
+} from "@/lib/teacherPortal";
 import {
   countQuestionsInAssessmentMarkdown,
   extractAssessmentQuestionPrompts,
   isGeneratedAssessmentBlob,
-} from '@/lib/assessmentMarkdown';
+} from "@/lib/assessmentMarkdown";
 import type {
   Assessment,
   GradeQuestionResult,
   StudentGradeEntry,
   StudentGradeEntryType,
-} from '@/lib/mockData';
+} from "@/lib/mockData";
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -47,8 +51,8 @@ import {
   AisTr,
   aisFormLabel,
   aisInput,
-} from '@/components/dashboard/teacher/TeacherPortalUi';
-import { GradeGapAnalysisPanel } from '@/components/dashboard/teacher/GradeGapAnalysisPanel';
+} from "@/components/dashboard/teacher/TeacherPortalUi";
+import { GradeGapAnalysisPanel } from "@/components/dashboard/teacher/GradeGapAnalysisPanel";
 import {
   aisBodyMd,
   aisBodySm,
@@ -56,7 +60,7 @@ import {
   aisDataMd,
   aisHeadlineSm,
   aisLabelCaps,
-} from '@/components/dashboard/teacher/aisStyles';
+} from "@/components/dashboard/teacher/aisStyles";
 
 type ColumnDef = {
   key: string;
@@ -67,32 +71,34 @@ type ColumnDef = {
 };
 
 const TYPE_ORDER: StudentGradeEntryType[] = [
-  'Quiz',
-  'Test',
-  'Assignment',
-  'Project',
-  'Mid Exam',
-  'Final Exam',
-  'Practical',
+  "Quiz",
+  "Test",
+  "Assignment",
+  "Project",
+  "Mid Exam",
+  "Final Exam",
+  "Practical",
 ];
 
 /** Assessment types that must be linked when recording results. */
 const LINKED_ENTRY_TYPES: StudentGradeEntryType[] = [
-  'Quiz',
-  'Test',
-  'Mid Exam',
-  'Final Exam',
-  'Assignment',
-  'Practical',
+  "Quiz",
+  "Test",
+  "Mid Exam",
+  "Final Exam",
+  "Assignment",
+  "Practical",
 ];
 
 function columnKey(entryType: string, title: string) {
   return `${entryType}::${title}`;
 }
 
-function assessmentToEntryType(type: Assessment['type']): StudentGradeEntryType {
-  if (type === 'Baseline') return 'Quiz';
-  if (type === 'Unit Test') return 'Test';
+function assessmentToEntryType(
+  type: Assessment["type"],
+): StudentGradeEntryType {
+  if (type === "Baseline") return "Quiz";
+  if (type === "Unit Test") return "Test";
   return type;
 }
 
@@ -109,7 +115,9 @@ function assessmentQuestionPrompts(asm: Assessment, count: number): string[] {
   if (isGeneratedAssessmentBlob(asm.questions)) {
     return extractAssessmentQuestionPrompts(asm.questions[0].question, count);
   }
-  return asm.questions.slice(0, count).map((q, i) => `Q${i + 1}: ${q.question.slice(0, 120)}`);
+  return asm.questions
+    .slice(0, count)
+    .map((q, i) => `Q${i + 1}: ${q.question.slice(0, 120)}`);
 }
 
 function buildQuestionMarks(
@@ -150,20 +158,24 @@ export const TeacherGradebook: React.FC = () => {
     return fromTeacher.length ? fromTeacher : GRADE_OPTIONS;
   }, [teacherProfile.grades]);
 
-  const [classGrade, setClassGrade] = useState(() => classGradeOptions[0] ?? 'Grade 9');
-  const [classSection, setClassSection] = useState('All');
-  const [detailEntry, setDetailEntry] = useState<StudentGradeEntry | null>(null);
+  const [classGrade, setClassGrade] = useState(
+    () => classGradeOptions[0] ?? "Grade 9",
+  );
+  const [classSection, setClassSection] = useState("All");
+  const [detailEntry, setDetailEntry] = useState<StudentGradeEntry | null>(
+    null,
+  );
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
 
-  const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [entryType, setEntryType] = useState<StudentGradeEntryType>('Quiz');
-  const [title, setTitle] = useState('');
-  const [score, setScore] = useState('');
-  const [maxScore, setMaxScore] = useState('10');
-  const [weight, setWeight] = useState('10');
-  const [remarks, setRemarks] = useState('');
-  const [linkedAssessment, setLinkedAssessment] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [entryType, setEntryType] = useState<StudentGradeEntryType>("Quiz");
+  const [title, setTitle] = useState("");
+  const [score, setScore] = useState("");
+  const [maxScore, setMaxScore] = useState("10");
+  const [weight, setWeight] = useState("10");
+  const [remarks, setRemarks] = useState("");
+  const [linkedAssessment, setLinkedAssessment] = useState("");
   const [questionCount, setQuestionCount] = useState(10);
   const [questionMarks, setQuestionMarks] = useState<GradeQuestionResult[]>([]);
   const [useQuestionMarks, setUseQuestionMarks] = useState(true);
@@ -176,23 +188,33 @@ export const TeacherGradebook: React.FC = () => {
   const classEntries = useMemo(
     () =>
       filterTeacherGradeEntries(studentGradeEntries, teacherId).filter((e) => {
-        if (normalizeGradeLabel(e.gradeLevel) !== normalizeGradeLabel(classGrade)) {
+        if (
+          normalizeGradeLabel(e.gradeLevel) !== normalizeGradeLabel(classGrade)
+        ) {
           return false;
         }
-        if (classSection !== 'All' && e.section !== classSection) return false;
+        if (classSection !== "All" && e.section !== classSection) return false;
         return true;
       }),
     [studentGradeEntries, classGrade, classSection, teacherId],
   );
 
-  const [resultStatus, setResultStatus] = useState<ResultStatus | 'none'>('none');
+  const [resultStatus, setResultStatus] = useState<ResultStatus | "none">(
+    "none",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [changeRequest, setChangeRequest] =
+    useState<ResultChangeRequest | null>(null);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestReason, setRequestReason] = useState("");
+  const [requestBusy, setRequestBusy] = useState(false);
   const schoolId = readStoredSession()?.schoolId ?? undefined;
 
   const refreshResultStatus = React.useCallback(() => {
-    if (classSection === 'All' || !defaultSubject) {
-      setResultStatus('none');
+    if (classSection === "All" || !defaultSubject) {
+      setResultStatus("none");
+      setChangeRequest(null);
       return;
     }
     academicResultsApi
@@ -206,23 +228,45 @@ export const TeacherGradebook: React.FC = () => {
       })
       .then(({ results }) => {
         if (!results.length) {
-          setResultStatus('none');
-        } else if (results.every((r) => r.status === 'finalized')) {
-          setResultStatus('finalized');
-        } else if (results.some((r) => r.status === 'submitted' || r.status === 'finalized')) {
-          setResultStatus('submitted');
+          setResultStatus("none");
+        } else if (results.every((r) => r.status === "finalized")) {
+          setResultStatus("finalized");
+        } else if (
+          results.some(
+            (r) => r.status === "submitted" || r.status === "finalized",
+          )
+        ) {
+          setResultStatus("submitted");
         } else {
-          setResultStatus('draft');
+          setResultStatus("draft");
         }
       })
-      .catch(() => setResultStatus('none'));
+      .catch(() => setResultStatus("none"));
+
+    academicResultsApi
+      .listChangeRequests({
+        schoolId,
+        subject: defaultSubject,
+        gradeLevel: classGrade,
+        section: classSection,
+        term: CURRENT_TERM,
+      })
+      .then((rows) => {
+        const open =
+          rows.find((r) => r.status === "pending" || r.status === "approved") ??
+          null;
+        setChangeRequest(open);
+      })
+      .catch(() => setChangeRequest(null));
   }, [classGrade, classSection, defaultSubject, schoolId, teacherId]);
 
   useEffect(() => {
     refreshResultStatus();
   }, [refreshResultStatus]);
 
-  const isLocked = resultStatus === 'submitted' || resultStatus === 'finalized';
+  const isLocked = resultStatus === "submitted" || resultStatus === "finalized";
+  const hasPendingRequest = changeRequest?.status === "pending";
+  const hasApprovedWindow = changeRequest?.status === "approved";
 
   const handleSubmitResults = async () => {
     setSubmitting(true);
@@ -237,15 +281,50 @@ export const TeacherGradebook: React.FC = () => {
         schoolId,
       });
       addNotification(
-        'Results submitted',
+        "Results submitted",
         `${defaultSubject} results for ${classGrade} · ${classSection} were submitted for review.`,
-        'success',
+        "success",
       );
       refreshResultStatus();
     } catch (err) {
-      setStatusError(err instanceof ApiError ? err.message : 'Failed to submit results.');
+      setStatusError(
+        err instanceof ApiError ? err.message : "Failed to submit results.",
+      );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleRequestEditApproval = async () => {
+    if (!requestReason.trim()) return;
+    setRequestBusy(true);
+    setStatusError(null);
+    try {
+      const created = await academicResultsApi.createChangeRequest({
+        subject: defaultSubject,
+        gradeLevel: classGrade,
+        section: classSection,
+        term: CURRENT_TERM,
+        reason: requestReason.trim(),
+        teacherId,
+        schoolId,
+      });
+      setChangeRequest(created);
+      setRequestDialogOpen(false);
+      setRequestReason("");
+      addNotification(
+        "Edit approval requested",
+        "Your Academic Head will review this change request.",
+        "success",
+      );
+    } catch (err) {
+      setStatusError(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to submit change request.",
+      );
+    } finally {
+      setRequestBusy(false);
     }
   };
 
@@ -269,7 +348,9 @@ export const TeacherGradebook: React.FC = () => {
       const ai = TYPE_ORDER.indexOf(a.entryType);
       const bi = TYPE_ORDER.indexOf(b.entryType);
       if (ai !== bi) return ai - bi;
-      return a.sortDate.localeCompare(b.sortDate) || a.title.localeCompare(b.title);
+      return (
+        a.sortDate.localeCompare(b.sortDate) || a.title.localeCompare(b.title)
+      );
     });
   }, [classEntries]);
 
@@ -283,12 +364,12 @@ export const TeacherGradebook: React.FC = () => {
     const byId = new Map(filtered.map((a) => [a.id, a]));
     for (const a of assessments) {
       if (String(a.teacherId) !== String(teacherId)) continue;
-      if (a.status === 'Rejected') continue;
+      if (a.status === "Rejected") continue;
       if (
-        a.status === 'Approved' ||
-        a.type === 'Quiz' ||
-        a.type === 'Baseline' ||
-        a.createdByRole === 'department-head'
+        a.status === "Approved" ||
+        a.type === "Quiz" ||
+        a.type === "Baseline" ||
+        a.createdByRole === "department-head"
       ) {
         byId.set(a.id, a);
       }
@@ -330,7 +411,7 @@ export const TeacherGradebook: React.FC = () => {
 
   const handleLinkedAssessmentChange = (assessmentId: string) => {
     if (!assessmentId) {
-      setLinkedAssessment('');
+      setLinkedAssessment("");
       return;
     }
     applyAssessmentLink(assessmentId);
@@ -360,17 +441,21 @@ export const TeacherGradebook: React.FC = () => {
   const openAdd = (studentId?: string, col?: ColumnDef) => {
     void refreshFromApi();
     setEditingId(undefined);
-    setSelectedStudentId(studentId || roster[0]?.id || '');
-    const nextType = col?.entryType ?? 'Quiz';
+    setSelectedStudentId(studentId || roster[0]?.id || "");
+    const nextType = col?.entryType ?? "Quiz";
     setEntryType(nextType);
-    setTitle(col?.title ?? '');
-    setScore('');
+    setTitle(col?.title ?? "");
+    setScore("");
     setMaxScore(String(col?.maxScore ?? 10));
     setWeight(String(col?.weight ?? 10));
-    setRemarks('');
-    setLinkedAssessment('');
+    setRemarks("");
+    setLinkedAssessment("");
     setQuestionCount(col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10);
-    setQuestionMarks(buildQuestionMarks(col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10));
+    setQuestionMarks(
+      buildQuestionMarks(
+        col?.maxScore && col.maxScore <= 50 ? col.maxScore : 10,
+      ),
+    );
     setUseQuestionMarks(LINKED_ENTRY_TYPES.includes(nextType));
     setIsFormOpen(true);
   };
@@ -383,11 +468,13 @@ export const TeacherGradebook: React.FC = () => {
     setScore(String(entry.score));
     setMaxScore(String(entry.maxScore));
     setWeight(String(entry.weight));
-    setRemarks(entry.remarks ?? '');
-    setLinkedAssessment(entry.assessmentId ?? '');
+    setRemarks(entry.remarks ?? "");
+    setLinkedAssessment(entry.assessmentId ?? "");
     const hasQ = (entry.questionResults?.length ?? 0) > 0;
     setUseQuestionMarks(hasQ || LINKED_ENTRY_TYPES.includes(entry.entryType));
-    setQuestionCount(entry.questionResults?.length || Math.round(entry.maxScore) || 10);
+    setQuestionCount(
+      entry.questionResults?.length || Math.round(entry.maxScore) || 10,
+    );
     setQuestionMarks(
       entry.questionResults?.length
         ? entry.questionResults
@@ -401,7 +488,7 @@ export const TeacherGradebook: React.FC = () => {
     e.preventDefault();
     if (!selectedStudentId || !title.trim()) return;
     if (requiresLinkedAssessment && !linkedAssessment) {
-      alert('Please select the assessment this result belongs to.');
+      alert("Please select the assessment this result belongs to.");
       return;
     }
     const student = students.find((s) => s.id === selectedStudentId);
@@ -456,7 +543,7 @@ export const TeacherGradebook: React.FC = () => {
           label="Section"
           options={SECTION_FILTER_OPTIONS.map((s) => ({
             value: s,
-            label: s === 'All' ? 'All sections' : `Section ${s}`,
+            label: s === "All" ? "All sections" : `Section ${s}`,
           }))}
           value={classSection}
           onChange={(e) => setClassSection(e.target.value)}
@@ -471,27 +558,63 @@ export const TeacherGradebook: React.FC = () => {
         </AisBtnPrimary>
       </div>
 
-      {isLocked && (
-        <p className={`${aisBodySm} text-muted-foreground`}>
-          Editing is locked until an Academic Head reopens this class/subject/term.
-        </p>
-      )}
-
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        {classSection !== 'All' && (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <AisBtnPrimary
+            type="button"
+            className="!text-xs"
+            onClick={() => openAdd()}
+            disabled={roster.length === 0 || isLocked}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Add result
+          </AisBtnPrimary>
+          {isLocked && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`${aisBodySm} text-muted-foreground`}>
+                {hasPendingRequest
+                  ? "Edit approval pending Academic Head review."
+                  : "Editing is locked. Request approval from your Academic Head to change these results."}
+              </span>
+              {!hasPendingRequest && (
+                <AisBtnSecondary
+                  type="button"
+                  className="!text-xs"
+                  onClick={() => setRequestDialogOpen(true)}
+                >
+                  Request edit approval
+                </AisBtnSecondary>
+              )}
+            </div>
+          )}
+          {hasApprovedWindow && !isLocked && (
+            <span className={`${aisBodySm} text-emerald-700`}>
+              Edit window approved
+              {changeRequest?.expiresAt
+                ? ` until ${new Date(changeRequest.expiresAt).toLocaleString()}`
+                : ""}
+              . Resubmit when finished.
+            </span>
+          )}
+        </div>
+        {classSection !== "All" && (
           <div className="flex items-center gap-2">
             <AisStatusBadge
               variant={
-                resultStatus === 'finalized' ? 'success' : resultStatus === 'submitted' ? 'primary' : 'neutral'
+                resultStatus === "finalized"
+                  ? "success"
+                  : resultStatus === "submitted"
+                    ? "primary"
+                    : "neutral"
               }
             >
-              {resultStatus === 'finalized'
-                ? 'Finalized'
-                : resultStatus === 'submitted'
-                  ? 'Submitted'
-                  : resultStatus === 'draft'
-                    ? 'Draft'
-                    : 'Not submitted'}
+              {resultStatus === "finalized"
+                ? "Finalized"
+                : resultStatus === "submitted"
+                  ? "Submitted"
+                  : resultStatus === "draft"
+                    ? "Draft"
+                    : "Not submitted"}
             </AisStatusBadge>
             {!isLocked && (
               <AisBtnSecondary
@@ -500,7 +623,7 @@ export const TeacherGradebook: React.FC = () => {
                 onClick={handleSubmitResults}
                 disabled={submitting || classEntries.length === 0}
               >
-                {submitting ? 'Submitting…' : 'Submit Results'}
+                {submitting ? "Submitting…" : "Submit Results"}
               </AisBtnSecondary>
             )}
           </div>
@@ -526,7 +649,10 @@ export const TeacherGradebook: React.FC = () => {
                   Student
                 </AisTh>
                 {columns.map((col) => (
-                  <AisTh key={col.key} className="min-w-[100px] text-center whitespace-nowrap">
+                  <AisTh
+                    key={col.key}
+                    className="min-w-[100px] text-center whitespace-nowrap"
+                  >
                     <div className="flex flex-col items-center gap-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                         {col.entryType}
@@ -539,7 +665,7 @@ export const TeacherGradebook: React.FC = () => {
                   </AisTh>
                 ))}
                 <AisTh className="text-center">Term avg</AisTh>
-                <AisTh className="w-16">{''}</AisTh>
+                <AisTh className="w-16">{""}</AisTh>
               </tr>
             </thead>
             <tbody>
@@ -557,11 +683,16 @@ export const TeacherGradebook: React.FC = () => {
                       <AisTd className="sticky left-0 z-10 bg-white dark:bg-card font-semibold">
                         <p>
                           {std.name}
-                          {classSection === 'All' ? (
-                            <span className={`${aisBodySm} font-normal`}> · {std.section}</span>
+                          {classSection === "All" ? (
+                            <span className={`${aisBodySm} font-normal`}>
+                              {" "}
+                              · {std.section}
+                            </span>
                           ) : null}
                         </p>
-                        <p className={`${aisBodySm} font-normal`}>{std.studentId}</p>
+                        <p className={`${aisBodySm} font-normal`}>
+                          {std.studentId}
+                        </p>
                       </AisTd>
                       {columns.map((col) => {
                         const cell = findCell(std.id, col);
@@ -573,7 +704,11 @@ export const TeacherGradebook: React.FC = () => {
                                 className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                                 onClick={() => openAdd(std.id, col)}
                                 disabled={isLocked}
-                                title={isLocked ? 'Locked — submitted for review' : 'Add result'}
+                                title={
+                                  isLocked
+                                    ? "Locked — submitted for review"
+                                    : "Add result"
+                                }
                               >
                                 —
                               </button>
@@ -588,23 +723,31 @@ export const TeacherGradebook: React.FC = () => {
                               onClick={() => setDetailEntry(cell)}
                               className={`inline-flex min-w-[3.25rem] flex-col items-center rounded-xl px-2 py-1.5 text-xs font-bold tabular-nums transition-colors hover:ring-2 hover:ring-primary/30 ${
                                 pct >= 70
-                                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+                                  ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200"
                                   : pct >= 50
-                                    ? 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200'
-                                    : 'bg-rose-50 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200'
+                                    ? "bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+                                    : "bg-rose-50 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200"
                               }`}
                             >
                               <span>
                                 {cell.score}/{cell.maxScore}
                               </span>
-                              <span className="text-[10px] font-semibold opacity-80">{pct}%</span>
+                              <span className="text-[10px] font-semibold opacity-80">
+                                {pct}%
+                              </span>
                             </button>
                           </AisTd>
                         );
                       })}
                       <AisTd className="text-center">
-                        <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
-                          {termAvg != null ? `${termAvg}%` : '—'}
+                        <AisStatusBadge
+                          variant={
+                            termAvg != null && termAvg >= 70
+                              ? "success"
+                              : "warning"
+                          }
+                        >
+                          {termAvg != null ? `${termAvg}%` : "—"}
                         </AisStatusBadge>
                       </AisTd>
                       <AisTd>
@@ -641,7 +784,9 @@ export const TeacherGradebook: React.FC = () => {
             <div className="flex items-start justify-between gap-3 border-b border-border p-4">
               <div>
                 <p className={aisLabelCaps}>Result detail</p>
-                <h3 className={`${aisHeadlineSm} !text-title`}>{detailStudent?.name ?? 'Student'}</h3>
+                <h3 className={`${aisHeadlineSm} !text-title`}>
+                  {detailStudent?.name ?? "Student"}
+                </h3>
                 <p className={aisBodySm}>
                   {detailEntry.entryType} · {detailEntry.title}
                 </p>
@@ -661,15 +806,20 @@ export const TeacherGradebook: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className={aisBodySm}>Score</span>
                   <span className={`${aisDataMd} font-mono tabular-nums`}>
-                    {detailEntry.score}/{detailEntry.maxScore} ({entryPercent(detailEntry)}%)
+                    {detailEntry.score}/{detailEntry.maxScore} (
+                    {entryPercent(detailEntry)}%)
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <span className={aisBodySm}>Weight</span>
-                  <span className="text-sm tabular-nums">{detailEntry.weight}%</span>
+                  <span className="text-sm tabular-nums">
+                    {detailEntry.weight}%
+                  </span>
                 </div>
                 {detailEntry.remarks && (
-                  <p className={`${aisBodySm} mt-3 border-t border-border pt-3`}>
+                  <p
+                    className={`${aisBodySm} mt-3 border-t border-border pt-3`}
+                  >
                     {detailEntry.remarks}
                   </p>
                 )}
@@ -688,15 +838,15 @@ export const TeacherGradebook: React.FC = () => {
                         key={q.questionNumber}
                         className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
                           q.correct
-                            ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-900/20'
-                            : 'border-rose-200 bg-rose-50/80 dark:border-rose-800 dark:bg-rose-900/20'
+                            ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-900/20"
+                            : "border-rose-200 bg-rose-50/80 dark:border-rose-800 dark:bg-rose-900/20"
                         }`}
                       >
                         <span
                           className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                             q.correct
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-rose-600 text-white'
+                              ? "bg-emerald-600 text-white"
+                              : "bg-rose-600 text-white"
                           }`}
                         >
                           {q.correct ? (
@@ -707,13 +857,15 @@ export const TeacherGradebook: React.FC = () => {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold">
-                            Question {q.questionNumber}{' '}
+                            Question {q.questionNumber}{" "}
                             <span className="font-normal text-muted-foreground">
-                              — {q.correct ? 'Correct' : 'Incorrect'}
+                              — {q.correct ? "Correct" : "Incorrect"}
                             </span>
                           </p>
                           {q.prompt && (
-                            <p className={`${aisBodySm} mt-0.5 line-clamp-2`}>{q.prompt}</p>
+                            <p className={`${aisBodySm} mt-0.5 line-clamp-2`}>
+                              {q.prompt}
+                            </p>
                           )}
                         </div>
                       </li>
@@ -724,19 +876,43 @@ export const TeacherGradebook: React.FC = () => {
             </div>
 
             <div className="flex gap-2 border-t border-border p-4">
-              <AisBtnSecondary className="flex-1 !justify-center" onClick={() => openEdit(detailEntry)}>
-                Edit result
-              </AisBtnSecondary>
-              <button
-                type="button"
-                className="rounded-2xl border border-destructive/30 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
-                onClick={() => {
-                  deleteStudentGradeEntry(detailEntry.id);
-                  setDetailEntry(null);
-                }}
-              >
-                Delete
-              </button>
+              {isLocked ? (
+                <div className="flex flex-1 flex-col items-center gap-2">
+                  <p className={`${aisBodySm} text-center italic`}>
+                    Locked —{" "}
+                    {hasPendingRequest
+                      ? "edit approval pending."
+                      : "request Academic Head approval to edit."}
+                  </p>
+                  {!hasPendingRequest && (
+                    <AisBtnSecondary
+                      className="!text-xs"
+                      onClick={() => setRequestDialogOpen(true)}
+                    >
+                      Request edit approval
+                    </AisBtnSecondary>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <AisBtnSecondary
+                    className="flex-1 !justify-center"
+                    onClick={() => openEdit(detailEntry)}
+                  >
+                    Edit result
+                  </AisBtnSecondary>
+                  <button
+                    type="button"
+                    className="rounded-2xl border border-destructive/30 px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      deleteStudentGradeEntry(detailEntry.id);
+                      setDetailEntry(null);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           </aside>
         </div>
@@ -745,7 +921,7 @@ export const TeacherGradebook: React.FC = () => {
       <Dialog
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        title={editingId ? 'Edit quiz / test result' : 'Add quiz / test result'}
+        title={editingId ? "Edit quiz / test result" : "Add quiz / test result"}
         size="2xl"
         largeTitle
       >
@@ -756,7 +932,8 @@ export const TeacherGradebook: React.FC = () => {
               label="Student"
               options={roster.map((s) => ({
                 value: s.id,
-                label: classSection === 'All' ? `${s.name} · ${s.section}` : s.name,
+                label:
+                  classSection === "All" ? `${s.name} · ${s.section}` : s.name,
               }))}
               value={selectedStudentId}
               onChange={(e) => setSelectedStudentId(e.target.value)}
@@ -768,9 +945,9 @@ export const TeacherGradebook: React.FC = () => {
                 maxVisibleItems={16}
                 options={
                   selectableAssessments.length === 0
-                    ? [{ value: '', label: 'No assessments available' }]
+                    ? [{ value: "", label: "No assessments available" }]
                     : [
-                        { value: '', label: 'Select assessment…' },
+                        { value: "", label: "Select assessment…" },
                         ...selectableAssessments.map((a) => ({
                           value: a.id,
                           label: `${a.grade} · ${a.type}: ${a.title}`,
@@ -789,7 +966,7 @@ export const TeacherGradebook: React.FC = () => {
                 onChange={(e) => {
                   const next = e.target.value as StudentGradeEntryType;
                   setEntryType(next);
-                  setLinkedAssessment('');
+                  setLinkedAssessment("");
                   setUseQuestionMarks(LINKED_ENTRY_TYPES.includes(next));
                 }}
               />
@@ -806,7 +983,7 @@ export const TeacherGradebook: React.FC = () => {
                 const next = e.target.value as StudentGradeEntryType;
                 setEntryType(next);
                 if (!LINKED_ENTRY_TYPES.includes(next)) {
-                  setLinkedAssessment('');
+                  setLinkedAssessment("");
                 }
                 setUseQuestionMarks(LINKED_ENTRY_TYPES.includes(next));
               }}
@@ -816,7 +993,7 @@ export const TeacherGradebook: React.FC = () => {
               variant="ais"
               label="Link to assessment (optional)"
               options={[
-                { value: '', label: 'None' },
+                { value: "", label: "None" },
                 ...myAssessments.map((a) => ({
                   value: a.id,
                   label: `${a.type}: ${a.title}`,
@@ -847,7 +1024,9 @@ export const TeacherGradebook: React.FC = () => {
                 const on = e.target.checked;
                 setUseQuestionMarks(on);
                 if (on && questionMarks.length > 0) {
-                  setScore(String(questionMarks.filter((q) => q.correct).length));
+                  setScore(
+                    String(questionMarks.filter((q) => q.correct).length),
+                  );
                   setMaxScore(String(questionMarks.length));
                 }
               }}
@@ -873,7 +1052,11 @@ export const TeacherGradebook: React.FC = () => {
                       const prompts = linkedAsm
                         ? assessmentQuestionPrompts(linkedAsm, n)
                         : [];
-                      const marks = buildQuestionMarks(n, prompts, questionMarks);
+                      const marks = buildQuestionMarks(
+                        n,
+                        prompts,
+                        questionMarks,
+                      );
                       setQuestionMarks(marks);
                       setScore(String(marks.filter((q) => q.correct).length));
                       setMaxScore(String(marks.length));
@@ -890,8 +1073,8 @@ export const TeacherGradebook: React.FC = () => {
                     onClick={() => toggleQuestion(q.questionNumber)}
                     className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-colors ${
                       q.correct
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-100'
-                        : 'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-700 dark:bg-rose-900/30 dark:text-rose-100'
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-100"
+                        : "border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-700 dark:bg-rose-900/30 dark:text-rose-100"
                     }`}
                   >
                     {q.correct ? (
@@ -966,6 +1149,42 @@ export const TeacherGradebook: React.FC = () => {
             </AisBtnPrimary>
           </DialogFooter>
         </form>
+      </Dialog>
+
+      <Dialog
+        isOpen={requestDialogOpen}
+        onClose={() => !requestBusy && setRequestDialogOpen(false)}
+        title="Request edit approval"
+        description={`Ask your Academic Head to unlock ${defaultSubject} · ${classGrade} · ${classSection} · ${CURRENT_TERM} for corrections.`}
+      >
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <label className={aisFormLabel}>Reason</label>
+            <textarea
+              className={`${aisInput} min-h-[96px]`}
+              value={requestReason}
+              onChange={(e) => setRequestReason(e.target.value)}
+              placeholder="Explain what needs to change and why"
+              required
+            />
+          </div>
+        </div>
+        <DialogFooter className="mt-4">
+          <AisBtnSecondary
+            type="button"
+            onClick={() => setRequestDialogOpen(false)}
+            disabled={requestBusy}
+          >
+            Cancel
+          </AisBtnSecondary>
+          <AisBtnPrimary
+            type="button"
+            onClick={handleRequestEditApproval}
+            disabled={requestBusy || !requestReason.trim()}
+          >
+            {requestBusy ? "Submitting…" : "Submit request"}
+          </AisBtnPrimary>
+        </DialogFooter>
       </Dialog>
     </div>
   );

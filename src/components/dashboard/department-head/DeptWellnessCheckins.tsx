@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
-import type { SchoolCheckIn } from '@/lib/mockData';
+import type { SchoolCheckIn, SchoolCheckInConfidentiality } from '@/lib/mockData';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
 
 /**
@@ -31,7 +31,7 @@ export const DeptWellnessCheckins: React.FC = () => {
   );
 
   const departmentCheckIns = useMemo(
-    () => checkIns.filter((c) => deptTeacherNames.has(c.respondentName)),
+    () => checkIns.filter((c) => c.respondentName && deptTeacherNames.has(c.respondentName)),
     [checkIns, deptTeacherNames],
   );
 
@@ -46,22 +46,23 @@ export const DeptWellnessCheckins: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [checkInTitle, setCheckInTitle] = useState('Weekly Wellness Check-in');
-  const [checkInType, setCheckInType] = useState<'Wellness' | 'Student Feedback' | 'Parent Feedback'>(
-    'Wellness',
-  );
+  const [checkInType, setCheckInType] = useState<SchoolCheckIn['type']>('Teacher Wellness');
   const [checkInRespondent, setCheckInRespondent] = useState('');
   const [checkInRating, setCheckInRating] = useState(5);
   const [checkInComment, setCheckInComment] = useState('');
+  const [checkInConfidentiality, setCheckInConfidentiality] = useState<SchoolCheckInConfidentiality>('identified');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!checkInRespondent || !checkInComment) return;
+    if (!checkInComment) return;
+    if (checkInConfidentiality !== 'anonymous' && !checkInRespondent) return;
 
-    addCheckInTemplate(checkInTitle, checkInType, checkInRespondent, Number(checkInRating), checkInComment);
+    addCheckInTemplate(checkInTitle, checkInType, checkInRespondent, Number(checkInRating), checkInComment, checkInConfidentiality);
 
     setCheckInRespondent('');
     setCheckInComment('');
     setCheckInRating(5);
+    setCheckInConfidentiality('identified');
     setIsModalOpen(false);
   };
 
@@ -73,7 +74,7 @@ export const DeptWellnessCheckins: React.FC = () => {
       render: (row) => (
         <div className="flex flex-col text-left">
           <span className="font-semibold text-foreground text-xs">{row.title ?? row.type}</span>
-          <span className="text-[9px] text-muted-foreground mt-0.5">Respondent: {row.respondentName}</span>
+          <span className="text-[9px] text-muted-foreground mt-0.5">Respondent: {row.respondentName ?? 'Anonymous'}</span>
         </div>
       ),
     },
@@ -82,8 +83,22 @@ export const DeptWellnessCheckins: React.FC = () => {
       header: 'Cohort',
       sortable: true,
       render: (row) => (
-        <Badge variant={row.type === 'Wellness' ? 'primary' : 'info'} size="sm" className="font-medium">
+        <Badge variant={row.type === 'Teacher Wellness' || row.type === 'Student Satisfaction' ? 'primary' : 'info'} size="sm" className="font-medium">
           {row.type}
+        </Badge>
+      ),
+    },
+    {
+      key: 'confidentiality',
+      header: 'Confidentiality',
+      sortable: true,
+      render: (row) => (
+        <Badge
+          variant={row.confidentiality === 'anonymous' ? 'neutral' : row.confidentiality === 'restricted' ? 'warning' : 'success'}
+          badgeStyle="subtle"
+          size="sm"
+        >
+          {row.confidentiality}
         </Badge>
       ),
     },
@@ -173,9 +188,11 @@ export const DeptWellnessCheckins: React.FC = () => {
                 onChange={(e) => setCheckInType(e.target.value as typeof checkInType)}
                 className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none"
               >
-                <option value="Wellness">Department Teachers</option>
-                <option value="Student Feedback">Student Body</option>
+                <option value="Teacher Wellness">Department Teachers</option>
+                <option value="Student Satisfaction">Student Body</option>
                 <option value="Parent Feedback">Parent Roster</option>
+                <option value="School Climate">School Climate</option>
+                <option value="Service Satisfaction">Service Satisfaction</option>
               </select>
             </div>
 
@@ -196,22 +213,39 @@ export const DeptWellnessCheckins: React.FC = () => {
           </div>
 
           <div className="space-y-1 text-left">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase">Respondent Name</label>
-            <input
-              type="text"
-              required
-              list="dept-checkin-respondents"
-              placeholder="e.g. a department teacher, student, or parent name"
-              value={checkInRespondent}
-              onChange={(e) => setCheckInRespondent(e.target.value)}
-              className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <datalist id="dept-checkin-respondents">
-              {departmentTeachers.map((t) => (
-                <option key={t.id} value={t.name} />
-              ))}
-            </datalist>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Confidentiality</label>
+            <select
+              value={checkInConfidentiality}
+              onChange={(e) => setCheckInConfidentiality(e.target.value as SchoolCheckInConfidentiality)}
+              className="w-full h-10 px-3 bg-muted/45 border border-border rounded-md text-xs text-foreground focus:outline-none"
+            >
+              <option value="identified">Identified — respondent name shown</option>
+              <option value="restricted">Restricted — name on file, hidden by default</option>
+              <option value="anonymous">Anonymous — name is never recorded</option>
+            </select>
           </div>
+
+          {checkInConfidentiality !== 'anonymous' ? (
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Respondent Name</label>
+              <input
+                type="text"
+                required
+                list="dept-checkin-respondents"
+                placeholder="e.g. a department teacher, student, or parent name"
+                value={checkInRespondent}
+                onChange={(e) => setCheckInRespondent(e.target.value)}
+                className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <datalist id="dept-checkin-respondents">
+                {departmentTeachers.map((t) => (
+                  <option key={t.id} value={t.name} />
+                ))}
+              </datalist>
+            </div>
+          ) : (
+            <p className="text-xxs text-muted-foreground">This response will be saved with no respondent name at all.</p>
+          )}
 
           <div className="space-y-1 text-left">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Comments</label>

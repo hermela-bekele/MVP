@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { readStoredSession } from '@/lib/auth';
 import { TablePanel } from '@/components/dashboard/TablePanel';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
@@ -10,13 +12,31 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import type { DataTableColumn } from '@/components/ui/data-table';
 import type { LessonPlan } from '@/lib/mockData';
 import { weeklyPlanStatusLabel } from '@/lib/teacherPortal';
+import { computeLessonPlanRollup } from '@/lib/schoolHeadAnalytics';
 
-export const LessonPlanReview: React.FC = () => {
-  const { lessonPlans } = useApp();
+/**
+ * Renamed from "Lesson Plan Review" — this is oversight, not daily
+ * micromanagement (weekly plans are approved by the department head, not the
+ * school head). The rollup above the table answers "are plans on track across
+ * the school?"; the table below stays available to inspect any one plan.
+ */
+export const InstructionalPlanningOversight: React.FC = () => {
+  const { lessonPlans, teachers, departments, currentUser } = useApp();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Find the selected plan details
+  const session = readStoredSession();
+  const schoolId = session?.schoolId ?? currentUser?.schoolId;
+  const schoolTeachers = React.useMemo(
+    () => teachers.filter((t) => !schoolId || t.schoolId === schoolId),
+    [teachers, schoolId],
+  );
+  const schoolTeacherIds = React.useMemo(() => new Set(schoolTeachers.map((t) => t.id)), [schoolTeachers]);
+  const rollup = React.useMemo(
+    () => computeLessonPlanRollup(lessonPlans, schoolTeachers, departments, schoolTeacherIds),
+    [lessonPlans, schoolTeachers, departments, schoolTeacherIds],
+  );
+
   const selectedPlan = React.useMemo(() => {
     return lessonPlans.find(lp => lp.id === selectedPlanId) || null;
   }, [lessonPlans, selectedPlanId]);
@@ -111,12 +131,38 @@ export const LessonPlanReview: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <Card className="border-border/60">
+        <CardContent className="pt-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-4 gap-3">
+            <div><p className="text-xl font-bold text-foreground">{rollup.submitted}</p><p className="text-[10px] text-muted-foreground">Submitted</p></div>
+            <div><p className="text-xl font-bold text-success">{rollup.approved}</p><p className="text-[10px] text-muted-foreground">Approved</p></div>
+            <div><p className="text-xl font-bold text-amber-600">{rollup.pendingReview}</p><p className="text-[10px] text-muted-foreground">Pending review</p></div>
+            <div><p className="text-xl font-bold text-red-600">{rollup.returned}</p><p className="text-[10px] text-muted-foreground">Returned</p></div>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Departments with repeated problems</p>
+            {rollup.departmentsWithRecurringIssues.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No outstanding lesson-plan issues across departments.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {rollup.departmentsWithRecurringIssues.map(({ name, unresolvedCount }) => (
+                  <div key={name} className="flex items-center justify-between text-xs">
+                    <span className="text-foreground">{name}</span>
+                    <Badge variant="warning" badgeStyle="subtle" size="sm">{unresolvedCount} unresolved</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <TablePanel
         title="Instructional Syllabus Filings"
       >
           <DataTable<LessonPlan>
             columns={planColumns}
-            data={lessonPlans}
+            data={rollup.plans}
             searchable
             searchKeys={['title', 'teacherName', 'subject']}
             pageSize={10}
@@ -132,7 +178,7 @@ export const LessonPlanReview: React.FC = () => {
       >
         {selectedPlan && (
           <div className="space-y-4 pt-2">
-            
+
             {/* Title Metadata */}
             <div className="p-3 bg-muted/40 border border-border/60 rounded-xl flex items-center justify-between">
               <div className="text-left space-y-0.5">

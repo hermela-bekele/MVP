@@ -92,15 +92,15 @@ export const MoeAcademicCalendarPanel: React.FC<{
 
   const handleSave = React.useCallback(() => {
     const events = pendingEvents ?? buildNationalEvents();
-    saveMoeCalendarDraft(events, title, MOE_ACADEMIC_YEAR_EC);
+    void saveMoeCalendarDraft(events, title, MOE_ACADEMIC_YEAR_EC);
     setPendingEvents(events);
     setIsDirty(false);
   }, [pendingEvents, buildNationalEvents, saveMoeCalendarDraft, title]);
 
-  const handleDisseminate = React.useCallback(() => {
+  const handleDisseminate = React.useCallback(async () => {
     const events = pendingEvents ?? buildNationalEvents();
-    saveMoeCalendarDraft(events, title, MOE_ACADEMIC_YEAR_EC);
-    disseminateMoeCalendar();
+    const draft = await saveMoeCalendarDraft(events, title, MOE_ACADEMIC_YEAR_EC);
+    if (draft) disseminateMoeCalendar(draft.id);
     setPendingEvents(events);
     setIsDirty(false);
     setPhase('generated');
