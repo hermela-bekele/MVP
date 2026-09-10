@@ -270,6 +270,16 @@ export async function request<T>(
 
 const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
 
+/** Rewrites any stored "/uploads/..." reference (a bare relative path, or an absolute URL
+ * from before uploads stopped baking in a host) to point at whichever backend is
+ * CURRENTLY configured (API_BASE), instead of whatever host/port happened to handle the
+ * original upload request. External links pass through unchanged. */
+export function resolveResourceUrl(url: string | undefined | null): string {
+  if (!url) return "";
+  const match = url.match(/\/uploads\/.+$/);
+  return match ? `${API_BASE}${match[0]}` : url;
+}
+
 export interface UploadResult {
   url: string;
   filename: string;
@@ -304,7 +314,8 @@ async function uploadFileRaw(file: File): Promise<UploadResult> {
     }
     throw new ApiError(message, res.status, body);
   }
-  return (await res.json()) as UploadResult;
+  const data = (await res.json()) as UploadResult;
+  return { ...data, url: resolveResourceUrl(data.url) };
 }
 
 export async function uploadFile(file: File): Promise<string> {
