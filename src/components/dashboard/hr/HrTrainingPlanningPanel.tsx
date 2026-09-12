@@ -49,7 +49,11 @@ export function HrTrainingPlanningPanel() {
     updateTrainingPlanStatus,
     assignTrainingPlan,
     removeTrainingPlanAssignment,
+    updateTrainingPlanAssignment,
   } = useApp();
+  const [ratingDraftFor, setRatingDraftFor] = useState<string | null>(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingNotes, setRatingNotes] = useState('');
 
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [selected, setSelected] = useState<TrainingPlan | null>(null);
@@ -319,24 +323,72 @@ export function HrTrainingPlanningPanel() {
               </div>
 
               {assignmentsForSelected.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+                <div className="space-y-1.5 pt-1">
                   {assignmentsForSelected.map((a) => {
                     const label =
                       a.targetType === 'teacher'
                         ? teachers.find((t) => t.id === a.teacherId)?.name ?? 'Unknown teacher'
                         : `${departments.find((d) => d.id === a.departmentId)?.name ?? 'Unknown team'} (team)`;
                     return (
-                      <Badge key={a.id} variant="neutral" size="sm" className="gap-1.5">
-                        {label}
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-foreground"
-                          onClick={() => removeTrainingPlanAssignment(a.id)}
-                          aria-label={`Remove ${label}`}
-                        >
-                          ×
-                        </button>
-                      </Badge>
+                      <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-foreground">{label}</span>
+                          {a.targetType === 'teacher' && (
+                            <Badge
+                              variant={a.attended === true ? 'success' : a.attended === false ? 'danger' : 'neutral'}
+                              badgeStyle="subtle"
+                              size="sm"
+                            >
+                              {a.attended === true ? 'Attended' : a.attended === false ? 'Did not attend' : 'Not recorded'}
+                            </Badge>
+                          )}
+                          {a.impactRating && (
+                            <span className="text-[10px] text-muted-foreground">Impact: {a.impactRating}/5</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {a.targetType === 'teacher' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px]"
+                                onClick={() => updateTrainingPlanAssignment(a.id, { attended: true })}
+                              >
+                                Mark Attended
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px]"
+                                onClick={() => updateTrainingPlanAssignment(a.id, { attended: false })}
+                              >
+                                Did Not Attend
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-[10px]"
+                                onClick={() => {
+                                  setRatingDraftFor(a.id);
+                                  setRatingValue(a.impactRating ?? 5);
+                                  setRatingNotes(a.impactNotes ?? '');
+                                }}
+                              >
+                                Rate Impact
+                              </Button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-destructive text-xs px-1"
+                            onClick={() => removeTrainingPlanAssignment(a.id)}
+                            aria-label={`Remove ${label}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -347,6 +399,42 @@ export function HrTrainingPlanningPanel() {
           </div>
         </Dialog>
       )}
+
+      <Dialog isOpen={!!ratingDraftFor} onClose={() => setRatingDraftFor(null)} title="Rate Training Impact">
+        <div className="space-y-3 text-xs">
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Impact (1-5)</label>
+            <select className={inputClass} value={ratingValue} onChange={(e) => setRatingValue(Number(e.target.value))}>
+              <option value={5}>5 - Changed how they teach</option>
+              <option value={4}>4 - Very useful</option>
+              <option value={3}>3 - Somewhat useful</option>
+              <option value={2}>2 - Limited use</option>
+              <option value={1}>1 - Not useful</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Notes (optional)</label>
+            <textarea className={`${inputClass} h-16 py-2`} value={ratingNotes} onChange={(e) => setRatingNotes(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setRatingDraftFor(null)}>Cancel</Button>
+            <Button
+              type="button"
+              variant="organic"
+              size="sm"
+              className="border-none"
+              onClick={() => {
+                if (ratingDraftFor) {
+                  updateTrainingPlanAssignment(ratingDraftFor, { impactRating: ratingValue, impactNotes: ratingNotes.trim() || undefined });
+                }
+                setRatingDraftFor(null);
+              }}
+            >
+              Save Rating
+            </Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
     </TablePanel>
   );
 }

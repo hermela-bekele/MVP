@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useApp } from '@/context/AppContext';
 import { readStoredSession } from '@/lib/auth';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { ContentCard } from '@/components/dashboard/ContentCard';
@@ -23,6 +24,7 @@ type Announcement = {
 };
 
 export function SchoolHeadAnnouncements() {
+  const { addNotification } = useApp();
   const session = readStoredSession();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -56,6 +58,7 @@ export function SchoolHeadAnnouncements() {
           audience: 'all',
         });
         setStatus({ type: 'ok', text: 'Announcement published to parents and students.' });
+        addNotification('New Announcement', title, 'info', undefined, 'school');
       }
       setTitle('');
       setBody('');

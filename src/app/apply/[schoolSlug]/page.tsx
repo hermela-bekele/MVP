@@ -11,6 +11,10 @@ import { Select } from '@/components/ui/select';
 const GRADES = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
 const SECTIONS = ['A', 'B', 'C', 'D'];
 
+function formatDocType(docType: string): string {
+  return docType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function PublicApplyPage() {
   const params = useParams();
   const slug = String(params.schoolSlug || '');
@@ -234,7 +238,7 @@ export default function PublicApplyPage() {
           )}
           {requiredDocs.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Required documents after submit (upload via parent portal): {requiredDocs.join(', ')}
+              Required documents after submit (upload via parent portal): {requiredDocs.map(formatDocType).join(', ')}
             </p>
           )}
         </div>

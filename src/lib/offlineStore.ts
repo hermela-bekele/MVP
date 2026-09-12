@@ -216,6 +216,7 @@ export function isBrowserOnline(): boolean {
 export function emptyBootstrapPayload(): BootstrapPayload {
   return {
     schools: [],
+    regions: [],
     departments: [],
     teachers: [],
     students: [],
@@ -251,5 +252,6 @@ export function emptyBootstrapPayload(): BootstrapPayload {
     onboardingTasks: [],
     staffAttendance: [],
     notifications: [],
+    moeCalendar: null,
   };
 }

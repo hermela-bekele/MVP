@@ -136,6 +136,7 @@ export const RegistrarApplicationDetail: React.FC<RegistrarApplicationDetailProp
             </Badge>
             <p className="text-xs text-muted-foreground">
               {application.referenceCode} · {application.gradeApplied}
+              {application.academicYear ? ` · ${application.academicYear}` : ''}
               {application.sourceChannel ? ` · ${application.sourceChannel}` : ''}
             </p>
           </div>

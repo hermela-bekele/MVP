@@ -5,13 +5,15 @@ import { AlertTriangle, CheckCircle2, Lock, RefreshCw } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { readStoredSession } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
-import { academicResultsApi, type MissingResult, type ResultStatus, type SubjectTermResult } from '@/lib/academicResults';
+import { academicResultsApi, type MissingResult, type ResultChangeRequest, type ResultStatus, type SubjectTermResult } from '@/lib/academicResults';
 import { ContentCard } from '@/components/dashboard/ContentCard';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { Pagination } from '@/components/ui/pagination';
+import { Badge } from '@/components/ui/badge';
+import { FormField, formFieldInputClass } from '@/components/ui/form-field';
 
 const STUDENT_ROWS_PAGE_SIZE = 10;
 
@@ -44,6 +46,11 @@ export function VPAcademicResults() {
   const [confirmAction, setConfirmAction] = useState<'finalize' | 'reopen' | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [studentRowsPage, setStudentRowsPage] = useState(1);
+  const [reopenReason, setReopenReason] = useState('');
+  const [changeRequests, setChangeRequests] = useState<ResultChangeRequest[]>([]);
+  const [reviewTarget, setReviewTarget] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   const gradeOptions = useMemo(
     () => Array.from(new Set(classes.map((c) => c.grade))).map((g) => ({ value: g, label: g })),
@@ -100,10 +107,21 @@ export function VPAcademicResults() {
       .finally(() => setLoading(false));
   }, [schoolId, academicYear, gradeLevel, section, subject, teacherId, term, studentId, status]);
 
+  const loadChangeRequests = React.useCallback(() => {
+    academicResultsApi
+      .listChangeRequests({ schoolId, status: 'pending' })
+      .then(setChangeRequests)
+      .catch(() => setChangeRequests([]));
+  }, [schoolId]);
+
   useEffect(() => {
     load();
     setStudentRowsPage(1);
   }, [load]);
+
+  useEffect(() => {
+    loadChangeRequests();
+  }, [loadChangeRequests]);
 
   const subjectsInResults = useMemo(() => Array.from(new Set(results.map((r) => r.subject))).sort(), [results]);
   const studentRows = useMemo(() => {
@@ -136,14 +154,30 @@ export function VPAcademicResults() {
 
   const runAction = async (action: 'finalize' | 'reopen') => {
     if (!canFinalizeScope) return;
+    if (action === 'reopen' && !reopenReason.trim()) {
+      setActionError('A reason is required for emergency unlock.');
+      return;
+    }
     setActionBusy(true);
     setActionError(null);
     try {
-      const body = { gradeLevel, section, academicYear, term, schoolId };
-      if (action === 'finalize') await academicResultsApi.finalize(body);
-      else await academicResultsApi.reopen(body);
+      if (action === 'finalize') {
+        await academicResultsApi.finalize({ gradeLevel, section, academicYear, term, schoolId });
+      } else {
+        await academicResultsApi.reopen({
+          gradeLevel,
+          section,
+          academicYear,
+          term,
+          schoolId,
+          reason: reopenReason.trim(),
+          subject: subject || undefined,
+        });
+      }
       setConfirmAction(null);
+      setReopenReason('');
       load();
+      loadChangeRequests();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : `Failed to ${action} results.`);
     } finally {
@@ -151,8 +185,94 @@ export function VPAcademicResults() {
     }
   };
 
+  const runReview = async () => {
+    if (!reviewTarget) return;
+    setReviewBusy(true);
+    setActionError(null);
+    try {
+      if (reviewTarget.action === 'approve') {
+        await academicResultsApi.approveChangeRequest(reviewTarget.id, { reviewNote: reviewNote.trim() || undefined });
+      } else {
+        await academicResultsApi.rejectChangeRequest(reviewTarget.id, { reviewNote: reviewNote.trim() || undefined });
+      }
+      setReviewTarget(null);
+      setReviewNote('');
+      load();
+      loadChangeRequests();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to review change request.');
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <TablePanel
+        title="Edit approval requests"
+        description={
+          changeRequests.length
+            ? `${changeRequests.length} pending teacher request${changeRequests.length === 1 ? '' : 's'}`
+            : 'No pending teacher edit requests'
+        }
+      >
+        {changeRequests.length === 0 ? (
+          <p className="px-3 py-4 text-sm text-muted-foreground">Teachers request approval here after results are submitted or finalized.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/60 text-left text-xs uppercase text-muted-foreground">
+                <th className="px-3 py-2">Teacher</th>
+                <th className="px-3 py-2">Scope</th>
+                <th className="px-3 py-2">Reason</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {changeRequests.map((req) => (
+                <tr key={req.id} className="border-b border-border/40">
+                  <td className="px-3 py-2 font-medium">{req.teacherName || req.teacherId}</td>
+                  <td className="px-3 py-2">
+                    {req.subject} · {req.gradeLevel} · {req.section} · {req.term}
+                    <div className="text-xs text-muted-foreground">{req.academicYear}</div>
+                  </td>
+                  <td className="max-w-xs px-3 py-2 text-muted-foreground">{req.reason}</td>
+                  <td className="px-3 py-2">
+                    <Badge variant="warning">Pending</Badge>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="organic"
+                        className="border-none"
+                        onClick={() => {
+                          setReviewTarget({ id: req.id, action: 'approve' });
+                          setReviewNote('');
+                        }}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setReviewTarget({ id: req.id, action: 'reject' });
+                          setReviewNote('');
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </TablePanel>
+
       <ContentCard title="Filters" description="Narrow down results by scope, then finalize a class + term">
         <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           <Select
@@ -209,10 +329,13 @@ export function VPAcademicResults() {
               size="sm"
               variant="outline"
               leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-              onClick={() => setConfirmAction('reopen')}
+              onClick={() => {
+                setReopenReason('');
+                setConfirmAction('reopen');
+              }}
               disabled={actionBusy}
             >
-              Reopen
+              Emergency unlock
             </Button>
             <Button
               size="sm"
@@ -302,25 +425,94 @@ export function VPAcademicResults() {
 
       <Dialog
         isOpen={confirmAction != null}
-        onClose={() => setConfirmAction(null)}
-        title={confirmAction === 'finalize' ? 'Finalize results?' : 'Reopen results?'}
+        onClose={() => {
+          if (!actionBusy) {
+            setConfirmAction(null);
+            setReopenReason('');
+          }
+        }}
+        title={confirmAction === 'finalize' ? 'Finalize results?' : 'Emergency unlock?'}
         description={
           confirmAction === 'finalize'
-            ? `This locks all submitted results for ${gradeLevel} · ${section} · ${academicYear} · ${term} and computes final averages and ranks. Teachers won't be able to edit them until reopened.`
-            : `This unlocks finalized results for ${gradeLevel} · ${section} · ${academicYear} · ${term} for editing again, and clears the stored ranking for this scope.`
+            ? `This locks all submitted results for ${gradeLevel} · ${section} · ${academicYear} · ${term} and computes final averages and ranks. Teachers will need edit approval to change them afterward.`
+            : `Unlocks submitted/finalized results for ${gradeLevel} · ${section} · ${academicYear} · ${term}${subject ? ` · ${subject}` : ''} for editing. Prefer approving a teacher change request when possible.`
         }
       >
+        {confirmAction === 'reopen' && (
+          <FormField label="Reason (required)" className="mt-2">
+            <textarea
+              className={formFieldInputClass}
+              rows={3}
+              value={reopenReason}
+              onChange={(e) => setReopenReason(e.target.value)}
+              placeholder="Why is an emergency unlock needed?"
+            />
+          </FormField>
+        )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionBusy}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setConfirmAction(null);
+              setReopenReason('');
+            }}
+            disabled={actionBusy}
+          >
             Cancel
           </Button>
           <Button
             variant={confirmAction === 'finalize' ? 'organic' : 'destructive'}
             className={confirmAction === 'finalize' ? 'border-none' : ''}
             onClick={() => confirmAction && runAction(confirmAction)}
-            disabled={actionBusy}
+            disabled={actionBusy || (confirmAction === 'reopen' && !reopenReason.trim())}
           >
-            {actionBusy ? 'Working…' : confirmAction === 'finalize' ? 'Finalize' : 'Reopen'}
+            {actionBusy ? 'Working…' : confirmAction === 'finalize' ? 'Finalize' : 'Unlock'}
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      <Dialog
+        isOpen={reviewTarget != null}
+        onClose={() => {
+          if (!reviewBusy) {
+            setReviewTarget(null);
+            setReviewNote('');
+          }
+        }}
+        title={reviewTarget?.action === 'approve' ? 'Approve edit request?' : 'Reject edit request?'}
+        description={
+          reviewTarget?.action === 'approve'
+            ? 'The teacher will get a 48-hour edit window for this subject/term, then must resubmit.'
+            : 'The teacher will stay locked out of this subject/term.'
+        }
+      >
+        <FormField label="Review note (optional)" className="mt-2">
+          <textarea
+            className={formFieldInputClass}
+            rows={3}
+            value={reviewNote}
+            onChange={(e) => setReviewNote(e.target.value)}
+            placeholder="Optional note for the record"
+          />
+        </FormField>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setReviewTarget(null);
+              setReviewNote('');
+            }}
+            disabled={reviewBusy}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant={reviewTarget?.action === 'approve' ? 'organic' : 'destructive'}
+            className={reviewTarget?.action === 'approve' ? 'border-none' : ''}
+            onClick={runReview}
+            disabled={reviewBusy}
+          >
+            {reviewBusy ? 'Working…' : reviewTarget?.action === 'approve' ? 'Approve' : 'Reject'}
           </Button>
         </DialogFooter>
       </Dialog>

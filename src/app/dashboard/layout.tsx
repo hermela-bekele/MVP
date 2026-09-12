@@ -93,7 +93,7 @@ function DashboardCommandPalette() {
         { id: 'moe-messages', label: 'Message MOE' },
         { id: 'teachers-development', label: 'Teacher Development' },
         { id: 'manage-checkins', label: 'Wellness Check-ins' },
-        { id: 'account-settings', label: 'Portal Settings' },
+        { id: 'settings', label: 'Settings' },
       ];
 
       schoolHeadTabs.forEach(tab => {
