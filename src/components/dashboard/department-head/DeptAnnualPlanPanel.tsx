@@ -1111,7 +1111,11 @@ export const DeptAnnualPlanPanel: React.FC<{
               {publishedAnnuals.map((p) => (
                 <li
                   key={p.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm"
+                  className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm hover:bg-muted/40"
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest('button')) return;
+                    handleViewPublished(p);
+                  }}
                 >
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground truncate">{p.title}</p>

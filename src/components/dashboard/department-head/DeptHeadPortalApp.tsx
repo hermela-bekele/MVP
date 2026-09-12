@@ -136,7 +136,7 @@ export default function DeptHeadPortalApp() {
     approveAssessment,
     rejectAssessment,
     disseminateAssessment,
-    addTeacher,
+    updateTeacher,
     checkIns,
     addTrainingMaterial,
     disseminateTrainingMaterial,
@@ -191,6 +191,7 @@ export default function DeptHeadPortalApp() {
   const [newTeacherCert, setNewTeacherCert] = useState(
     "Professional License A",
   );
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
 
   // Study resources upload state
   const [isResourceUploadOpen, setIsResourceUploadOpen] = useState(false);
@@ -207,7 +208,7 @@ export default function DeptHeadPortalApp() {
   );
 
   const departmentAssessments = useMemo(
-    () => (scope ? filterBySubjectScope(assessments, scope) : []),
+    () => (scope ? filterBySubjectScope(assessments, scope).filter((assessment) => assessment.status !== "Draft") : []),
     [assessments, scope],
   );
 
@@ -517,24 +518,16 @@ export default function DeptHeadPortalApp() {
 
   const handleOnboardTeacher = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeacherName || !newTeacherEmail || !newTeacherPhone || !scope) return;
-
-    addTeacher({
-      name: newTeacherName,
-      email: newTeacherEmail,
-      phone: newTeacherPhone,
-      subjects: [scope.subject],
-      grades: [newTeacherGrade],
-      certification: newTeacherCert || "Professional License A",
-      schoolId: scope.schoolId,
+    if (!selectedTeacherId || !scope) return;
+    const teacher = teachers.find((t) => t.id === selectedTeacherId);
+    if (!teacher) return;
+    updateTeacher(teacher.id, {
       departmentId: scope.departmentId,
-      yearsOfExperience: 0,
+      subjects: teacher.subjects.includes(scope.subject)
+        ? teacher.subjects
+        : [...teacher.subjects, scope.subject],
     });
-
-    // Reset fields
-    setNewTeacherName("");
-    setNewTeacherEmail("");
-    setNewTeacherPhone("");
+    setSelectedTeacherId("");
     setIsOnboardOpen(false);
   };
 
@@ -609,8 +602,8 @@ export default function DeptHeadPortalApp() {
       subtitle: "Recurrent questionnaire towards general challenges and school improvement ideas.",
     },
     "leadership-development": {
-      title: "ELEP · Leadership Development",
-      subtitle: "Education Leadership Excellence Program modules for department heads.",
+      title: "Leadership Development",
+      subtitle: "Leadership development modules for department heads.",
     },
     profile: { title: "My Profile & Preferences", subtitle: "Your department head account information." },
     settings: { title: "My Profile & Preferences", subtitle: "Your department head account information." },
@@ -1429,7 +1422,7 @@ export default function DeptHeadPortalApp() {
               { label: 'School', value: schoolName },
               { label: 'Subject overseen', value: scope?.subject ?? '—' },
               { label: 'Department', value: department?.name ?? scope?.subject ?? '—' },
-              { label: 'Leadership track', value: 'ELEP' },
+              { label: 'Leadership track', value: 'Leadership Development' },
               { label: 'Auto-notify on new submissions', value: 'Enabled' },
             ]}
           />
@@ -1671,90 +1664,18 @@ export default function DeptHeadPortalApp() {
               onSubmit={handleOnboardTeacher}
               className="space-y-4 text-left"
             >
-              <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Teacher Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newTeacherName}
-                  onChange={(e) => setNewTeacherName(e.target.value)}
-                  placeholder="e.g. Ato Teshome Belay"
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    School Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={newTeacherEmail}
-                    onChange={(e) => setNewTeacherEmail(e.target.value)}
-                    placeholder="teshome.b@prime.edu.et"
-                    className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Contact Phone Line
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newTeacherPhone}
-                    onChange={(e) => setNewTeacherPhone(e.target.value)}
-                    placeholder="+251-911-XXXXXX"
-                    className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Primary Subject
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={scope?.subject ?? "Mathematics"}
-                    className="w-full h-10 px-3 bg-muted/60 border border-border rounded-md text-xs text-foreground"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Grade Level Assignment
-                  </label>
-                  <Select
-                    options={[
-                      { value: "Grade 9", label: "Grade 9" },
-                      { value: "Grade 10", label: "Grade 10" },
-                      { value: "Grade 11", label: "Grade 11" },
-                      { value: "Grade 12", label: "Grade 12" },
-                    ]}
-                    value={newTeacherGrade}
-                    onChange={(e) => setNewTeacherGrade(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Certification / Licensing Level
-                </label>
-                <input
-                  type="text"
-                  value={newTeacherCert}
-                  onChange={(e) => setNewTeacherCert(e.target.value)}
-                  placeholder="e.g. Professional License A"
-                  className="w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none"
-                />
-              </div>
+              <Select
+                label="Teacher from school-head roster"
+                required
+                options={teachers
+                  .filter((teacher) => teacher.schoolId === scope?.schoolId)
+                  .map((teacher) => ({ value: teacher.id, label: `${teacher.name} · ${teacher.email}` }))}
+                value={selectedTeacherId}
+                onChange={(e) => setSelectedTeacherId(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                This list comes from the school-head teacher roster. Assigning a teacher updates that existing record and does not create a duplicate account.
+              </p>
 
               <DialogFooter className="mt-6 border-t border-border/40 pt-4">
                 <Button
@@ -1768,6 +1689,7 @@ export default function DeptHeadPortalApp() {
                 <Button
                   type="submit"
                   variant="organic"
+                  disabled={!selectedTeacherId}
                   className="text-xs h-10 border-none cursor-pointer"
                 >
                   Assign to Department

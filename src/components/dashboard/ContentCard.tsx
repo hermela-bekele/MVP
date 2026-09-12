@@ -24,7 +24,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   noPadding = false,
   live = false,
 }) => (
-  <Card className={`group relative overflow-hidden border-border/70 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md ${className}`}>
+  <Card className={`group relative overflow-visible border-border/70 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md ${className}`}>
     {/* Decorative gradient accent */}
     <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
     

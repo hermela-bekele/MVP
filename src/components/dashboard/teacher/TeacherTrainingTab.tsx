@@ -91,7 +91,7 @@ export const TeacherTrainingTab: React.FC<{
   const program: "TIP" | "STEP" | null =
     activeTabType === "training-induction" ? "TIP" : activeTabType === "training-continuous" ? "STEP" : null;
 
-  // "Assigned to Me" shows every assignment regardless of program; the TIP/STEP-specific
+  // "Assigned to Me" shows every assignment regardless of program; the programme-specific
   // views stay scoped to their own program.
   const assignedModules = isAssignedToMeView
     ? teacherTrainingAssignments.filter((a) => a.teacherId === teacher.id)

@@ -81,7 +81,13 @@ const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
 export function resolveResourceUrl(url: string | undefined | null): string {
   if (!url) return '';
   const match = url.match(/\/uploads\/.+$/);
-  return match ? `${API_BASE}${match[0]}` : url;
+  if (!match) return url;
+  // Relative upload paths must stay on the deployed frontend origin when the API
+  // host is private or configured only for server-side requests.
+  if (typeof window !== 'undefined' && window.location.protocol !== 'file:') {
+    return `${window.location.origin}${match[0]}`;
+  }
+  return `${API_BASE}${match[0]}`;
 }
 
 export async function uploadFile(file: File): Promise<string> {

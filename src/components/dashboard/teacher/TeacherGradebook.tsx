@@ -138,7 +138,6 @@ export const TeacherGradebook: React.FC = () => {
     deleteStudentGradeEntry,
     resolveTeacherId,
     addNotification,
-    refreshFromApi,
   } = useApp();
   const teacherId = resolveTeacherId();
   const teacherProfile = resolveTeacherProfile(teachers, teacherId);
@@ -222,7 +221,8 @@ export const TeacherGradebook: React.FC = () => {
     refreshResultStatus();
   }, [refreshResultStatus]);
 
-  const isLocked = resultStatus === 'submitted' || resultStatus === 'finalized';
+  const isLocked = resultStatus === 'finalized';
+  const canAddResult = roster.length > 0;
 
   const handleSubmitResults = async () => {
     setSubmitting(true);
@@ -358,7 +358,6 @@ export const TeacherGradebook: React.FC = () => {
     );
 
   const openAdd = (studentId?: string, col?: ColumnDef) => {
-    void refreshFromApi();
     setEditingId(undefined);
     setSelectedStudentId(studentId || roster[0]?.id || '');
     const nextType = col?.entryType ?? 'Quiz';
@@ -464,7 +463,7 @@ export const TeacherGradebook: React.FC = () => {
         <AisBtnPrimary
           type="button"
           onClick={() => openAdd()}
-          disabled={roster.length === 0 || isLocked}
+          disabled={!canAddResult}
         >
           <Plus className="h-3.5 w-3.5" aria-hidden />
           Add result
@@ -473,7 +472,7 @@ export const TeacherGradebook: React.FC = () => {
 
       {isLocked && (
         <p className={`${aisBodySm} text-muted-foreground`}>
-          Editing is locked until an Academic Head reopens this class/subject/term.
+          Editing is locked after an Academic Head finalizes this class/subject/term.
         </p>
       )}
 
@@ -572,8 +571,7 @@ export const TeacherGradebook: React.FC = () => {
                                 type="button"
                                 className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                                 onClick={() => openAdd(std.id, col)}
-                                disabled={isLocked}
-                                title={isLocked ? 'Locked — submitted for review' : 'Add result'}
+                                title="Add result"
                               >
                                 —
                               </button>
@@ -603,7 +601,7 @@ export const TeacherGradebook: React.FC = () => {
                         );
                       })}
                       <AisTd className="text-center">
-                        <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
+                        <AisStatusBadge variant={termAvg == null ? 'neutral' : termAvg >= 70 ? 'success' : 'warning'}>
                           {termAvg != null ? `${termAvg}%` : '—'}
                         </AisStatusBadge>
                       </AisTd>
@@ -611,7 +609,7 @@ export const TeacherGradebook: React.FC = () => {
                         <AisBtnSecondary
                           className="!px-2 !py-1 text-[10px]"
                           onClick={() => openAdd(std.id)}
-                          disabled={isLocked}
+                          disabled={false}
                         >
                           + Score
                         </AisBtnSecondary>

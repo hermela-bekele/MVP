@@ -19,6 +19,7 @@ import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRend
 import { MathRenderer } from '@/components/ui/MathRenderer';
 import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
 import {
+  assessmentQuestionsToMarkdown,
   assessmentToMarkdown,
   generatePDFFromMarkdown,
   printMarkdown,
@@ -51,7 +52,7 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
   const { assessments, currentUser, approveAssessment, rejectAssessment, addNotification } = useApp();
   const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
   const departmentAssessments = useMemo(
-    () => (scope ? filterBySubjectScope(assessments, scope) : []),
+    () => (scope ? filterBySubjectScope(assessments, scope).filter((assessment) => assessment.status !== 'Draft') : []),
     [assessments, scope],
   );
   const assessment = useMemo(
@@ -103,7 +104,7 @@ export const DeptAssessmentReview: React.FC<DeptAssessmentReviewProps> = ({ asse
     setIsGeneratingPDF(true);
     try {
       await generatePDFFromMarkdown(
-        assessmentToMarkdown(assessment),
+        assessmentQuestionsToMarkdown(assessment),
         `${slugifyFilename(assessment.title)}.pdf`,
         assessment.title,
       );

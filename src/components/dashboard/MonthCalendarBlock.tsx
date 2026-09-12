@@ -35,6 +35,14 @@ function clampIso(iso: string, start: string, end: string): string {
   return iso;
 }
 
+function skipPagume(year: number, month: number, delta: number) {
+  if (month === 13) return { year: year + (delta > 0 ? 1 : -1), month: delta > 0 ? 1 : 12 };
+  const next = month + delta;
+  if (next === 13) return { year: year + (delta > 0 ? 1 : -1), month: delta > 0 ? 1 : 12 };
+  if (next === 0) return { year: year - 1, month: 12 };
+  return { year, month: next };
+}
+
 /** Prefer a date inside an Ethiopian month that stays within calendar bounds. */
 function focusDateInEthiopianMonth(
   ethYear: number,
@@ -118,9 +126,11 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
       year={year}
       month={month}
       onMonthChange={(ny, nm) => {
-        setYear(ny);
-        setMonth(nm);
-        setSelectedDate(focusDateInEthiopianMonth(ny, nm, bounds, clientToday ?? focusIso));
+        const direction = (month === 12 && nm === 1) || (month !== 1 && nm > month) ? 1 : -1;
+        const visible = skipPagume(ny, nm, direction);
+        setYear(visible.year);
+        setMonth(visible.month);
+        setSelectedDate(focusDateInEthiopianMonth(visible.year, visible.month, bounds, clientToday ?? focusIso));
       }}
       events={events}
       assignments={assignments}

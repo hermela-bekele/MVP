@@ -12,6 +12,7 @@ import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
 import { filterTeacherAssessments, resolveTeacherProfile } from '@/lib/teacherPortal';
 import type { Assessment } from '@/lib/mockData';
 import {
+  assessmentQuestionsToMarkdown,
   assessmentToMarkdown,
   generatePDFFromMarkdown,
   printMarkdown,
@@ -114,7 +115,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
     setIsGeneratingPDF(true);
     try {
       await generatePDFFromMarkdown(
-        assessmentToMarkdown(assessment),
+        assessmentQuestionsToMarkdown(assessment),
         `${slugifyFilename(assessment.title)}.pdf`,
         assessment.title,
       );

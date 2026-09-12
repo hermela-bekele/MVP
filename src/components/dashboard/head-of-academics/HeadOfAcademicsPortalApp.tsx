@@ -127,7 +127,7 @@ export default function HeadOfAcademicsPortalApp() {
       case 'resources':
         return { title: 'School Resources', subtitle: 'Upload and disseminate school-wide pedagogy and policy materials.' };
       case 'my-development':
-        return { title: 'My Development', subtitle: 'Your own ELEP leadership learning — personal, not a teacher\'s learning path' };
+        return { title: 'My Development', subtitle: 'Your own leadership learning — personal, not a teacher\'s learning path' };
       case 'school-development':
         return { title: 'School Professional Development', subtitle: 'Teacher development aggregated by department, programme, completion, development need, and impact' };
       case 'communication':

@@ -102,7 +102,7 @@ export default function SchoolHeadPortalPage() {
       case 'department-messages': return [...base, { label: 'Direct Messages' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
       case 'account-settings': return [...base, { label: 'Portal Settings' }];
-      case 'leadership-development': return [...base, { label: 'ELEP Leadership Development' }];
+      case 'leadership-development': return [...base, { label: 'Leadership Development' }];
       case 'profile': return [...base, { label: 'My Profile' }];
       case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
       default: return base;
@@ -224,7 +224,7 @@ export default function SchoolHeadPortalPage() {
       subtitle: 'Adjust school coordinates visible on regional reports and update administrative password credentials.',
     },
     'leadership-development': {
-      title: 'ELEP · Leadership Development',
+      title: 'Leadership Development',
       subtitle: 'Education Leadership Excellence Program modules for school heads.',
     },
     profile: {
@@ -650,7 +650,7 @@ export default function SchoolHeadPortalPage() {
           {/* 13. Settings Panel */}
           {activeTab === 'account-settings' && <SettingsPanel />}
 
-          {/* 14. ELEP Leadership Development */}
+          {/* 14. Leadership Development */}
           {activeTab === 'leadership-development' && (
             <div className="animate-fade-in text-left">
               <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
@@ -669,7 +669,7 @@ export default function SchoolHeadPortalPage() {
                 roleLabel="School Head"
                 fields={[
                   { label: 'School', value: schoolName },
-                  { label: 'Leadership track', value: 'ELEP' },
+                  { label: 'Leadership track', value: 'Leadership Development' },
                   { label: 'Departments overseen', value: departments.length },
                 ]}
               />
