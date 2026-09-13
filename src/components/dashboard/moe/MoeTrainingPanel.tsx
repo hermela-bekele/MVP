@@ -16,10 +16,10 @@ const PROGRAM_CATEGORIES = ['Pedagogy', 'Leadership', 'ICT & Digital Literacy', 
 const RESOURCE_CATEGORIES = ['Pedagogy', 'MOE Mandatory', 'STEM', 'Assessment', 'Subject Specialty', 'Curriculum Integration'];
 
 const TYPE_LABEL: Record<TrainingPlanType, string> = {
-  continuous_development: 'Continuous Development',
+  continuous_development: 'Continuous Development Training',
   in_person: 'In-Person Training Session',
 };
-const STATUS_LABEL: Record<TrainingPlanStatus, string> = {
+const STATUS_LABEL: Record<string, string> = {
   planned: 'Planned',
   in_progress: 'In Progress',
   completed: 'Completed',

@@ -181,7 +181,7 @@ export default function SchoolHeadPortalPage() {
       subtitle: 'Cross-functional read-only view of school billing and collections.',
     },
     'moe-updates': {
-      title: 'MOE Updates & Compliance',
+      title: 'Academic Year Milestones',
       subtitle: 'Ministry of Education circulars and compliance milestones for this academic year.',
     },
     'moe-messages': {

@@ -14,7 +14,7 @@ const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 const TYPE_LABEL: Record<TrainingPlanType, string> = {
-  continuous_development: 'Continuous Development',
+  continuous_development: 'Continuous Development Training',
   in_person: 'In-Person Training Session',
 };
 
@@ -201,7 +201,7 @@ export function HrTrainingPlanningPanel() {
   return (
     <TablePanel
       title="Training Planning"
-      description="Schedule Continuous Development tracks or In-Person sessions and assign them to teachers or academic teams."
+      description="Schedule Online Training Sessions or In-Person sessions and assign them to teachers or academic teams."
     >
       <DataTable columns={columns} data={trainingPlans} emptyTitle="No trainings planned yet." />
 
@@ -214,7 +214,7 @@ export function HrTrainingPlanningPanel() {
           <div>
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Type</label>
             <select className={inputClass} value={type} onChange={(e) => setType(e.target.value as TrainingPlanType)}>
-              <option value="continuous_development">Continuous Development</option>
+              <option value="continuous_development">Continuous Development Training</option>
               <option value="in_person">In-Person Training Session</option>
             </select>
           </div>

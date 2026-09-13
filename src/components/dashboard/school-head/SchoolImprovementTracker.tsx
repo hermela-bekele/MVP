@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, type LeadershipAction } from '@/lib/api';
+import { useApp } from '@/context/AppContext';
 import { readStoredSession } from '@/lib/auth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,25 @@ import { Target } from 'lucide-react';
 export function SchoolImprovementTracker() {
   const session = readStoredSession();
   const schoolId = session?.schoolId || 'sch-1';
+  const { activeRole, currentUser, teachers, hrEmployees } = useApp();
+
+  const ownerOptions = useMemo(() => {
+    const byName = new Map<string, string>();
+    teachers.forEach((teacher) => {
+      if (teacher.schoolId === schoolId && teacher.status === 'Active') {
+        byName.set(teacher.name, teacher.name);
+      }
+    });
+    hrEmployees.forEach((employee) => {
+      if (employee.schoolId === schoolId && employee.status === 'Active') {
+        byName.set(employee.name, employee.name);
+      }
+    });
+    return Array.from(byName.keys()).sort((a, b) => a.localeCompare(b));
+  }, [teachers, hrEmployees, schoolId]);
+
+  const viewerIsSchoolHead = activeRole === 'school-head';
+  const selectedEmployeeName = currentUser?.displayName ?? '';
 
   const [initiatives, setInitiatives] = useState<LeadershipAction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +68,12 @@ export function SchoolImprovementTracker() {
   useEffect(() => { load(); }, [load]);
 
   const resetForm = () => { setIssue(''); setOwner(''); setDueDate(''); setDecisionRequired(''); setFormError(''); };
+
+  const visibleInitiatives = useMemo(() => {
+    if (viewerIsSchoolHead) return initiatives;
+    if (!selectedEmployeeName) return [];
+    return initiatives.filter((initiative) => initiative.owner === selectedEmployeeName);
+  }, [viewerIsSchoolHead, selectedEmployeeName, initiatives]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,30 +139,39 @@ export function SchoolImprovementTracker() {
         {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
         {loading ? (
           <p className="text-xs text-muted-foreground py-6 text-center">Loading…</p>
-        ) : initiatives.length === 0 ? (
+        ) : visibleInitiatives.length === 0 ? (
           <EmptyState icon={<Target />} title="No improvement initiatives yet" description="Track your school's quality and improvement priorities here." />
         ) : (
           <div className="space-y-4">
-            {initiatives.map((i) => {
+            {visibleInitiatives.map((i) => {
               const overdue = i.dueDate && i.dueDate < today && i.status !== 'resolved';
+              const isOwnerForThisItem = !viewerIsSchoolHead && selectedEmployeeName && i.owner === selectedEmployeeName;
               return (
                 <div key={i.id} className="rounded-xl border border-border/60 p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-bold text-foreground">{i.issue}</p>
+                    <p className="text-sm font-bold text-foreground">
+                      {viewerIsSchoolHead ? 'Initiative progress' : i.issue}
+                    </p>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Badge variant={i.status === 'resolved' ? 'success' : overdue ? 'danger' : 'neutral'} badgeStyle="subtle" size="sm">
                         {i.status === 'resolved' ? 'Completed' : overdue ? 'Overdue' : i.status === 'in_progress' ? 'In Progress' : 'Open'}
                       </Badge>
                     </div>
                   </div>
+
                   <MetricProgressRow label="Progress" value={i.progressPercent ?? 0} barClassName="bg-primary" />
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>
-                      {i.owner && <>Owner: <strong className="text-foreground">{i.owner}</strong></>}
-                      {i.dueDate && <> · Due: <strong className="text-foreground">{i.dueDate}</strong></>}
-                    </span>
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openEdit(i)}>Update</Button>
-                  </div>
+
+                  {!viewerIsSchoolHead && (
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>
+                        {i.owner && <>Owner: <strong className="text-foreground">{i.owner}</strong></>}
+                        {i.dueDate && <> · Due: <strong className="text-foreground">{i.dueDate}</strong></>}
+                      </span>
+                      {isOwnerForThisItem && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openEdit(i)}>Update</Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -152,7 +187,12 @@ export function SchoolImprovementTracker() {
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Owner">
-              <input className={formFieldInputClass} value={owner} onChange={(e) => setOwner(e.target.value)} />
+              <select className={formFieldInputClass} value={owner} onChange={(e) => setOwner(e.target.value)}>
+                <option value="">Unassigned</option>
+                {ownerOptions.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
             </FormField>
             <FormField label="Deadline">
               <input type="date" className={formFieldInputClass} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
@@ -176,6 +216,21 @@ export function SchoolImprovementTracker() {
             </FormField>
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
+              <Button type="button" variant="organic" size="sm" className="border-none" onClick={async () => {
+                const resolvedProgress = 100;
+                setEditProgress(resolvedProgress);
+                setEditStatus('resolved');
+                try {
+                  const updated = await api.updateLeadershipAction(editing.id, {
+                    progressPercent: resolvedProgress,
+                    status: 'resolved',
+                  });
+                  setInitiatives((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+                  setEditing(null);
+                } catch {
+                  setError('Could not complete this initiative.');
+                }
+              }}>Mark Complete</Button>
               <Button type="button" variant="organic" size="sm" className="border-none" onClick={saveEdit}>Save</Button>
             </DialogFooter>
           </div>
