@@ -21,7 +21,7 @@ const RATING_LABELS: Record<number, string> = {
 };
 
 /**
- * STEP self-assessment rubric. Teachers self-rate 1-5 against nine competencies;
+ * Teacher Development self-assessment rubric. Teachers self-rate 1-5 against nine competencies;
  * the result is recorded and visible to their HoD alongside AI gap-analysis data
  * so the HoD can decide what to assign on the Teacher Development page.
  */

@@ -83,12 +83,12 @@ test('filterTeacherLessonPlans: hides an annual plan still pending department he
 });
 
 // TR-003: automatic professional pathway — never manually chosen by the teacher.
-test('getTeacherExperienceLevel: under 2 years defaults to new (TIP)', () => {
+test('getTeacherExperienceLevel: under 2 years defaults to new (Induction)', () => {
   assert.equal(getTeacherExperienceLevel({ yearsOfExperience: 0, experienceOverride: null }), 'new');
   assert.equal(getTeacherExperienceLevel({ yearsOfExperience: 1, experienceOverride: null }), 'new');
 });
 
-test('getTeacherExperienceLevel: 2+ years defaults to experienced (STEP)', () => {
+test('getTeacherExperienceLevel: 2+ years defaults to experienced (Teacher Development)', () => {
   assert.equal(getTeacherExperienceLevel({ yearsOfExperience: 2, experienceOverride: null }), 'experienced');
   assert.equal(getTeacherExperienceLevel({ yearsOfExperience: 15, experienceOverride: null }), 'experienced');
 });

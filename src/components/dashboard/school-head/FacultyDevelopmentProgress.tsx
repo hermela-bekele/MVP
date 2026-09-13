@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { computeTeacherDevelopmentRollup, computeScheduledTrainingRollup } from '@/lib/schoolHeadAnalytics';
 
 const PROGRAM_LABELS: Record<string, string> = {
-  TIP: 'Teacher Development Courses (TIP)',
-  STEP: 'Teacher Development Courses (STEP)',
-  ELEP: 'Leadership Courses (ELEP)',
+  Induction: 'Teacher Development Courses (Induction)',
+  Teacher Development: 'Teacher Development Courses (Teacher Development)',
+  Leadership: 'Leadership Courses (Leadership)',
 };
 
 /**
@@ -81,7 +81,7 @@ export const FacultyDevelopmentProgress: React.FC<{ schoolId?: string }> = ({ sc
       {rollup.totalAssignments === 0 ? (
         <Card className="border-border/60">
           <CardContent className="pt-6 text-center text-xs text-muted-foreground">
-            No TIP/STEP/ELEP module assignments have been recorded for this school&apos;s faculty yet.
+            No Induction/Teacher Development/Leadership module assignments have been recorded for this school&apos;s faculty yet.
           </CardContent>
         </Card>
       ) : (

@@ -10,7 +10,7 @@ import { Inbox } from 'lucide-react';
 import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { TRAINING_MODULES } from '@/lib/trainingModules';
 import { TIP_MODULES } from '@/lib/inductionModules';
-import { ELEP_MODULES } from '@/lib/leadershipModules';
+import { Leadership_MODULES } from '@/lib/leadershipModules';
 import { CONTINUOUS_DEVELOPMENT_MODULES } from '@/lib/continuousDevelopmentModules';
 
 /** Which of the four learning tracks a module belongs to — resolved from the module
@@ -20,7 +20,7 @@ import { CONTINUOUS_DEVELOPMENT_MODULES } from '@/lib/continuousDevelopmentModul
 function programmeForModule(moduleId: string): string {
   if (TRAINING_MODULES.some((m) => m.id === moduleId)) return 'Subject-Matter Training';
   if (TIP_MODULES.some((m) => m.id === moduleId)) return 'Induction';
-  if (ELEP_MODULES.some((m) => m.id === moduleId)) return 'Leadership Development';
+  if (Leadership_MODULES.some((m) => m.id === moduleId)) return 'Leadership Development';
   if (CONTINUOUS_DEVELOPMENT_MODULES.some((m) => m.id === moduleId)) return 'Continuous Development';
   return 'Other';
 }

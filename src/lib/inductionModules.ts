@@ -1,5 +1,5 @@
-// Teacher Induction Program (TIP) modules — shown to teachers with < 2 years of
-// experience (or manually flagged "new" by their HoD) in place of / alongside STEP.
+// Teacher Induction Program (Induction) modules — shown to teachers with < 2 years of
+// experience (or manually flagged "new" by their HoD) in place of / alongside Teacher Development.
 // Reuses the same TrainingModule shape as continuousDevelopmentModules.ts so the
 // existing session/assessment viewer in TeacherTrainingTab works unchanged.
 
@@ -8,7 +8,7 @@ import type { TrainingModule } from './continuousDevelopmentModules';
 export const TIP_MODULES: TrainingModule[] = [
   {
     id: 'tip-module-1',
-    title: 'TIP 1: Orientation to the Classroom & School Systems',
+    title: 'Induction 1: Orientation to the Classroom & School Systems',
     category: 'INDUCTION',
     description: 'Getting oriented: routines, records, and your first weeks in the classroom · 3 hrs',
     duration: '3 Hours',
@@ -109,7 +109,7 @@ Experienced teachers don't see a new colleague's question as weakness; they see 
 - A resource you can't find — check the Resources tab before escalating.
 
 ### Your induction support loop
-Your Department Head will check in on your teaching notes and delivered lessons through the portal. Treat their comments as the same kind of feedback loop you'd want from a mentor, because that's exactly what it is — it's how they'll know which STEP modules or coaching to line up for you later.`,
+Your Department Head will check in on your teaching notes and delivered lessons through the portal. Treat their comments as the same kind of feedback loop you'd want from a mentor, because that's exactly what it is — it's how they'll know which Teacher Development modules or coaching to line up for you later.`,
       },
     ],
     assessmentContent:
@@ -176,7 +176,7 @@ Your Department Head will check in on your teaching notes and delivered lessons 
   },
   {
     id: 'tip-module-2',
-    title: 'TIP 2: Classroom Management Foundations for New Teachers',
+    title: 'Induction 2: Classroom Management Foundations for New Teachers',
     category: 'INDUCTION',
     description: 'Practical, low-drama classroom management for your first year · 3 hrs',
     duration: '3 Hours',
@@ -236,7 +236,7 @@ When structure isn't enough and correction is needed, *how* you correct matters 
 - Never make the correction a public power struggle; if a student refuses in front of the class, disengage from the argument and follow up individually, then escalate through the department if it repeats.
 
 ### After the incident
-Log what happened factually (what, when, who) rather than emotionally, and mention it to your Department Head if it's a repeat pattern — not to get the student in trouble, but so the pattern is visible to the people who can support you, including through STEP/TIP coaching later.`,
+Log what happened factually (what, when, who) rather than emotionally, and mention it to your Department Head if it's a repeat pattern — not to get the student in trouble, but so the pattern is visible to the people who can support you, including through Teacher Development/Induction coaching later.`,
       },
     ],
     assessmentContent:

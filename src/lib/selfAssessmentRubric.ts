@@ -1,4 +1,4 @@
-// STEP (School-Based Teaching Excellence Program) self-assessment rubric.
+// Teacher Development (School-Based Teaching Excellence Program) self-assessment rubric.
 // Teachers self-rate each competency 1 (developing) – 5 (exemplary). The result
 // is recorded and shared with the HoD, who uses the weakest competency together
 // with AI gap-analysis on student results to decide what training to assign.

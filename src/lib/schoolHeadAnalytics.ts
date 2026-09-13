@@ -201,7 +201,7 @@ export interface ScheduledTrainingRollup {
 /**
  * Real completion/impact rollup for MOE/HR-scheduled training sessions
  * (training_plans / training_plan_assignments) — a genuinely separate
- * pipeline from the TIP/STEP/ELEP module system computeTeacherDevelopmentRollup
+ * pipeline from the Induction/Teacher Development/Leadership module system computeTeacherDevelopmentRollup
  * covers. Only individually-assigned (targetType='teacher') rows are counted:
  * a department-wide assignment has no per-person attendance to report.
  * notRecordedCount is surfaced explicitly rather than folded into "not
