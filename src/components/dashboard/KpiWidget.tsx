@@ -117,6 +117,8 @@ export interface KpiWidgetProps {
     description: React.ReactNode;
     detail?: React.ReactNode;
   };
+  /** Optional click handler to make the KPI card interactive */
+  onClick?: () => void;
 }
 
 /**
@@ -133,6 +135,7 @@ export const KpiWidget: React.FC<KpiWidgetProps> = ({
   animated = false,
   className = '',
   tooltip,
+  onClick,
 }) => {
   const styles = toneStyles[tone];
   const numericValue = typeof value === 'number' ? value : null;
@@ -140,7 +143,11 @@ export const KpiWidget: React.FC<KpiWidgetProps> = ({
 
   const card = (
     <div
-      className={`group relative w-full overflow-hidden rounded-lg border p-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] ${styles.card} ${className}`}
+      className={`group relative w-full overflow-hidden rounded-lg border p-4 transition-all duration-300 hover:shadow-md hover:scale-[1.02] ${styles.card} ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
     >
       {/* Gradient accent line */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-60" />
