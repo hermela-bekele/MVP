@@ -405,7 +405,7 @@ interface AppContextType {
     code?: string;
     trainingPlanId?: string;
   }) => void;
-  disseminateTrainingMaterial: (id: string) => void;
+  disseminateTrainingMaterial: (id: string, schoolId?: string) => void;
   addTrainingPlan: (data: {
     title: string;
     description?: string;
