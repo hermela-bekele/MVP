@@ -13,10 +13,9 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { staggerContainer, staggerItem } from "@/lib/animations";
 import { gpaToMark } from "@/lib/grading";
-import { computeLessonPlanRollup, computeTeacherDevelopmentRollup } from "@/lib/schoolHeadAnalytics";
+import { computeTeacherDevelopmentRollup } from "@/lib/schoolHeadAnalytics";
 import { PerformanceReports } from "@/components/dashboard/school-head/PerformanceReports";
 import { LeadershipAttentionQueue } from "@/components/dashboard/school-head/LeadershipAttentionQueue";
 import { SchoolImprovementTracker } from "@/components/dashboard/school-head/SchoolImprovementTracker";
@@ -31,7 +30,7 @@ import {
 export const OverviewDashboard: React.FC = () => {
   const {
     students, teachers, checkIns, classes, schools, currentUser,
-    departments, lessonPlans, leaveRequests, teacherTrainingAssignments,
+    leaveRequests, teacherTrainingAssignments,
   } = useApp();
 
   const currentSchool = schools.find((s) => s.id === currentUser?.schoolId) ?? schools[0];
@@ -99,14 +98,6 @@ export const OverviewDashboard: React.FC = () => {
     () => students.filter((s) => s.gpa < 2.0 || s.attendanceRate < 75).length,
     [students],
   );
-
-  // --- 2. Curriculum & Instruction: "Are we implementing the curriculum?" ---
-  const lessonPlanRollup = React.useMemo(
-    () => computeLessonPlanRollup(lessonPlans, schoolTeachers, departments, schoolTeacherIds),
-    [lessonPlans, schoolTeachers, departments, schoolTeacherIds],
-  );
-  const { approved: plansApproved, pendingReview: plansPending, returned: plansReturned, draft: plansDraft } = lessonPlanRollup;
-  const departmentIssues = lessonPlanRollup.departmentsWithRecurringIssues.slice(0, 3);
 
   // --- 3. People & Professional Development: "Are teachers and departments performing effectively?" ---
   const onLeaveTeachers = schoolTeachers.filter((t) => t.status === 'On Leave').length;
@@ -266,38 +257,6 @@ export const OverviewDashboard: React.FC = () => {
             />
           </div>
         </div>
-      </motion.div>
-
-      {/* 2. Curriculum & Instruction */}
-      <motion.div variants={staggerItem} className="space-y-3">
-        <div>
-          <h2 className="text-base font-bold text-title">Curriculum & Instruction</h2>
-          <p className="text-xs text-muted-foreground">Are we implementing the curriculum?</p>
-        </div>
-        <Card className="border-border/60">
-          <CardContent className="pt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-            <div className="grid grid-cols-3 gap-3">
-              <div><p className="text-xl font-bold text-foreground">{plansApproved}</p><p className="text-[10px] text-muted-foreground">Approved</p></div>
-              <div><p className="text-xl font-bold text-amber-600">{plansPending}</p><p className="text-[10px] text-muted-foreground">Pending review</p></div>
-              <div><p className="text-xl font-bold text-red-600">{plansReturned + plansDraft}</p><p className="text-[10px] text-muted-foreground">Draft / returned</p></div>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Departments with the most recurring issues</p>
-              {departmentIssues.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No outstanding lesson-plan issues.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {departmentIssues.map(({ name, unresolvedCount }) => (
-                    <div key={name} className="flex items-center justify-between text-xs">
-                      <span className="text-foreground">{name}</span>
-                      <Badge variant="warning" badgeStyle="subtle" size="sm">{unresolvedCount} unresolved</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </motion.div>
 
       {/* 3. People & Professional Development */}

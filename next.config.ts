@@ -1,6 +1,4 @@
 import type { NextConfig } from "next";
-// @ts-ignore - next-pwa doesn't have perfect types for Next.js 16
-import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   // Avoid EPERM on locked `.next/dev/trace` (Desktop/OneDrive/antivirus on Windows)
@@ -47,24 +45,34 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  // Cache all static resources, pages, and API routes
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/, // Match all HTTP/HTTPS requests
-      handler: 'NetworkFirst', // Try network first, fall back to cache
-      options: {
-        cacheName: 'prime-offline-cache',
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+let exportedConfig: NextConfig = nextConfig;
+
+try {
+  // Optional PWA wrapper. If the package is missing, the config still loads
+  // and the app can boot without crashing the Next TS config loader.
+  const withPWA = require('next-pwa').default as (cfg: Record<string, unknown>) => (base: NextConfig) => NextConfig;
+  exportedConfig = withPWA({
+    dest: 'public',
+    register: true,
+    skipWaiting: true,
+    disable: process.env.NODE_ENV === 'development',
+    runtimeCaching: [
+      {
+        urlPattern: /^https?.*/,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'prime-offline-cache',
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 30 * 24 * 60 * 60,
+          },
+          networkTimeoutSeconds: 10,
         },
-        networkTimeoutSeconds: 10,
       },
-    },
-  ],
-})(nextConfig);
+    ],
+  })(nextConfig);
+} catch {
+  // Keep the regular Next config usable when next-pwa is unavailable.
+}
+
+export default exportedConfig;

@@ -73,6 +73,14 @@ export default function MoePortalPage() {
   const [filterRegion, setFilterRegion] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
+  const [issueComplianceSchool, setIssueComplianceSchool] = useState<{ id: string; name: string } | null>(null);
+  const [issueComplianceRemark, setIssueComplianceRemark] = useState('');
+  const [issueComplianceActions, setIssueComplianceActions] = useState('');
+  const [issueComplianceAttachment, setIssueComplianceAttachment] = useState<File | null>(null);
+  const [complianceStatusBySchool, setComplianceStatusBySchool] = useState<Record<string, string>>({});
+  const [complianceActionsBySchool, setComplianceActionsBySchool] = useState<Record<string, string[]>>({});
+  const [complianceRemarksBySchool, setComplianceRemarksBySchool] = useState<Record<string, string>>({});
+  const [complianceAttachmentsBySchool, setComplianceAttachmentsBySchool] = useState<Record<string, string>>({});
 
   // Pagination state
   const SCHOOLS_PAGE_SIZE = 10;
@@ -86,24 +94,73 @@ export default function MoePortalPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [aiReportOutput, setAiReportOutput] = useState<string | null>(null);
 
-  const handleManageConnection = async (schoolId: string, schoolName: string, nextStatus: 'Active' | 'Suspended') => {
-    const ok = await confirm(
-      nextStatus === 'Suspended' ? `Deactivate ${schoolName}'s PRIME participation?` : `Reactivate ${schoolName}'s PRIME participation?`,
-      {
-        description:
-          nextStatus === 'Suspended'
-            ? 'Staff and students at this school will lose portal access until it is reactivated.'
-            : 'This school will regain full portal access immediately.',
-        confirmLabel: nextStatus === 'Suspended' ? 'Deactivate' : 'Reactivate',
-        danger: nextStatus === 'Suspended',
-      }
-    );
+  const handleSuspendSchool = async (schoolId: string, schoolName: string) => {
+    const ok = await confirm(`Suspend ${schoolName}'s PRIME participation?`, {
+      description: 'This will move the school into a suspended integration state and mark the school’s compliance status as suspended.',
+      confirmLabel: 'Suspend',
+      danger: true,
+    });
     if (!ok) return;
     try {
-      await updateSchoolIntegrationStatus(schoolId, nextStatus);
+      await updateSchoolIntegrationStatus(schoolId, 'Suspended');
+      setComplianceStatusBySchool((prev) => ({ ...prev, [schoolId]: 'Suspended' }));
+      addNotification('School Suspended', `${schoolName} is now marked suspended.`, 'success');
     } catch {
       addNotification('Action Failed', 'Could not update this school’s connection status.', 'alert');
     }
+  };
+
+  const saveIssueCompliance = () => {
+    if (!issueComplianceSchool) return;
+    const cleanRemark = issueComplianceRemark.trim();
+    const actionItems = issueComplianceActions
+      .split(/[\n,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    setComplianceStatusBySchool((prev) => ({
+      ...prev,
+      [issueComplianceSchool.id]: actionItems.length > 0 ? 'Action Required' : 'Compliance Issue',
+    }));
+    setComplianceRemarksBySchool((prev) => ({
+      ...prev,
+      [issueComplianceSchool.id]: cleanRemark || 'Compliance issue raised by MOE.',
+    }));
+    setComplianceActionsBySchool((prev) => ({
+      ...prev,
+      [issueComplianceSchool.id]: actionItems,
+    }));
+    if (issueComplianceAttachment) {
+      setComplianceAttachmentsBySchool((prev) => ({
+        ...prev,
+        [issueComplianceSchool.id]: issueComplianceAttachment.name,
+      }));
+    }
+    setIssueComplianceSchool(null);
+    setIssueComplianceRemark('');
+    setIssueComplianceActions('');
+    setIssueComplianceAttachment(null);
+    addNotification('Compliance Issue Raised', `Compliance remarks, actions, and attached document were recorded for ${issueComplianceSchool.name}.`, 'success');
+  };
+
+  const resolveIssueCompliance = (schoolId: string, schoolName: string) => {
+    setComplianceStatusBySchool((prev) => ({
+      ...prev,
+      [schoolId]: 'Compliant',
+    }));
+    setComplianceActionsBySchool((prev) => ({
+      ...prev,
+      [schoolId]: [],
+    }));
+    setComplianceRemarksBySchool((prev) => ({
+      ...prev,
+      [schoolId]: '',
+    }));
+    setComplianceAttachmentsBySchool((prev) => ({
+      ...prev,
+      [schoolId]: '',
+    }));
+    addNotification('Compliance Issue Resolved', `${schoolName} is again marked compliant.`, 'success');
   };
 
   const handleGenerateAIReport = () => {
@@ -428,54 +485,93 @@ export default function MoePortalPage() {
                       <th>Type</th>
                       <th>Principal</th>
                       <th>Enrollment</th>
+                      <th>No. of Teachers</th>
                       <th>Integration Status</th>
+                      <th>Compliance Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredSchools.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="text-center text-muted-foreground py-12">
+                        <td colSpan={10} className="text-center text-muted-foreground py-12">
                           No schools matching filter parameters were found in the registry.
                         </td>
                       </tr>
                     ) : (
-                      pagedSchools.map((sch) => (
-                        <tr key={sch.id}>
-                          <td className="font-mono font-semibold">{sch.code}</td>
-                          <td className="font-medium">{sch.name}</td>
-                          <td className="text-muted-foreground">{sch.region}</td>
-                          <td>
-                            <Badge variant="neutral" badgeStyle="subtle" size="sm">
-                              {sch.type}
-                            </Badge>
-                          </td>
-                          <td>{sch.principal}</td>
-                          <td className="text-muted-foreground">
-                            {sch.studentsCount} / {sch.capacity}
-                          </td>
-                          <td>
-                            <Badge
-                              variant={sch.status === 'Active' ? 'success' : 'danger'}
-                              badgeStyle="subtle"
-                              size="sm"
-                            >
-                              {sch.status}
-                            </Badge>
-                          </td>
-                          <td>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => void handleManageConnection(sch.id, sch.name, sch.status === 'Active' ? 'Suspended' : 'Active')}
-                              className="h-8 text-xs"
-                            >
-                              {sch.status === 'Active' ? 'Deactivate Connection' : 'Reactivate Connection'}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
+                      pagedSchools.map((sch) => {
+                        const complianceStatus = complianceStatusBySchool[sch.id] ?? (sch.status === 'Suspended' ? 'Suspended' : 'Compliant');
+                        const hasIssue = complianceStatus === 'Action Required' || complianceStatus === 'Compliance Issue';
+
+                        return (
+                          <tr key={sch.id}>
+                            <td className="font-mono font-semibold">{sch.code}</td>
+                            <td className="font-medium">{sch.name}</td>
+                            <td className="text-muted-foreground">{sch.region}</td>
+                            <td>
+                              <Badge variant="neutral" badgeStyle="subtle" size="sm">
+                                {sch.type}
+                              </Badge>
+                            </td>
+                            <td>{sch.principal}</td>
+                            <td className="text-muted-foreground">
+                              {sch.studentsCount} / {sch.capacity}
+                            </td>
+                            <td className="text-muted-foreground">
+                              {sch.teachersCount}
+                            </td>
+                            <td>
+                              <Badge
+                                variant={sch.status === 'Active' ? 'success' : 'danger'}
+                                badgeStyle="subtle"
+                                size="sm"
+                              >
+                                {sch.status}
+                              </Badge>
+                            </td>
+                            <td>
+                              <Badge
+                                variant={complianceStatus === 'Compliant' ? 'success' : complianceStatus === 'Suspended' ? 'danger' : 'warning'}
+                                badgeStyle="subtle"
+                                size="sm"
+                              >
+                                {complianceStatus}
+                              </Badge>
+                            </td>
+                            <td>
+                              <div className="flex flex-row items-center gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={hasIssue ? 'primary' : 'secondary'}
+                                  onClick={() => {
+                                    if (hasIssue) {
+                                      resolveIssueCompliance(sch.id, sch.name);
+                                      return;
+                                    }
+                                    setIssueComplianceSchool({ id: sch.id, name: sch.name });
+                                    setIssueComplianceRemark(complianceRemarksBySchool[sch.id] ?? '');
+                                    setIssueComplianceActions((complianceActionsBySchool[sch.id] ?? []).join('\n'));
+                                  }}
+                                  className={hasIssue ? 'h-8 text-xs bg-success text-success-foreground hover:bg-success/90' : 'h-8 text-xs bg-warning text-warning-foreground hover:bg-warning/90'}
+                                >
+                                  {hasIssue ? 'Resolve Issue' : 'Issue Compliance'}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => void handleSuspendSchool(sch.id, sch.name)}
+                                  disabled={sch.status === 'Suspended'}
+                                  className="h-8 text-xs"
+                                >
+                                  Suspend
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -491,6 +587,62 @@ export default function MoePortalPage() {
                 entityLabel="schools"
               />
               </>
+              )}
+
+              {issueComplianceSchool && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                  <div className="w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-2xl">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-foreground">Issue Compliance</h3>
+                      <p className="text-sm text-muted-foreground">{issueComplianceSchool.name}</p>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Remark</label>
+                        <textarea
+                          value={issueComplianceRemark}
+                          onChange={(e) => setIssueComplianceRemark(e.target.value)}
+                          className="min-h-24 w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="Enter remark"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions to be taken</label>
+                        <textarea
+                          value={issueComplianceActions}
+                          onChange={(e) => setIssueComplianceActions(e.target.value)}
+                          className="min-h-28 w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                          placeholder="List the issues and the actions to be taken, one per line or comma-separated"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Attach document</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.xls"
+                            onChange={(e) => setIssueComplianceAttachment(e.target.files?.[0] ?? null)}
+                            className="block w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground file:mr-3 file:rounded file:border-0 file:bg-warning file:px-3 file:py-1 file:text-xs file:font-semibold file:text-warning-foreground"
+                          />
+                          {issueComplianceAttachment && (
+                            <span className="text-xs text-muted-foreground">{issueComplianceAttachment.name}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-5 flex justify-end gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => {
+                        setIssueComplianceSchool(null);
+                        setIssueComplianceAttachment(null);
+                      }}>
+                        Cancel
+                      </Button>
+                      <Button type="button" size="sm" variant="primary" onClick={saveIssueCompliance}>
+                        Save Compliance Issue
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               <ConnectSchoolDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />

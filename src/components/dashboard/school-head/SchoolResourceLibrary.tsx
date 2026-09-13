@@ -41,7 +41,7 @@ const SOURCE_TABS: { key: SourceKey; label: string }[] = [
  * platform, catalogued here by the school head.
  */
 export const SchoolResourceLibrary: React.FC<{ schoolId?: string }> = ({ schoolId }) => {
-  const { trainingMaterials, teacherResources, addNotification } = useApp();
+  const { trainingMaterials, teacherResources, addNotification, disseminateTrainingMaterial } = useApp();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const [activeSource, setActiveSource] = useState<SourceKey>('moe-official');
 
@@ -129,6 +129,11 @@ export const SchoolResourceLibrary: React.FC<{ schoolId?: string }> = ({ schoolI
     }
   };
 
+  const handleDisseminateTrainingResource = (id: string) => {
+    disseminateTrainingMaterial(id, schoolId);
+    addNotification('Resource Dissemination Requested', 'The resource will be announced to the selected school and connected teacher audience.', 'success');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -175,6 +180,7 @@ export const SchoolResourceLibrary: React.FC<{ schoolId?: string }> = ({ schoolI
             meta: [m.subject, m.grade].filter(Boolean).join(' · ') || m.category,
             date: m.uploadedAt,
             url: m.resourceUrl,
+            onDisseminate: () => handleDisseminateTrainingResource(m.id),
           }))}
         />
       )}
@@ -285,7 +291,7 @@ export const SchoolResourceLibrary: React.FC<{ schoolId?: string }> = ({ schoolI
 };
 
 const ResourceGrid: React.FC<{
-  items: { key: string; title: string; meta?: string; date?: string; url?: string; onRemove?: () => void }[];
+  items: { key: string; title: string; meta?: string; date?: string; url?: string; onRemove?: () => void; onDisseminate?: () => void }[];
   empty: string;
   loading?: boolean;
 }> = ({ items, empty, loading }) => {
@@ -314,7 +320,7 @@ const ResourceGrid: React.FC<{
                 {item.meta}
               </Badge>
             )}
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between pt-1 gap-2">
               {item.url ? (
                 <a href={item.url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-bold text-xxs">
                   View resource →
@@ -322,11 +328,18 @@ const ResourceGrid: React.FC<{
               ) : (
                 <span className="text-xxs text-muted-foreground">{item.date}</span>
               )}
-              {item.onRemove && (
-                <button onClick={item.onRemove} className="text-xxs font-bold text-red-600 hover:underline">
-                  Remove
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {item.onDisseminate && (
+                  <button onClick={item.onDisseminate} className="text-xxs font-bold text-emerald-600 hover:underline">
+                    Disseminate to Teachers
+                  </button>
+                )}
+                {item.onRemove && (
+                  <button onClick={item.onRemove} className="text-xxs font-bold text-red-600 hover:underline">
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
             {item.url && item.date && <p className="text-[10px] text-muted-foreground">{item.date}</p>}
           </CardContent>

@@ -12,14 +12,14 @@ import { FormField, formFieldInputClass } from '@/components/ui/form-field';
 import type { TrainingPlan, TrainingPlanType, TrainingPlanStatus, TrainingAudience } from '@/lib/mockData';
 
 const AUDIENCE_OPTIONS: TrainingAudience[] = ['All', 'Regional', 'Woredas', 'Schools'];
-const PROGRAM_CATEGORIES = ['Pedagogy', 'Leadership', 'ICT & Digital Literacy', 'Curriculum', 'Assessment', 'Compliance & Safeguarding', 'Subject Specialty'];
-const RESOURCE_CATEGORIES = ['Pedagogy', 'MOE Mandatory', 'STEM', 'Assessment', 'Subject Specialty', 'Curriculum Integration'];
+const PROGRAM_CATEGORIES = ['Pedagogy', 'Leadership', 'ICT & Digital Literacy', 'Curriculum', 'Assessment', 'Compliance & Safeguarding', 'Subject Specialty', 'Onboarding'];
+const RESOURCE_CATEGORIES = ['Pedagogy', 'Leadership', 'MOE Mandatory', 'STEM', 'Assessment', 'Subject Specialty', 'Curriculum Integration', 'Onboarding'];
 
 const TYPE_LABEL: Record<TrainingPlanType, string> = {
-  continuous_development: 'Continuous Development',
+  continuous_development: 'Online Training Session',
   in_person: 'In-Person Training Session',
 };
-const STATUS_LABEL: Record<TrainingPlanStatus, string> = {
+const STATUS_LABEL: Record<string, string> = {
   planned: 'Planned',
   in_progress: 'In Progress',
   completed: 'Completed',
@@ -37,8 +37,7 @@ function statusVariant(status: TrainingPlanStatus) {
 export function MoeTrainingPanel() {
   const {
     currentUser,
-    teachers,
-    departments,
+    schools,
     trainingPlans,
     trainingPlanAssignments,
     addTrainingPlan,
@@ -47,6 +46,7 @@ export function MoeTrainingPanel() {
     removeTrainingPlanAssignment,
     trainingMaterials,
     addTrainingMaterial,
+    disseminateTrainingMaterial,
   } = useApp();
 
   const [subView, setSubView] = useState<'programs' | 'resources'>('programs');
@@ -77,19 +77,11 @@ export function MoeTrainingPanel() {
   const [location, setLocation] = useState('');
   const [facilitator, setFacilitator] = useState('');
 
-  const [targetType, setTargetType] = useState<'teacher' | 'department'>('department');
-  const [teacherId, setTeacherId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-
-  const activeTeachers = useMemo(() => teachers.filter((t) => t.status === 'Active'), [teachers]);
+  const [schoolId, setSchoolId] = useState('');
 
   React.useEffect(() => {
-    if (!teacherId && activeTeachers[0]) setTeacherId(activeTeachers[0].id);
-  }, [activeTeachers, teacherId]);
-
-  React.useEffect(() => {
-    if (!departmentId && departments[0]) setDepartmentId(departments[0].id);
-  }, [departments, departmentId]);
+    if (!schoolId && schools[0]) setSchoolId(schools[0].id);
+  }, [schools, schoolId]);
 
   const resetPlanForm = () => {
     setTitle(''); setDescription(''); setType('continuous_development'); setCategory(PROGRAM_CATEGORIES[0]);
@@ -121,14 +113,12 @@ export function MoeTrainingPanel() {
   );
 
   const handleAssign = () => {
-    if (!selected) return;
-    if (targetType === 'teacher') {
-      if (!teacherId) return;
-      assignTrainingPlan(selected.id, { targetType: 'teacher', teacherId, assignedByName: currentUser?.displayName ?? 'MOE Admin' });
-    } else {
-      if (!departmentId) return;
-      assignTrainingPlan(selected.id, { targetType: 'department', departmentId, assignedByName: currentUser?.displayName ?? 'MOE Admin' });
-    }
+    if (!selected || !schoolId) return;
+    assignTrainingPlan(selected.id, {
+      targetType: 'school',
+      schoolId,
+      assignedByName: currentUser?.displayName ?? 'MOE Admin',
+    });
   };
 
   // --- Resources filters & state ---
@@ -145,13 +135,15 @@ export function MoeTrainingPanel() {
   const [resDescription, setResDescription] = useState('');
   const [resCategory, setResCategory] = useState(RESOURCE_CATEGORIES[0]);
   const [resAudience, setResAudience] = useState<TrainingAudience>('All');
+  const [resCode, setResCode] = useState('');
+  const [resTrainingPlanId, setResTrainingPlanId] = useState('');
   const [resUrl, setResUrl] = useState('');
   const [resFile, setResFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
   const resetResourceForm = () => {
-    setResTitle(''); setResDescription(''); setResCategory(RESOURCE_CATEGORIES[0]); setResAudience('All'); setResUrl(''); setResFile(null); setUploadError('');
+    setResTitle(''); setResDescription(''); setResCategory(RESOURCE_CATEGORIES[0]); setResAudience('All'); setResCode(''); setResTrainingPlanId(''); setResUrl(''); setResFile(null); setUploadError('');
   };
 
   const handleUploadResource = async (e: React.FormEvent) => {
@@ -174,6 +166,8 @@ export function MoeTrainingPanel() {
         resourceUrl: finalUrl,
         category: resCategory,
         audience: resAudience,
+        code: resCode.trim() || undefined,
+        trainingPlanId: resTrainingPlanId || undefined,
       });
       setIsUploadOpen(false);
       resetResourceForm();
@@ -274,6 +268,7 @@ export function MoeTrainingPanel() {
             <table className="eskooly-table">
               <thead>
                 <tr>
+                  <th>Code</th>
                   <th>Title</th>
                   <th>Category</th>
                   <th>Audience</th>
@@ -288,15 +283,29 @@ export function MoeTrainingPanel() {
                 ) : (
                   filteredMaterials.map((m) => (
                     <tr key={m.id}>
+                      <td className="font-medium text-muted-foreground">{m.code ?? '—'}</td>
                       <td className="font-medium">{m.title}{m.description && <p className="text-[11px] text-muted-foreground">{m.description}</p>}</td>
                       <td className="text-muted-foreground">{m.category}</td>
                       <td className="text-muted-foreground">{m.audience ?? 'All'}</td>
                       <td className="text-muted-foreground">{m.uploadedAt}</td>
                       <td><Badge variant={m.disseminated ? 'success' : 'neutral'} badgeStyle="subtle" size="sm">{m.disseminated ? 'Disseminated' : 'Draft'}</Badge></td>
                       <td>
-                        <a href={m.resourceUrl} target="_blank" rel="noopener noreferrer">
-                          <Button type="button" size="sm" variant="outline" className="h-8 text-xs">View</Button>
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <a href={m.resourceUrl} target="_blank" rel="noopener noreferrer">
+                            <Button type="button" size="sm" variant="outline" className="h-8 text-xs">View</Button>
+                          </a>
+                          {!m.disseminated && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="organic"
+                              className="h-8 text-xs"
+                              onClick={() => disseminateTrainingMaterial(m.id)}
+                            >
+                              Disseminate to Schools
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -376,30 +385,23 @@ export function MoeTrainingPanel() {
             </FormField>
 
             <div className="rounded-xl border border-border/50 p-3 space-y-3">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Assign teachers or academic teams</p>
-              <div className="grid gap-3 sm:grid-cols-[auto_1fr_auto] items-end">
-                <Select options={[{ value: 'teacher', label: 'Teacher' }, { value: 'department', label: 'Academic Team' }]} value={targetType} onChange={(e) => setTargetType(e.target.value as 'teacher' | 'department')} />
-                {targetType === 'teacher' ? (
-                  <Select
-                    options={activeTeachers.length ? activeTeachers.map((t) => ({ value: t.id, label: t.name })) : [{ value: '', label: 'No active teachers' }]}
-                    value={teacherId}
-                    onChange={(e) => setTeacherId(e.target.value)}
-                  />
-                ) : (
-                  <Select
-                    options={departments.length ? departments.map((d) => ({ value: d.id, label: d.name })) : [{ value: '', label: 'No academic teams' }]}
-                    value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
-                  />
-                )}
+              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Assign schools</p>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto] items-end">
+                <Select
+                  options={schools.length ? schools.map((s) => ({ value: s.id, label: s.name })) : [{ value: '', label: 'No schools available' }]}
+                  value={schoolId}
+                  onChange={(e) => setSchoolId(e.target.value)}
+                />
                 <Button size="sm" variant="organic" className="border-none text-xs h-10" onClick={handleAssign}>Assign</Button>
               </div>
               {assignmentsForSelected.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {assignmentsForSelected.map((a) => {
-                    const label = a.targetType === 'teacher'
-                      ? teachers.find((t) => t.id === a.teacherId)?.name ?? 'Unknown teacher'
-                      : `${departments.find((d) => d.id === a.departmentId)?.name ?? 'Unknown team'} (team)`;
+                    const label = a.targetType === 'school'
+                      ? schools.find((s) => s.id === a.schoolId)?.name ?? 'Unknown school'
+                      : a.targetType === 'teacher'
+                        ? 'Teacher assignment'
+                        : 'Academic team assignment';
                     return (
                       <Badge key={a.id} variant="neutral" size="sm" className="gap-1.5">
                         {label}
@@ -409,7 +411,7 @@ export function MoeTrainingPanel() {
                   })}
                 </div>
               ) : (
-                <p className="text-muted-foreground">No one assigned yet.</p>
+                <p className="text-muted-foreground">No schools assigned yet.</p>
               )}
             </div>
           </div>
@@ -427,11 +429,23 @@ export function MoeTrainingPanel() {
             <textarea className={`${formFieldInputClass} h-16 py-2`} value={resDescription} onChange={(e) => setResDescription(e.target.value)} />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Category">
-              <Select options={RESOURCE_CATEGORIES.map((c) => ({ value: c, label: c }))} value={resCategory} onChange={(e) => setResCategory(e.target.value)} />
+            <FormField label="Resource Code">
+              <input className={formFieldInputClass} value={resCode} onChange={(e) => setResCode(e.target.value)} placeholder="e.g. RSC-001" />
             </FormField>
             <FormField label="Audience">
               <Select options={AUDIENCE_OPTIONS.map((a) => ({ value: a, label: a }))} value={resAudience} onChange={(e) => setResAudience(e.target.value as TrainingAudience)} />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Category">
+              <Select options={RESOURCE_CATEGORIES.map((c) => ({ value: c, label: c }))} value={resCategory} onChange={(e) => setResCategory(e.target.value)} />
+            </FormField>
+            <FormField label="Link to Training Program (optional)">
+              <Select
+                options={trainingPlans.length ? trainingPlans.map((p) => ({ value: p.id, label: `${p.title} (${p.startDate})` })) : [{ value: '', label: 'No training programs available' }]}
+                value={resTrainingPlanId}
+                onChange={(e) => setResTrainingPlanId(e.target.value)}
+              />
             </FormField>
           </div>
           <FormField label="External Link (optional if uploading a file)">

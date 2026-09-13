@@ -57,6 +57,13 @@ export const MoeUpdatesPanel: React.FC = () => {
   }, [schoolId]);
   useEffect(() => { load(); }, [load]);
 
+  const [milestoneStates, setMilestoneStates] = useState<Record<string, { status: 'planned' | 'completed' | 'postponed'; postponeDate?: string; postponeReason?: string }>>(
+    Object.fromEntries(MOE_MAJOR_ACTIVITIES.map((activity) => [activity.id, { status: 'planned' as const }])),
+  );
+  const [postponingId, setPostponingId] = useState<string | null>(null);
+  const [postponeDate, setPostponeDate] = useState('');
+  const [postponeReason, setPostponeReason] = useState('');
+
   const [editing, setEditing] = useState<SchoolComplianceStatus | null>(null);
   const [status, setStatus] = useState<string>('In Progress');
   const [responsiblePerson, setResponsiblePerson] = useState('');
@@ -72,6 +79,31 @@ export const MoeUpdatesPanel: React.FC = () => {
     setEvidenceUrl(row.evidenceSubmittedUrl ?? '');
     setOutstandingIssue(row.outstandingIssue ?? '');
     setFormError('');
+  };
+
+  const completeMilestone = (id: string) => {
+    setMilestoneStates((prev) => ({
+      ...prev,
+      [id]: { status: 'completed', postponeDate: prev[id]?.postponeDate },
+    }));
+  };
+
+  const openPostponeDialog = (activityId: string) => {
+    const current = milestoneStates[activityId];
+    setPostponingId(activityId);
+    setPostponeDate(current?.postponeDate ?? '');
+    setPostponeReason(current?.postponeReason ?? '');
+  };
+
+  const savePostponedMilestone = () => {
+    if (!postponingId || !postponeDate.trim() || !postponeReason.trim()) return;
+    setMilestoneStates((prev) => ({
+      ...prev,
+      [postponingId]: { status: 'postponed', postponeDate, postponeReason },
+    }));
+    setPostponingId(null);
+    setPostponeDate('');
+    setPostponeReason('');
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -111,9 +143,7 @@ export const MoeUpdatesPanel: React.FC = () => {
         </CardContent>
       </Card>
 
-      <TablePanel
-        title="Compliance Milestones"
-      >
+      <TablePanel title="Compliance Milestones">
         <table className="eskooly-table">
           <thead>
             <tr>
@@ -121,24 +151,76 @@ export const MoeUpdatesPanel: React.FC = () => {
               <th className="p-3 text-left text-muted-foreground font-semibold">Start (E.C.)</th>
               <th className="p-3 text-left text-muted-foreground font-semibold">End (E.C.)</th>
               <th className="p-3 text-left text-muted-foreground font-semibold">Category</th>
+              <th className="p-3 text-left text-muted-foreground font-semibold">Status</th>
+              <th className="p-3 text-left text-muted-foreground font-semibold">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40 text-muted-foreground">
-            {MOE_MAJOR_ACTIVITIES.map((activity) => (
-              <tr key={activity.id} className="hover:bg-muted/10">
-                <td className="p-3 text-foreground font-bold">{activity.label}</td>
-                <td className="p-3 font-mono">{formatEcDate(activity.startEc)}</td>
-                <td className="p-3 font-mono">{formatEcDate(activity.endEc)}</td>
-                <td className="p-3">
-                  <Badge variant={activityTypeVariant[activity.type] ?? 'neutral'} size="sm" className="font-bold capitalize">
-                    {activity.type}
-                  </Badge>
-                </td>
-              </tr>
-            ))}
+            {MOE_MAJOR_ACTIVITIES.map((activity) => {
+              const state = milestoneStates[activity.id] ?? { status: 'planned' as const };
+              return (
+                <tr key={activity.id} className="hover:bg-muted/10 align-top">
+                  <td className="p-3 text-foreground font-bold">{activity.label}</td>
+                  <td className="p-3 font-mono">{formatEcDate(activity.startEc)}</td>
+                  <td className="p-3 font-mono">{formatEcDate(activity.endEc)}</td>
+                  <td className="p-3">
+                    <Badge variant={activityTypeVariant[activity.type] ?? 'neutral'} size="sm" className="font-bold capitalize">
+                      {activity.type}
+                    </Badge>
+                  </td>
+                  <td className="p-3">
+                    <Badge
+                      variant={state.status === 'completed' ? 'success' : state.status === 'postponed' ? 'warning' : 'info'}
+                      size="sm"
+                      className="font-bold capitalize"
+                    >
+                      {state.status}
+                    </Badge>
+                    {state.status === 'postponed' && state.postponeDate && (
+                      <p className="text-[10px] text-muted-foreground mt-1">Postponed to: {state.postponeDate}</p>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center rounded-md px-3 text-[10px] font-bold border border-green-700 bg-green-600 text-white shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={state.status === 'completed'}
+                        onClick={() => completeMilestone(activity.id)}
+                      >
+                        Complete
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center justify-center rounded-md px-3 text-[10px] font-bold border border-yellow-600 bg-yellow-500 text-black shadow-sm hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={state.status === 'completed'}
+                        onClick={() => openPostponeDialog(activity.id)}
+                      >
+                        Postpone
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </TablePanel>
+
+      <Dialog isOpen={Boolean(postponingId)} onClose={() => { setPostponingId(null); setPostponeDate(''); setPostponeReason(''); }} title="Postpone Milestone" description="Select a revised calendar date and explain the postponement.">
+        <div className="space-y-3 text-left">
+          <FormField label="Postponed Date">
+            <input type="date" className={formFieldInputClass} value={postponeDate} onChange={(e) => setPostponeDate(e.target.value)} required />
+          </FormField>
+          <FormField label="Reason">
+            <textarea className={`${formFieldInputClass} h-16 py-2`} value={postponeReason} onChange={(e) => setPostponeReason(e.target.value)} placeholder="Why is this milestone being postponed?" required />
+          </FormField>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setPostponingId(null); setPostponeDate(''); setPostponeReason(''); }}>Cancel</Button>
+            <Button type="button" variant="organic" size="sm" className="border-none" onClick={savePostponedMilestone}>Save Postponed Date</Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
 
       <TablePanel
         title="Compliance Requirements"

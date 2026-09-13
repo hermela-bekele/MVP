@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { computeTeacherDevelopmentRollup, computeScheduledTrainingRollup } from '@/lib/schoolHeadAnalytics';
 
 const PROGRAM_LABELS: Record<string, string> = {
-  TIP: 'Teacher Induction Program (TIP)',
-  STEP: 'School-based Teacher Enrichment (STEP)',
-  ELEP: 'Education Leadership Excellence Program (ELEP)',
+  TIP: 'Teacher Development Courses (TIP)',
+  STEP: 'Teacher Development Courses (STEP)',
+  ELEP: 'Leadership Courses (ELEP)',
 };
 
 /**

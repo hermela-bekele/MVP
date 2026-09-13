@@ -3,6 +3,21 @@ export interface Region {
   name: string;
 }
 
+export const ETHIOPIAN_REGIONS: Region[] = [
+  { id: 'reg-addis-ababa', name: 'Addis Ababa' },
+  { id: 'reg-afar', name: 'Afar' },
+  { id: 'reg-amhara', name: 'Amhara' },
+  { id: 'reg-benishangul-gumuz', name: 'Benishangul-Gumuz' },
+  { id: 'reg-dire-dawa', name: 'Dire Dawa' },
+  { id: 'reg-gambela', name: 'Gambela' },
+  { id: 'reg-harari', name: 'Harari' },
+  { id: 'reg-oromia', name: 'Oromia' },
+  { id: 'reg-sidama', name: 'Sidama' },
+  { id: 'reg-somali', name: 'Somali' },
+  { id: 'reg-snnpr', name: 'SNNPR' },
+  { id: 'reg-tigray', name: 'Tigray' },
+];
+
 export interface School {
   id: string;
   code: string;
@@ -30,7 +45,7 @@ export interface Teacher {
   phone: string;
   departmentId: string;
   schoolId: string;
-  status: 'Active' | 'On Leave' | 'Left';
+  status: 'Active' | 'On Leave' | 'Left' | 'Resigned';
   subjects: string[];
   grades: string[];
   certification: string;
@@ -1159,8 +1174,11 @@ export interface TrainingMaterial {
   audience?: TrainingAudience;
   trainingType?: 'Pedagogy' | 'MOE Mandatory' | 'STEM' | 'Assessment' | 'Subject Specialty';
   departmentId?: string;
+  schoolId?: string;
   grade?: string;
   subject?: string;
+  code?: string;
+  trainingPlanId?: string;
   disseminated?: boolean;
   uploadedAt: string;
 }
@@ -1189,7 +1207,7 @@ export interface TrainingPlan {
 export interface TrainingPlanAssignment {
   id: string;
   trainingPlanId: string;
-  targetType: 'teacher' | 'department';
+  targetType: 'teacher' | 'department' | 'school';
   /** Tri-state: undefined = not yet recorded, so "no data" is never shown as a fake 0%. */
   attended?: boolean;
   completedAt?: string;
@@ -1197,6 +1215,7 @@ export interface TrainingPlanAssignment {
   impactNotes?: string;
   teacherId?: string;
   departmentId?: string;
+  schoolId?: string;
   assignedByName: string;
   createdAt: string;
 }

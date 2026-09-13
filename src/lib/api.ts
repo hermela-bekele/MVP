@@ -838,13 +838,18 @@ export const api = {
     departmentId?: string;
     grade?: string;
     subject?: string;
+    code?: string;
+    trainingPlanId?: string;
   }) =>
     request("/training-materials", {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  disseminateTrainingMaterial: (id: string) =>
-    request(`/training-materials/${id}/disseminate`, { method: "PATCH" }),
+  disseminateTrainingMaterial: (id: string, schoolId?: string) =>
+    request(`/training-materials/${id}/disseminate`, {
+      method: "PATCH",
+      body: JSON.stringify({ schoolId: schoolId ?? undefined }),
+    }),
   createTrainingPlan: (body: {
     title: string;
     description?: string;
@@ -869,9 +874,10 @@ export const api = {
   assignTrainingPlan: (
     planId: string,
     body: {
-      targetType: "teacher" | "department";
+      targetType: "teacher" | "department" | "school";
       teacherId?: string;
       departmentId?: string;
+      schoolId?: string;
       assignedByName: string;
     },
   ) =>

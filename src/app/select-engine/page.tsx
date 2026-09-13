@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { dashboardPathForRole, roleLabel } from '@/lib/auth';
-import { ENGINE_DESCRIPTIONS, defaultTabForEngine, enginesForRole, engineLabel, requiresEngineSelection, type EngineId } from '@/lib/engines';
+import { defaultTabForEngine, engineDescription, enginesForRole, engineLabel, requiresEngineSelection, type EngineId } from '@/lib/engines';
 import { portalTabPath } from '@/lib/portalPaths';
 import { Logo } from '@/components/shared/Logo';
 
@@ -93,7 +93,7 @@ export default function SelectEnginePage() {
               <div className="min-w-0">
                 <p className="font-bold text-title">{engineLabel(engine, currentUser.role)}</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {ENGINE_DESCRIPTIONS[engine]}
+                  {engineDescription(engine, currentUser.role)}
                 </p>
               </div>
             </button>
