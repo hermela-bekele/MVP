@@ -31,6 +31,8 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
 };
 
 const SCHOOL_HEAD_REGULATORY_LABEL = 'Regulatory & Resource Engine';
+const MOE_CURRICULUM_LABEL = 'Resource & Communication';
+const MOE_CURRICULUM_DESCRIPTION = 'School communication and resource uploading engine.';
 
 export const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
   administrative: 'School operations, staff, resources, and oversight.',
@@ -67,7 +69,17 @@ export function engineLabel(engine: EngineId, role?: PortalRole): string {
   if (engine === 'regulatory' && role === 'school-head') {
     return SCHOOL_HEAD_REGULATORY_LABEL;
   }
+  if (engine === 'curriculum' && role === 'moe') {
+    return MOE_CURRICULUM_LABEL;
+  }
   return ENGINE_LABELS[engine];
+}
+
+export function engineDescription(engine: EngineId, role?: PortalRole): string {
+  if (engine === 'curriculum' && role === 'moe') {
+    return MOE_CURRICULUM_DESCRIPTION;
+  }
+  return ENGINE_DESCRIPTIONS[engine];
 }
 
 /** True if the role must choose an engine before entering the dashboard. */

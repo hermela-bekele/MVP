@@ -79,6 +79,7 @@ import {
   mockTeacherCheckInPrompts,
   mockStudentGradeEntries,
   mockRegistrationApplications,
+  ETHIOPIAN_REGIONS,
 } from "@/lib/mockData";
 import {
   HrEmployee,
@@ -401,6 +402,8 @@ interface AppContextType {
     departmentId?: string;
     grade?: string;
     subject?: string;
+    code?: string;
+    trainingPlanId?: string;
   }) => void;
   disseminateTrainingMaterial: (id: string) => void;
   addTrainingPlan: (data: {
@@ -422,9 +425,10 @@ interface AppContextType {
   assignTrainingPlan: (
     planId: string,
     data: {
-      targetType: "teacher" | "department";
+      targetType: "teacher" | "department" | "school";
       teacherId?: string;
       departmentId?: string;
+      schoolId?: string;
       assignedByName: string;
     },
   ) => void;
@@ -761,14 +765,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const applyMockFallback = useCallback(() => {
     setSchools(mockSchools);
-    setRegions([
-      { id: "reg-addis-ababa", name: "Addis Ababa" },
-      { id: "reg-oromia", name: "Oromia" },
-      { id: "reg-amhara", name: "Amhara" },
-      { id: "reg-tigray", name: "Tigray" },
-      { id: "reg-sidama", name: "Sidama" },
-      { id: "reg-snnpr", name: "SNNPR" },
-    ]);
+    setRegions(ETHIOPIAN_REGIONS);
     setTeachers(mockTeachers);
     setStudents(mockStudents);
     setLessonPlans(mockLessonPlans);
@@ -2246,6 +2243,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     departmentId?: string;
     grade?: string;
     subject?: string;
+    code?: string;
+    trainingPlanId?: string;
   }) => {
     void api
       .createTrainingMaterial(data)
@@ -2260,16 +2259,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch(() => void refreshFromApi());
   };
 
-  const disseminateTrainingMaterial = (id: string) => {
+  const disseminateTrainingMaterial = (id: string, schoolId?: string) => {
     void api
-      .disseminateTrainingMaterial(id)
+      .disseminateTrainingMaterial(id, schoolId)
       .then((mat) => {
         setTrainingMaterials((prev) =>
           prev.map((m) => (m.id === id ? (mat as TrainingMaterial) : m)),
         );
         addNotification(
           "Resource Disseminated",
-          `"${(mat as TrainingMaterial).title}" is now visible to teachers.`,
+          `"${(mat as TrainingMaterial).title}" is now visible to ${schoolId ? 'the selected school' : 'teachers'}.`,
           "success",
         );
       })
@@ -2331,9 +2330,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const assignTrainingPlan = (
     planId: string,
     data: {
-      targetType: "teacher" | "department";
+      targetType: "teacher" | "department" | "school";
       teacherId?: string;
       departmentId?: string;
+      schoolId?: string;
       assignedByName: string;
     },
   ) => {

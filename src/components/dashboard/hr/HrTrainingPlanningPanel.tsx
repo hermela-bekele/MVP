@@ -14,7 +14,7 @@ const inputClass =
   'w-full h-10 px-3 bg-muted/40 border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring';
 
 const TYPE_LABEL: Record<TrainingPlanType, string> = {
-  continuous_development: 'Continuous Development Training',
+  continuous_development: 'Online Training Session',
   in_person: 'In-Person Training Session',
 };
 
@@ -214,7 +214,7 @@ export function HrTrainingPlanningPanel() {
           <div>
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Type</label>
             <select className={inputClass} value={type} onChange={(e) => setType(e.target.value as TrainingPlanType)}>
-              <option value="continuous_development">Continuous Development Training</option>
+              <option value="continuous_development">Online Training Session</option>
               <option value="in_person">In-Person Training Session</option>
             </select>
           </div>

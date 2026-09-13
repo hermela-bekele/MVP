@@ -33,11 +33,9 @@ const REASON_OPTIONS: { value: TeacherReplacementReason; label: string }[] = [
 
 export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
   const router = useRouter();
-  const { teachers, schools, addTeacher, updateTeacher, toggleTeacherStatus, addNotification, refreshFromApi } = useApp();
+  const { teachers, addTeacher, updateTeacher, toggleTeacherStatus, addNotification, refreshFromApi } = useApp();
   const session = readStoredSession();
   const schoolId = session?.schoolId || 'sch-1';
-  const school = schools.find((s) => s.id === schoolId);
-  const isPublicSchool = school?.type === 'Public';
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailTeacher, setDetailTeacher] = useState<Teacher | null>(null);
@@ -63,15 +61,11 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
   }, [teachers, schoolId]);
 
   const loadReplacementRequests = useCallback(() => {
-    if (!isPublicSchool) {
-      setReplacementRequests([]);
-      return;
-    }
     api
       .listTeacherReplacementRequests()
       .then(setReplacementRequests)
       .catch(() => setReplacementRequests([]));
-  }, [isPublicSchool]);
+  }, []);
 
   useEffect(() => {
     loadReplacementRequests();
@@ -124,11 +118,13 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
   const handleReplacementSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replacementTeacher || !departureDate) return;
+    const teacherId = replacementTeacher.id;
+    const teacherName = replacementTeacher.name;
     setReplacementBusy(true);
     setReplacementError('');
     try {
       await api.createTeacherReplacementRequest({
-        departingTeacherId: replacementTeacher.id,
+        departingTeacherId: teacherId,
         departureDate,
         reason: departureReason,
         subjectsNeeded: replacementTeacher.subjects,
@@ -138,12 +134,14 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
       });
       addNotification(
         'MOE notified',
-        `Departure notice and replacement request filed for ${replacementTeacher.name}.`,
+        departureReason === 'resignation'
+          ? `${teacherName} is now Resigned. Replacement request sent to MOE.`
+          : `${teacherName} is now On Leave while MOE processes the replacement request.`,
         'success',
       );
       setReplacementTeacher(null);
       loadReplacementRequests();
-      void refreshFromApi();
+      await refreshFromApi();
     } catch (err) {
       setReplacementError(err instanceof ApiError ? err.message : 'Failed to file replacement request.');
     } finally {
@@ -247,7 +245,13 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
       sortable: true,
       render: (row) => (
         <Badge
-          variant={row.status === 'Active' ? 'success' : row.status === 'Left' ? 'danger' : 'neutral'}
+          variant={
+            row.status === 'Active'
+              ? 'success'
+              : row.status === 'Left' || row.status === 'Resigned'
+                ? 'danger'
+                : 'neutral'
+          }
           size="sm"
         >
           {row.status}
@@ -283,7 +287,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
               Edit
             </Button>
           )}
-          {!readOnly && isPublicSchool && row.status !== 'Left' && (
+          {row.status !== 'Left' && row.status !== 'Resigned' && (
             <Button
               type="button"
               variant="outline"
@@ -301,11 +305,28 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {!isPublicSchool && (
-        <p className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          MOE teacher assignment applies to Public (government) schools only. Private schools hire and replace staff locally.
-        </p>
-      )}
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const active = schoolTeachers.find((t) => t.status !== 'Left' && t.status !== 'Resigned');
+            if (active) {
+              openReplacementDialog(active);
+            } else {
+              addNotification(
+                'No active teacher',
+                'Add or select an instructor before filing a replacement notice.',
+                'alert',
+              );
+            }
+          }}
+          className="text-[10px] h-8 px-3"
+        >
+          Notify MOE / Request Replacement
+        </Button>
+      </div>
 
       <TablePanel
         title="Instructional Staff Roster"
@@ -320,15 +341,14 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
         />
       </TablePanel>
 
-      {isPublicSchool && (
-        <TablePanel
-          title="MOE replacement requests"
-          description={
-            replacementRequests.length
-              ? `${replacementRequests.length} notice${replacementRequests.length === 1 ? '' : 's'} filed with MOE`
-              : 'No departure notices filed yet'
-          }
-        >
+      <TablePanel
+        title="MOE replacement requests"
+        description={
+          replacementRequests.length
+            ? `${replacementRequests.length} notice${replacementRequests.length === 1 ? '' : 's'} filed with MOE`
+            : 'No departure notices filed yet'
+        }
+      >
           {replacementRequests.length === 0 ? (
             <p className="px-3 py-4 text-sm text-muted-foreground">
               When a teacher leaves, file a departure notice to request an MOE replacement assignment.
@@ -370,8 +390,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
               </tbody>
             </table>
           )}
-        </TablePanel>
-      )}
+      </TablePanel>
 
       {!readOnly && (
         <Dialog
@@ -493,7 +512,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
                   variant={
                     detailTeacher.status === 'Active'
                       ? 'success'
-                      : detailTeacher.status === 'Left'
+                      : detailTeacher.status === 'Left' || detailTeacher.status === 'Resigned'
                         ? 'danger'
                         : 'neutral'
                   }
@@ -524,7 +543,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
             </div>
 
             <DialogFooter className="mt-4 border-t border-border/20 pt-4 flex-wrap gap-2">
-              {!readOnly && detailTeacher.status !== 'Left' && (
+              {!readOnly && detailTeacher.status !== 'Left' && detailTeacher.status !== 'Resigned' && (
                 <Button
                   type="button"
                   variant={detailTeacher.status === 'Active' ? 'destructive' : 'organic'}
@@ -538,7 +557,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
                   {detailTeacher.status === 'Active' ? 'Deactivate roster' : 'Activate roster'}
                 </Button>
               )}
-              {!readOnly && isPublicSchool && detailTeacher.status !== 'Left' && (
+              {detailTeacher.status !== 'Left' && detailTeacher.status !== 'Resigned' && (
                 <Button
                   type="button"
                   variant="outline"
@@ -637,7 +656,7 @@ export const EmployeeManagement: React.FC<{ readOnly?: boolean }> = ({ readOnly 
         title="Notify MOE — request replacement"
         description={
           replacementTeacher
-            ? `File a departure notice for ${replacementTeacher.name}. MOE assigns replacement teachers for Public schools.`
+            ? `File a departure notice for ${replacementTeacher.name}. MOE will review and can assign a replacement teacher.`
             : undefined
         }
       >

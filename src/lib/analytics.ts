@@ -1,4 +1,4 @@
-import type { School, Teacher, Student, StudentGradeEntry, AcademicCalendar, TeacherTrainingAssignment } from './mockData';
+import { ETHIOPIAN_REGIONS, type School, type Teacher, type Student, type StudentGradeEntry, type AcademicCalendar, type TeacherTrainingAssignment } from './mockData';
 
 export interface DashboardScope {
   /** A region name from MOE's region catalog, or 'All' for national. */
@@ -48,20 +48,23 @@ export function computeNationalStats(
 }
 
 export function computeRegionalPerformance(schools: School[], teachers: Teacher[], students: Student[]) {
-  // Derived from the schools actually on record, not a fixed list — a school
-  // connected under any region name will always be reflected here.
-  const regions = Array.from(new Set(schools.map((s) => s.region))).sort();
-  return regions.map(region => {
-    const regionSchools = schools.filter(s => s.region === region);
-    const regionStudents = students.filter(s => regionSchools.some(rs => rs.id === s.schoolId));
-    const passCount = regionStudents.filter(s => s.gpa >= 2.0).length;
+  // Anchor the UI to the canonical Ethiopian catalog, then overlay real school
+  // coverage so the MOE comparison panel shows every region the country recognizes.
+  const regionalNames = new Set(ETHIOPIAN_REGIONS.map((r) => r.name));
+  const schoolRegionNames = new Set(schools.map((s) => s.region));
+  const regions = Array.from(new Set([...regionalNames, ...schoolRegionNames])).sort();
+
+  return regions.map((region) => {
+    const regionSchools = schools.filter((s) => s.region === region);
+    const regionStudents = students.filter((s) => regionSchools.some((rs) => rs.id === s.schoolId));
+    const passCount = regionStudents.filter((s) => s.gpa >= 2.0).length;
     const passRate = regionStudents.length > 0 ? (passCount / regionStudents.length) * 100 : 0;
-    
-    // Simple mock calculation for shortage
+
+    // Simple mock calculation for shortage.
     const expectedTeachers = regionSchools.reduce((acc, s) => acc + Math.ceil(s.studentsCount / 30), 0);
-    const actualTeachers = teachers.filter(t => regionSchools.some(rs => rs.id === t.schoolId)).length;
+    const actualTeachers = teachers.filter((t) => regionSchools.some((rs) => rs.id === t.schoolId)).length;
     const shortage = expectedTeachers > 0 ? Math.max(0, ((expectedTeachers - actualTeachers) / expectedTeachers) * 100) : 0;
-    
+
     return {
       name: region,
       schools: regionSchools.length,

@@ -42,7 +42,7 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ teacherI
           <Avatar name={teacher.name} size="lg" />
           <div className="space-y-1.5">
             <p className="text-lg font-bold text-foreground leading-tight">{teacher.name}</p>
-            <Badge variant={teacher.status === 'Active' ? 'success' : 'neutral'} badgeStyle="subtle" size="sm" dot>
+            <Badge variant={teacher.status === 'Active' ? 'success' : teacher.status === 'Left' || teacher.status === 'Resigned' ? 'danger' : 'neutral'} badgeStyle="subtle" size="sm" dot>
               {teacher.status}
             </Badge>
           </div>

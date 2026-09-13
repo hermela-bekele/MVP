@@ -107,6 +107,7 @@ export default function SchoolHeadPortalPage() {
       case 'admissions-form-builder': return [...base, { label: 'Application Form Builder' }];
       case 'settings': return [...base, { label: 'Settings' }];
       case 'teachers-development': return [...base, { label: 'Professional Development' }];
+      case 'my-leadership-training': return [...base, { label: 'My Leadership Training' }];
       case 'resource-library': return [...base, { label: 'Resource Library' }];
       case 'communication': return [...base, { label: 'Community' }];
       case 'department-messages': return [...base, { label: 'Direct Messages' }];
@@ -208,6 +209,10 @@ export default function SchoolHeadPortalPage() {
       title: 'Professional Development',
       subtitle: 'Monitor MOE training participation rates and upload pedagogy instructional guidelines.',
     },
+    'my-leadership-training': {
+      title: 'My Leadership Training',
+      subtitle: 'Track your current school leadership learning path and leadership development courses.',
+    },
     'resource-library': {
       title: 'Resource Library',
       subtitle: 'Every resource available to your school, classified by source: MOE, department, school-approved, PRIME, and external.',
@@ -279,8 +284,8 @@ export default function SchoolHeadPortalPage() {
           {/* Student Management */}
           {activeTab === 'manage-students' && <StudentManagement readOnly />}
 
-          {/* Employee Management */}
-          {activeTab === 'manage-employees' && <EmployeeManagement readOnly />}
+          {/* Employee Management — editable so School Head can file MOE replacement requests */}
+          {activeTab === 'manage-employees' && <EmployeeManagement />}
 
           {/* View Classes */}
           {activeTab === 'manage-classes' && !detailClass && (
@@ -556,6 +561,13 @@ export default function SchoolHeadPortalPage() {
               ) : (
                 <FacultyDevelopmentProgress schoolId={currentSchoolId} />
               )}
+            </div>
+          )}
+
+          {/* My Leadership Training (school-head only personal leadership learning) */}
+          {activeTab === 'my-leadership-training' && (
+            <div className="animate-fade-in text-left">
+              <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
             </div>
           )}
 
