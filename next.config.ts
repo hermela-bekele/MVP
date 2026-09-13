@@ -53,7 +53,7 @@ try {
   const withPWA = require('next-pwa').default as (cfg: Record<string, unknown>) => (base: NextConfig) => NextConfig;
   exportedConfig = withPWA({
     dest: 'public',
-    register: true,
+    register: false,  // Manual registration in layout.tsx for better Vercel compatibility
     skipWaiting: true,
     // Disable PWA in development, but keep it ENABLED in production
     disable: process.env.NODE_ENV === 'development',
