@@ -23,7 +23,7 @@ import {
 import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRenderer';
 import { parseAssessmentQuestions, wrapAssessmentMarkdown } from '@/lib/assessmentMarkdown';
 import type { Assessment, TeachingNote } from '@/lib/mockData';
-import { generatePDFFromMarkdown, printMarkdown, slugifyFilename } from '@/lib/pdfUtils';
+import { generatePDFFromMarkdown, generatedAssessmentQuestionsToMarkdown, printMarkdown, slugifyFilename } from '@/lib/pdfUtils';
 import { AisBtnPrimary, AisBtnSecondary, aisInput, aisFormLabel } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { GeneratorActionBar } from '@/components/ui/GeneratorActionBar';
 
@@ -270,7 +270,7 @@ export function TeacherAssessmentGenerator() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, saveDraft = false) => {
     e.preventDefault();
     if (!title) return;
     if (uploadMode === 'create' && !generatedContent) return;
@@ -280,6 +280,7 @@ export function TeacherAssessmentGenerator() {
 
     createAssessment({
       title, type, subject, grade, difficulty,
+        saveDraft,
       questions:
         uploadMode === 'upload'
           ? [{ id: 1, question: 'Uploaded assessment file — see attachment in school records.', type: 'File', answer: 'N/A' }]
@@ -313,7 +314,7 @@ export function TeacherAssessmentGenerator() {
     if (!generatedContent.trim()) return;
     setIsGeneratingPDF(true);
     try {
-      await generatePDFFromMarkdown(generatedContent, `${slugifyFilename(previewTitle)}.pdf`, previewTitle);
+      await generatePDFFromMarkdown(generatedAssessmentQuestionsToMarkdown(generatedContent), `${slugifyFilename(previewTitle)}.pdf`, '');
     } catch (error) {
       console.error('Failed to generate PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -651,8 +652,8 @@ export function TeacherAssessmentGenerator() {
       )}
 
       <section className="rounded-xl border border-ais-card-border bg-card p-5">
-        <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Assessment Title</label>
-        <input className={`${aisInput} mt-2`} required placeholder="Assessment title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <label className="text-xs font-semibold text-ais-on-surface uppercase tracking-wide">Title</label>
+        <input className={`${aisInput} mt-2`} required placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
       </section>
 
       <section className="rounded-xl border border-ais-card-border bg-card p-5">
@@ -702,24 +703,24 @@ export function TeacherAssessmentGenerator() {
                 AI Generated {isBaseline ? 'Baseline Assessment' : 'Assessment'} Preview
               </label>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={handlePrintPreview} className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline">
+                <AisBtnSecondary type="button" onClick={handlePrintPreview} className="h-8 px-3 text-xs">
                   <Printer className="h-3.5 w-3.5" aria-hidden />
                   Print
-                </button>
-                <button type="button" onClick={handleDownloadPreviewPDF} disabled={isGeneratingPDF} className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline disabled:opacity-50">
+                </AisBtnSecondary>
+                <AisBtnSecondary type="button" onClick={handleDownloadPreviewPDF} disabled={isGeneratingPDF} className="h-8 px-3 text-xs">
                   <Download className="h-3.5 w-3.5" aria-hidden />
                   {isGeneratingPDF ? 'Generating…' : 'Download PDF'}
-                </button>
-                <button type="button" onClick={() => setIsEditingContent((v) => !v)} className="inline-flex items-center gap-1 text-xs font-medium text-ais-primary hover:underline">
+                </AisBtnSecondary>
+                <AisBtnPrimary type="button" onClick={() => setIsEditingContent((v) => !v)} className="h-8 px-3 text-xs">
                   {isEditingContent ? (<><Check className="h-3.5 w-3.5" aria-hidden />Done editing</>) : (<><Pencil className="h-3.5 w-3.5" aria-hidden />Edit</>)}
-                </button>
-                <button
+                </AisBtnPrimary>
+                <AisBtnSecondary
                   type="button"
                   onClick={() => { setShowPreview(false); setGeneratedContent(''); setIsEditingContent(false); }}
-                  className="text-xs text-ais-error hover:underline flex items-center gap-1"
+                  className="h-8 px-3 text-xs text-ais-error"
                 >
                   Clear & Regenerate
-                </button>
+                </AisBtnSecondary>
               </div>
             </div>
             {isEditingContent ? (
@@ -765,12 +766,21 @@ export function TeacherAssessmentGenerator() {
         }
         right={
           canSubmit ? (
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
-            >
-              {type === 'Quiz' || type === 'Baseline' ? 'Save & make available for grades' : 'Submit for dept head approval'}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => void handleSubmit({ preventDefault: () => {} } as React.FormEvent, true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary transition-all hover:bg-btn-primary/10"
+              >
+                Save draft
+              </button>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-btn-primary px-6 py-2 text-sm font-semibold text-btn-primary-foreground transition-all hover:bg-btn-primary/90 shadow-md hover:shadow-lg"
+              >
+                {type === 'Quiz' || type === 'Baseline' ? 'Save & make available for grades' : type === 'Assignment' ? 'Save' : 'Submit for dept head approval'}
+              </button>
+            </>
           ) : undefined
         }
       />

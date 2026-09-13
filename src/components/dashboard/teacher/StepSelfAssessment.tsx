@@ -124,7 +124,7 @@ export const StepSelfAssessment: React.FC = () => {
   return (
     <AisPage>
       <AisPanel
-        title="STEP self-assessment"
+        title="Self-assessment"
         description="Rate yourself honestly on each competency. Your HoD will use this alongside AI gap-analysis on your students' results to assign the right training — not to judge you."
       >
         <div className="space-y-6">

@@ -274,7 +274,8 @@ interface AppContextType {
       createdByRole?: Assessment["createdByRole"];
       teacherName?: string;
       teacherId?: string;
-    },
+      saveDraft?: boolean;
+    }
   ) => void;
   updateAssessmentQuestions: (
     id: string,
@@ -1040,6 +1041,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch(() => {});
   }, []);
 
+  const addNotification = useCallback(
+    (
+      title: string,
+      description: string,
+      type: AppNotification["type"],
+      linkPath?: string,
+      scope?: "self" | "school",
+    ) => {
+      toast({ title, description, variant: type });
+      void api
+        .createNotification(title, description, type, linkPath, scope)
+        .then((notif) => {
+          setNotifications((prev) => [notif as AppNotification, ...prev]);
+        })
+        .catch(() => {
+          const newNotif: AppNotification = {
+            id: `not-gen-${Math.random().toString(36).slice(2, 11)}`,
+            title,
+            description,
+            timestamp: "Just now",
+            read: false,
+            type,
+            linkPath,
+          };
+          setNotifications((prev) => [newNotif, ...prev]);
+        });
+    },
+    [],
+  );
+
   const refreshFromApi = useCallback(async () => {
     setIsDataLoading(true);
     const online = isBrowserOnline();
@@ -1087,9 +1118,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       setPendingSyncCount(remaining);
       if (dropped.length > 0) {
         addNotification(
-          "Some offline changes could not be saved",
-          `${dropped.length} change${dropped.length === 1 ? "" : "s"} made while offline were rejected by the server (${dropped[0].error}) and have been discarded rather than left stuck. You may need to redo ${dropped.length === 1 ? "it" : "them"}.`,
-          "alert",
+          'Queued changes could not be saved',
+          `${dropped.length} change${dropped.length === 1 ? '' : 's'} made while offline were rejected by the server (${dropped[0].error}) and have been discarded rather than left stuck. You may need to redo ${dropped.length === 1 ? 'it' : 'them'}.`,
+          'alert',
         );
       }
       if (flushed > 0) {
@@ -1418,6 +1449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdByRole?: Assessment["createdByRole"];
       teacherName?: string;
       teacherId?: string;
+      saveDraft?: boolean;
     },
   ) => {
     const createdByRole = asmData.createdByRole ?? "teacher";
@@ -1427,19 +1459,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         teacherId: asmData.teacherId ?? resolveTeacherId(),
         createdByRole,
         teacherName: asmData.teacherName,
+        saveDraft: asmData.saveDraft,
       })
       .then((asm) => {
         setAssessments((prev) => [asm as Assessment, ...prev]);
         const status = (asm as Assessment).status;
-        const ready = status === "Approved";
-        const pendingReview = status === "Pending Reviewer";
-        const isDeptExam = createdByRole === "department-head";
+        const ready = status === 'Approved';
+        const isDraft = status === 'Draft';
+        const pendingReview = status === 'Pending Reviewer';
+        const isDeptExam = createdByRole === 'department-head';
         if (pendingReview) {
           addNotification(
             "Exam sent for review",
             `"${(asm as Assessment).title}" is waiting on the designated reviewers before it's shared with other teachers.`,
             "info",
             "/dashboard/department-head/assessments",
+          );
+          return;
+        }
+        if (isDraft) {
+          addNotification(
+            'Assessment draft saved',
+            `"${(asm as Assessment).title}" is saved privately and is not visible to the department head until submitted.`,
+            'info',
+            '/dashboard/teacher/assessments',
           );
           return;
         }
@@ -2035,23 +2078,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch(() => void refreshFromApi());
   };
 
-  const submitSelfAssessment = (
-    data: Omit<TeacherSelfAssessment, "id" | "submittedAt">,
-  ) => {
-    void api
-      .submitSelfAssessment(data as unknown as Record<string, unknown>)
-      .then((sa) => {
-        setTeacherSelfAssessments((prev) => [
-          sa as TeacherSelfAssessment,
-          ...prev,
-        ]);
-        addNotification(
-          "Self-Assessment Submitted",
-          "Your STEP self-assessment has been recorded and shared with your HoD.",
-          "success",
-        );
-      })
-      .catch(() => void refreshFromApi());
+  const submitSelfAssessment = (data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>) => {
+    void api.submitSelfAssessment(data as unknown as Record<string, unknown>).then((sa) => {
+      setTeacherSelfAssessments((prev) => [sa as TeacherSelfAssessment, ...prev]);
+      addNotification('Self-Assessment Submitted', 'Your self-assessment has been recorded and shared with your department head.', 'success');
+    }).catch(() => void refreshFromApi());
   };
 
   const assignTrainingModule = (
@@ -2936,9 +2967,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       >);
       void refreshPendingCount();
       addNotification(
-        entryData.id ? "Grade Updated" : "Grade Recorded",
-        `${entryData.title} (saved on this device)`,
-        isBrowserOnline() ? "alert" : "info",
+        entryData.id ? 'Result updated locally' : 'Result saved locally',
+        `${entryData.title} was saved on this device and will sync when the connection is restored.`,
+        'info',
       );
     };
 
@@ -2964,28 +2995,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           applyGpaFromGradeEntries(entryData.studentId, next);
           return next;
         });
-        void api
-          .recalculateGpa(entryData.studentId)
-          .then(() => void refreshFromApi());
-        addNotification(
-          entryData.id ? "Grade Updated" : "Grade Recorded",
-          entryData.title,
-          "success",
-        );
+        void api.recalculateGpa(entryData.studentId).then(() => void refreshFromApi());
+        addNotification(entryData.id ? 'Result updated' : 'Result saved', entryData.title, 'success');
       })
-      .catch((err) => {
-        // A 409 means the server deliberately rejected this — the subject/term is
-        // submitted or finalized and this teacher has no override. That is the whole
-        // point of the lock, so it must never be silently re-applied to local state
-        // via the offline-queue fallback (which used to happen for every failure
-        // reason alike, defeating the lock entirely).
-        if (err instanceof ApiError && err.status === 409) {
-          addNotification(
-            "Result Locked",
-            err.message ||
-              "This result has been submitted or finalized and cannot be edited without approval.",
-            "alert",
-          );
+      .catch((error) => {
+        // A server-side 4xx rejection is not an offline condition. Do not enqueue
+        // it, or the next bootstrap will report it as a failed queued change.
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+          addNotification('Result was not saved', error.message, 'alert');
           return;
         }
         applyLocal();
@@ -3411,33 +3428,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         return lp;
       }),
     );
-  };
-
-  const addNotification = (
-    title: string,
-    description: string,
-    type: AppNotification["type"],
-    linkPath?: string,
-    scope?: "self" | "school",
-  ) => {
-    toast({ title, description, variant: type });
-    void api
-      .createNotification(title, description, type, linkPath, scope)
-      .then((notif) => {
-        setNotifications((prev) => [notif as AppNotification, ...prev]);
-      })
-      .catch(() => {
-        const newNotif: AppNotification = {
-          id: `not-gen-${Math.random().toString(36).slice(2, 11)}`,
-          title,
-          description,
-          timestamp: "Just now",
-          read: false,
-          type,
-          linkPath,
-        };
-        setNotifications((prev) => [newNotif, ...prev]);
-      });
   };
 
   const markNotificationAsRead = (id: string) => {

@@ -20,7 +20,7 @@ import {
   primarySubjectForTeacher,
 } from '@/lib/teacherPortal';
 import type { AIDetailedLessonPlanResult } from '@/lib/ai';
-import type { LessonPlan, TeachingNote } from '@/lib/mockData';
+import type { LessonPlan } from '@/lib/mockData';
 import {
   AisBtnPrimary,
   AisBtnSecondary,
@@ -139,7 +139,9 @@ export function TeacherLessonNoteGenerator() {
   const editingNoteId = editingNote?.id || null;
 
   const [linkedPlanId, setLinkedPlanId] = useState(editingNote?.lessonPlanId || initialLessonPlanId || '');
-  const [selectedSessionScope, setSelectedSessionScope] = useState(initialSessionScope);
+  const [selectedSessionScopes, setSelectedSessionScopes] = useState<string[]>(
+    initialSessionScope ? initialSessionScope.split(',').filter(Boolean) : [],
+  );
   // TE-005: required whenever this note has no linked lesson plan — it's a
   // Supplementary / Unplanned Session, an exception to the normal evidence chain.
   const [standaloneReason, setStandaloneReason] = useState(editingNote?.standaloneReason || '');
@@ -185,18 +187,22 @@ export function TeacherLessonNoteGenerator() {
   })();
   const sessionTopicOptions = activePlan ? getWeeklyPlanSessionTopicOptions(activePlan) : [];
 
-  const applySessionTopic = (plan: LessonPlan, scope: string) => {
+  const applySessionTopic = (plan: LessonPlan, scopes: string[] | string) => {
     const options = getWeeklyPlanSessionTopicOptions(plan);
-    const match = options.find((o) => o.value === scope) ?? options[0];
-    if (!match) {
-      setSelectedSessionScope('');
+    const requested = Array.isArray(scopes) ? scopes : scopes ? scopes.split(',').filter(Boolean) : [];
+    const matches = options.filter((o) => requested.includes(o.value));
+    if (!matches.length) {
+      setSelectedSessionScopes([]);
       setNotesTopic('');
       setNoteTitle('');
       return;
     }
-    setSelectedSessionScope(match.value);
-    setNotesTopic(match.topic || match.label);
-    setNoteTitle(match.value === 'all' ? `${weeklyPlanWeekLabel(plan)} — All sessions notes` : `${match.label} — Notes`);
+    const values = matches.map((match) => match.value);
+    setSelectedSessionScopes(values);
+    setNotesTopic(matches.map((match) => match.topic || match.label).join('; '));
+    setNoteTitle(values.includes('all') || matches.length > 1
+      ? `${weeklyPlanWeekLabel(plan)} — ${values.includes('all') ? 'All sessions' : `${matches.length} sessions`} notes`
+      : `${matches[0].label} — Notes`);
   };
 
   // One-time initialization once dependent data (notes/plans) is available.
@@ -242,7 +248,7 @@ export function TeacherLessonNoteGenerator() {
       return;
     }
     if (activePlan && !editingNoteId) {
-      if (!selectedSessionScope) {
+      if (selectedSessionScopes.length === 0) {
         setGenerationError('Choose a week session (or All sessions).');
         return;
       }
@@ -262,23 +268,25 @@ export function TeacherLessonNoteGenerator() {
       let sessionContext: string | undefined;
 
       if (activePlan && !editingNoteId) {
-        const match = sessionTopicOptions.find((o) => o.value === selectedSessionScope);
+        const matches = sessionTopicOptions.filter((o) => selectedSessionScopes.includes(o.value));
         const weekly = parseWeeklyPlanDetail(activePlan);
         const planObjectives = [...(activePlan.objectives || []), ...(weekly?.objectives || [])].filter(Boolean);
         const uniqueObjectives = [...new Set(planObjectives)];
 
-        topic = notesTopic.trim() || match?.topic || activePlan.title;
-        subtopic = match?.value === 'all' ? weekly?.subTopic || 'All sessions this week' : match?.subtopic || match?.label || '';
+        topic = notesTopic.trim() || matches.map((match) => match.topic).join('; ') || activePlan.title;
+        subtopic = selectedSessionScopes.includes('all')
+          ? weekly?.subTopic || 'All sessions this week'
+          : matches.map((match) => match.subtopic || match.label).join('; ');
 
         sessionContext = [
-          match?.context || '',
+          ...matches.map((match) => match.context || ''),
           `Teacher-selected topic (editable): ${topic}`,
           uniqueObjectives.length
             ? `Lesson plan objectives to cover:\n${uniqueObjectives.map((o) => `- ${o}`).join('\n')}`
             : '',
-          selectedSessionScope === 'all'
+          selectedSessionScopes.includes('all')
             ? 'Generate lesson notes that cover every session in this weekly plan, organized by session, while honouring the lesson plan objectives.'
-            : `Generate lesson notes focused on this session while honouring the weekly lesson plan objectives.`,
+            : `Generate lesson notes covering each of the ${matches.length} selected sessions, organized by session, while honouring the weekly lesson plan objectives.`,
         ]
           .filter(Boolean)
           .join('\n\n');
@@ -422,7 +430,7 @@ export function TeacherLessonNoteGenerator() {
       sessionScope: editingNoteId
         ? editingNote?.sessionScope
         : activePlan
-          ? selectedSessionScope || 'all'
+          ? selectedSessionScopes.join(',') || 'all'
           : undefined,
       standaloneReason: linkedPlanId ? undefined : standaloneReason.trim(),
     };
@@ -516,7 +524,7 @@ export function TeacherLessonNoteGenerator() {
               setNotesSubject(p.subject);
               if (!editingNoteId) applySessionTopic(p, 'all');
             } else {
-              setSelectedSessionScope('');
+              setSelectedSessionScopes([]);
               setNotesTopic('');
               // Switching to Supplementary/Unplanned must not leave behind the previously
               // linked plan's week-derived title (e.g. "Meskerem W1 · P1-16 · Unit-1 ...") —
@@ -578,13 +586,38 @@ export function TeacherLessonNoteGenerator() {
           <Select variant="ais" label="Grade" options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} value={notesGrade} onChange={(e) => setNotesGrade(e.target.value)} />
           <Select variant="ais" label="Subject" options={SUBJECT_OPTIONS.map((s) => ({ value: s, label: s }))} value={notesSubject} onChange={(e) => setNotesSubject(e.target.value)} />
           {activePlan && !editingNoteId ? (
-            <Select
-              variant="ais"
-              label="Session"
-              options={sessionTopicOptions.map((o) => ({ value: o.value, label: o.label }))}
-              value={selectedSessionScope}
-              onChange={(e) => applySessionTopic(activePlan, e.target.value)}
-            />
+            <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+              <label className={aisFormLabel}>Sessions</label>
+              <p className="text-xs text-ais-on-surface-variant">Select one or more sessions.</p>
+              <details className="rounded-xl border border-ais-card-border bg-white dark:bg-ais-surface">
+                <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-ais-on-surface">
+                  {selectedSessionScopes.length
+                    ? `${selectedSessionScopes.length} session${selectedSessionScopes.length === 1 ? '' : 's'} selected`
+                    : 'Select sessions'}
+                </summary>
+                <div className="grid max-h-48 grid-cols-1 gap-2 overflow-y-auto border-t border-ais-card-border p-3 sm:grid-cols-2">
+                  {sessionTopicOptions.map((option) => {
+                  const checked = selectedSessionScopes.includes(option.value);
+                  return (
+                    <label key={option.value} className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-ais-row-hover">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked
+                            ? selectedSessionScopes.filter((value) => value !== option.value)
+                            : [...selectedSessionScopes.filter((value) => value !== 'all'), option.value];
+                          applySessionTopic(activePlan, next);
+                        }}
+                        className="mt-0.5 accent-ais-primary"
+                      />
+                      <span className={checked ? 'font-semibold text-ais-on-surface' : 'text-ais-on-surface-variant'}>{option.label}</span>
+                    </label>
+                  );
+                  })}
+                </div>
+              </details>
+            </div>
           ) : null}
         </div>
       </section>
@@ -750,7 +783,7 @@ export function TeacherLessonNoteGenerator() {
                 generatingNotes ||
                 explainingMore ||
                 !notesTopic.trim() ||
-                (!!activePlan && !editingNoteId && !selectedSessionScope) ||
+                (!!activePlan && !editingNoteId && selectedSessionScopes.length === 0) ||
                 (!!activePlan && !editingNoteId && !isWeeklyPlanHodApproved(activePlan))
               }
             >

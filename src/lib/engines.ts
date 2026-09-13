@@ -100,5 +100,14 @@ export function defaultTabForEngine(role: PortalRole, engine: EngineId): string 
     };
     return tabs[engine] ?? 'dashboard';
   }
+  if (role === 'teacher') {
+    const tabs: Partial<Record<EngineId, string>> = {
+      teaching: 'assessments',
+      management: 'manage-students',
+      training: 'training',
+      communications: 'communication',
+    };
+    return tabs[engine] ?? 'assessments';
+  }
   return 'dashboard';
 }

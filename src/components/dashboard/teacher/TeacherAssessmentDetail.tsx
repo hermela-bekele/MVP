@@ -12,6 +12,7 @@ import { isGeneratedAssessmentBlob } from '@/lib/assessmentMarkdown';
 import { filterTeacherAssessments, resolveTeacherProfile } from '@/lib/teacherPortal';
 import type { Assessment } from '@/lib/mockData';
 import {
+  assessmentQuestionsToMarkdown,
   assessmentToMarkdown,
   generatePDFFromMarkdown,
   printMarkdown,
@@ -114,7 +115,7 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
     setIsGeneratingPDF(true);
     try {
       await generatePDFFromMarkdown(
-        assessmentToMarkdown(assessment),
+        assessmentQuestionsToMarkdown(assessment),
         `${slugifyFilename(assessment.title)}.pdf`,
         assessment.title,
       );
@@ -289,8 +290,8 @@ export const TeacherAssessmentDetail: React.FC<TeacherAssessmentDetailProps> = (
               <textarea
                 value={aiContentDraft}
                 onChange={(e) => setAiContentDraft(e.target.value)}
-                rows={20}
-                className={`${aisInput} w-full resize-y font-mono text-xs leading-relaxed`}
+                className={`${aisInput} w-full resize-y font-mono text-xs leading-relaxed min-h-[600px]`}
+                style={{ height: 'auto', minHeight: '600px' }}
               />
             ) : (
               <AssessmentContentRenderer

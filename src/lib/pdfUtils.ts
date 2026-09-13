@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { AITeachingNotesResult } from './ai';
 import type { Assessment } from './mockData';
-import { isGeneratedAssessmentBlob } from './assessmentMarkdown';
+import { isGeneratedAssessmentBlob, parseAssessmentQuestions } from './assessmentMarkdown';
 
 export function slugifyFilename(name: string): string {
   return name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'document';
@@ -37,6 +37,45 @@ export function assessmentToMarkdown(assessment: Assessment): string {
   });
 
   return parts.join('\n');
+}
+
+/** Build a printable/downloadable assessment paper without exposing the answer key. */
+export function assessmentQuestionsToMarkdown(assessment: Assessment): string {
+  const parts: string[] = [];
+  const questions = isGeneratedAssessmentBlob(assessment.questions)
+    ? parseAssessmentQuestions(assessment.questions[0].question) ?? []
+    : assessment.questions;
+
+  questions.forEach((q, index) => {
+    parts.push(`## Question ${index + 1} (${q.type})`, '', q.question, '');
+    if (q.options?.length) {
+      q.options.forEach((opt, i) => parts.push(`${String.fromCharCode(65 + i)}. ${opt}`));
+      parts.push('');
+    }
+    if (q.matchingPairs?.length) {
+      q.matchingPairs.forEach((pair, i) => parts.push(`${i + 1}. ${pair.left}    ${String.fromCharCode(65 + i)}. ${pair.right}`));
+      parts.push('');
+    }
+    parts.push('---', '');
+  });
+  return parts.join('\n');
+}
+
+/** Convert generated assessment markdown into a question paper without metadata or answers. */
+export function generatedAssessmentQuestionsToMarkdown(content: string): string {
+  const questions = parseAssessmentQuestions(content) ?? [];
+  return questions
+    .map((q, index) => {
+      const lines = [`## Question ${index + 1} (${q.type})`, '', q.question, ''];
+      if (q.options?.length) {
+        lines.push(...q.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`), '');
+      }
+      if (q.matchingPairs?.length) {
+        lines.push(...q.matchingPairs.map((pair, pairIndex) => `${pairIndex + 1}. ${pair.left}    ${String.fromCharCode(65 + pairIndex)}. ${pair.right}`), '');
+      }
+      return lines.join('\n');
+    })
+    .join('\n---\n\n');
 }
 
 export function teachingNotesToMarkdown(
@@ -97,22 +136,23 @@ export function teachingNotesToMarkdown(
 }
 
 const PDF_CONTENT_STYLES = `
-  .pdf-content h1 { font-size: 24px; font-weight: bold; margin: 20px 0 10px; color: #1d4ed8; }
-  .pdf-content h2 { font-size: 20px; font-weight: bold; margin: 16px 0 8px; color: #1d4ed8; }
-  .pdf-content h3 { font-size: 16px; font-weight: bold; margin: 12px 0 6px; color: #0369a1; }
-  .pdf-content p { margin: 6px 0; line-height: 1.6; }
-  .pdf-content .question { margin-top: 14px; font-weight: 600; color: #111827; }
-  .pdf-content .option { margin-left: 20px; color: #374151; }
-  .pdf-content .answer { margin-left: 20px; color: #047857; font-weight: 500; }
-  .pdf-content .blank { margin: 8px 0 8px 20px; letter-spacing: 2px; color: #6b7280; }
-  .pdf-content .section { margin-top: 18px; font-weight: 700; color: #1d4ed8; font-size: 16px; }
-  .pdf-content .meta { color: #4b5563; font-size: 13px; }
-  .pdf-content ul, .pdf-content ol { margin: 8px 0; padding-left: 20px; }
-  .pdf-content li { margin: 4px 0; }
-  .pdf-content hr { border: none; border-top: 2px solid #e5e7eb; margin: 16px 0; }
+  .pdf-content h1 { font-size: 24px; font-weight: bold; margin: 20px 0 10px; color: #000000; }
+  .pdf-content h2 { font-size: 20px; font-weight: bold; margin: 16px 0 8px; color: #000000; }
+  .pdf-content h3 { font-size: 16px; font-weight: bold; margin: 12px 0 6px; color: #000000; }
+  .pdf-content p { margin: 6px 0; line-height: 1.6; color: #000000; }
+  .pdf-content .question { margin-top: 14px; font-weight: 600; color: #000000; }
+  .pdf-content .option { margin-left: 20px; color: #000000; }
+  .pdf-content .answer { margin-left: 20px; color: #000000; font-weight: 500; }
+  .pdf-content .blank { margin: 8px 0 8px 20px; letter-spacing: 2px; color: #000000; }
+  .pdf-content .section { margin-top: 18px; font-weight: 700; color: #000000; font-size: 16px; }
+  .pdf-content .meta { color: #000000; font-size: 13px; }
+  .pdf-content ul, .pdf-content ol { margin: 8px 0; padding-left: 20px; color: #000000; }
+  .pdf-content li { margin: 4px 0; color: #000000; }
+  .pdf-content hr { border: none; border-top: 2px solid #000000; margin: 16px 0; }
   .pdf-content .spacer { height: 8px; }
-  .pdf-content .katex { font-size: 1.05em; }
-  .pdf-content .katex-display { margin: 10px 0; overflow-x: auto; }
+  .pdf-content .katex { font-size: 1.05em; color: #000000; }
+  .pdf-content .katex-display { margin: 10px 0; overflow-x: auto; color: #000000; }
+  .pdf-content * { color: #000000 !important; }
 `;
 
 function escapeHtml(text: string): string {
@@ -127,7 +167,7 @@ function renderLatexInText(
   text: string,
   katex: typeof import('katex').default,
 ): string {
-  const mathRegex = /\$\$([^$]+)\$\$|\$([^$\n]+)\$/g;
+  const mathRegex = /\$\$([\s\S]+?)\$\$|\$([^$\n]+)\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
   const parts: string[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -137,8 +177,8 @@ function renderLatexInText(
       parts.push(escapeHtml(text.substring(lastIndex, match.index)));
     }
 
-    const mathContent = match[1] || match[2];
-    const isDisplay = match[0].startsWith('$$');
+    const mathContent = match[1] || match[2] || match[3] || match[4];
+    const isDisplay = match[0].startsWith('$$') || match[0].startsWith('\\[');
 
     try {
       parts.push(
@@ -201,7 +241,7 @@ function lineToHtml(
   if (/^Q\[?\d+\]?:/i.test(trimmed)) {
     return `<p class="question">${content}</p>`;
   }
-  if (/^[A-D]\)/.test(trimmed)) {
+  if (/^[A-D][.)]\s/.test(trimmed)) {
     return `<p class="option">${content}</p>`;
   }
   if (trimmed.includes('✓ Correct') || trimmed.includes('✓ Explanation')) {

@@ -191,16 +191,16 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
     subtitle: "Professional development in your teaching subject area.",
   },
   "training-continuous": {
-    title: "Continuous Development (STEP)",
-    subtitle: "School-Based Teaching Excellence Program: ongoing professional development.",
+    title: "Continuous Development",
+    subtitle: "Ongoing professional development for classroom practice.",
   },
   "training-induction": {
-    title: "New-Teacher Onboarding (TIP)",
-    subtitle: "Teacher Induction Program: foundations for your first two years.",
+    title: "New-Teacher Onboarding",
+    subtitle: "Foundations for your first two years of teaching.",
   },
   "training-self-assessment": {
     title: "My Development Plan",
-    subtitle: "Rate yourself against the STEP rubric to identify growth areas — shared with your HoD.",
+    subtitle: "Rate yourself to identify growth areas — shared with your HoD.",
   },
   "training-completed": {
     title: "Completed Learning & Evidence",
