@@ -9,7 +9,7 @@ import { computeTeacherDevelopmentRollup, computeScheduledTrainingRollup } from 
 
 const PROGRAM_LABELS: Record<string, string> = {
   Induction: 'Teacher Development Courses (Induction)',
-  Teacher Development: 'Teacher Development Courses (Teacher Development)',
+  'Teacher Development': 'Teacher Development Courses (Teacher Development)',
   Leadership: 'Leadership Courses (Leadership)',
 };
 
