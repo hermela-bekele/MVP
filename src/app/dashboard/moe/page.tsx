@@ -637,7 +637,7 @@ export default function MoePortalPage() {
                       }}>
                         Cancel
                       </Button>
-                      <Button type="button" size="sm" variant="default" onClick={saveIssueCompliance}>
+                      <Button type="button" size="sm" variant="primary" onClick={saveIssueCompliance}>
                         Save Compliance Issue
                       </Button>
                     </div>
