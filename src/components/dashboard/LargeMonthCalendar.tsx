@@ -134,6 +134,9 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
   fill = false,
   size = 'md',
 }) => {
+  // DEBUG: Log to verify events are received
+  console.log(`🔍 LargeMonthCalendar - Rendering month ${month}/${year} with ${events.length} events`);
+  
   const [popoverIso, setPopoverIso] = useState<string | null>(null);
   const [draftMark, setDraftMark] = useState<SchoolDayMark>('parent-conference');
   const [draftLabel, setDraftLabel] = useState('');
@@ -275,8 +278,20 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
 
   const prevMonth = addEthiopianMonths(year, month, -1);
   const nextMonth = addEthiopianMonths(year, month, 1);
-  const prevKey = ethiopianMonthKey(prevMonth.year, prevMonth.month);
-  const nextKey = ethiopianMonthKey(nextMonth.year, nextMonth.month);
+  
+  // Skip Pagume (month 13) in navigation - it's too short for a full calendar view
+  const prevMonthSkipPagume = prevMonth.month === 13 ? addEthiopianMonths(prevMonth.year, prevMonth.month, -1) : prevMonth;
+  const nextMonthSkipPagume = nextMonth.month === 13 ? addEthiopianMonths(nextMonth.year, nextMonth.month, 1) : nextMonth;
+  
+  // DEBUG: Log navigation calculations
+  console.log(`🔍 Navigation from ${year}/${month}:`);
+  console.log(`   Previous (raw): ${prevMonth.year}/${prevMonth.month}`);
+  console.log(`   Previous (skip Pagume): ${prevMonthSkipPagume.year}/${prevMonthSkipPagume.month}`);
+  console.log(`   Next (raw): ${nextMonth.year}/${nextMonth.month}`);
+  console.log(`   Next (skip Pagume): ${nextMonthSkipPagume.year}/${nextMonthSkipPagume.month}`);
+  
+  const prevKey = ethiopianMonthKey(prevMonthSkipPagume.year, prevMonthSkipPagume.month);
+  const nextKey = ethiopianMonthKey(nextMonthSkipPagume.year, nextMonthSkipPagume.month);
   const minKey = minDate ? ethiopianMonthKey(
     gregorianIsoToEthiopian(minDate).year,
     gregorianIsoToEthiopian(minDate).month,
@@ -285,6 +300,11 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
     gregorianIsoToEthiopian(maxDate).year,
     gregorianIsoToEthiopian(maxDate).month,
   ) : undefined;
+  
+  // DEBUG: Log button states
+  console.log(`🔍 Button states:`);
+  console.log(`   Previous: ${prevKey}, minKey: ${minKey}, disabled: ${Boolean(minKey && prevKey < minKey)}`);
+  console.log(`   Next: ${nextKey}, maxKey: ${maxKey}, disabled: ${Boolean(maxKey && nextKey > maxKey)}`);
 
   const popoverHoliday = popoverIso ? holidayForDay(events, popoverIso) : null;
   const popoverActivity = popoverIso ? activityForDay(events, popoverIso) : null;
@@ -481,7 +501,7 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
                 type="button"
                 aria-label="Previous Ethiopian month"
                 disabled={Boolean(minKey && prevKey < minKey)}
-                onClick={() => onMonthChange(prevMonth.year, prevMonth.month)}
+                onClick={() => onMonthChange(prevMonthSkipPagume.year, prevMonthSkipPagume.month)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-white text-muted-foreground hover:bg-muted/60 disabled:opacity-30"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -490,7 +510,7 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
                 type="button"
                 aria-label="Next Ethiopian month"
                 disabled={Boolean(maxKey && nextKey > maxKey)}
-                onClick={() => onMonthChange(nextMonth.year, nextMonth.month)}
+                onClick={() => onMonthChange(nextMonthSkipPagume.year, nextMonthSkipPagume.month)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-white text-muted-foreground hover:bg-muted/60 disabled:opacity-30"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -516,12 +536,24 @@ export const LargeMonthCalendar: React.FC<LargeMonthCalendarProps> = ({
 
         {/* Day grid — after work start, all days are active (including adjacent-month cells) */}
         <div className="grid grid-cols-7 gap-y-1 px-2 sm:px-3 pb-4">
-          {gridCells.map((cell) => {
+          {gridCells.map((cell, cellIndex) => {
             const assignment =
               assignmentForDay(assignments, cell.iso) ?? markFromEvents(events, cell.iso);
             const holiday = holidayForDay(events, cell.iso);
             const activity = activityForDay(events, cell.iso);
             const primary = events.length ? primaryEventForDay(events, cell.iso) : null;
+            
+            // DEBUG: Log first few cells to see event detection
+            if (cellIndex < 5) {
+              console.log(`🔍 Cell ${cellIndex} (${cell.iso}):`, {
+                hasAssignment: !!assignment,
+                hasHoliday: !!holiday,
+                hasActivity: !!activity,
+                hasPrimary: !!primary,
+                inMonth: cell.inMonth
+              });
+            }
+            
             const isSelected = selectedDate === cell.iso || popoverIso === cell.iso;
             const markColors = assignment ? DAY_MARK_COLORS[assignment.mark] : null;
             const beforeWorkStart = Boolean(minDate && cell.iso < minDate);

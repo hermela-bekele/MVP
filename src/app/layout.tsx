@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   description: "AI-Powered Education Management Ecosystem for the Ethiopian Education Sector — Empowering schools, teachers, and students through intelligent analytics and streamlined administration.",
   keywords: ["education", "Ethiopia", "school management", "AI", "teaching", "analytics"],
   authors: [{ name: "PRIME EduAI" }],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PRIME EduAI",
+  },
 };
 
 export const viewport: Viewport = {

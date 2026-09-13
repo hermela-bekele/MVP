@@ -175,19 +175,22 @@ export default function HeadOfAcademicsPortalApp() {
               tooltip={{ description: 'Distinct grade + section combinations configured at this school.' }}
             />
             <KpiWidget
-              label="Class Reports"
-              value="Generate"
-              hint="Term report cards by class"
-              tone="emphasis"
+              label="Departments"
+              value={departments.length}
+              hint="Academic departments"
+              tone="default"
               icon={<FileText className="h-5 w-5" strokeWidth={1.75} />}
-              tooltip={{ description: 'Shortcut to the Class Reports tab, where you generate term report cards for a chosen class.' }}
+              tooltip={{ description: 'Number of academic departments managing subject curricula.' }}
+              onClick={() => setActiveTab('teachers')}
             />
             <KpiWidget
-              label="Templates"
-              value="Configure"
-              hint="Per-school document layout"
+              label="Resources"
+              value={disseminatedCount}
+              hint={`${disseminatedCount} of ${curriculumResources.length} disseminated`}
+              tone="emphasis"
               icon={<Settings2 className="h-5 w-5" strokeWidth={1.75} />}
-              tooltip={{ description: 'Shortcut to the Student Report Card Builder, where this school\'s report card and transcript layout is configured.' }}
+              tooltip={{ description: 'School-wide teaching resources published and available to all staff.' }}
+              onClick={() => setActiveTab('resources')}
             />
           </KpiGrid>
 
@@ -236,7 +239,7 @@ export default function HeadOfAcademicsPortalApp() {
                 </Tooltip>
               </CardHeader>
               <CardContent className="pt-2">
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1">
                   {subjectPerformance.length === 0 && (
                     <p className="text-xs text-muted-foreground">No graded assessment data available yet.</p>
                   )}

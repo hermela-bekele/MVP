@@ -136,22 +136,23 @@ export function teachingNotesToMarkdown(
 }
 
 const PDF_CONTENT_STYLES = `
-  .pdf-content h1 { font-size: 24px; font-weight: bold; margin: 20px 0 10px; color: #1d4ed8; }
-  .pdf-content h2 { font-size: 20px; font-weight: bold; margin: 16px 0 8px; color: #1d4ed8; }
-  .pdf-content h3 { font-size: 16px; font-weight: bold; margin: 12px 0 6px; color: #0369a1; }
-  .pdf-content p { margin: 6px 0; line-height: 1.6; }
-  .pdf-content .question { margin-top: 14px; font-weight: 600; color: #111827; }
-  .pdf-content .option { margin-left: 20px; color: #374151; }
-  .pdf-content .answer { margin-left: 20px; color: #047857; font-weight: 500; }
-  .pdf-content .blank { margin: 8px 0 8px 20px; letter-spacing: 2px; color: #6b7280; }
-  .pdf-content .section { margin-top: 18px; font-weight: 700; color: #1d4ed8; font-size: 16px; }
-  .pdf-content .meta { color: #4b5563; font-size: 13px; }
-  .pdf-content ul, .pdf-content ol { margin: 8px 0; padding-left: 20px; }
-  .pdf-content li { margin: 4px 0; }
-  .pdf-content hr { border: none; border-top: 2px solid #e5e7eb; margin: 16px 0; }
+  .pdf-content h1 { font-size: 24px; font-weight: bold; margin: 20px 0 10px; color: #000000; }
+  .pdf-content h2 { font-size: 20px; font-weight: bold; margin: 16px 0 8px; color: #000000; }
+  .pdf-content h3 { font-size: 16px; font-weight: bold; margin: 12px 0 6px; color: #000000; }
+  .pdf-content p { margin: 6px 0; line-height: 1.6; color: #000000; }
+  .pdf-content .question { margin-top: 14px; font-weight: 600; color: #000000; }
+  .pdf-content .option { margin-left: 20px; color: #000000; }
+  .pdf-content .answer { margin-left: 20px; color: #000000; font-weight: 500; }
+  .pdf-content .blank { margin: 8px 0 8px 20px; letter-spacing: 2px; color: #000000; }
+  .pdf-content .section { margin-top: 18px; font-weight: 700; color: #000000; font-size: 16px; }
+  .pdf-content .meta { color: #000000; font-size: 13px; }
+  .pdf-content ul, .pdf-content ol { margin: 8px 0; padding-left: 20px; color: #000000; }
+  .pdf-content li { margin: 4px 0; color: #000000; }
+  .pdf-content hr { border: none; border-top: 2px solid #000000; margin: 16px 0; }
   .pdf-content .spacer { height: 8px; }
-  .pdf-content .katex { font-size: 1.05em; }
-  .pdf-content .katex-display { margin: 10px 0; overflow-x: auto; }
+  .pdf-content .katex { font-size: 1.05em; color: #000000; }
+  .pdf-content .katex-display { margin: 10px 0; overflow-x: auto; color: #000000; }
+  .pdf-content * { color: #000000 !important; }
 `;
 
 function escapeHtml(text: string): string {

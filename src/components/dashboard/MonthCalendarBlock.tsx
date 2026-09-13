@@ -7,6 +7,7 @@ import {
   daysInEthiopianMonth,
   ethiopianToGregorianIso,
   gregorianIsoToEthiopian,
+  formatGregorianSpanForEthiopianMonth,
 } from '@/lib/ethiopianCalendar';
 import type { AcademicCalendarEvent } from '@/lib/mockData';
 import type { DayAssignment } from '@/lib/calendarDayMarks';
@@ -89,6 +90,18 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
     return getCalendarBounds(events);
   }, [events, minDate, maxDate]);
 
+  // DEBUG: Log events to verify they exist
+  console.log('📅 MonthCalendarBlock - Total events:', events.length);
+  console.log('📅 Events date range:', bounds);
+  if (events.length > 0) {
+    console.log('📅 Sample events:', events.slice(0, 3).map(e => ({
+      label: e.label,
+      start: e.startDate,
+      end: e.endDate,
+      type: e.type
+    })));
+  }
+  
   // Stable SSR defaults; jump to "today" on the client to avoid hydration mismatch
   const seedIso = useMemo(() => {
     if (initialDate && initialDate >= bounds.start && initialDate <= bounds.end) {
@@ -114,6 +127,10 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
   const [selectedDate, setSelectedDate] = useState(focusIso);
   const [syncedFocus, setSyncedFocus] = useState(focusIso);
 
+  // DEBUG: Log when month changes
+  console.log(`📅 Current view: Year ${year}, Month ${month} (Ethiopian Calendar)`);
+  console.log(`📅 Gregorian range for this month:`, formatGregorianSpanForEthiopianMonth(year, month));
+
   if (syncedFocus !== focusIso) {
     setSyncedFocus(focusIso);
     setYear(focusEth.year);
@@ -126,11 +143,14 @@ export const MonthCalendarBlock: React.FC<MonthCalendarBlockProps> = ({
       year={year}
       month={month}
       onMonthChange={(ny, nm) => {
-        const direction = (month === 12 && nm === 1) || (month !== 1 && nm > month) ? 1 : -1;
-        const visible = skipPagume(ny, nm, direction);
-        setYear(visible.year);
-        setMonth(visible.month);
-        setSelectedDate(focusDateInEthiopianMonth(visible.year, visible.month, bounds, clientToday ?? focusIso));
+        console.log(`🔄 onMonthChange called: current=${year}/${month}, new=${ny}/${nm}`);
+        
+        // The ny/nm values are ALREADY calculated by addEthiopianMonths
+        // We don't need to apply skipPagume with delta again!
+        // Just set the new values directly
+        setYear(ny);
+        setMonth(nm);
+        setSelectedDate(focusDateInEthiopianMonth(ny, nm, bounds, clientToday ?? focusIso));
       }}
       events={events}
       assignments={assignments}
