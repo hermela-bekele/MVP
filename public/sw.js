@@ -1,22 +1,49 @@
 // PRIME EduAI - Service Worker for Offline Support
 // This is a static service worker that doesn't rely on build-time generation
 
-const CACHE_NAME = 'prime-eduai-v2';
+const CACHE_NAME = 'prime-eduai-v3';
 const OFFLINE_URL = '/offline.html';
 
-// Install event - cache essential resources
+// Critical pages to precache on install (available offline immediately)
+const PRECACHE_URLS = [
+  '/',
+  '/manifest.json',
+  '/login',
+  '/register',
+  '/dashboard/teacher',
+  '/dashboard/student',
+  '/dashboard/school-head',
+  '/dashboard/director',
+  '/select-engine',
+  '/apply',
+  '/create-account',
+  '/forgot-password',
+];
+
+// Install event - precache critical pages
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v2');
+  console.log('[SW] Installing service worker v3 with precaching');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching app shell');
-      return cache.addAll([
-        '/',
-        '/manifest.json',
-      ]).catch((err) => {
-        console.warn('[SW] Failed to cache some resources:', err);
-        // Don't fail installation if some resources fail to cache
+    caches.open(CACHE_NAME).then(async (cache) => {
+      console.log('[SW] Precaching critical pages...');
+      
+      // Cache pages one by one to avoid failing entire install
+      const cachePromises = PRECACHE_URLS.map(async (url) => {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            await cache.put(url, response);
+            console.log('[SW] ✓ Cached:', url);
+          } else {
+            console.warn('[SW] ✗ Failed to cache (status ' + response.status + '):', url);
+          }
+        } catch (err) {
+          console.warn('[SW] ✗ Failed to cache:', url, err.message);
+        }
       });
+      
+      await Promise.allSettled(cachePromises);
+      console.log('[SW] Precaching complete!');
     })
   );
   self.skipWaiting();
@@ -24,7 +51,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v2');
+  console.log('[SW] Activating service worker v3');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
