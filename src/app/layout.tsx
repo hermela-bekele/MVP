@@ -44,6 +44,27 @@ export default function RootLayout({
       className={`${inter.variable} h-full`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Manual PWA Service Worker Registration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(registration) {
+                      console.log('✅ Service Worker registered:', registration.scope);
+                    },
+                    function(err) {
+                      console.error('❌ Service Worker registration failed:', err);
+                    }
+                  );
+                });
+              }
+            `,
+          }}
+        />
+      </head>
       <body
         className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-300 font-[family-name:var(--font-inter)] antialiased"
         suppressHydrationWarning
