@@ -277,6 +277,10 @@ interface AppContextType {
       saveDraft?: boolean;
     }
   ) => void;
+  updateAssessmentQuestions: (
+    id: string,
+    questions: Assessment["questions"],
+  ) => void;
   saveAttendance: (
     records: {
       studentId: string;
@@ -1037,6 +1041,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch(() => {});
   }, []);
 
+  const addNotification = useCallback(
+    (
+      title: string,
+      description: string,
+      type: AppNotification["type"],
+      linkPath?: string,
+      scope?: "self" | "school",
+    ) => {
+      toast({ title, description, variant: type });
+      void api
+        .createNotification(title, description, type, linkPath, scope)
+        .then((notif) => {
+          setNotifications((prev) => [notif as AppNotification, ...prev]);
+        })
+        .catch(() => {
+          const newNotif: AppNotification = {
+            id: `not-gen-${Math.random().toString(36).slice(2, 11)}`,
+            title,
+            description,
+            timestamp: "Just now",
+            read: false,
+            type,
+            linkPath,
+          };
+          setNotifications((prev) => [newNotif, ...prev]);
+        });
+    },
+    [],
+  );
+
   const refreshFromApi = useCallback(async () => {
     setIsDataLoading(true);
     const online = isBrowserOnline();
@@ -1415,6 +1449,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       createdByRole?: Assessment["createdByRole"];
       teacherName?: string;
       teacherId?: string;
+      saveDraft?: boolean;
     },
   ) => {
     const createdByRole = asmData.createdByRole ?? "teacher";
@@ -3393,33 +3428,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         return lp;
       }),
     );
-  };
-
-  const addNotification = (
-    title: string,
-    description: string,
-    type: AppNotification["type"],
-    linkPath?: string,
-    scope?: "self" | "school",
-  ) => {
-    toast({ title, description, variant: type });
-    void api
-      .createNotification(title, description, type, linkPath, scope)
-      .then((notif) => {
-        setNotifications((prev) => [notif as AppNotification, ...prev]);
-      })
-      .catch(() => {
-        const newNotif: AppNotification = {
-          id: `not-gen-${Math.random().toString(36).slice(2, 11)}`,
-          title,
-          description,
-          timestamp: "Just now",
-          read: false,
-          type,
-          linkPath,
-        };
-        setNotifications((prev) => [newNotif, ...prev]);
-      });
   };
 
   const markNotificationAsRead = (id: string) => {
