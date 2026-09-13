@@ -55,7 +55,12 @@ try {
     dest: 'public',
     register: true,
     skipWaiting: true,
+    // Disable PWA in development, but keep it ENABLED in production
     disable: process.env.NODE_ENV === 'development',
+    // Vercel-specific: ensure service worker files are included in build output
+    buildExcludes: [/middleware-manifest\.json$/],
+    // Ensure public files are properly handled
+    publicExcludes: ['!noprecache/**/*'],
     runtimeCaching: [
       {
         urlPattern: /^https?.*/,
