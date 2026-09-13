@@ -57,11 +57,31 @@ try {
     skipWaiting: true,
     // Disable PWA in development, but keep it ENABLED in production
     disable: process.env.NODE_ENV === 'development',
-    // Vercel-specific: ensure service worker files are included in build output
-    buildExcludes: [/middleware-manifest\.json$/],
-    // Ensure public files are properly handled
+    // Don't precache _next/static files - they change with every build
+    // Instead, cache them at runtime when requested
+    cacheOnFrontEndNav: true,
+    dynamicStartUrl: false,
     publicExcludes: ['!noprecache/**/*'],
+    // Only precache essential public files, not _next/static
+    buildExcludes: [
+      /middleware-manifest\.json$/,
+      /_next\/static\/.*\.js$/,  // Don't precache JS chunks
+      /_next\/static\/.*\.css$/,  // Don't precache CSS chunks
+    ],
     runtimeCaching: [
+      // Cache Next.js static assets at runtime (not during install)
+      {
+        urlPattern: /^https?:\/\/.*\/_next\/static\/.*/,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'next-static-cache',
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          },
+        },
+      },
+      // Cache all other requests with network-first strategy
       {
         urlPattern: /^https?.*/,
         handler: 'NetworkFirst',
