@@ -129,7 +129,7 @@ export const TeacherStudentsTab: React.FC = () => {
                           <AisTd>{std.section}</AisTd>
                           <AisTd className={`font-mono ${aisBodySm}`}>{std.studentId}</AisTd>
                           <AisTd>
-                            <AisStatusBadge variant={termAvg != null && termAvg >= 70 ? 'success' : 'warning'}>
+                            <AisStatusBadge variant={termAvg == null ? 'neutral' : termAvg >= 70 ? 'success' : 'warning'}>
                               {termAvg != null ? `${termAvg}%` : '—'}
                             </AisStatusBadge>
                           </AisTd>

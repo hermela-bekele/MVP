@@ -27,8 +27,8 @@ import {
 import { aisTextarea } from '@/components/dashboard/teacher/TeacherPortalUi';
 
 /**
- * HoD picks one teacher, reviews the gap analysis (missed-question stats + STEP
- * self-assessment), then assigns one of the existing TIP/STEP modules — no ad-hoc
+ * HoD picks one teacher, reviews the gap analysis (missed-question stats + self-assessment),
+ * then assigns one of the existing development modules — no ad-hoc
  * module generation here. Generating new custom modules from a gap only happens in
  * Teacher Development's gap-analysis flow; this panel is assignment-only.
  */
@@ -110,7 +110,7 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
   }, [teacher]);
 
   // Gap-analysis-driven default: pre-select a module and pre-fill the reason from the
-  // highest-miss-rate topic (or the STEP self-assessment's weakest competency) — the HoD
+  // highest-miss-rate topic (or the self-assessment's weakest competency) — the HoD
   // can still change the module, but the starting point always traces back to evidence.
   useEffect(() => {
     setModuleId(modules[0]?.id ?? '');
@@ -190,8 +190,8 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
                   size="sm"
                 >
                   {getTeacherExperienceLevel(teacher) === 'new'
-                    ? 'New teacher · TIP'
-                    : 'Experienced · STEP'}
+                    ? 'New teacher · Induction'
+                    : 'Experienced · Continuous Development'}
                 </Badge>
               </div>
               {latestAssessment ? (
@@ -202,7 +202,7 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
                     : ''}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">No STEP self-assessment yet</p>
+                <p className="text-xs text-muted-foreground">No self-assessment yet</p>
               )}
               {missedQuestions.length > 0 && (
                 <p className="text-xs text-amber-700 flex items-center gap-1">
@@ -268,8 +268,8 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
               <Select
                 label={
                   getTeacherExperienceLevel(teacher) === 'new'
-                    ? 'Module (Induction · TIP)'
-                    : 'Module (Continuous Development · STEP)'
+                    ? 'Module (Induction)'
+                    : 'Module (Continuous Development)'
                 }
                 value={moduleId}
                 onChange={(e) => setModuleId(e.target.value)}

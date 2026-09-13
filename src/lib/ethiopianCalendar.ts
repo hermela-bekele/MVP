@@ -204,6 +204,14 @@ export function addEthiopianMonths(
   const zeroBased = year * 13 + (month - 1) + delta;
   const y = Math.floor(zeroBased / 13);
   const m = (zeroBased % 13) + 1;
+  
+  // DEBUG: Log calculations
+  console.log(`📐 addEthiopianMonths(${year}, ${month}, ${delta}):`);
+  console.log(`   zeroBased = ${year} * 13 + ${month-1} + ${delta} = ${zeroBased}`);
+  console.log(`   year = floor(${zeroBased} / 13) = ${y}`);
+  console.log(`   month = (${zeroBased} % 13) + 1 = ${m}`);
+  console.log(`   Result: ${y}/${m}`);
+  
   return { year: y, month: m };
 }
 

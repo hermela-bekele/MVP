@@ -14,14 +14,14 @@ import { ELEP_MODULES } from '@/lib/leadershipModules';
 import { CONTINUOUS_DEVELOPMENT_MODULES } from '@/lib/continuousDevelopmentModules';
 
 /** Which of the four learning tracks a module belongs to — resolved from the module
- * catalog it actually lives in, not the assignment's TIP/STEP/ELEP `program` field alone
- * (subject-matter modules are assigned under TIP/STEP depending on teacher experience,
+ * catalog it actually lives in, not the assignment's internal `program` field alone
+ * (subject-matter modules are assigned by teacher experience,
  * so `program` alone can't distinguish "subject-matter" from "induction/continuous"). */
 function programmeForModule(moduleId: string): string {
   if (TRAINING_MODULES.some((m) => m.id === moduleId)) return 'Subject-Matter Training';
-  if (TIP_MODULES.some((m) => m.id === moduleId)) return 'TIP Induction';
-  if (ELEP_MODULES.some((m) => m.id === moduleId)) return 'ELEP Leadership';
-  if (CONTINUOUS_DEVELOPMENT_MODULES.some((m) => m.id === moduleId)) return 'Continuous Development (STEP)';
+  if (TIP_MODULES.some((m) => m.id === moduleId)) return 'Induction';
+  if (ELEP_MODULES.some((m) => m.id === moduleId)) return 'Leadership Development';
+  if (CONTINUOUS_DEVELOPMENT_MODULES.some((m) => m.id === moduleId)) return 'Continuous Development';
   return 'Other';
 }
 
@@ -210,7 +210,7 @@ export function SchoolProfessionalDevelopmentPanel() {
 
       <TablePanel
         title="By Programme"
-        description="Subject-Matter Training, TIP Induction, ELEP Leadership, and Continuous Development (STEP) — never blended into one number"
+        description="Subject-Matter Training, induction, leadership development, and continuous development — never blended into one number"
       >
         {byProgramme.length === 0 ? (
           <EmptyState icon={<Inbox />} title="No training assignments recorded yet." className="py-8" />

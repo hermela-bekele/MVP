@@ -1,0 +1,23 @@
+{
+  "name": "PRIME - Ethiopian Education Portal",
+  "short_name": "PRIME",
+  "description": "Professional Resources for Improving Mathematics Education - A comprehensive educational management system for Ethiopian schools",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false
+}

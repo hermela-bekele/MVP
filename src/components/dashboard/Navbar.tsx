@@ -539,7 +539,7 @@ export const Navbar: React.FC<NavbarProps> = ({ breadcrumbs, hideSearch = false 
                 >
                   My Profile & Preferences
                 </button>
-                {role === 'school-head' && (
+                {(role === 'school-head' || role === 'head-of-academics' || role === 'department-head') && (
                   <button
                     type="button"
                     onClick={() => {

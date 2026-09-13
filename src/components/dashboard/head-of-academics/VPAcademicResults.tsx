@@ -19,7 +19,6 @@ const STUDENT_ROWS_PAGE_SIZE = 10;
 
 const STATUS_OPTIONS: { value: ResultStatus | ''; label: string }[] = [
   { value: '', label: 'All statuses' },
-  { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
   { value: 'finalized', label: 'Finalized' },
 ];

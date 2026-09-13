@@ -229,7 +229,7 @@ export default function SchoolHeadPortalPage() {
       subtitle: 'Institution profile, users & roles, security, billing, integrations, branding, and data & privacy for this school.',
     },
     'leadership-development': {
-      title: 'ELEP · Leadership Development',
+      title: 'Leadership Development',
       subtitle: 'Education Leadership Excellence Program modules for school heads.',
     },
     profile: {
@@ -568,7 +568,7 @@ export default function SchoolHeadPortalPage() {
           {/* 13. Settings Panel */}
           {activeTab === 'settings' && <SchoolHeadSettingsHub />}
 
-          {/* 14. ELEP Leadership Development */}
+          {/* 14. Leadership Development */}
           {activeTab === 'leadership-development' && (
             <div className="animate-fade-in text-left">
               <TeacherTrainingTab typeFilter="all" activeTabType="leadership-development" />
@@ -587,7 +587,7 @@ export default function SchoolHeadPortalPage() {
                 roleLabel="School Head"
                 fields={[
                   { label: 'School', value: schoolName },
-                  { label: 'Leadership track', value: 'ELEP' },
+                  { label: 'Leadership track', value: 'Leadership Development' },
                   { label: 'Departments overseen', value: departments.length },
                 ]}
               />

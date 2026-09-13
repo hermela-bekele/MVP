@@ -66,7 +66,7 @@ export function AisPanel({
   flush?: boolean;
 }) {
   return (
-    <div className={`${aisCard} overflow-hidden ${className}`}>
+    <div className={`${aisCard} overflow-visible ${className}`}>
       {(title || description || actions) && (
         <div className={aisPanelHeader}>
           <div className="min-w-0">

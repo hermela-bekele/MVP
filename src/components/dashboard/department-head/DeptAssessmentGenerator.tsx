@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Pencil, Check } from 'lucide-react';
+import { Sparkles, Pencil, Check, Download, Printer } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { AssessmentContentRenderer } from '@/components/ui/AssessmentContentRend
 import { AisBtnPrimary, AisBtnSecondary, aisInput } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { GeneratorActionBar } from '@/components/ui/GeneratorActionBar';
 import { parseAssessmentQuestions, wrapAssessmentMarkdown } from '@/lib/assessmentMarkdown';
+import { generatePDFFromMarkdown, printMarkdown, slugifyFilename, generatedAssessmentQuestionsToMarkdown } from '@/lib/pdfUtils';
 
 const EXAM_TYPES: Assessment['type'][] = ['Mid Exam', 'Final Exam', 'Assignment', 'Practical'];
 
@@ -122,6 +123,7 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
   const [content, setContent] = useState('');
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [generationError, setGenerationError] = useState('');
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const elapsedSeconds = useElapsedTime(generating);
   const questionLimits = questionLimitsForAssessmentType(type);
@@ -307,7 +309,25 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handlePrintPreview = async () => {
+    if (content.trim()) await printMarkdown(generatedAssessmentQuestionsToMarkdown(content), title || 'Assessment');
+  };
+
+  const handleDownloadPreviewPDF = async () => {
+    if (!content.trim()) return;
+    setIsGeneratingPDF(true);
+    try {
+      await generatePDFFromMarkdown(
+        generatedAssessmentQuestionsToMarkdown(content),
+        `${slugifyFilename(title || 'assessment')}.pdf`,
+        '',
+      );
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleSave = (e: React.FormEvent, saveDraft = false) => {
     e.preventDefault();
     if (!title.trim() || !content) return;
     const parsedQuestions = parseAssessmentQuestions(content);
@@ -321,6 +341,7 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
       teacherName: isReviewerActingAsHod ? undefined : currentUser?.displayName || 'Department Head',
       teacherId: isReviewerActingAsHod ? resolveTeacherId() : deptTeacherId,
       reviewDepartmentId: isReviewerActingAsHod ? scope?.departmentId : undefined,
+      saveDraft,
       questions:
         parsedQuestions && parsedQuestions.length > 0
           ? parsedQuestions
@@ -424,10 +445,10 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
       </section>
 
       <section className="rounded-xl border border-border/70 bg-card p-5">
-        <label className="text-[11px] font-bold uppercase text-muted-foreground">Assessment title</label>
+        <label className="text-[11px] font-bold uppercase text-muted-foreground">Title</label>
         <input
           className={`${aisInput} mt-2`}
-          placeholder="Assessment title"
+          placeholder="Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
@@ -624,11 +645,19 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
             elapsedSeconds={elapsedSeconds}
             successMessage="Assessment generated — review, edit if needed, then publish below."
           />
-          <div className="flex justify-end">
-            <button
+          <div className="flex flex-wrap justify-end gap-2">
+            <AisBtnSecondary type="button" onClick={() => void handlePrintPreview()} className="h-8 px-3 text-xs">
+              <Printer className="h-3.5 w-3.5" aria-hidden />
+              Print
+            </AisBtnSecondary>
+            <AisBtnSecondary type="button" onClick={() => void handleDownloadPreviewPDF()} disabled={isGeneratingPDF} className="h-8 px-3 text-xs">
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              {isGeneratingPDF ? 'Generating…' : 'Download PDF'}
+            </AisBtnSecondary>
+            <AisBtnPrimary
               type="button"
               onClick={() => setIsEditingContent((v) => !v)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              className="h-8 px-3 text-xs"
             >
               {isEditingContent ? (
                 <>
@@ -641,7 +670,7 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
                   Edit
                 </>
               )}
-            </button>
+            </AisBtnPrimary>
           </div>
           {isEditingContent ? (
             <textarea
@@ -674,9 +703,18 @@ export function DeptAssessmentGenerator({ scopeOverride, backPath }: DeptAssessm
           </>
         }
         right={
-          <AisBtnPrimary type="submit" disabled={!title.trim() || !content}>
-            Publish to teachers
-          </AisBtnPrimary>
+          <>
+            <AisBtnSecondary
+              type="button"
+              disabled={!title.trim() || !content}
+              onClick={() => void handleSave({ preventDefault: () => {} } as React.FormEvent, true)}
+            >
+              Save draft
+            </AisBtnSecondary>
+            <AisBtnPrimary type="submit" disabled={!title.trim() || !content}>
+              Share with reviewers
+            </AisBtnPrimary>
+          </>
         }
       />
     </form>

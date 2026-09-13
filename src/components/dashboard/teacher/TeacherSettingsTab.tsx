@@ -53,7 +53,7 @@ export const TeacherSettingsTab: React.FC = () => {
                   experienceLevel === 'new' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                 }`}
               >
-                {experienceLevel === 'new' ? 'New teacher · TIP + STEP' : 'Experienced · STEP'}
+                {experienceLevel === 'new' ? 'New teacher · Induction + Continuous Development' : 'Experienced · Continuous Development'}
               </span>
             ),
           },

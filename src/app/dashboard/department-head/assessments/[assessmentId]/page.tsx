@@ -20,7 +20,7 @@ export default function DeptAssessmentReviewPage({
   const { assessments, currentUser, schools } = useApp();
   const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
   const departmentAssessments = useMemo(
-    () => (scope ? filterBySubjectScope(assessments, scope) : []),
+    () => (scope ? filterBySubjectScope(assessments, scope).filter((assessment) => assessment.status !== 'Draft') : []),
     [assessments, scope],
   );
   const assessment = departmentAssessments.find((asm) => asm.id === assessmentId);

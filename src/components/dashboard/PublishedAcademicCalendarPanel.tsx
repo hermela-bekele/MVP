@@ -20,21 +20,25 @@ export const PublishedAcademicCalendarPanel: React.FC<PublishedAcademicCalendarP
 }) => {
   const { academicCalendars } = useApp();
   const bounds = useMemo(() => getMoeCalendarBounds(), []);
-  const published = useMemo(
-    () => {
-      // First try to find a calendar for this specific school
-      const schoolCalendars = academicCalendars.filter(
-        (c) => c.status === 'Published' && c.schoolId === schoolId
-      );
-      if (schoolCalendars.length > 0) {
-        return schoolCalendars;
-      }
-      // Fallback: show any published calendar
-      return academicCalendars.filter((c) => c.status === 'Published');
-    },
-    [academicCalendars, schoolId],
-  );
-  const cal = published[0] ?? null;
+  
+  const cal = useMemo(() => {
+    // First try to find a calendar for this specific school
+    const schoolCalendars = academicCalendars.filter(
+      (c) => c.status === 'Published' && c.schoolId === schoolId
+    );
+    if (schoolCalendars.length > 0) {
+      return schoolCalendars[0];
+    }
+    // Fallback: show any published calendar
+    const published = academicCalendars.filter((c) => c.status === 'Published');
+    return published[0] ?? null;
+  }, [academicCalendars, schoolId]);
+  
+  // Memoize events separately to ensure they're stable across re-renders
+  const calendarEvents = useMemo(() => {
+    console.log('🎯 PublishedAcademicCalendarPanel - Calendar:', cal?.id, 'Events:', cal?.events?.length ?? 0);
+    return cal?.events ?? [];
+  }, [cal]);
 
   if (!cal) {
     return (
@@ -50,7 +54,7 @@ export const PublishedAcademicCalendarPanel: React.FC<PublishedAcademicCalendarP
     <div className="space-y-5 animate-fade-in">
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-5 items-start">
         <MonthCalendarBlock
-          events={cal.events}
+          events={calendarEvents}
           minDate={bounds.start}
           maxDate={bounds.end}
           showLegend={false}

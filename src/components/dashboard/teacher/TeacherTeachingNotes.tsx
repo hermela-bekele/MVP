@@ -751,7 +751,7 @@ export const TeacherTeachingNotes: React.FC<TeacherTeachingNotesProps> = ({
                 {weeklyPlanStatusLabel(weeklyPlanDialog.plan.status)}
               </p>
             )}
-            <PlanSummary plan={weeklyPlanDialog.plan} />
+            <PlanSummary plan={weeklyPlanDialog.plan} editable={weeklyPlanDialog.mode === 'edit'} />
             {weeklyPlanDialog.mode === 'view' && adjustmentCountFor(weeklyPlanDialog.plan.id) > 0 && (
               <div className="space-y-2">
                 <p className={aisFormLabel}>
