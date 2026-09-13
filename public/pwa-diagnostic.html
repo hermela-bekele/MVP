@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Offline Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0ea5e9;
+            margin-top: 0;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #0ea5e9;
+            padding-bottom: 8px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass {
+            background: #10b981;
+            color: white;
+        }
+        .status.fail {
+            background: #ef4444;
+            color: white;
+        }
+        .status.warn {
+            background: #f59e0b;
+            color: white;
+        }
+        .test-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f9fafb;
+            border-left: 4px solid #e5e7eb;
+            border-radius: 4px;
+        }
+        .test-item.pass {
+            border-left-color: #10b981;
+        }
+        .test-item.fail {
+            border-left-color: #ef4444;
+        }
+        .test-item.warn {
+            border-left-color: #f59e0b;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #0284c7;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔍 PWA Offline Diagnostic Tool</h1>
+        <p>This tool checks if your Progressive Web App is properly configured for offline functionality.</p>
+        <button onclick="runDiagnostics()">Run Full Diagnostic</button>
+        <div id="loading" style="display: none;" class="loading"></div>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        async function runDiagnostics() {
+            const resultsDiv = document.getElementById('results');
+            const loadingDiv = document.getElementById('loading');
+            resultsDiv.innerHTML = '';
+            loadingDiv.style.display = 'inline-block';
+
+            const tests = [];
+
+            // Test 1: HTTPS
+            const isHttps = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+            tests.push({
+                name: 'HTTPS Protocol',
+                status: isHttps ? 'pass' : 'fail',
+                message: isHttps 
+                    ? `✅ Site is served over HTTPS (${window.location.protocol}//${window.location.host})`
+                    : `❌ Site is NOT using HTTPS. Service Workers require HTTPS (except localhost).`,
+                details: isHttps ? null : 'Service Workers will not register on non-HTTPS sites. Deploy with HTTPS enabled.'
+            });
+
+            // Test 2: Service Worker Support
+            const swSupported = 'serviceWorker' in navigator;
+            tests.push({
+                name: 'Service Worker API Support',
+                status: swSupported ? 'pass' : 'fail',
+                message: swSupported 
+                    ? '✅ Browser supports Service Workers'
+                    : '❌ Browser does not support Service Workers',
+                details: swSupported ? null : 'Use a modern browser (Chrome, Edge, Firefox, Safari).'
+            });
+
+            // Test 3: Service Worker Registration
+            let swRegistration = null;
+            let swRegistered = false;
+            if (swSupported) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    swRegistered = registrations.length > 0;
+                    swRegistration = registrations[0];
+                    
+                    tests.push({
+                        name: 'Service Worker Registration',
+                        status: swRegistered ? 'pass' : 'fail',
+                        message: swRegistered 
+                            ? `✅ Service Worker is registered (scope: ${swRegistration.scope})`
+                            : '❌ No Service Worker registered',
+                        details: swRegistered 
+                            ? `Active: ${swRegistration.active?.state || 'none'}\nWaiting: ${swRegistration.waiting?.state || 'none'}\nInstalling: ${swRegistration.installing?.state || 'none'}`
+                            : 'Service Worker not found. Check if sw.js exists and is being registered.'
+                    });
+                } catch (error) {
+                    tests.push({
+                        name: 'Service Worker Registration',
+                        status: 'fail',
+                        message: '❌ Error checking Service Worker registration',
+                        details: error.message
+                    });
+                }
+            }
+
+            // Test 4: Service Worker File Exists
+            try {
+                const swResponse = await fetch('/sw.js', { method: 'HEAD' });
+                const swExists = swResponse.ok;
+                tests.push({
+                    name: 'Service Worker File (/sw.js)',
+                    status: swExists ? 'pass' : 'fail',
+                    message: swExists 
+                        ? '✅ Service Worker file exists and is accessible'
+                        : '❌ Service Worker file (/sw.js) not found',
+                    details: swExists 
+                        ? `HTTP ${swResponse.status}: ${swResponse.statusText}`
+                        : 'The sw.js file is missing. Ensure it\'s generated during build and deployed.'
+                });
+            } catch (error) {
+                tests.push({
+                    name: 'Service Worker File (/sw.js)',
+                    status: 'fail',
+                    message: '❌ Cannot access /sw.js',
+                    details: error.message
+                });
+            }
+
+            // Test 5: Manifest File
+            try {
+                const manifestResponse = await fetch('/manifest.json');
+                const manifestExists = manifestResponse.ok;
+                let manifestContent = null;
+                if (manifestExists) {
+                    manifestContent = await manifestResponse.json();
+                }
+                tests.push({
+                    name: 'Web App Manifest',
+                    status: manifestExists ? 'pass' : 'fail',
+                    message: manifestExists 
+                        ? `✅ Manifest found: ${manifestContent?.name || 'Unnamed App'}`
+                        : '❌ Manifest file (/manifest.json) not found',
+                    details: manifestExists 
+                        ? JSON.stringify(manifestContent, null, 2)
+                        : 'manifest.json is missing or not accessible.'
+                });
+            } catch (error) {
+                tests.push({
+                    name: 'Web App Manifest',
+                    status: 'fail',
+                    message: '❌ Cannot access manifest.json',
+                    details: error.message
+                });
+            }
+
+            // Test 6: IndexedDB Support
+            const idbSupported = 'indexedDB' in window;
+            tests.push({
+                name: 'IndexedDB Support',
+                status: idbSupported ? 'pass' : 'fail',
+                message: idbSupported 
+                    ? '✅ Browser supports IndexedDB'
+                    : '❌ Browser does not support IndexedDB',
+                details: idbSupported ? null : 'IndexedDB is required for offline data storage.'
+            });
+
+            // Test 7: IndexedDB Database Exists
+            if (idbSupported) {
+                try {
+                    const dbRequest = indexedDB.open('prime-offline');
+                    await new Promise((resolve, reject) => {
+                        dbRequest.onsuccess = () => {
+                            const db = dbRequest.result;
+                            const hasSnapshot = db.objectStoreNames.contains('snapshots');
+                            const hasOutbox = db.objectStoreNames.contains('outbox');
+                            db.close();
+                            tests.push({
+                                name: 'IndexedDB Database (prime-offline)',
+                                status: (hasSnapshot && hasOutbox) ? 'pass' : 'warn',
+                                message: hasSnapshot && hasOutbox
+                                    ? '✅ Database exists with correct stores'
+                                    : '⚠️ Database exists but may be incomplete',
+                                details: `Stores found: ${Array.from(db.objectStoreNames).join(', ')}`
+                            });
+                            resolve();
+                        };
+                        dbRequest.onerror = () => {
+                            tests.push({
+                                name: 'IndexedDB Database (prime-offline)',
+                                status: 'warn',
+                                message: '⚠️ Database does not exist yet',
+                                details: 'Database will be created on first login.'
+                            });
+                            resolve();
+                        };
+                    });
+                } catch (error) {
+                    tests.push({
+                        name: 'IndexedDB Database (prime-offline)',
+                        status: 'fail',
+                        message: '❌ Error accessing database',
+                        details: error.message
+                    });
+                }
+            }
+
+            // Test 8: Online Status Detection
+            const onlineStatus = navigator.onLine;
+            tests.push({
+                name: 'Online Status Detection',
+                status: 'pass',
+                message: onlineStatus 
+                    ? '✅ Browser reports ONLINE'
+                    : '🔌 Browser reports OFFLINE',
+                details: `navigator.onLine = ${onlineStatus}`
+            });
+
+            // Test 9: Cache Storage API
+            const cacheSupported = 'caches' in window;
+            if (cacheSupported) {
+                try {
+                    const cacheNames = await caches.keys();
+                    tests.push({
+                        name: 'Cache Storage',
+                        status: cacheNames.length > 0 ? 'pass' : 'warn',
+                        message: cacheNames.length > 0
+                            ? `✅ ${cacheNames.length} cache(s) found`
+                            : '⚠️ No caches found yet',
+                        details: cacheNames.length > 0 
+                            ? `Caches: ${cacheNames.join(', ')}`
+                            : 'Caches will be created after first load.'
+                    });
+                } catch (error) {
+                    tests.push({
+                        name: 'Cache Storage',
+                        status: 'fail',
+                        message: '❌ Error accessing cache storage',
+                        details: error.message
+                    });
+                }
+            } else {
+                tests.push({
+                    name: 'Cache Storage',
+                    status: 'fail',
+                    message: '❌ Browser does not support Cache Storage API',
+                    details: null
+                });
+            }
+
+            loadingDiv.style.display = 'none';
+            displayResults(tests);
+        }
+
+        function displayResults(tests) {
+            const resultsDiv = document.getElementById('results');
+            
+            const passCount = tests.filter(t => t.status === 'pass').length;
+            const failCount = tests.filter(t => t.status === 'fail').length;
+            const warnCount = tests.filter(t => t.status === 'warn').length;
+
+            let html = `
+                <div class="card">
+                    <h2>Test Results Summary</h2>
+                    <p>
+                        <span class="status pass">${passCount} Passed</span>
+                        <span class="status warn">${warnCount} Warnings</span>
+                        <span class="status fail">${failCount} Failed</span>
+                    </p>
+                </div>
+            `;
+
+            tests.forEach(test => {
+                html += `
+                    <div class="card">
+                        <div class="test-item ${test.status}">
+                            <h3 style="margin: 0 0 8px 0;">${test.name}</h3>
+                            <p style="margin: 4px 0;">${test.message}</p>
+                            ${test.details ? `<pre>${test.details}</pre>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Overall Status
+            const overallStatus = failCount === 0 ? 'pass' : failCount > 2 ? 'fail' : 'warn';
+            let recommendation = '';
+            
+            if (overallStatus === 'pass') {
+                recommendation = '🎉 <strong>Great!</strong> Your PWA is properly configured for offline functionality.';
+            } else if (overallStatus === 'warn') {
+                recommendation = '⚠️ <strong>Almost there!</strong> Fix the warnings above for optimal offline experience.';
+            } else {
+                recommendation = '❌ <strong>Attention needed!</strong> Several critical issues prevent offline functionality. Fix the failed tests above.';
+            }
+
+            html += `
+                <div class="card">
+                    <h2>Recommendation</h2>
+                    <p style="font-size: 18px;">${recommendation}</p>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Auto-run on page load
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostics, 500);
+        });
+    </script>
+</body>
+</html>
