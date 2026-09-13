@@ -1,13 +1,13 @@
-// Education Leadership Excellence Program (ELEP) modules — shown to School Head
+// Education Leadership Excellence Program (Leadership) modules — shown to School Head
 // and Department Head roles. Reuses the TrainingModule shape from
 // continuousDevelopmentModules.ts so the existing training-viewer UI works unchanged.
 
 import type { TrainingModule } from './continuousDevelopmentModules';
 
-export const ELEP_MODULES: TrainingModule[] = [
+export const Leadership_MODULES: TrainingModule[] = [
   {
-    id: 'elep-module-1',
-    title: 'ELEP 1: Instructional Leadership & Coaching Teachers',
+    id: 'Leadership-module-1',
+    title: 'Leadership 1: Instructional Leadership & Coaching Teachers',
     category: 'LEADERSHIP',
     description: 'Moving from monitoring compliance to actively growing your teachers · 3 hrs',
     duration: '3 Hours',
@@ -22,7 +22,7 @@ export const ELEP_MODULES: TrainingModule[] = [
     ],
     sessions: [
       {
-        id: 'elep-1-s1',
+        id: 'Leadership-1-s1',
         number: '1',
         title: 'From Checking Boxes to Coaching Practice',
         duration: '1 Hour',
@@ -44,12 +44,12 @@ Both matter, but only the second one changes outcomes. If all of your time as a 
 You don't need to invent new observation systems — the portal already surfaces:
 - **Grade-miss patterns** from student assessment results, flagging where a class is consistently missing specific question types or topics.
 - **Delivery feedback** teachers log after teaching a lesson (what worked, what didn't).
-- **Self-assessment results** from STEP, showing where a teacher rates themselves lowest.
+- **Self-assessment results** from Teacher Development, showing where a teacher rates themselves lowest.
 
 Coaching starts by triangulating these three signals for a teacher, not by guessing.`,
       },
       {
-        id: 'elep-1-s2',
+        id: 'Leadership-1-s2',
         number: '2',
         title: 'Reading the Gap Signals Before You Coach',
         duration: '1 Hour',
@@ -60,7 +60,7 @@ Before any coaching conversation, spend 10 minutes triangulating the evidence yo
 
 ### The triangulation check
 1. **AI gap analysis** — which topics/question types is this teacher's class consistently missing on assessments? A single low score is noise; a repeated pattern across assessments is signal.
-2. **Self-assessment** — where did the teacher rate themselves lowest on the STEP rubric? This tells you what they're already aware of (easier conversation) versus what might be a blind spot (harder, more important conversation).
+2. **Self-assessment** — where did the teacher rate themselves lowest on the Teacher Development rubric? This tells you what they're already aware of (easier conversation) versus what might be a blind spot (harder, more important conversation).
 3. **Delivery notes** — what does the teacher say happened when they taught the topic the gap analysis flagged? Often the gap isn't subject knowledge, it's pacing, checking for understanding, or classroom management eating into content time.
 
 ### Turning signals into a coaching focus
@@ -71,7 +71,7 @@ Before any coaching conversation, spend 10 minutes triangulating the evidence yo
 This is exactly the workflow the Teacher Development page is built around: it surfaces both signals side-by-side per teacher so you can decide what to assign and why.`,
       },
       {
-        id: 'elep-1-s3',
+        id: 'Leadership-1-s3',
         number: '3',
         title: 'The Coaching Conversation',
         duration: '1 Hour',
@@ -87,7 +87,7 @@ Data tells you *what* to talk about. This session is about *how* to talk about i
 4. **Agree on one specific, small next action** — not five. "Try one worked-example-then-guided-practice sequence for word problems next week, and let's look at the next assessment together" is coachable; a long list isn't.
 
 ### Assigning a module vs. just talking
-A conversation without a follow-up resource often fades. Once you've agreed on a focus area, assign the matching STEP module directly from the Teacher Development page with a short reason — this keeps the conversation and the resource connected, and gives you something concrete to check in on next time.
+A conversation without a follow-up resource often fades. Once you've agreed on a focus area, assign the matching Teacher Development module directly from the Teacher Development page with a short reason — this keeps the conversation and the resource connected, and gives you something concrete to check in on next time.
 
 ### Closing the loop
 Put a date on the calendar to revisit — even two weeks out. Coaching without a follow-up point rarely produces lasting change.`,
@@ -101,7 +101,7 @@ Put a date on the calendar to revisit — even two weeks out. Coaching without a
 - What follow-up date will you put on the calendar, and for which conversation?`,
     assessmentQuestions: [
       {
-        id: 'elep-1-q1',
+        id: 'Leadership-1-q1',
         type: 'multiple-choice',
         question: 'What distinguishes instructional coaching from compliance monitoring?',
         options: [
@@ -115,7 +115,7 @@ Put a date on the calendar to revisit — even two weeks out. Coaching without a
         points: 34,
       },
       {
-        id: 'elep-1-q2',
+        id: 'Leadership-1-q2',
         type: 'multiple-choice',
         question: 'If AI gap analysis flags a weakness the teacher did NOT flag in their self-assessment, what does that suggest?',
         options: [
@@ -129,7 +129,7 @@ Put a date on the calendar to revisit — even two weeks out. Coaching without a
         points: 33,
       },
       {
-        id: 'elep-1-q3',
+        id: 'Leadership-1-q3',
         type: 'short-answer',
         question: 'Describe the four-step coaching conversation structure from this module.',
         explanation: 'Look for: open with specific strengths, name the pattern not the person, ask before telling, agree on one small next action.',
@@ -141,8 +141,8 @@ Put a date on the calendar to revisit — even two weeks out. Coaching without a
     videoCount: 0,
   },
   {
-    id: 'elep-module-2',
-    title: 'ELEP 2: Leading Change Across a Team',
+    id: 'Leadership-module-2',
+    title: 'Leadership 2: Leading Change Across a Team',
     category: 'LEADERSHIP',
     description: 'Rolling out a new practice, resource, or expectation across a whole team · 2.5 hrs',
     duration: '2.5 Hours',
@@ -157,7 +157,7 @@ Put a date on the calendar to revisit — even two weeks out. Coaching without a
     ],
     sessions: [
       {
-        id: 'elep-2-s1',
+        id: 'Leadership-2-s1',
         number: '1',
         title: 'Why Rollouts Fail (and How to Sequence Them So They Don\'t)',
         duration: '1.5 Hours',
@@ -182,7 +182,7 @@ Most failed rollouts don't fail because the idea was bad — they fail because e
 Announcements are the right channel for the initial rollout and the fixed check-in; the department/team channel is the right place for the pilot teachers to share what worked — visibility from peers converts skeptics faster than a repeated announcement from you does.`,
       },
       {
-        id: 'elep-2-s2',
+        id: 'Leadership-2-s2',
         number: '2',
         title: 'Handling Resistance Without Losing the Room',
         duration: '1 Hour',
@@ -215,7 +215,7 @@ Leading change across a team is a repeatable skill, not a personality trait — 
 - What is the next change you need to roll out, and how will you pilot-and-share it?`,
     assessmentQuestions: [
       {
-        id: 'elep-2-q1',
+        id: 'Leadership-2-q1',
         type: 'multiple-choice',
         question: 'What is the most reliable way to build momentum for a new practice?',
         options: [
@@ -229,7 +229,7 @@ Leading change across a team is a repeatable skill, not a personality trait — 
         points: 34,
       },
       {
-        id: 'elep-2-q2',
+        id: 'Leadership-2-q2',
         type: 'multiple-choice',
         question: '"This is just extra work" resistance is usually best addressed by:',
         options: [
@@ -243,7 +243,7 @@ Leading change across a team is a repeatable skill, not a personality trait — 
         points: 33,
       },
       {
-        id: 'elep-2-q3',
+        id: 'Leadership-2-q3',
         type: 'short-answer',
         question: 'Describe one way to use the Communication module (announcements vs. team channels) effectively during a rollout.',
         explanation: 'Look for: announcements for the initial rollout/fixed check-ins, team channels for peer-shared pilot results.',

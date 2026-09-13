@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ STEP 1: Create Cloudinary Account (5 minutes)
+## ✅ Teacher Development 1: Create Cloudinary Account (5 minutes)
 
 1. Go to: **https://cloudinary.com/users/register_free**
 2. Sign up with your email (100% free, no credit card)
@@ -17,7 +17,7 @@
 
 ---
 
-## ✅ STEP 2: Upload Videos to Cloudinary (15 minutes)
+## ✅ Teacher Development 2: Upload Videos to Cloudinary (15 minutes)
 
 ### A. Navigate to Media Library
 1. Click **"Media Library"** in the left sidebar
@@ -87,7 +87,7 @@ After each upload:
 
 ---
 
-## ✅ STEP 3: Update Frontend Code (2 files only!)
+## ✅ Teacher Development 3: Update Frontend Code (2 files only!)
 
 ### File 1: Update `continuousDevelopmentModules.ts`
 
@@ -160,7 +160,7 @@ If you have videos for Module 5 and 6, add them to the modules array in `continu
 
 ---
 
-## ✅ STEP 4: Test Locally (5 minutes)
+## ✅ Teacher Development 4: Test Locally (5 minutes)
 
 ```bash
 # In your MVP directory
@@ -180,7 +180,7 @@ npm run dev
 
 ---
 
-## ✅ STEP 5: Deploy to Production (if using Vercel)
+## ✅ Teacher Development 5: Deploy to Production (if using Vercel)
 
 ```bash
 # Commit your changes

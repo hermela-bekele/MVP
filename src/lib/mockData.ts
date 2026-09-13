@@ -50,13 +50,13 @@ export interface Teacher {
   grades: string[];
   certification: string;
   trainingProgress: number; // percentage
-  /** Self-reported (or HoD-entered) years of teaching experience. Drives the default TIP/STEP placement. */
+  /** Self-reported (or HoD-entered) years of teaching experience. Drives the default Induction/Teacher Development placement. */
   yearsOfExperience: number;
-  /** HoD/School Head can force a teacher into TIP or STEP regardless of the years-based default. */
+  /** HoD/School Head can force a teacher into Induction or Teacher Development regardless of the years-based default. */
   experienceOverride?: TeacherExperienceLevel | null;
 }
 
-/** New teachers (< 2 years, unless overridden) get TIP; everyone else gets STEP only. */
+/** New teachers (< 2 years, unless overridden) get Induction; everyone else gets Teacher Development only. */
 export function getTeacherExperienceLevel(
   teacher: Pick<Teacher, 'yearsOfExperience' | 'experienceOverride'>
 ): TeacherExperienceLevel {
@@ -66,7 +66,7 @@ export function getTeacherExperienceLevel(
   return (teacher.yearsOfExperience ?? 0) < 2 ? 'new' : 'experienced';
 }
 
-/** A teacher's self-rating against the STEP competency rubric. */
+/** A teacher's self-rating against the Teacher Development competency rubric. */
 export interface TeacherSelfAssessment {
   id: string;
   teacherId: string;
@@ -76,7 +76,7 @@ export interface TeacherSelfAssessment {
   submittedAt: string;
 }
 
-export type DevelopmentProgram = 'TIP' | 'STEP' | 'ELEP';
+export type DevelopmentProgram = 'Induction' | 'Teacher Development' | 'Leadership';
 
 /** A module assigned to a specific teacher/leader by their HoD or School Head. */
 export interface TeacherTrainingAssignment {

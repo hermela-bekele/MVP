@@ -112,7 +112,7 @@ export default function SchoolHeadPortalPage() {
       case 'communication': return [...base, { label: 'Community' }];
       case 'department-messages': return [...base, { label: 'Direct Messages' }];
       case 'manage-checkins': return [...base, { label: 'Wellness Checkins' }];
-      case 'leadership-development': return [...base, { label: 'ELEP Leadership Development' }];
+      case 'leadership-development': return [...base, { label: 'Leadership Leadership Development' }];
       case 'profile': return [...base, { label: 'My Profile' }];
       case 'academic-calendar': return [...base, { label: 'Academic Calendar' }];
       default: return base;

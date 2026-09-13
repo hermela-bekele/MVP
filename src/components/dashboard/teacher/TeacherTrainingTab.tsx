@@ -21,7 +21,7 @@ import {
 } from "@/lib/continuousDevelopmentModules";
 import { TRAINING_MODULES } from "@/lib/trainingModules";
 import { TIP_MODULES } from "@/lib/inductionModules";
-import { ELEP_MODULES } from "@/lib/leadershipModules";
+import { Leadership_MODULES } from "@/lib/leadershipModules";
 import { useApp } from "@/context/AppContext";
 import { getDemoTeacher } from "@/lib/teacherPortal";
 import { MarkdownRenderer } from "@/components/ui/MarkdownRenderer";
@@ -94,17 +94,17 @@ export const TeacherTrainingTab: React.FC<{
   // Select the appropriate modules based on active tab
   const ALL_MODULES =
     activeTabType === "all" || isAssignedToMeView
-      ? [...TRAINING_MODULES, ...TIP_MODULES, ...ELEP_MODULES, ...CONTINUOUS_DEVELOPMENT_MODULES]
+      ? [...TRAINING_MODULES, ...TIP_MODULES, ...Leadership_MODULES, ...CONTINUOUS_DEVELOPMENT_MODULES]
       : activeTabType === "training-subject-matter"
         ? TRAINING_MODULES
         : activeTabType === "training-induction"
           ? TIP_MODULES
           : activeTabType === "leadership-development"
-            ? ELEP_MODULES
+            ? Leadership_MODULES
             : CONTINUOUS_DEVELOPMENT_MODULES;
 
-  const program: "TIP" | "STEP" | null =
-    activeTabType === "training-induction" ? "TIP" : activeTabType === "training-continuous" ? "STEP" : null;
+  const program: "Induction" | "Teacher Development" | null =
+    activeTabType === "training-induction" ? "Induction" : activeTabType === "training-continuous" ? "Teacher Development" : null;
 
   // "Assigned to Me" shows every assignment regardless of program; the programme-specific
   // views stay scoped to their own program.

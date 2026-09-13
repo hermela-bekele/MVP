@@ -34,11 +34,11 @@
 └─────────────────────────────────────────────────────────────────────┘
                               ⬇️
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    THE 3-STEP PROCESS                                │
+│                    THE 3-Teacher Development PROCESS                                │
 └─────────────────────────────────────────────────────────────────────┘
 
 ╔═════════════════════════════════════════════════════════════════════╗
-║  STEP 1: CREATE CLOUDINARY ACCOUNT (5 minutes)                      ║
+║  Teacher Development 1: CREATE CLOUDINARY ACCOUNT (5 minutes)                      ║
 ╚═════════════════════════════════════════════════════════════════════╝
 
 1. Go to: https://cloudinary.com/users/register_free
@@ -67,7 +67,7 @@
 
 
 ╔═════════════════════════════════════════════════════════════════════╗
-║  STEP 2: UPLOAD VIDEOS (15-20 minutes)                              ║
+║  Teacher Development 2: UPLOAD VIDEOS (15-20 minutes)                              ║
 ╚═════════════════════════════════════════════════════════════════════╝
 
 A. Click "Media Library" → "Upload" button
@@ -121,7 +121,7 @@ D. After Each Upload, Copy the URL:
 
 
 ╔═════════════════════════════════════════════════════════════════════╗
-║  STEP 3: UPDATE YOUR CODE (5 minutes)                               ║
+║  Teacher Development 3: UPDATE YOUR CODE (5 minutes)                               ║
 ╚═════════════════════════════════════════════════════════════════════╝
 
 Only 1 file to change: src/lib/continuousDevelopmentModules.ts

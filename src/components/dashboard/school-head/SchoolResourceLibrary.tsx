@@ -10,13 +10,13 @@ import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { useConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TRAINING_MODULES } from '@/lib/trainingModules';
 import { TIP_MODULES } from '@/lib/inductionModules';
-import { ELEP_MODULES } from '@/lib/leadershipModules';
+import { Leadership_MODULES } from '@/lib/leadershipModules';
 import { CONTINUOUS_DEVELOPMENT_MODULES } from '@/lib/continuousDevelopmentModules';
 
 const PRIME_PROGRAMME_MODULES = [
   ...TRAINING_MODULES,
   ...TIP_MODULES,
-  ...ELEP_MODULES,
+  ...Leadership_MODULES,
   ...CONTINUOUS_DEVELOPMENT_MODULES,
 ];
 

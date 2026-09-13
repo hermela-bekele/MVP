@@ -138,7 +138,7 @@ export function DeptTeacherDevelopmentAssignmentPanel() {
     if (!chosen) return;
     assignTrainingModule({
       teacherId: teacher.id,
-      program: level === 'new' ? 'TIP' : 'STEP',
+      program: level === 'new' ? 'Induction' : 'Teacher Development',
       moduleId: chosen.id,
       moduleTitle: chosen.title,
       assignedByName: currentUser?.displayName ?? 'Head of Department',
