@@ -59,8 +59,4 @@ public/videos/training/**/*.mov
 backend/uploads/*
 !backend/uploads/.gitkeep
 
-# PWA files (generated during build, Vercel will create them)
-public/sw.js
-public/sw.js.map
-public/workbox-*.js
-public/workbox-*.js.map
+# Note: public/sw.js is now a static file (not generated), so it's committed to git
