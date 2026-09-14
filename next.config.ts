@@ -17,6 +17,29 @@ const nextConfig: NextConfig = {
   // hook is also present (dev uses --webpack; production can use either).
   turbopack: {},
 
+  // Ensure service worker is served with correct headers
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+        ],
+      },
+    ];
+  },
+
   webpack: (config, { dev, isServer }) => {
     // WSL2 + DrvFs (/mnt/c) mounts don't reliably deliver inotify events, so
     // native fs.watch misses edits made from the Windows side. Poll instead
@@ -45,34 +68,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-let exportedConfig: NextConfig = nextConfig;
-
-try {
-  // Optional PWA wrapper. If the package is missing, the config still loads
-  // and the app can boot without crashing the Next TS config loader.
-  const withPWA = require('next-pwa').default as (cfg: Record<string, unknown>) => (base: NextConfig) => NextConfig;
-  exportedConfig = withPWA({
-    dest: 'public',
-    register: true,
-    skipWaiting: true,
-    disable: process.env.NODE_ENV === 'development',
-    runtimeCaching: [
-      {
-        urlPattern: /^https?.*/,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'prime-offline-cache',
-          expiration: {
-            maxEntries: 200,
-            maxAgeSeconds: 30 * 24 * 60 * 60,
-          },
-          networkTimeoutSeconds: 10,
-        },
-      },
-    ],
-  })(nextConfig);
-} catch {
-  // Keep the regular Next config usable when next-pwa is unavailable.
-}
-
-export default exportedConfig;
+// PWA is now handled by static public/sw.js file for reliability
+// next-pwa disabled to avoid Vercel build issues
+export default nextConfig;

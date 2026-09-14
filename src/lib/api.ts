@@ -270,12 +270,18 @@ export async function request<T>(
 
 const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
 
-/** Rewrites any stored "/uploads/..." reference (a bare relative path, or an absolute URL
+/**
+ * Rewrites any stored "/uploads/..." reference (a bare relative path, or an absolute URL
  * from before uploads stopped baking in a host) to point at whichever backend is
  * CURRENTLY configured (API_BASE), instead of whatever host/port happened to handle the
- * original upload request. External links pass through unchanged. */
+ * original upload request. External links pass through unchanged.
+ *
+ * FIXED: Always use API_BASE for uploaded files to avoid 404 errors.
+ */
 export function resolveResourceUrl(url: string | undefined | null): string {
   if (!url) return "";
+
+  // Check if this is an uploaded file path
   const match = url.match(/\/uploads\/.+$/);
   if (!match) return url;
   return `${API_BASE}${match[0]}`;
