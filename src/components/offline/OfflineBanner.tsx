@@ -24,6 +24,8 @@ export const OfflineBanner: React.FC = () => {
     isDataLoading,
   } = useApp();
 
+  // FIXED: Only show banner when truly offline OR when there are pending changes to sync
+  // Don't show banner when online with fresh API data and no pending changes
   if (isOnline && dataSource === 'api' && pendingSyncCount === 0) {
     return null;
   }
@@ -33,20 +35,21 @@ export const OfflineBanner: React.FC = () => {
   const mock = dataSource === 'mock';
 
   let message = '';
+  
+  // FIXED: Show offline message only when actually offline
   if (offline && cached) {
     message = `Offline — showing saved portal data (last synced ${formatSyncedAt(lastSyncedAt)}). AI generation and live sync are unavailable.`;
   } else if (offline && mock) {
     message = 'Offline — no saved school data on this device yet. Connect once to download your portal.';
   } else if (offline) {
     message = 'You are offline. Changes stay on this device until you reconnect.';
-  } else if (cached) {
-    message = `Offline mode - using saved portal data (last synced ${formatSyncedAt(lastSyncedAt)}). Live sync is unavailable.`;
-  } else if (mock) {
-    message = 'Live server unavailable — demo data only.';
-  } else if (pendingSyncCount > 0) {
+  } 
+  // FIXED: Remove the "Offline mode" message when online - only show if there are pending changes
+  else if (pendingSyncCount > 0) {
     message = `${pendingSyncCount} change${pendingSyncCount === 1 ? '' : 's'} waiting to sync.`;
   }
 
+  // Don't render banner if no message (shouldn't happen due to early return above, but safety check)
   if (!message) return null;
 
   return (

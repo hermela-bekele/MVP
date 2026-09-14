@@ -69,9 +69,11 @@ export function DeptAssessmentReviewersPanel() {
 
   const save = () => {
     setSaving(true);
-    api
-      .setAssessmentReviewers([...selected])
-      .then(() => {
+    
+    // FIXED: Add retry logic with exponential backoff to handle transient errors
+    const attemptSave = async (retryCount = 0): Promise<void> => {
+      try {
+        await api.setAssessmentReviewers([...selected]);
         addNotification(
           'Reviewer permissions updated',
           selected.size > 0
@@ -79,11 +81,30 @@ export function DeptAssessmentReviewersPanel() {
             : 'No teachers are currently designated as exam reviewers.',
           'success',
         );
-      })
-      .catch(() => {
-        addNotification('Could not save reviewer permissions', 'Please try again.', 'alert');
-      })
-      .finally(() => setSaving(false));
+      } catch (error) {
+        // If first attempt fails, retry up to 2 more times with exponential backoff
+        if (retryCount < 2) {
+          const delay = Math.pow(2, retryCount) * 500; // 500ms, 1000ms
+          console.log(`[ReviewerPermissions] Retry ${retryCount + 1} after ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return attemptSave(retryCount + 1);
+        }
+        
+        // All retries exhausted, show error
+        console.error('[ReviewerPermissions] Save failed after retries:', error);
+        addNotification(
+          'Could not save reviewer permissions', 
+          'Please check your connection and try again.', 
+          'alert'
+        );
+      } finally {
+        if (retryCount === 0 || retryCount >= 2) {
+          setSaving(false);
+        }
+      }
+    };
+    
+    attemptSave();
   };
 
   if (!scope) return null;

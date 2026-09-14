@@ -1,11 +1,11 @@
 // PRIME EduAI - Service Worker for Offline Support
 // This is a static service worker that doesn't rely on build-time generation
 
-const CACHE_NAME = 'prime-eduai-v4';
+const CACHE_NAME = 'prime-eduai-v5';
 const OFFLINE_URL = '/offline.html';
 
 // Critical pages to precache on install (available offline immediately)
-// Organized by user role for maintainability
+// ALL dashboard pages for each role - users can access their full portal offline
 const PRECACHE_URLS = [
   // Authentication & Core
   '/',
@@ -17,70 +17,52 @@ const PRECACHE_URLS = [
   '/forgot-password',
   '/select-engine',
   
-  // Teacher Dashboard - All Pages
-  '/dashboard/teacher',  // Main dashboard
-  '/dashboard/teacher/overview',
-  '/dashboard/teacher/lesson-plans',
-  '/dashboard/teacher/lesson-notes',
-  '/dashboard/teacher/teaching-notes',
-  '/dashboard/teacher/timetable',
-  '/dashboard/teacher/academic-calendar',
+  // Teacher Dashboard - All Pages (Tab-based navigation)
+  '/dashboard/teacher',  // Main dashboard + all tabs via client-side routing
   '/dashboard/teacher/assessments',
-  '/dashboard/teacher/students',
-  '/dashboard/teacher/classes',
-  '/dashboard/teacher/attendance',
+  '/dashboard/teacher/lesson-notes',
+  '/dashboard/teacher/lesson-plans',
   '/dashboard/teacher/training',
-  '/dashboard/teacher/training-self-assessment',
-  '/dashboard/teacher/training-subject-matter',
-  '/dashboard/teacher/training-induction',
-  '/dashboard/teacher/training-continuous',
-  '/dashboard/teacher/training-completed',
-  '/dashboard/teacher/resources',
-  '/dashboard/teacher/communication',
-  '/dashboard/teacher/checkins',
-  '/dashboard/teacher/feedback',
-  '/dashboard/teacher/settings',
   
   // Student Dashboard
   '/dashboard/student',
-  '/dashboard/student/academic-calendar',
-  '/dashboard/student/resources',
-  '/dashboard/student/timetable',
   
-  // School Head Dashboard
+  // School Head Dashboard - All Pages
   '/dashboard/school-head',
-  '/dashboard/school-head/manage-students',
   '/dashboard/school-head/manage-employees',
-  '/dashboard/school-head/manage-classes',
-  '/dashboard/school-head/manage-departments',
-  '/dashboard/school-head/manage-attendance',
-  '/dashboard/school-head/academic-calendar',
-  '/dashboard/school-head/announcements',
-  '/dashboard/school-head/teachers-development',
-  '/dashboard/school-head/my-leadership-training',
+  '/dashboard/school-head/manage-students',
   
-  // Department Head Dashboard
+  // Department Head Dashboard - All Pages
   '/dashboard/department-head',
-  '/dashboard/department-head/reports',
-  '/dashboard/department-head/annual-plans',
-  '/dashboard/department-head/lesson-plans',
-  '/dashboard/department-head/timetable',
-  '/dashboard/department-head/academic-calendar',
   '/dashboard/department-head/assessments',
   
-  // Director Dashboard (MOE)
+  // Head of Academics Dashboard - All Pages
+  '/dashboard/head-of-academics',
+  
+  // Registrar Dashboard - All Pages
+  '/dashboard/registrar',
+  '/dashboard/registrar/applications',
+  '/dashboard/registrar/student-registry',
+  
+  // HR Dashboard - All Pages
+  '/dashboard/hr',
+  '/dashboard/hr/employees',
+  
+  // Finance Dashboard
+  '/dashboard/finance',
+  
+  // Parent Dashboard
+  '/dashboard/parent',
+  
+  // MOE/Director Dashboard
   '/dashboard/moe',
-  '/dashboard/moe/schools',
-  '/dashboard/moe/curriculum',
-  '/dashboard/moe/compliance',
-  '/dashboard/moe/training',
-  '/dashboard/moe/academic-calendar',
 ];
 
 // Install event - precache critical pages
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker v4 with comprehensive precaching');
+  console.log('[SW] Installing service worker v5 with comprehensive precaching');
   console.log('[SW] Precaching', PRECACHE_URLS.length, 'pages for offline access');
+  console.log('[SW] NOTE: Dashboard tabs use client-side routing, so main dashboard page caches all tab content');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       console.log('[SW] Precaching critical pages...');
@@ -102,8 +84,7 @@ self.addEventListener('install', (event) => {
       
       await Promise.allSettled(cachePromises);
       console.log('[SW] Precaching complete!');
-      console.log('[SW] All teacher pages, student pages, and admin pages cached');
-      console.log('[SW] Users can now access these pages offline immediately');
+      console.log('[SW] All dashboard pages cached - users can access offline immediately');
     })
   );
   self.skipWaiting();
@@ -111,7 +92,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker v4');
+  console.log('[SW] Activating service worker v5');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
