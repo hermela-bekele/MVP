@@ -156,7 +156,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   resources: {
     title: "Resources",
-    subtitle: "Upload and disseminate worksheets, slides, and lab guides.",
+    subtitle: "School resource library plus your classroom uploads and shared study materials.",
   },
   "practice-bank": {
     title: "Practice Bank",

@@ -2,14 +2,15 @@
 
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { uploadFileWithMeta } from '@/lib/api';
+import { resolveResourceUrl, uploadFileWithMeta } from '@/lib/api';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { FormField, formFieldInputClass } from '@/components/ui/form-field';
-import type { TrainingPlan, TrainingPlanType, TrainingPlanStatus, TrainingAudience } from '@/lib/mockData';
+import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import type { TrainingPlan, TrainingPlanType, TrainingPlanStatus, TrainingAudience, TrainingMaterial } from '@/lib/mockData';
 
 const AUDIENCE_OPTIONS: TrainingAudience[] = ['All', 'Regional', 'Woredas', 'Schools'];
 const PROGRAM_CATEGORIES = ['Pedagogy', 'Leadership', 'ICT & Digital Literacy', 'Curriculum', 'Assessment', 'Compliance & Safeguarding', 'Subject Specialty', 'Onboarding'];
@@ -46,8 +47,11 @@ export function MoeTrainingPanel() {
     removeTrainingPlanAssignment,
     trainingMaterials,
     addTrainingMaterial,
+    updateTrainingMaterial,
+    deleteTrainingMaterial,
     disseminateTrainingMaterial,
   } = useApp();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
 
   const [subView, setSubView] = useState<'programs' | 'resources'>('programs');
 
@@ -112,6 +116,17 @@ export function MoeTrainingPanel() {
     [trainingPlanAssignments, selected],
   );
 
+  const resourcesByPlanId = useMemo(() => {
+    const map = new Map<string, TrainingMaterial[]>();
+    for (const material of trainingMaterials) {
+      if (!material.trainingPlanId) continue;
+      const list = map.get(material.trainingPlanId);
+      if (list) list.push(material);
+      else map.set(material.trainingPlanId, [material]);
+    }
+    return map;
+  }, [trainingMaterials]);
+
   const handleAssign = () => {
     if (!selected || !schoolId) return;
     assignTrainingPlan(selected.id, {
@@ -131,6 +146,7 @@ export function MoeTrainingPanel() {
   }), [trainingMaterials, resCategoryFilter, resAudienceFilter]);
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<TrainingMaterial | null>(null);
   const [resTitle, setResTitle] = useState('');
   const [resDescription, setResDescription] = useState('');
   const [resCategory, setResCategory] = useState(RESOURCE_CATEGORIES[0]);
@@ -143,12 +159,52 @@ export function MoeTrainingPanel() {
   const [uploadError, setUploadError] = useState('');
 
   const resetResourceForm = () => {
-    setResTitle(''); setResDescription(''); setResCategory(RESOURCE_CATEGORIES[0]); setResAudience('All'); setResCode(''); setResTrainingPlanId(''); setResUrl(''); setResFile(null); setUploadError('');
+    setEditingMaterial(null);
+    setResTitle('');
+    setResDescription('');
+    setResCategory(RESOURCE_CATEGORIES[0]);
+    setResAudience('All');
+    setResCode('');
+    setResTrainingPlanId('');
+    setResUrl('');
+    setResFile(null);
+    setUploadError('');
   };
 
-  const handleUploadResource = async (e: React.FormEvent) => {
+  const openCreateResource = () => {
+    resetResourceForm();
+    setIsUploadOpen(true);
+  };
+
+  const openEditResource = (material: TrainingMaterial) => {
+    setEditingMaterial(material);
+    setResTitle(material.title);
+    setResDescription(material.description ?? '');
+    setResCategory(
+      RESOURCE_CATEGORIES.includes(material.category)
+        ? material.category
+        : RESOURCE_CATEGORIES[0],
+    );
+    setResAudience(material.audience ?? 'All');
+    setResCode(material.code ?? '');
+    setResTrainingPlanId(material.trainingPlanId ?? '');
+    setResUrl(
+      material.resourceUrl && !material.resourceUrl.includes('/uploads/')
+        ? material.resourceUrl
+        : '',
+    );
+    setResFile(null);
+    setUploadError('');
+    setIsUploadOpen(true);
+  };
+
+  const handleSaveResource = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resTitle.trim() || (!resUrl.trim() && !resFile)) {
+    if (!resTitle.trim()) {
+      setUploadError('Please provide a title.');
+      return;
+    }
+    if (!editingMaterial && !resUrl.trim() && !resFile) {
       setUploadError('Please provide a title and either a link or a file.');
       return;
     }
@@ -159,22 +215,51 @@ export function MoeTrainingPanel() {
       if (resFile) {
         const uploaded = await uploadFileWithMeta(resFile);
         finalUrl = uploaded.url;
+      } else if (editingMaterial && !finalUrl) {
+        finalUrl = editingMaterial.resourceUrl;
       }
-      addTrainingMaterial({
-        title: resTitle.trim(),
-        description: resDescription.trim() || undefined,
-        resourceUrl: finalUrl,
-        category: resCategory,
-        audience: resAudience,
-        code: resCode.trim() || undefined,
-        trainingPlanId: resTrainingPlanId || undefined,
-      });
+
+      if (editingMaterial) {
+        await updateTrainingMaterial(editingMaterial.id, {
+          title: resTitle.trim(),
+          description: resDescription.trim() || null,
+          resourceUrl: finalUrl,
+          category: resCategory,
+          audience: resAudience,
+          code: resCode.trim() || null,
+          trainingPlanId: resTrainingPlanId || null,
+        });
+      } else {
+        addTrainingMaterial({
+          title: resTitle.trim(),
+          description: resDescription.trim() || undefined,
+          resourceUrl: finalUrl,
+          category: resCategory,
+          audience: resAudience,
+          code: resCode.trim() || undefined,
+          trainingPlanId: resTrainingPlanId || undefined,
+        });
+      }
       setIsUploadOpen(false);
       resetResourceForm();
     } catch {
-      setUploadError('Upload failed. Please try again.');
+      setUploadError(editingMaterial ? 'Could not save changes. Please try again.' : 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteResource = async (material: TrainingMaterial) => {
+    const ok = await confirm(`Delete "${material.title}"?`, {
+      description: 'This removes the resource from the training library. This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteTrainingMaterial(material.id);
+    } catch {
+      setUploadError('Could not delete this resource. Please try again.');
     }
   };
 
@@ -221,28 +306,63 @@ export function MoeTrainingPanel() {
                   <th>Type</th>
                   <th>Dates</th>
                   <th>Assigned</th>
+                  <th>Linked Resources</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPlans.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center text-muted-foreground py-12">No training programs matching your filters.</td></tr>
+                  <tr><td colSpan={9} className="text-center text-muted-foreground py-12">No training programs matching your filters.</td></tr>
                 ) : (
-                  filteredPlans.map((p) => (
-                    <tr key={p.id}>
-                      <td className="font-medium">{p.title}{p.location && <p className="text-[11px] text-muted-foreground">{p.location}</p>}</td>
-                      <td className="text-muted-foreground">{p.category ?? '—'}</td>
-                      <td className="text-muted-foreground">{p.audience ?? 'All'}</td>
-                      <td><Badge variant={p.type === 'in_person' ? 'primary' : 'info'} size="sm">{TYPE_LABEL[p.type]}</Badge></td>
-                      <td className="text-muted-foreground">{p.startDate}{p.endDate ? ` → ${p.endDate}` : ''}</td>
-                      <td className="text-muted-foreground">{trainingPlanAssignments.filter((a) => a.trainingPlanId === p.id).length}</td>
-                      <td><Badge variant={statusVariant(p.status)} size="sm">{STATUS_LABEL[p.status]}</Badge></td>
-                      <td>
-                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSelected(p)}>Manage</Button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredPlans.map((p) => {
+                    const linkedResources = resourcesByPlanId.get(p.id) ?? [];
+                    return (
+                      <tr key={p.id}>
+                        <td className="font-medium">{p.title}{p.location && <p className="text-[11px] text-muted-foreground">{p.location}</p>}</td>
+                        <td className="text-muted-foreground">{p.category ?? '—'}</td>
+                        <td className="text-muted-foreground">{p.audience ?? 'All'}</td>
+                        <td><Badge variant={p.type === 'in_person' ? 'primary' : 'info'} size="sm">{TYPE_LABEL[p.type]}</Badge></td>
+                        <td className="text-muted-foreground">{p.startDate}{p.endDate ? ` → ${p.endDate}` : ''}</td>
+                        <td className="text-muted-foreground">{trainingPlanAssignments.filter((a) => a.trainingPlanId === p.id).length}</td>
+                        <td>
+                          {linkedResources.length === 0 ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <div className="flex max-w-56 flex-col gap-1">
+                              {linkedResources.map((resource) => {
+                                const viewUrl = resolveResourceUrl(resource.resourceUrl);
+                                const canView = Boolean(viewUrl) && viewUrl !== '#';
+                                return (
+                                  <button
+                                    key={resource.id}
+                                    type="button"
+                                    disabled={!canView}
+                                    title={canView ? `View ${resource.title}` : resource.title}
+                                    onClick={() => {
+                                      if (!canView) return;
+                                      window.open(viewUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className={`truncate text-left text-xs font-medium ${
+                                      canView
+                                        ? 'text-primary hover:underline'
+                                        : 'cursor-not-allowed text-muted-foreground'
+                                    }`}
+                                  >
+                                    {resource.code ? `${resource.code} · ` : ''}{resource.title}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td><Badge variant={statusVariant(p.status)} size="sm">{STATUS_LABEL[p.status]}</Badge></td>
+                        <td>
+                          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSelected(p)}>Manage</Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -259,7 +379,7 @@ export function MoeTrainingPanel() {
                 <Select options={[{ value: 'All', label: 'All Audiences' }, ...AUDIENCE_OPTIONS.filter((a) => a !== 'All').map((a) => ({ value: a, label: a }))]} value={resAudienceFilter} onChange={(e) => setResAudienceFilter(e.target.value)} />
               </div>
             </div>
-            <Button onClick={() => setIsUploadOpen(true)} size="sm" className="h-10 font-semibold shrink-0">
+            <Button onClick={openCreateResource} size="sm" className="h-10 font-semibold shrink-0">
               + Upload Resource
             </Button>
           </div>
@@ -279,7 +399,7 @@ export function MoeTrainingPanel() {
               </thead>
               <tbody>
                 {filteredMaterials.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center text-muted-foreground py-12">No training resources matching your filters.</td></tr>
+                  <tr><td colSpan={7} className="text-center text-muted-foreground py-12">No training resources matching your filters.</td></tr>
                 ) : (
                   filteredMaterials.map((m) => (
                     <tr key={m.id}>
@@ -290,10 +410,39 @@ export function MoeTrainingPanel() {
                       <td className="text-muted-foreground">{m.uploadedAt}</td>
                       <td><Badge variant={m.disseminated ? 'success' : 'neutral'} badgeStyle="subtle" size="sm">{m.disseminated ? 'Disseminated' : 'Draft'}</Badge></td>
                       <td>
-                        <div className="flex items-center gap-2">
-                          <a href={m.resourceUrl} target="_blank" rel="noopener noreferrer">
-                            <Button type="button" size="sm" variant="outline" className="h-8 text-xs">View</Button>
-                          </a>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            disabled={!m.resourceUrl || m.resourceUrl === '#'}
+                            onClick={() => {
+                              const viewUrl = resolveResourceUrl(m.resourceUrl);
+                              if (!viewUrl || viewUrl === '#') return;
+                              window.open(viewUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => openEditResource(m)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs text-destructive"
+                            onClick={() => void handleDeleteResource(m)}
+                          >
+                            Delete
+                          </Button>
                           {!m.disseminated && (
                             <Button
                               type="button"
@@ -418,9 +567,14 @@ export function MoeTrainingPanel() {
         </Dialog>
       )}
 
-      {/* Upload training resource dialog */}
-      <Dialog isOpen={isUploadOpen} onClose={() => { setIsUploadOpen(false); resetResourceForm(); }} title="Upload Training Resource" description="Add a guide, video link, or reference document for teachers or schools.">
-        <form onSubmit={handleUploadResource} className="space-y-3 text-left">
+      {/* Upload / edit training resource dialog */}
+      <Dialog
+        isOpen={isUploadOpen}
+        onClose={() => { setIsUploadOpen(false); resetResourceForm(); }}
+        title={editingMaterial ? 'Edit Training Resource' : 'Upload Training Resource'}
+        description={editingMaterial ? 'Update the details or replace the linked file for this resource.' : 'Add a guide, video link, or reference document for teachers or schools.'}
+      >
+        <form onSubmit={(e) => void handleSaveResource(e)} className="space-y-3 text-left">
           {uploadError && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-md text-xxs font-bold">⚠ {uploadError}</div>}
           <FormField label="Title">
             <input className={formFieldInputClass} value={resTitle} onChange={(e) => setResTitle(e.target.value)} required />
@@ -442,28 +596,39 @@ export function MoeTrainingPanel() {
             </FormField>
             <FormField label="Link to Training Program (optional)">
               <Select
-                options={trainingPlans.length ? trainingPlans.map((p) => ({ value: p.id, label: `${p.title} (${p.startDate})` })) : [{ value: '', label: 'No training programs available' }]}
+                options={[
+                  { value: '', label: 'None' },
+                  ...trainingPlans.map((p) => ({ value: p.id, label: `${p.title} (${p.startDate})` })),
+                ]}
                 value={resTrainingPlanId}
                 onChange={(e) => setResTrainingPlanId(e.target.value)}
               />
             </FormField>
           </div>
-          <FormField label="External Link (optional if uploading a file)">
+          <FormField label={editingMaterial ? 'External Link (optional — leave blank to keep current file)' : 'External Link (optional if uploading a file)'}>
             <input className={formFieldInputClass} value={resUrl} onChange={(e) => setResUrl(e.target.value)} placeholder="https://..." />
           </FormField>
-          <FormField label="File (optional if a link is provided)">
+          <FormField label={editingMaterial ? 'Replace File (optional)' : 'File (optional if a link is provided)'}>
             <input
               type="file"
               onChange={(e) => setResFile(e.target.files?.[0] ?? null)}
               className="w-full text-xs text-foreground file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
             />
+            {editingMaterial?.resourceUrl?.includes('/uploads/') && !resFile && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Current file kept unless you upload a replacement.
+              </p>
+            )}
           </FormField>
           <DialogFooter>
             <Button type="button" variant="outline" size="sm" onClick={() => { setIsUploadOpen(false); resetResourceForm(); }}>Cancel</Button>
-            <Button type="submit" variant="organic" size="sm" className="border-none" disabled={uploading}>{uploading ? 'Uploading…' : 'Upload Resource'}</Button>
+            <Button type="submit" variant="organic" size="sm" className="border-none" disabled={uploading}>
+              {uploading ? (editingMaterial ? 'Saving…' : 'Uploading…') : (editingMaterial ? 'Save Changes' : 'Upload Resource')}
+            </Button>
           </DialogFooter>
         </form>
       </Dialog>
+      {ConfirmDialog}
     </div>
   );
 }

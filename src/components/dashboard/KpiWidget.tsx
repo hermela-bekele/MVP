@@ -97,7 +97,7 @@ const TrendIndicator: React.FC<{ direction: 'up' | 'down' | 'neutral'; value: st
 
 export interface KpiWidgetProps {
   label: string;
-  value: string | number;
+  value: string | number | React.ReactNode;
   hint?: string;
   icon?: React.ReactNode;
   tone?: KpiTone;
@@ -156,9 +156,9 @@ export const KpiWidget: React.FC<KpiWidgetProps> = ({
         <div className="min-w-0 flex-1 space-y-1.5">
           <p className={`text-xs font-semibold leading-snug sm:text-sm ${styles.label}`}>{label}</p>
           <div className="flex items-baseline gap-2">
-            <p className={`text-2xl font-bold tabular-nums transition-colors ${styles.value}`}>
+            <div className={`text-2xl font-bold tabular-nums transition-colors ${styles.value}`}>
               {numericValue !== null ? animatedValue.toLocaleString() : value}
-            </p>
+            </div>
             {trend && <TrendIndicator direction={trend.direction} value={trend.value} />}
           </div>
           {hint && <p className={`text-xs ${styles.hint}`}>{hint}</p>}

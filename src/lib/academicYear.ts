@@ -7,6 +7,10 @@ export function currentAcademicYear(d: Date = new Date()): string {
   return `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`;
 }
 
+export function displayAcademicYearLabel(year: string): string {
+  return year.replace(/\s*E\.C\.\s*$/i, '').trim();
+}
+
 export function nextAcademicYear(year: string): string {
   const startYear = Number(year.split('/')[0]);
   if (!Number.isFinite(startYear)) return year;
