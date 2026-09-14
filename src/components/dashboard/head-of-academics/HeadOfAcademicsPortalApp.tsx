@@ -128,7 +128,7 @@ export default function HeadOfAcademicsPortalApp() {
       case 'academic-calendar':
         return { title: 'Academic Calendar', subtitle: 'Click days on the MOE calendar to assign events, then generate, save, and publish.' };
       case 'resources':
-        return { title: 'School Resources', subtitle: 'Upload and disseminate school-wide pedagogy and policy materials.' };
+        return { title: 'School Resources', subtitle: 'View the school resource library, and upload or disseminate school-wide pedagogy and policy materials.' };
       case 'my-development':
         return { title: 'My Development', subtitle: 'Your own leadership learning — personal, not a teacher\'s learning path' };
       case 'school-development':

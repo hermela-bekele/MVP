@@ -9,11 +9,12 @@ import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Pagination } from '@/components/ui/pagination';
+import { SchoolResourceLibrary } from '@/components/dashboard/school-head/SchoolResourceLibrary';
 
 const RESOURCES_PAGE_SIZE = 10;
 
 export const ResourcesPanel: React.FC = () => {
-  const { trainingMaterials, addTrainingMaterial, disseminateTrainingMaterial, addNotification } = useApp();
+  const { currentUser, trainingMaterials, addTrainingMaterial, disseminateTrainingMaterial, addNotification } = useApp();
   const [title, setTitle] = useState('');
   const [resourceUrl, setResourceUrl] = useState('');
   const [resourceFile, setResourceFile] = useState<File | null>(null);
@@ -21,6 +22,7 @@ export const ResourcesPanel: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [resourcesPage, setResourcesPage] = useState(1);
 
+  const schoolId = currentUser?.schoolId ?? undefined;
   const schoolResources = trainingMaterials.filter((m) => !m.departmentId);
   const resourcesTotalPages = Math.max(1, Math.ceil(schoolResources.length / RESOURCES_PAGE_SIZE));
   const resourcesCurrentPage = Math.min(resourcesPage, resourcesTotalPages);
@@ -60,6 +62,18 @@ export const ResourcesPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle className="text-sm font-bold">School Resource Library</CardTitle>
+          <p className="text-xs text-muted-foreground font-normal">
+            MOE documents, disseminated materials, school-approved uploads, PRIME modules, and external resources available to your school.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <SchoolResourceLibrary schoolId={schoolId} canManage={false} />
+        </CardContent>
+      </Card>
+
       <Card className="border-border/60">
         <CardHeader>
           <CardTitle className="text-sm font-bold">Upload school resources</CardTitle>

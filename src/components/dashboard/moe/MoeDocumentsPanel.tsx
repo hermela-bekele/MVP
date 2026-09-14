@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { api, ApiError, uploadFileWithMeta, MOE_DOCUMENT_CATEGORIES, MOE_DOCUMENT_AUDIENCES, type MoeDocument } from '@/lib/api';
+import { api, ApiError, uploadFileWithMeta, resolveResourceUrl, MOE_DOCUMENT_CATEGORIES, MOE_DOCUMENT_AUDIENCES, type MoeDocument } from '@/lib/api';
 import { TablePanel } from '@/components/dashboard/TablePanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -160,13 +160,26 @@ export function MoeDocumentsPanel() {
                   <td className="text-muted-foreground">{doc.uploadedByName ?? '—'}</td>
                   <td className="text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString()}</td>
                   <td className="text-muted-foreground">{formatFileSize(doc.fileSize)}</td>
-                  <td className="space-x-2">
-                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
-                      <Button type="button" size="sm" variant="outline" className="h-8 text-xs">View</Button>
-                    </a>
-                    <Button type="button" size="sm" variant="outline" className="h-8 text-xs text-destructive" onClick={() => void handleDelete(doc)}>
-                      Delete
-                    </Button>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        disabled={!doc.fileUrl || doc.fileUrl === '#'}
+                        onClick={() => {
+                          const viewUrl = resolveResourceUrl(doc.fileUrl);
+                          if (!viewUrl || viewUrl === '#') return;
+                          window.open(viewUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                      >
+                        View
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 text-xs text-destructive" onClick={() => void handleDelete(doc)}>
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))

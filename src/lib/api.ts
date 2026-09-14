@@ -270,23 +270,20 @@ export async function request<T>(
 
 const UPLOAD_TIMEOUT_MS = 900_000; // 15 min — large uploads up to 150MB
 
-/** 
+/**
  * Rewrites any stored "/uploads/..." reference (a bare relative path, or an absolute URL
  * from before uploads stopped baking in a host) to point at whichever backend is
  * CURRENTLY configured (API_BASE), instead of whatever host/port happened to handle the
  * original upload request. External links pass through unchanged.
- * 
+ *
  * FIXED: Always use API_BASE for uploaded files to avoid 404 errors.
  */
 export function resolveResourceUrl(url: string | undefined | null): string {
   if (!url) return "";
-  
+
   // Check if this is an uploaded file path
   const match = url.match(/\/uploads\/.+$/);
-  if (!match) return url; // External link, pass through unchanged
-  
-  // FIXED: Always use API_BASE for uploaded files
-  // Uploaded files are stored on the backend server, not the frontend
+  if (!match) return url;
   return `${API_BASE}${match[0]}`;
 }
 
@@ -849,6 +846,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  updateTrainingMaterial: (
+    id: string,
+    body: {
+      title?: string;
+      description?: string | null;
+      resourceUrl?: string;
+      category?: string;
+      audience?: string;
+      code?: string | null;
+      trainingPlanId?: string | null;
+    },
+  ) =>
+    request(`/training-materials/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteTrainingMaterial: (id: string) =>
+    request(`/training-materials/${id}`, { method: "DELETE" }),
   disseminateTrainingMaterial: (id: string, schoolId?: string) =>
     request(`/training-materials/${id}/disseminate`, {
       method: "PATCH",

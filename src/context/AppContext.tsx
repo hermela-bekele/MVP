@@ -405,6 +405,19 @@ interface AppContextType {
     code?: string;
     trainingPlanId?: string;
   }) => void;
+  updateTrainingMaterial: (
+    id: string,
+    data: {
+      title?: string;
+      description?: string | null;
+      resourceUrl?: string;
+      category?: string;
+      audience?: TrainingMaterial["audience"];
+      code?: string | null;
+      trainingPlanId?: string | null;
+    },
+  ) => Promise<void>;
+  deleteTrainingMaterial: (id: string) => Promise<void>;
   disseminateTrainingMaterial: (id: string, schoolId?: string) => void;
   addTrainingPlan: (data: {
     title: string;
@@ -2259,6 +2272,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       .catch(() => void refreshFromApi());
   };
 
+  const updateTrainingMaterial = async (
+    id: string,
+    data: {
+      title?: string;
+      description?: string | null;
+      resourceUrl?: string;
+      category?: string;
+      audience?: TrainingMaterial["audience"];
+      code?: string | null;
+      trainingPlanId?: string | null;
+    },
+  ) => {
+    const mat = (await api.updateTrainingMaterial(
+      id,
+      data,
+    )) as TrainingMaterial;
+    setTrainingMaterials((prev) =>
+      prev.map((m) => (m.id === id ? mat : m)),
+    );
+    addNotification(
+      "Training Resource Updated",
+      `"${mat.title}" saved.`,
+      "success",
+    );
+  };
+
+  const deleteTrainingMaterial = async (id: string) => {
+    const existing = trainingMaterials.find((m) => m.id === id);
+    await api.deleteTrainingMaterial(id);
+    setTrainingMaterials((prev) => prev.filter((m) => m.id !== id));
+    addNotification(
+      "Training Resource Deleted",
+      existing
+        ? `"${existing.title}" was removed.`
+        : "Resource was removed.",
+      "success",
+    );
+  };
+
   const disseminateTrainingMaterial = (id: string, schoolId?: string) => {
     void api
       .disseminateTrainingMaterial(id, schoolId)
@@ -3568,6 +3620,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         approveExam,
         rejectExam,
         addTrainingMaterial,
+        updateTrainingMaterial,
+        deleteTrainingMaterial,
         disseminateTrainingMaterial,
         addTrainingPlan,
         updateTrainingPlanStatus,

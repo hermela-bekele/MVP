@@ -45,6 +45,7 @@ import { DeptTeacherSelfAssessmentsPanel } from "@/components/dashboard/departme
 import { DeptFeedbackPanel } from "@/components/dashboard/department-head/DeptFeedbackPanel";
 import { DeptResourcesReviewPanel } from "@/components/dashboard/department-head/DeptResourcesReviewPanel";
 import { DeptWellnessCheckins } from "@/components/dashboard/department-head/DeptWellnessCheckins";
+import { SchoolResourceLibrary } from "@/components/dashboard/school-head/SchoolResourceLibrary";
 import { PublishedAcademicCalendarPanel } from "@/components/dashboard/PublishedAcademicCalendarPanel";
 import { portalTabPath, tabFromPortalPath } from "@/lib/portalPaths";
 import { CommunicationModule } from "@/components/dashboard/communication/CommunicationModule";
@@ -592,7 +593,7 @@ export default function DeptHeadPortalApp() {
     },
     resources: {
       title: "Study Resources",
-      subtitle: "Shared learning materials.",
+      subtitle: "School resource library plus department study materials.",
     },
     feedbacks: {
       title: "Feedback Loops",
@@ -1210,6 +1211,18 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "resources" && (
         <div className="space-y-6 animate-fade-in">
+          <Card className="border-border/60">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold">School Resource Library</CardTitle>
+              <CardDescription>
+                MOE documents, disseminated materials, school-approved uploads, PRIME modules, and external resources for your school.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SchoolResourceLibrary schoolId={currentUser?.schoolId ?? undefined} canManage={false} />
+            </CardContent>
+          </Card>
+
           <DeptResourcesReviewPanel />
 
           <div className="flex justify-end">

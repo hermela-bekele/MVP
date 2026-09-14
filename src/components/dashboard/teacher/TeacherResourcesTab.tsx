@@ -18,6 +18,8 @@ import {
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { aisBodyMd, aisBodySm, aisCard, aisHeadlineSm } from '@/components/dashboard/teacher/aisStyles';
 import { Pagination } from '@/components/ui/pagination';
+import { SchoolResourceLibrary } from '@/components/dashboard/school-head/SchoolResourceLibrary';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const PAGE_SIZE = 9; // 3-column card grid
 
@@ -78,6 +80,7 @@ function categoryToType(category: string): TeacherResource['type'] {
 
 export const TeacherResourcesTab: React.FC = () => {
   const {
+    currentUser,
     teachers,
     teacherResources,
     trainingMaterials,
@@ -87,6 +90,7 @@ export const TeacherResourcesTab: React.FC = () => {
     refreshFromApi,
   } = useApp();
   const teacherId = resolveTeacherId();
+  const schoolId = currentUser?.schoolId ?? undefined;
 
   // TE-010: `teacherResources` from the shared app state only ever contains APPROVED
   // rows (bootstrap deliberately excludes pending/rejected uploads so peers/students
@@ -192,6 +196,18 @@ export const TeacherResourcesTab: React.FC = () => {
 
   return (
     <AisPage>
+      <Card className="border-border/60 mb-4">
+        <CardHeader>
+          <CardTitle className="text-sm font-bold">School Resource Library</CardTitle>
+          <p className={`${aisBodySm} text-muted-foreground`}>
+            MOE documents, disseminated materials, school-approved uploads, PRIME modules, and external resources for your school.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <SchoolResourceLibrary schoolId={schoolId} canManage={false} />
+        </CardContent>
+      </Card>
+
       <AisPanel
         title="Classroom resources"
         description="Your uploads, approved resources shared by colleagues, and department-shared study materials — click a card to view it"
