@@ -27,6 +27,9 @@ import { ResourcesPanel } from './ResourcesPanel';
 import { SchoolProfessionalDevelopmentPanel } from './SchoolProfessionalDevelopmentPanel';
 import { TeacherTrainingTab } from '@/components/dashboard/teacher/TeacherTrainingTab';
 import { CommunicationModule } from '@/components/dashboard/communication/CommunicationModule';
+import { DeptHodMessagesPanel } from '@/components/dashboard/department-head/DeptHodMessagesPanel';
+import { DeptFeedbackPanel } from '@/components/dashboard/department-head/DeptFeedbackPanel';
+import { DeptWellnessCheckins } from '@/components/dashboard/department-head/DeptWellnessCheckins';
 
 const COVERAGE_TARGET = 80;
 
@@ -132,6 +135,12 @@ export default function HeadOfAcademicsPortalApp() {
         return { title: 'School Professional Development', subtitle: 'Teacher development aggregated by department, programme, completion, development need, and impact' };
       case 'communication':
         return { title: 'Community', subtitle: 'School-wide announcements and communities across every department' };
+      case 'hod-messages':
+        return { title: 'Direct Messages', subtitle: 'Real-time conversation with department heads' };
+      case 'teacher-feedbacks':
+        return { title: 'Teacher Feedback', subtitle: 'View and provide feedback for teachers across the school' };
+      case 'wellness-checkins':
+        return { title: 'Wellness Check-ins', subtitle: 'Monitor staff wellness and school improvement feedback' };
       case 'settings':
         return { title: 'Portal Settings', subtitle: 'Your account and school details' };
       default:
@@ -346,6 +355,9 @@ export default function HeadOfAcademicsPortalApp() {
       )}
       {activeTab === 'school-development' && <SchoolProfessionalDevelopmentPanel />}
       {activeTab === 'communication' && <CommunicationModule mode="head-of-academics" />}
+      {activeTab === 'hod-messages' && <DeptHodMessagesPanel />}
+      {activeTab === 'teacher-feedbacks' && <DeptFeedbackPanel />}
+      {activeTab === 'wellness-checkins' && <DeptWellnessCheckins />}
 
       {activeTab === 'settings' && (
         <div className="space-y-6 animate-fade-in text-left">

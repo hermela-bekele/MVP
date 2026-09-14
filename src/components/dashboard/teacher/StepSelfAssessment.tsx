@@ -124,9 +124,19 @@ export const StepSelfAssessment: React.FC = () => {
   return (
     <AisPage>
       <AisPanel
-        title="Self-assessment"
-        description="Rate yourself honestly on each competency. Your HoD will use this alongside AI gap-analysis on your students' results to assign the right training — not to judge you."
+        title="Weekly Self-Assessment"
+        description="Complete this self-assessment weekly to track your professional growth. Rate yourself honestly on each competency. Your HoD will use this alongside AI gap-analysis on your students' results to assign targeted training and support — not to judge you."
       >
+        {/* Weekly reminder banner */}
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+            📅 Weekly Self-Assessment
+          </p>
+          <p className="text-xs text-blue-800 dark:text-blue-200">
+            Submit this assessment every week to help your HoD track your development progress and identify areas where you need support. Weekly submissions show your commitment to continuous improvement.
+          </p>
+        </div>
+
         <div className="space-y-6">
           {groupedByCategory.map(([category, items]) => (
             <div key={category}>

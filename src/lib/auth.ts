@@ -64,7 +64,8 @@ export function readStoredSession(): AuthUser | null {
     localStorage.getItem(SESSION_STORAGE_KEY) ??
     sessionStorage.getItem(SESSION_STORAGE_KEY);
 
-  if (!raw) return null;
+  // FIXED: Check for empty string or whitespace-only values
+  if (!raw || raw.trim() === '') return null;
 
   try {
     const parsed = JSON.parse(raw) as AuthUser;
