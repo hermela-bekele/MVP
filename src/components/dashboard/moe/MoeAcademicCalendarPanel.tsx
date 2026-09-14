@@ -33,6 +33,7 @@ export const MoeAcademicCalendarPanel: React.FC<{
   const bounds = useMemo(() => getMoeCalendarBounds(), []);
 
   const [phase, setPhase] = useState<Phase>(moeCalendar ? 'generated' : 'editing');
+  const [hasGenerated, setHasGenerated] = useState(Boolean(moeCalendar));
   const [title, setTitle] = useState(moeCalendar?.title ?? MOE_ACADEMIC_YEAR_TITLE);
   const [assignments, setAssignments] = useState<DayAssignment[]>(() =>
     moeCalendar?.events ? eventsToAssignments(moeCalendar.events) : [],
@@ -82,6 +83,7 @@ export const MoeAcademicCalendarPanel: React.FC<{
   const handleGenerate = React.useCallback(() => {
     const events = buildNationalEvents();
     setPendingEvents(events);
+    setHasGenerated(true);
     setPhase('generated');
     toast({
       title: 'National calendar generated',
@@ -109,30 +111,38 @@ export const MoeAcademicCalendarPanel: React.FC<{
   React.useEffect(() => {
     if (!onActionsChange) return;
 
+    const editButton = (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleEdit}
+        disabled={!hasGenerated || phase === 'editing'}
+        leftIcon={<Pencil className="h-4 w-4" />}
+        className="whitespace-nowrap"
+      >
+        Edit
+      </Button>
+    );
+
     let actions: React.ReactNode = null;
     if (phase === 'editing') {
       actions = (
-        <Button
-          size="sm"
-          onClick={handleGenerate}
-          leftIcon={<Sparkles className="h-4 w-4" />}
-          className="whitespace-nowrap"
-        >
-          Generate calendar
-        </Button>
+        <>
+          {editButton}
+          <Button
+            size="sm"
+            onClick={handleGenerate}
+            leftIcon={<Sparkles className="h-4 w-4" />}
+            className="whitespace-nowrap"
+          >
+            Generate calendar
+          </Button>
+        </>
       );
     } else {
       actions = (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleEdit}
-            leftIcon={<Pencil className="h-4 w-4" />}
-            className="whitespace-nowrap"
-          >
-            Edit
-          </Button>
+          {editButton}
           {(!moeCalendar || isDirty) && (
             <Button
               variant="outline"
@@ -161,6 +171,7 @@ export const MoeAcademicCalendarPanel: React.FC<{
   }, [
     onActionsChange,
     phase,
+    hasGenerated,
     moeCalendar,
     isDirty,
     handleEdit,
