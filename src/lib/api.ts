@@ -278,11 +278,6 @@ export function resolveResourceUrl(url: string | undefined | null): string {
   if (!url) return "";
   const match = url.match(/\/uploads\/.+$/);
   if (!match) return url;
-  // Relative upload paths must stay on the deployed frontend origin when the API
-  // host is private or configured only for server-side requests.
-  if (typeof window !== 'undefined' && window.location.protocol !== 'file:') {
-    return `${window.location.origin}${match[0]}`;
-  }
   return `${API_BASE}${match[0]}`;
 }
 
@@ -845,6 +840,24 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  updateTrainingMaterial: (
+    id: string,
+    body: {
+      title?: string;
+      description?: string | null;
+      resourceUrl?: string;
+      category?: string;
+      audience?: string;
+      code?: string | null;
+      trainingPlanId?: string | null;
+    },
+  ) =>
+    request(`/training-materials/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deleteTrainingMaterial: (id: string) =>
+    request(`/training-materials/${id}`, { method: "DELETE" }),
   disseminateTrainingMaterial: (id: string, schoolId?: string) =>
     request(`/training-materials/${id}/disseminate`, {
       method: "PATCH",

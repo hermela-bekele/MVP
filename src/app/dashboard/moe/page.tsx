@@ -1,28 +1,42 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useApp } from '@/context/AppContext';
-import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { KpiWidget, KpiGrid } from '@/components/dashboard/KpiWidget';
-import { TablePanel } from '@/components/dashboard/TablePanel';
-import { Badge } from '@/components/ui/badge';
-import { MetricProgressRow } from '@/components/ui/metric-progress-row';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
-import { Pagination } from '@/components/ui/pagination';
-import { computeNationalStats, computeRegionalPerformance, computeSubjectPassRate, computeTeacherDevelopmentNeeds } from '@/lib/analytics';
-import { usePortalTab } from '@/lib/usePortalTab';
-import { PortalProfileCard } from '@/components/dashboard/shared/PortalProfileCard';
-import { MoeAcademicCalendarPanel } from '@/components/dashboard/moe/MoeAcademicCalendarPanel';
-import { ConnectSchoolDialog } from '@/components/dashboard/moe/ConnectSchoolDialog';
-import { RegionsPanel } from '@/components/dashboard/moe/RegionsPanel';
-import { MoeDocumentsPanel } from '@/components/dashboard/moe/MoeDocumentsPanel';
-import { MoeTrainingPanel } from '@/components/dashboard/moe/MoeTrainingPanel';
-import { MoeCompliancePanel } from '@/components/dashboard/moe/MoeCompliancePanel';
-import { MoeSchoolMessagesPanel } from '@/components/dashboard/moe/MoeSchoolMessagesPanel';
-import { MoeTeacherStaffingPanel } from '@/components/dashboard/moe/MoeTeacherStaffingPanel';
-import { useConfirmDialog } from '@/components/ui/confirm-dialog';
+import React, { useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { KpiWidget, KpiGrid } from "@/components/dashboard/KpiWidget";
+import { TablePanel } from "@/components/dashboard/TablePanel";
+import { Badge } from "@/components/ui/badge";
+import { MetricProgressRow } from "@/components/ui/metric-progress-row";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  computeNationalStats,
+  computeRegionalPerformance,
+  computeSubjectPassRate,
+  computeTeacherDevelopmentNeeds,
+} from "@/lib/analytics";
+import { usePortalTab } from "@/lib/usePortalTab";
+import { PortalProfileCard } from "@/components/dashboard/shared/PortalProfileCard";
+import { MoeAcademicCalendarPanel } from "@/components/dashboard/moe/MoeAcademicCalendarPanel";
+import { ConnectSchoolDialog } from "@/components/dashboard/moe/ConnectSchoolDialog";
+import { RegionsPanel } from "@/components/dashboard/moe/RegionsPanel";
+import { MoeDocumentsPanel } from "@/components/dashboard/moe/MoeDocumentsPanel";
+import { MoeTrainingPanel } from "@/components/dashboard/moe/MoeTrainingPanel";
+import { MoeCompliancePanel } from "@/components/dashboard/moe/MoeCompliancePanel";
+import { MoeSchoolMessagesPanel } from "@/components/dashboard/moe/MoeSchoolMessagesPanel";
+import { MoeTeacherStaffingPanel } from "@/components/dashboard/moe/MoeTeacherStaffingPanel";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Shield, AlertTriangle, Info } from "lucide-react";
+
 export default function MoePortalPage() {
   const {
     schools,
@@ -39,48 +53,113 @@ export default function MoePortalPage() {
   const { confirm, ConfirmDialog } = useConfirmDialog();
 
   // Dashboard reporting scope — every metric below respects these two selections.
-  const [dashboardRegion, setDashboardRegion] = useState('All');
-  const [dashboardYear, setDashboardYear] = useState('All');
-  const dashboardScope = React.useMemo(() => ({ region: dashboardRegion, academicYear: dashboardYear }), [dashboardRegion, dashboardYear]);
-  const academicYearOptions = React.useMemo(
-    () => Array.from(new Set(academicCalendars.map((c) => c.academicYear))).sort(),
-    [academicCalendars]
+  const [dashboardRegion, setDashboardRegion] = useState("All");
+  const [dashboardYear, setDashboardYear] = useState("All");
+  const dashboardScope = React.useMemo(
+    () => ({ region: dashboardRegion, academicYear: dashboardYear }),
+    [dashboardRegion, dashboardYear],
   );
+
+  const yearFilterOptions = [
+    { value: "All", label: "All Academic Years" },
+    { value: "2018 E.C.", label: "2018 E.C." },
+    { value: "2019 E.C.", label: "2019 E.C." },
+  ];
+
+  const [issueComplianceSchool, setIssueComplianceSchool] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [issueComplianceRemark, setIssueComplianceRemark] = useState("");
+  const [issueComplianceActions, setIssueComplianceActions] = useState("");
+  const [issueComplianceAttachment, setIssueComplianceAttachment] =
+    useState<File | null>(null);
+  const [complianceStatusBySchool, setComplianceStatusBySchool] = useState<
+    Record<string, string>
+  >({});
+  const [complianceActionsBySchool, setComplianceActionsBySchool] = useState<
+    Record<string, string[]>
+  >({});
+  const [complianceRemarksBySchool, setComplianceRemarksBySchool] = useState<
+    Record<string, string>
+  >({});
+  const [complianceAttachmentsBySchool, setComplianceAttachmentsBySchool] =
+    useState<Record<string, string>>({});
 
   const nationalStats = React.useMemo(
-    () => computeNationalStats(schools, teachers, students, dashboardScope, academicCalendars),
-    [schools, teachers, students, dashboardScope, academicCalendars]
+    () =>
+      computeNationalStats(
+        schools,
+        teachers,
+        students,
+        dashboardScope,
+        academicCalendars,
+      ),
+    [schools, teachers, students, dashboardScope, academicCalendars],
   );
-  const regionalPerformance = React.useMemo(() => computeRegionalPerformance(schools, teachers, students), [schools, teachers, students]);
+  const regionalPerformance = React.useMemo(
+    () => computeRegionalPerformance(schools, teachers, students),
+    [schools, teachers, students],
+  );
   const subjectPassRate = React.useMemo(
-    () => computeSubjectPassRate(studentGradeEntries, students, schools, dashboardScope),
-    [studentGradeEntries, students, schools, dashboardScope]
+    () =>
+      computeSubjectPassRate(
+        studentGradeEntries,
+        students,
+        schools,
+        dashboardScope,
+      ),
+    [studentGradeEntries, students, schools, dashboardScope],
   );
   const teacherDevelopmentNeeds = React.useMemo(
-    () => computeTeacherDevelopmentNeeds(teacherTrainingAssignments, teachers, schools, dashboardScope),
-    [teacherTrainingAssignments, teachers, schools, dashboardScope]
+    () =>
+      computeTeacherDevelopmentNeeds(
+        teacherTrainingAssignments,
+        teachers,
+        schools,
+        dashboardScope,
+      ),
+    [teacherTrainingAssignments, teachers, schools, dashboardScope],
   );
 
-  const { activeTab, setActiveTab } = usePortalTab('moe');
+  const schoolRiskStats = React.useMemo(() => {
+    const scopedSchools =
+      dashboardRegion === "All"
+        ? schools
+        : schools.filter((s) => s.region === dashboardRegion);
+    const total = scopedSchools.length || 0;
+    const complianceIssueCount = scopedSchools.filter((s) => {
+      const status = complianceStatusBySchool[s.id];
+      return status === "Action Required" || status === "Compliance Issue";
+    }).length;
+    const suspendedCount = scopedSchools.filter(
+      (s) => s.status === "Suspended",
+    ).length;
+
+    return {
+      complianceIssuePct: total ? (complianceIssueCount / total) * 100 : 0,
+      suspendedPct: total ? (suspendedCount / total) * 100 : 0,
+    };
+  }, [dashboardRegion, schools, complianceStatusBySchool]);
+
+  const { activeTab, setActiveTab } = usePortalTab("moe");
 
   // The National Dashboard belongs to the Administrative Engine only — a direct link
   // into /dashboard/moe/dashboard while another engine is active must not render it.
   React.useEffect(() => {
-    if (activeTab !== 'dashboard' || !activeEngine || activeEngine === 'administrative') return;
-    setActiveTab(activeEngine === 'curriculum' ? 'curriculum' : 'training');
+    if (
+      activeTab !== "dashboard" ||
+      !activeEngine ||
+      activeEngine === "administrative"
+    )
+      return;
+    setActiveTab(activeEngine === "curriculum" ? "curriculum" : "training");
   }, [activeTab, activeEngine, setActiveTab]);
-  const [searchSchool, setSearchSchool] = useState('');
-  const [filterRegion, setFilterRegion] = useState('All');
-  const [filterType, setFilterType] = useState('All');
-  const [calendarHeaderActions, setCalendarHeaderActions] = useState<React.ReactNode>(null);
-  const [issueComplianceSchool, setIssueComplianceSchool] = useState<{ id: string; name: string } | null>(null);
-  const [issueComplianceRemark, setIssueComplianceRemark] = useState('');
-  const [issueComplianceActions, setIssueComplianceActions] = useState('');
-  const [issueComplianceAttachment, setIssueComplianceAttachment] = useState<File | null>(null);
-  const [complianceStatusBySchool, setComplianceStatusBySchool] = useState<Record<string, string>>({});
-  const [complianceActionsBySchool, setComplianceActionsBySchool] = useState<Record<string, string[]>>({});
-  const [complianceRemarksBySchool, setComplianceRemarksBySchool] = useState<Record<string, string>>({});
-  const [complianceAttachmentsBySchool, setComplianceAttachmentsBySchool] = useState<Record<string, string>>({});
+  const [searchSchool, setSearchSchool] = useState("");
+  const [filterRegion, setFilterRegion] = useState("All");
+  const [filterType, setFilterType] = useState("All");
+  const [calendarHeaderActions, setCalendarHeaderActions] =
+    useState<React.ReactNode>(null);
 
   // Pagination state
   const SCHOOLS_PAGE_SIZE = 10;
@@ -88,7 +167,9 @@ export default function MoePortalPage() {
 
   // Connect/Activate School dialog + Schools/Regions sub-view
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [schoolsSubView, setSchoolsSubView] = useState<'schools' | 'regions'>('schools');
+  const [schoolsSubView, setSchoolsSubView] = useState<"schools" | "regions">(
+    "schools",
+  );
 
   // AI Generation State
   const [generatingReport, setGeneratingReport] = useState(false);
@@ -96,17 +177,62 @@ export default function MoePortalPage() {
 
   const handleSuspendSchool = async (schoolId: string, schoolName: string) => {
     const ok = await confirm(`Suspend ${schoolName}'s PRIME participation?`, {
-      description: 'This will move the school into a suspended integration state and mark the school’s compliance status as suspended.',
-      confirmLabel: 'Suspend',
+      description:
+        "This will move the school into a suspended integration state and mark the school’s compliance status as suspended.",
+      confirmLabel: "Suspend",
       danger: true,
     });
     if (!ok) return;
     try {
-      await updateSchoolIntegrationStatus(schoolId, 'Suspended');
-      setComplianceStatusBySchool((prev) => ({ ...prev, [schoolId]: 'Suspended' }));
-      addNotification('School Suspended', `${schoolName} is now marked suspended.`, 'success');
+      await updateSchoolIntegrationStatus(schoolId, "Suspended");
+      setComplianceStatusBySchool((prev) => ({
+        ...prev,
+        [schoolId]: "Suspended",
+      }));
+      addNotification(
+        "School Suspended",
+        `${schoolName} is now marked suspended.`,
+        "success",
+      );
     } catch {
-      addNotification('Action Failed', 'Could not update this school’s connection status.', 'alert');
+      addNotification(
+        "Action Failed",
+        "Could not update this school’s connection status.",
+        "alert",
+      );
+    }
+  };
+
+  const handleUnsuspendSchool = async (
+    schoolId: string,
+    schoolName: string,
+  ) => {
+    const ok = await confirm(
+      `Restore ${schoolName}'s PRIME participation?`,
+      {
+        description:
+          "This will reactivate the school’s integration and clear the suspended compliance status.",
+        confirmLabel: "Unsuspend",
+      },
+    );
+    if (!ok) return;
+    try {
+      await updateSchoolIntegrationStatus(schoolId, "Active");
+      setComplianceStatusBySchool((prev) => ({
+        ...prev,
+        [schoolId]: "Compliant",
+      }));
+      addNotification(
+        "School Restored",
+        `${schoolName} is active again.`,
+        "success",
+      );
+    } catch {
+      addNotification(
+        "Action Failed",
+        "Could not update this school’s connection status.",
+        "alert",
+      );
     }
   };
 
@@ -120,11 +246,13 @@ export default function MoePortalPage() {
 
     setComplianceStatusBySchool((prev) => ({
       ...prev,
-      [issueComplianceSchool.id]: actionItems.length > 0 ? 'Action Required' : 'Compliance Issue',
+      [issueComplianceSchool.id]:
+        actionItems.length > 0 ? "Action Required" : "Compliance Issue",
     }));
     setComplianceRemarksBySchool((prev) => ({
       ...prev,
-      [issueComplianceSchool.id]: cleanRemark || 'Compliance issue raised by MOE.',
+      [issueComplianceSchool.id]:
+        cleanRemark || "Compliance issue raised by MOE.",
     }));
     setComplianceActionsBySchool((prev) => ({
       ...prev,
@@ -137,16 +265,20 @@ export default function MoePortalPage() {
       }));
     }
     setIssueComplianceSchool(null);
-    setIssueComplianceRemark('');
-    setIssueComplianceActions('');
+    setIssueComplianceRemark("");
+    setIssueComplianceActions("");
     setIssueComplianceAttachment(null);
-    addNotification('Compliance Issue Raised', `Compliance remarks, actions, and attached document were recorded for ${issueComplianceSchool.name}.`, 'success');
+    addNotification(
+      "Compliance Issue Raised",
+      `Compliance remarks, actions, and attached document were recorded for ${issueComplianceSchool.name}.`,
+      "success",
+    );
   };
 
   const resolveIssueCompliance = (schoolId: string, schoolName: string) => {
     setComplianceStatusBySchool((prev) => ({
       ...prev,
-      [schoolId]: 'Compliant',
+      [schoolId]: "Compliant",
     }));
     setComplianceActionsBySchool((prev) => ({
       ...prev,
@@ -154,87 +286,114 @@ export default function MoePortalPage() {
     }));
     setComplianceRemarksBySchool((prev) => ({
       ...prev,
-      [schoolId]: '',
+      [schoolId]: "",
     }));
     setComplianceAttachmentsBySchool((prev) => ({
       ...prev,
-      [schoolId]: '',
+      [schoolId]: "",
     }));
-    addNotification('Compliance Issue Resolved', `${schoolName} is again marked compliant.`, 'success');
+    addNotification(
+      "Compliance Issue Resolved",
+      `${schoolName} is again marked compliant.`,
+      "success",
+    );
   };
 
   const handleGenerateAIReport = () => {
     setGeneratingReport(true);
     setTimeout(() => {
-      const worstPassRateRegion = [...regionalPerformance].sort((a, b) => a.passRate - b.passRate)[0];
-      const worstShortageRegion = [...regionalPerformance].sort((a, b) => b.teachersShortage - a.teachersShortage)[0];
-      const worstSubject = [...subjectPassRate].sort((a, b) => a.passRate - b.passRate)[0];
-      const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+      const worstPassRateRegion = [...regionalPerformance].sort(
+        (a, b) => a.passRate - b.passRate,
+      )[0];
+      const worstShortageRegion = [...regionalPerformance].sort(
+        (a, b) => b.teachersShortage - a.teachersShortage,
+      )[0];
+      const worstSubject = [...subjectPassRate].sort(
+        (a, b) => a.passRate - b.passRate,
+      )[0];
+      const generatedAt = new Date().toLocaleString("en-US", {
+        dateStyle: "long",
+        timeStyle: "short",
+      });
 
       const lines = [
         `[Ethiopian MOE Analytics Synthesis – generated ${generatedAt}]`,
-        '',
-        '1. Regional Pass Rate:',
+        "",
+        "1. Regional Pass Rate:",
         worstPassRateRegion
           ? `   - Lowest pass rate is ${worstPassRateRegion.name} at ${worstPassRateRegion.passRate}% across ${worstPassRateRegion.schools} registered school(s).`
-          : '   - No regional student data available yet.',
-        '',
-        '2. Teacher Shortage:',
+          : "   - No regional student data available yet.",
+        "",
+        "2. Teacher Shortage:",
         worstShortageRegion && worstShortageRegion.teachersShortage > 0
           ? `   - Largest projected teacher shortage is ${worstShortageRegion.name} at ${worstShortageRegion.teachersShortage}% of the expected staffing level.`
-          : '   - No significant teacher shortage detected in current data.',
-        '',
-        '3. Subject Performance:',
+          : "   - No significant teacher shortage detected in current data.",
+        "",
+        "3. Subject Performance:",
         worstSubject
           ? `   - ${worstSubject.subject} has the lowest pass rate at ${worstSubject.passRate}% (status: ${worstSubject.status}).`
-          : '   - No graded assessment data available yet.',
-        '',
+          : "   - No graded assessment data available yet.",
+        "",
         `Based on ${nationalStats.schoolsCount} school(s), ${nationalStats.teachersCount} teacher(s), and ${nationalStats.studentsCount} student(s) currently on record.`,
       ];
 
-      setAiReportOutput(lines.join('\n'));
-      addNotification('Analytics Report Ready', 'Regional pass-rate, staffing, and subject performance summary is now available.', 'success');
+      setAiReportOutput(lines.join("\n"));
+      addNotification(
+        "Analytics Report Ready",
+        "Regional pass-rate, staffing, and subject performance summary is now available.",
+        "success",
+      );
       setGeneratingReport(false);
     }, 800);
   };
 
-  const portalMeta: Record<string, { title: string; subtitle?: string; eyebrow?: string }> = {
+  const portalMeta: Record<
+    string,
+    { title: string; subtitle?: string; eyebrow?: string }
+  > = {
     dashboard: {
-      title: 'National Dashboard',
-      eyebrow: 'Ministry of Education · Ethiopia',
-      subtitle: 'National enrollment, pass rates, and regional performance at a glance.',
+      title: "National Dashboard",
+      eyebrow: "Ministry of Education · Ethiopia",
+      subtitle:
+        "National enrollment, pass rates, and regional performance at a glance.",
     },
     schools: {
-      title: 'Manage Schools',
-      subtitle: 'Register and monitor schools across all regions.',
+      title: "Manage Schools",
+      subtitle: "Register and monitor schools across all regions.",
     },
     curriculum: {
-      title: 'Documents',
-      subtitle: 'Upload and manage national policy, curriculum, and compliance documents.',
+      title: "Documents",
+      subtitle:
+        "Upload and manage national policy, curriculum, and compliance documents.",
     },
     training: {
-      title: 'Training',
-      subtitle: 'National training programs and resources for schools and teachers.',
+      title: "Training",
+      subtitle:
+        "National training programs and resources for schools and teachers.",
     },
     compliance: {
-      title: 'Compliance',
-      subtitle: 'Issue regulatory requirements and verify what schools submit against them.',
+      title: "Compliance",
+      subtitle:
+        "Issue regulatory requirements and verify what schools submit against them.",
     },
-    'school-messages': {
-      title: 'School Messages',
-      subtitle: 'Direct case-numbered communication threads with individual schools.',
+    "school-messages": {
+      title: "School Messages",
+      subtitle:
+        "Direct case-numbered communication threads with individual schools.",
     },
-    'teacher-staffing': {
-      title: 'Teacher Staffing',
-      subtitle: 'Review Public-school departure notices and assign replacement teachers.',
+    "teacher-staffing": {
+      title: "Teacher Staffing",
+      subtitle:
+        "Review Public-school departure notices and assign replacement teachers.",
     },
-    'academic-calendar': {
-      title: 'Academic Calendar',
-      subtitle: 'Build and disseminate the national reference calendar to school heads.',
+    "academic-calendar": {
+      title: "Academic Calendar",
+      subtitle:
+        "Build and disseminate the national reference calendar to school heads.",
     },
     profile: {
-      title: 'My Profile',
-      subtitle: 'Your MOE account information.',
+      title: "My Profile",
+      subtitle: "Your MOE account information.",
     },
   };
 
@@ -243,19 +402,27 @@ export default function MoePortalPage() {
   // Region options for the filter — sourced from MOE's region catalog, the one
   // authoritative list (replacing what used to be several separately-hardcoded ones).
   const regionFilterOptions = React.useMemo(
-    () => [{ value: 'All', label: 'All Regions' }, ...regions.map((r) => ({ value: r.name, label: r.name }))],
-    [regions]
+    () => [
+      { value: "All", label: "All Regions" },
+      ...regions.map((r) => ({ value: r.name, label: r.name })),
+    ],
+    [regions],
   );
 
   // Filtered schools
-  const filteredSchools = schools.filter(sch => {
-    const matchesSearch = sch.name.toLowerCase().includes(searchSchool.toLowerCase()) || sch.code.toLowerCase().includes(searchSchool.toLowerCase());
-    const matchesRegion = filterRegion === 'All' || sch.region === filterRegion;
-    const matchesType = filterType === 'All' || sch.type === filterType;
+  const filteredSchools = schools.filter((sch) => {
+    const matchesSearch =
+      sch.name.toLowerCase().includes(searchSchool.toLowerCase()) ||
+      sch.code.toLowerCase().includes(searchSchool.toLowerCase());
+    const matchesRegion = filterRegion === "All" || sch.region === filterRegion;
+    const matchesType = filterType === "All" || sch.type === filterType;
     return matchesSearch && matchesRegion && matchesType;
   });
 
-  const schoolsTotalPages = Math.max(1, Math.ceil(filteredSchools.length / SCHOOLS_PAGE_SIZE));
+  const schoolsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredSchools.length / SCHOOLS_PAGE_SIZE),
+  );
   const schoolsCurrentPage = Math.min(schoolsPage, schoolsTotalPages);
   const pagedSchools = filteredSchools.slice(
     (schoolsCurrentPage - 1) * SCHOOLS_PAGE_SIZE,
@@ -270,7 +437,7 @@ export default function MoePortalPage() {
       subtitle={meta.subtitle}
       eyebrow={meta.eyebrow}
       actions={
-        activeTab === 'academic-calendar' ? (
+        activeTab === "academic-calendar" ? (
           calendarHeaderActions
         ) : (
           <Badge variant="success" badgeStyle="subtle" size="md">
@@ -279,156 +446,306 @@ export default function MoePortalPage() {
         )
       }
     >
-          {activeTab === 'dashboard' && (!activeEngine || activeEngine === 'administrative') && (
-            <div className="space-y-6">
-              {/* Reporting scope — every metric on this dashboard respects these two selections */}
-              <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border border-border/60">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Reporting Scope</span>
-                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-                  <div className="w-44">
-                    <Select
-                      options={[{ value: 'All', label: 'All Regions (National)' }, ...regions.map((r) => ({ value: r.name, label: r.name }))]}
-                      value={dashboardRegion}
-                      onChange={(e) => setDashboardRegion(e.target.value)}
-                    />
+      {activeTab === "dashboard" &&
+        (!activeEngine || activeEngine === "administrative") && (
+          <div className="space-y-6">
+            {/* Reporting scope — every metric on this dashboard respects these two selections */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border border-border/60">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                Reporting Scope
+              </span>
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                <div className="w-44">
+                  <Select
+                    options={[
+                      { value: "All", label: "All Regions (National)" },
+                      ...regions.map((r) => ({ value: r.name, label: r.name })),
+                    ]}
+                    value={dashboardRegion}
+                    onChange={(e) => setDashboardRegion(e.target.value)}
+                  />
+                </div>
+                <div className="w-44">
+                  <Select
+                    options={yearFilterOptions}
+                    value="All"
+                    onChange={(e) => setDashboardYear("All")}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <KpiGrid className="lg:grid-cols-4">
+              <KpiWidget
+                className="h-[113px]"
+                label="Unique Active Institutions"
+                value={nationalStats.uniqueActiveInstitutions}
+                hint={
+                  dashboardRegion === "All" ? "All regions" : dashboardRegion
+                }
+                tone="default"
+                icon={<span className="text-lg">🏫</span>}
+              />
+              <KpiWidget
+                className="h-[113px]"
+                label="Certified Teachers"
+                value={nationalStats.teachersCount.toLocaleString()}
+                hint={
+                  dashboardRegion === "All" ? "All regions" : dashboardRegion
+                }
+                tone="emphasis"
+                icon={<span className="text-lg">👩‍🏫</span>}
+              />
+              <KpiWidget
+                className="h-[113px]"
+                label="Enrolled Students"
+                value={nationalStats.studentsCount.toLocaleString()}
+                hint={
+                  dashboardRegion === "All" ? "All regions" : dashboardRegion
+                }
+                tone="default"
+                icon={<span className="text-lg">🎓</span>}
+              />
+              <div className="relative flex h-[113px] w-full flex-col justify-between overflow-hidden rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="absolute inset-x-0 top-0 h-1.5 bg-[#fbb03b]" />
+
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#fff4d6]">
+                      <Shield
+                        className="h-3.5 w-3.5 text-[#e8a317]"
+                        strokeWidth={2.25}
+                      />
+                    </div>
+                    <h3 className="truncate text-sm font-bold text-slate-900">
+                      Schools at Risk
+                    </h3>
                   </div>
-                  <div className="w-44">
-                    <Select
-                      options={[{ value: 'All', label: 'All Academic Years' }, ...academicYearOptions.map((y) => ({ value: y, label: y }))]}
-                      value={dashboardYear}
-                      onChange={(e) => setDashboardYear(e.target.value)}
-                    />
+                  <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#fff4d6] px-1.5 py-0.5 text-[10px] font-bold text-[#e8a317]">
+                    <AlertTriangle className="h-2.5 w-2.5" strokeWidth={2.5} />
+                    Attention Needed
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 divide-x divide-slate-200">
+                  <div className="pr-3">
+                    <div className="mb-0.5 flex items-center gap-0.5 text-[10px] font-medium text-slate-500">
+                      Compliance Issues
+                      <Tooltip
+                        content="Share of schools with an open compliance issue or action required."
+                        tooltipClassName="whitespace-normal max-w-[12rem] text-left"
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex"
+                          aria-label="Compliance issues info"
+                        >
+                          <Info
+                            className="h-3 w-3 text-slate-400"
+                            strokeWidth={2}
+                          />
+                        </button>
+                      </Tooltip>
+                    </div>
+                    <p className="text-xl font-bold tabular-nums tracking-tight text-slate-900">
+                      {schoolRiskStats.complianceIssuePct.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="pl-3">
+                    <div className="mb-0.5 flex items-center gap-0.5 text-[10px] font-medium text-slate-500">
+                      Suspended
+                      <Tooltip
+                        content="Share of schools currently marked as suspended."
+                        tooltipClassName="whitespace-normal max-w-[12rem] text-left"
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex"
+                          aria-label="Suspended schools info"
+                        >
+                          <Info
+                            className="h-3 w-3 text-slate-400"
+                            strokeWidth={2}
+                          />
+                        </button>
+                      </Tooltip>
+                    </div>
+                    <p className="text-xl font-bold tabular-nums tracking-tight text-slate-900">
+                      {schoolRiskStats.suspendedPct.toFixed(1)}%
+                    </p>
                   </div>
                 </div>
               </div>
+            </KpiGrid>
 
-              <KpiGrid>
-                <KpiWidget label="Unique Active Institutions" value={nationalStats.uniqueActiveInstitutions} hint={dashboardRegion === 'All' ? 'All regions' : dashboardRegion} tone="default" icon={<span className="text-lg">🏫</span>} />
-                <KpiWidget label="Certified Teachers" value={nationalStats.teachersCount.toLocaleString()} hint={dashboardRegion === 'All' ? 'All regions' : dashboardRegion} tone="emphasis" icon={<span className="text-lg">👩‍🏫</span>} />
-                <KpiWidget label="Enrolled Students" value={nationalStats.studentsCount.toLocaleString()} hint={dashboardRegion === 'All' ? 'All regions' : dashboardRegion} tone="default" icon={<span className="text-lg">🎓</span>} />
-                <KpiWidget label="Average Pass Rate" value={`${nationalStats.averagePassRate}%`} hint="Based on recorded student GPA" tone="emphasis" icon={<span className="text-lg">📊</span>} />
-              </KpiGrid>
+            {/* Data Visualization Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* SVG-based Region Comparison Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold">
+                    Regional Pass Rate Comparison
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="space-y-4">
+                    {regionalPerformance.map((reg) => (
+                      <MetricProgressRow
+                        key={reg.name}
+                        label={reg.name}
+                        value={reg.passRate}
+                        barClassName="bg-chart-color"
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Data Visualization Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                {/* SVG-based Region Comparison Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Regional Pass Rate Comparison</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-2">
+              {/* Subject Pass Rate */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold">
+                    Subject Pass Rate
+                  </CardTitle>
+                  <CardDescription>
+                    Share of recorded results at or above the pass mark
+                    {dashboardRegion !== "All" ? ` in ${dashboardRegion}` : ""}.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  {subjectPassRate.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-6 text-center">
+                      No recorded results in this scope yet.
+                    </p>
+                  ) : (
                     <div className="space-y-4">
-                      {regionalPerformance.map((reg) => (
-                        <MetricProgressRow
-                          key={reg.name}
-                          label={reg.name}
-                          value={reg.passRate}
-                          barClassName="bg-chart-color"
-                        />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      {subjectPassRate.map((sub) => (
+                        <div
+                          key={sub.subject}
+                          className="flex items-center justify-between p-3 bg-muted/40 border border-border/40 rounded-lg"
+                        >
+                          <div className="flex flex-col text-left">
+                            <span className="text-xs font-semibold text-foreground">
+                              {sub.subject}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground mt-0.5">
+                              {sub.resultsCount} recorded results
+                            </span>
+                          </div>
 
-                {/* Subject Pass Rate */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Subject Pass Rate</CardTitle>
-                    <CardDescription>Share of recorded results at or above the pass mark{dashboardRegion !== 'All' ? ` in ${dashboardRegion}` : ''}.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    {subjectPassRate.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-6 text-center">No recorded results in this scope yet.</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {subjectPassRate.map((sub) => (
-                          <div key={sub.subject} className="flex items-center justify-between p-3 bg-muted/40 border border-border/40 rounded-lg">
-                            <div className="flex flex-col text-left">
-                              <span className="text-xs font-semibold text-foreground">{sub.subject}</span>
-                              <span className="text-[10px] text-muted-foreground mt-0.5">{sub.resultsCount} recorded results</span>
+                          <div className="flex items-center space-x-3">
+                            <div className="text-right">
+                              <p className="text-[10px] font-semibold text-muted-foreground">
+                                Pass Rate
+                              </p>
+                              <p className="text-xs font-bold text-foreground">
+                                {sub.passRate}%
+                              </p>
                             </div>
 
-                            <div className="flex items-center space-x-3">
-                              <div className="text-right">
-                                <p className="text-[10px] font-semibold text-muted-foreground">Pass Rate</p>
-                                <p className="text-xs font-bold text-foreground">{sub.passRate}%</p>
-                              </div>
+                            <Badge
+                              variant={
+                                sub.status === "Critical"
+                                  ? "danger"
+                                  : sub.status === "Warning"
+                                    ? "warning"
+                                    : "success"
+                              }
+                              badgeStyle="subtle"
+                              size="sm"
+                            >
+                              {sub.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
+              {/* Teacher Development */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold">
+                    Teacher Development
+                  </CardTitle>
+                  <CardDescription>
+                    What professional-development needs are emerging
+                    {dashboardRegion !== "All" ? ` in ${dashboardRegion}` : ""}?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  {teacherDevelopmentNeeds.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-6 text-center">
+                      No training assignment data in this scope yet.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {teacherDevelopmentNeeds.map((need) => (
+                        <div
+                          key={need.program}
+                          className="p-3 bg-muted/40 border border-border/40 rounded-lg"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-foreground">
+                              {need.program}
+                            </span>
+                            {need.overdueCount > 0 && (
                               <Badge
-                                variant={sub.status === 'Critical' ? 'danger' : sub.status === 'Warning' ? 'warning' : 'success'}
+                                variant="danger"
                                 badgeStyle="subtle"
                                 size="sm"
                               >
-                                {sub.status}
+                                {need.overdueCount} overdue
                               </Badge>
-                            </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Teacher Development */}
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Teacher Development</CardTitle>
-                    <CardDescription>What professional-development needs are emerging{dashboardRegion !== 'All' ? ` in ${dashboardRegion}` : ''}?</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2">
-                    {teacherDevelopmentNeeds.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-6 text-center">No training assignment data in this scope yet.</p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {teacherDevelopmentNeeds.map((need) => (
-                          <div key={need.program} className="p-3 bg-muted/40 border border-border/40 rounded-lg">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-foreground">{need.program}</span>
-                              {need.overdueCount > 0 && (
-                                <Badge variant="danger" badgeStyle="subtle" size="sm">{need.overdueCount} overdue</Badge>
-                              )}
-                            </div>
-                            <p className="text-[10px] text-muted-foreground">{need.assignedCount} assigned · {need.completionRate}% completed</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-              </div>
-
+                          <p className="text-[10px] text-muted-foreground">
+                            {need.assignedCount} assigned ·{" "}
+                            {need.completionRate}% completed
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ==================================================== */}
-          {/* TAB 2: MANAGE SCHOOLS                              */}
-          {/* ==================================================== */}
-          {activeTab === 'schools' && (
-            <div className="space-y-6 animate-fade-in">
+      {/* ==================================================== */}
+      {/* TAB 2: MANAGE SCHOOLS                              */}
+      {/* ==================================================== */}
+      {activeTab === "schools" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="inline-flex rounded-xl border border-border bg-white p-1 shadow-sm dark:bg-card">
+            <button
+              type="button"
+              onClick={() => setSchoolsSubView("schools")}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${schoolsSubView === "schools" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Schools
+            </button>
+            <button
+              type="button"
+              onClick={() => setSchoolsSubView("regions")}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${schoolsSubView === "regions" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Regions
+            </button>
+          </div>
 
-              <div className="inline-flex rounded-xl border border-border bg-white p-1 shadow-sm dark:bg-card">
-                <button
-                  type="button"
-                  onClick={() => setSchoolsSubView('schools')}
-                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${schoolsSubView === 'schools' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Schools
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSchoolsSubView('regions')}
-                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${schoolsSubView === 'regions' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Regions
-                </button>
-              </div>
-
-              {schoolsSubView === 'regions' ? (
-                <RegionsPanel onViewSchools={(name) => { setFilterRegion(name); setSchoolsSubView('schools'); }} />
-              ) : (
-              <>
+          {schoolsSubView === "regions" ? (
+            <RegionsPanel
+              onViewSchools={(name) => {
+                setFilterRegion(name);
+                setSchoolsSubView("schools");
+              }}
+            />
+          ) : (
+            <>
               {/* Directory Filter Controls */}
               <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border border-border/60">
                 <div className="relative w-full sm:w-72">
@@ -440,8 +757,18 @@ export default function MoePortalPage() {
                     className="w-full h-10 pl-9 pr-4 bg-muted/40 border border-border rounded-md text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -458,24 +785,26 @@ export default function MoePortalPage() {
                   <div className="w-36">
                     <Select
                       options={[
-                        { value: 'All', label: 'All Types' },
-                        { value: 'Public', label: 'Public' },
-                        { value: 'Private', label: 'Private' },
+                        { value: "All", label: "All Types" },
+                        { value: "Public", label: "Public" },
+                        { value: "Private", label: "Private" },
                       ]}
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value)}
                     />
                   </div>
 
-                  <Button onClick={() => setIsAddOpen(true)} size="sm" className="h-10 font-semibold">
+                  <Button
+                    onClick={() => setIsAddOpen(true)}
+                    size="sm"
+                    className="h-10 font-semibold"
+                  >
                     + Connect / Activate School
                   </Button>
                 </div>
               </div>
 
-              <TablePanel
-                title="School Registry"
-              >
+              <TablePanel title="School Registry">
                 <table className="eskooly-table">
                   <thead>
                     <tr>
@@ -494,22 +823,40 @@ export default function MoePortalPage() {
                   <tbody>
                     {filteredSchools.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="text-center text-muted-foreground py-12">
-                          No schools matching filter parameters were found in the registry.
+                        <td
+                          colSpan={10}
+                          className="text-center text-muted-foreground py-12"
+                        >
+                          No schools matching filter parameters were found in
+                          the registry.
                         </td>
                       </tr>
                     ) : (
                       pagedSchools.map((sch) => {
-                        const complianceStatus = complianceStatusBySchool[sch.id] ?? (sch.status === 'Suspended' ? 'Suspended' : 'Compliant');
-                        const hasIssue = complianceStatus === 'Action Required' || complianceStatus === 'Compliance Issue';
+                        const complianceStatus =
+                          complianceStatusBySchool[sch.id] ??
+                          (sch.status === "Suspended"
+                            ? "Suspended"
+                            : "Compliant");
+                        const hasIssue =
+                          complianceStatus === "Action Required" ||
+                          complianceStatus === "Compliance Issue";
 
                         return (
                           <tr key={sch.id}>
-                            <td className="font-mono font-semibold">{sch.code}</td>
+                            <td className="font-mono font-semibold">
+                              {sch.code}
+                            </td>
                             <td className="font-medium">{sch.name}</td>
-                            <td className="text-muted-foreground">{sch.region}</td>
+                            <td className="text-muted-foreground">
+                              {sch.region}
+                            </td>
                             <td>
-                              <Badge variant="neutral" badgeStyle="subtle" size="sm">
+                              <Badge
+                                variant="neutral"
+                                badgeStyle="subtle"
+                                size="sm"
+                              >
                                 {sch.type}
                               </Badge>
                             </td>
@@ -522,7 +869,9 @@ export default function MoePortalPage() {
                             </td>
                             <td>
                               <Badge
-                                variant={sch.status === 'Active' ? 'success' : 'danger'}
+                                variant={
+                                  sch.status === "Active" ? "success" : "danger"
+                                }
                                 badgeStyle="subtle"
                                 size="sm"
                               >
@@ -531,7 +880,13 @@ export default function MoePortalPage() {
                             </td>
                             <td>
                               <Badge
-                                variant={complianceStatus === 'Compliant' ? 'success' : complianceStatus === 'Suspended' ? 'danger' : 'warning'}
+                                variant={
+                                  complianceStatus === "Compliant"
+                                    ? "success"
+                                    : complianceStatus === "Suspended"
+                                      ? "danger"
+                                      : "warning"
+                                }
                                 badgeStyle="subtle"
                                 size="sm"
                               >
@@ -543,30 +898,63 @@ export default function MoePortalPage() {
                                 <Button
                                   type="button"
                                   size="sm"
-                                  variant={hasIssue ? 'primary' : 'secondary'}
+                                  variant={hasIssue ? "primary" : "secondary"}
                                   onClick={() => {
                                     if (hasIssue) {
                                       resolveIssueCompliance(sch.id, sch.name);
                                       return;
                                     }
-                                    setIssueComplianceSchool({ id: sch.id, name: sch.name });
-                                    setIssueComplianceRemark(complianceRemarksBySchool[sch.id] ?? '');
-                                    setIssueComplianceActions((complianceActionsBySchool[sch.id] ?? []).join('\n'));
+                                    setIssueComplianceSchool({
+                                      id: sch.id,
+                                      name: sch.name,
+                                    });
+                                    setIssueComplianceRemark(
+                                      complianceRemarksBySchool[sch.id] ?? "",
+                                    );
+                                    setIssueComplianceActions(
+                                      (
+                                        complianceActionsBySchool[sch.id] ?? []
+                                      ).join("\n"),
+                                    );
                                   }}
-                                  className={hasIssue ? 'h-8 text-xs bg-success text-success-foreground hover:bg-success/90' : 'h-8 text-xs bg-warning text-warning-foreground hover:bg-warning/90'}
+                                  className={
+                                    hasIssue
+                                      ? "h-8 text-xs bg-success text-success-foreground hover:bg-success/90"
+                                      : "h-8 text-xs bg-warning text-warning-foreground hover:bg-warning/90"
+                                  }
                                 >
-                                  {hasIssue ? 'Resolve Issue' : 'Issue Compliance'}
+                                  {hasIssue
+                                    ? "Resolve Issue"
+                                    : "Compliance Issue"}
                                 </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => void handleSuspendSchool(sch.id, sch.name)}
-                                  disabled={sch.status === 'Suspended'}
-                                  className="h-8 text-xs"
-                                >
-                                  Suspend
-                                </Button>
+                                {sch.status === "Suspended" ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="primary"
+                                    onClick={() =>
+                                      void handleUnsuspendSchool(
+                                        sch.id,
+                                        sch.name,
+                                      )
+                                    }
+                                    className="h-8 text-xs bg-success text-success-foreground hover:bg-success/90"
+                                  >
+                                    Unsuspend
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() =>
+                                      void handleSuspendSchool(sch.id, sch.name)
+                                    }
+                                    className="h-8 text-xs"
+                                  >
+                                    Suspend
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -586,144 +974,182 @@ export default function MoePortalPage() {
                 pageSize={SCHOOLS_PAGE_SIZE}
                 entityLabel="schools"
               />
-              </>
-              )}
+            </>
+          )}
 
-              {issueComplianceSchool && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                  <div className="w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-2xl">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-foreground">Issue Compliance</h3>
-                      <p className="text-sm text-muted-foreground">{issueComplianceSchool.name}</p>
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Remark</label>
-                        <textarea
-                          value={issueComplianceRemark}
-                          onChange={(e) => setIssueComplianceRemark(e.target.value)}
-                          className="min-h-24 w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
-                          placeholder="Enter remark"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions to be taken</label>
-                        <textarea
-                          value={issueComplianceActions}
-                          onChange={(e) => setIssueComplianceActions(e.target.value)}
-                          className="min-h-28 w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
-                          placeholder="List the issues and the actions to be taken, one per line or comma-separated"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Attach document</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="file"
-                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.xls"
-                            onChange={(e) => setIssueComplianceAttachment(e.target.files?.[0] ?? null)}
-                            className="block w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground file:mr-3 file:rounded file:border-0 file:bg-warning file:px-3 file:py-1 file:text-xs file:font-semibold file:text-warning-foreground"
-                          />
-                          {issueComplianceAttachment && (
-                            <span className="text-xs text-muted-foreground">{issueComplianceAttachment.name}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-5 flex justify-end gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => {
-                        setIssueComplianceSchool(null);
-                        setIssueComplianceAttachment(null);
-                      }}>
-                        Cancel
-                      </Button>
-                      <Button type="button" size="sm" variant="primary" onClick={saveIssueCompliance}>
-                        Save Compliance Issue
-                      </Button>
+          {issueComplianceSchool && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-2xl">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Compliance Issue
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {issueComplianceSchool.name}
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Remark
+                    </label>
+                    <textarea
+                      value={issueComplianceRemark}
+                      onChange={(e) => setIssueComplianceRemark(e.target.value)}
+                      className="min-h-24 w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="Enter remark"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Actions to be taken
+                    </label>
+                    <textarea
+                      value={issueComplianceActions}
+                      onChange={(e) =>
+                        setIssueComplianceActions(e.target.value)
+                      }
+                      className="min-h-28 w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="List the issues and the actions to be taken, one per line or comma-separated"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Attach document
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.xls"
+                        onChange={(e) =>
+                          setIssueComplianceAttachment(
+                            e.target.files?.[0] ?? null,
+                          )
+                        }
+                        className="block w-full rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground file:mr-3 file:rounded file:border-0 file:bg-warning file:px-3 file:py-1 file:text-xs file:font-semibold file:text-warning-foreground"
+                      />
+                      {issueComplianceAttachment && (
+                        <span className="text-xs text-muted-foreground">
+                          {issueComplianceAttachment.name}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-              )}
-
-              <ConnectSchoolDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
-              {ConfirmDialog}
-
-            </div>
-          )}
-
-          {/* ==================================================== */}
-          {/* TAB 3: CURRICULUM MANAGEMENT                        */}
-          {/* ==================================================== */}
-          {activeTab === 'curriculum' && <MoeDocumentsPanel />}
-
-          {activeTab === 'training' && <MoeTrainingPanel />}
-
-          {activeTab === 'compliance' && <MoeCompliancePanel />}
-
-          {activeTab === 'school-messages' && <MoeSchoolMessagesPanel />}
-
-          {activeTab === 'teacher-staffing' && <MoeTeacherStaffingPanel />}
-
-          {/* ==================================================== */}
-          {/* TAB: ACADEMIC CALENDAR                              */}
-          {/* ==================================================== */}
-          {activeTab === 'analytics' && (
-            <div className="space-y-6 animate-fade-in">
-              
-              <Card accent="accent" glow>
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <span className="animate-pulse h-2.5 w-2.5 rounded-full bg-primary"></span>
-                    AI Predictive Neural Engine – Federal Analytics Desk
-                  </CardTitle>
-                  <CardDescription>Utilize curriculum feedback and regional attendance models to forecast national education risks.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  <div className="flex items-center space-x-3 bg-muted/40 p-4 border border-border/40 rounded-xl max-w-xl">
-                    <span className="text-2xl">🧠</span>
-                    <div className="text-left">
-                      <h4 className="text-xs font-bold text-foreground">Forecast Gaps & Teacher Shortages</h4>
-                      <p className="text-xxs text-muted-foreground mt-0.5">Generates deep recommendations mapping geographical teacher shortages and grade level risk thresholds.</p>
-                    </div>
-                  </div>
-
-                  <Button 
-                    variant="organic" 
-                    onClick={handleGenerateAIReport}
-                    loading={generatingReport}
-                    className="text-xs h-10 border-none cursor-pointer"
+                <div className="mt-5 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setIssueComplianceSchool(null);
+                      setIssueComplianceAttachment(null);
+                    }}
                   >
-                    🧠 Generate Neural Report
+                    Cancel
                   </Button>
-
-                  {aiReportOutput && (
-                    <div className="p-5 bg-muted border border-border text-foreground rounded-lg text-xxs font-mono leading-relaxed text-left whitespace-pre-wrap shadow-inner">
-                      {aiReportOutput}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="primary"
+                    onClick={saveIssueCompliance}
+                  >
+                    Save Compliance Issue
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
-          {activeTab === 'academic-calendar' && (
-            <MoeAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
-          )}
+          <ConnectSchoolDialog
+            isOpen={isAddOpen}
+            onClose={() => setIsAddOpen(false)}
+          />
+          {ConfirmDialog}
+        </div>
+      )}
 
-          {activeTab === 'profile' && (
-            <div className="space-y-6 animate-fade-in text-left">
-              <PortalProfileCard
-                roleLabel="MOE Admin"
-                fields={[
-                  { label: 'Scope', value: 'National — all regions' },
-                  { label: 'Schools overseen', value: schools.length },
-                  { label: 'Certified teachers tracked', value: teachers.length.toLocaleString() },
-                ]}
-              />
-            </div>
-          )}
+      {/* ==================================================== */}
+      {/* TAB 3: CURRICULUM MANAGEMENT                        */}
+      {/* ==================================================== */}
+      {activeTab === "curriculum" && <MoeDocumentsPanel />}
 
+      {activeTab === "training" && <MoeTrainingPanel />}
+
+      {activeTab === "compliance" && <MoeCompliancePanel />}
+
+      {activeTab === "school-messages" && <MoeSchoolMessagesPanel />}
+
+      {activeTab === "teacher-staffing" && <MoeTeacherStaffingPanel />}
+
+      {/* ==================================================== */}
+      {/* TAB: ACADEMIC CALENDAR                              */}
+      {/* ==================================================== */}
+      {activeTab === "analytics" && (
+        <div className="space-y-6 animate-fade-in">
+          <Card accent="accent" glow>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <span className="animate-pulse h-2.5 w-2.5 rounded-full bg-primary"></span>
+                AI Predictive Neural Engine – Federal Analytics Desk
+              </CardTitle>
+              <CardDescription>
+                Utilize curriculum feedback and regional attendance models to
+                forecast national education risks.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-2">
+              <div className="flex items-center space-x-3 bg-muted/40 p-4 border border-border/40 rounded-xl max-w-xl">
+                <span className="text-2xl">🧠</span>
+                <div className="text-left">
+                  <h4 className="text-xs font-bold text-foreground">
+                    Forecast Gaps & Teacher Shortages
+                  </h4>
+                  <p className="text-xxs text-muted-foreground mt-0.5">
+                    Generates deep recommendations mapping geographical teacher
+                    shortages and grade level risk thresholds.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                variant="organic"
+                onClick={handleGenerateAIReport}
+                loading={generatingReport}
+                className="text-xs h-10 border-none cursor-pointer"
+              >
+                🧠 Generate Neural Report
+              </Button>
+
+              {aiReportOutput && (
+                <div className="p-5 bg-muted border border-border text-foreground rounded-lg text-xxs font-mono leading-relaxed text-left whitespace-pre-wrap shadow-inner">
+                  {aiReportOutput}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "academic-calendar" && (
+        <MoeAcademicCalendarPanel onActionsChange={setCalendarHeaderActions} />
+      )}
+
+      {activeTab === "profile" && (
+        <div className="space-y-6 animate-fade-in text-left">
+          <PortalProfileCard
+            roleLabel="MOE Admin"
+            fields={[
+              { label: "Scope", value: "National — all regions" },
+              { label: "Schools overseen", value: schools.length },
+              {
+                label: "Certified teachers tracked",
+                value: teachers.length.toLocaleString(),
+              },
+            ]}
+          />
+        </div>
+      )}
     </DashboardShell>
   );
 }

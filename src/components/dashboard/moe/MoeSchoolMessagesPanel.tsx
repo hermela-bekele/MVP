@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Send, MessageSquare } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { api, type MoeMessageThread, type MoeThreadMessage } from '@/lib/api';
+import { api, ApiError, type MoeMessageThread, type MoeThreadMessage } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
+import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formFieldInputClass } from '@/components/ui/form-field';
+import { FormField, formFieldInputClass } from '@/components/ui/form-field';
 
 const STATUS_LABEL: Record<string, string> = {
   open: 'Open',
@@ -40,6 +41,11 @@ export function MoeSchoolMessagesPanel() {
   const { schools } = useApp();
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const activeSchools = useMemo(
+    () => schools.filter((s) => s.status !== 'Suspended').sort((a, b) => a.name.localeCompare(b.name)),
+    [schools],
+  );
+
   const [schoolFilter, setSchoolFilter] = useState('All');
   const [threads, setThreads] = useState<MoeMessageThread[]>([]);
   const [loadingThreads, setLoadingThreads] = useState(true);
@@ -49,6 +55,13 @@ export function MoeSchoolMessagesPanel() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+
+  const [isNewOpen, setIsNewOpen] = useState(false);
+  const [newSchoolId, setNewSchoolId] = useState('');
+  const [newSubject, setNewSubject] = useState('');
+  const [newBody, setNewBody] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const loadThreads = useCallback(() => {
     setLoadingThreads(true);
@@ -63,6 +76,10 @@ export function MoeSchoolMessagesPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolFilter]);
   useEffect(() => { loadThreads(); }, [loadThreads]);
+
+  useEffect(() => {
+    if (!newSchoolId && activeSchools[0]) setNewSchoolId(activeSchools[0].id);
+  }, [activeSchools, newSchoolId]);
 
   const loadMessages = useCallback((threadId: string) => {
     setLoadingMessages(true);
@@ -83,6 +100,40 @@ export function MoeSchoolMessagesPanel() {
 
   const activeThread = threads.find((t) => t.id === activeThreadId) ?? null;
   const schoolName = (schoolId: string) => schools.find((s) => s.id === schoolId)?.name ?? schoolId;
+
+  const resetNewForm = () => {
+    setNewSubject('');
+    setNewBody('');
+    setFormError('');
+    setNewSchoolId(activeSchools[0]?.id ?? '');
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSchoolId || !newSubject.trim() || !newBody.trim()) {
+      setFormError('Select a school and provide a subject and message.');
+      return;
+    }
+    setCreating(true);
+    setFormError('');
+    setError('');
+    try {
+      const thread = await api.createMoeMessageThread({
+        schoolId: newSchoolId,
+        subject: newSubject.trim(),
+        body: newBody.trim(),
+      });
+      setIsNewOpen(false);
+      resetNewForm();
+      setSchoolFilter('All');
+      setThreads((prev) => [thread, ...prev.filter((t) => t.id !== thread.id)]);
+      setActiveThreadId(thread.id);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Could not start this thread.');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!draft.trim() || !activeThreadId) return;
@@ -108,14 +159,28 @@ export function MoeSchoolMessagesPanel() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">Every school&apos;s direct communication thread with the Ministry.</p>
-        <div className="w-56">
-          <Select
-            options={[{ value: 'All', label: 'All Schools' }, ...schools.map((s) => ({ value: s.id, label: s.name }))]}
-            value={schoolFilter}
-            onChange={(e) => setSchoolFilter(e.target.value)}
-          />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="w-56">
+            <Select
+              options={[{ value: 'All', label: 'All Schools' }, ...schools.map((s) => ({ value: s.id, label: s.name }))]}
+              value={schoolFilter}
+              onChange={(e) => setSchoolFilter(e.target.value)}
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="organic"
+            className="border-none text-xs h-10"
+            onClick={() => {
+              resetNewForm();
+              setIsNewOpen(true);
+            }}
+            disabled={activeSchools.length === 0}
+          >
+            + Message School
+          </Button>
         </div>
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
@@ -125,7 +190,7 @@ export function MoeSchoolMessagesPanel() {
           {loadingThreads ? (
             <p className="text-xs text-muted-foreground p-4 text-center">Loading…</p>
           ) : threads.length === 0 ? (
-            <p className="text-xs text-muted-foreground p-4 text-center">No threads yet.</p>
+            <p className="text-xs text-muted-foreground p-4 text-center">No threads yet. Start one with Message School.</p>
           ) : (
             threads.map((t) => (
               <button
@@ -149,7 +214,11 @@ export function MoeSchoolMessagesPanel() {
 
         <div className="flex flex-col overflow-hidden bg-white dark:bg-card">
           {!activeThread ? (
-            <EmptyState icon={<MessageSquare />} title="No thread selected" description="Choose a thread from the list to view and reply." />
+            <EmptyState
+              icon={<MessageSquare />}
+              title="No thread selected"
+              description="Choose a thread from the list, or message a school to start a new one."
+            />
           ) : (
             <>
               <div className="border-b border-border p-3 flex items-center justify-between">
@@ -212,6 +281,69 @@ export function MoeSchoolMessagesPanel() {
           )}
         </div>
       </div>
+
+      <Dialog
+        isOpen={isNewOpen}
+        onClose={() => {
+          setIsNewOpen(false);
+          resetNewForm();
+        }}
+        title="Message a School"
+        description="Start a case-numbered thread with a school from the national registry."
+      >
+        <form onSubmit={(e) => void handleCreate(e)} className="space-y-3 text-left">
+          {formError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-md text-xxs font-bold">
+              ⚠ {formError}
+            </div>
+          )}
+          <FormField label="School">
+            <Select
+              options={
+                activeSchools.length
+                  ? activeSchools.map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))
+                  : [{ value: '', label: 'No active schools available' }]
+              }
+              value={newSchoolId}
+              onChange={(e) => setNewSchoolId(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Subject">
+            <input
+              className={formFieldInputClass}
+              value={newSubject}
+              onChange={(e) => setNewSubject(e.target.value)}
+              placeholder="e.g. Compliance follow-up for Q1 reporting"
+              required
+            />
+          </FormField>
+          <FormField label="Message">
+            <textarea
+              className={`${formFieldInputClass} h-28 py-2`}
+              value={newBody}
+              onChange={(e) => setNewBody(e.target.value)}
+              placeholder="Write the message the school should receive…"
+              required
+            />
+          </FormField>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsNewOpen(false);
+                resetNewForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="organic" size="sm" className="border-none" disabled={creating || !newSchoolId}>
+              {creating ? 'Sending…' : 'Send Message'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Dialog>
     </div>
   );
 }
