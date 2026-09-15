@@ -24,6 +24,7 @@ const eslintConfig = defineConfig([
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+      "prefer-const": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
