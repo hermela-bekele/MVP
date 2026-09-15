@@ -3357,6 +3357,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshStaffMessages = async (params?: {
     teacherId?: string;
     departmentId?: string;
+    schoolId?: string;
   }) => {
     try {
       const messages = await api.getStaffMessages(params);
