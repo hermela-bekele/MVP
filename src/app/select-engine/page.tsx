@@ -85,14 +85,14 @@ export default function SelectEnginePage() {
               key={engine}
               type="button"
               onClick={() => handleSelect(engine)}
-              className="text-left bg-card rounded-xl border border-border/80 shadow-sm hover:shadow-lg hover:border-primary/60 transition-all p-5 flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-[calc(50%-0.5rem)]"
+              className="text-left bg-card rounded-xl border border-border/80 shadow-sm hover:shadow-lg hover:border-primary/60 transition-all p-4 flex items-start gap-3 focus:outline-none focus:ring-2 focus:ring-ring w-full sm:w-[calc(50%-0.5rem)]"
             >
-              <div className="h-11 w-11 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                 {ENGINE_ICONS[engine]}
               </div>
-              <div className="min-w-0">
-                <p className="font-bold text-title">{engineLabel(engine, currentUser.role)}</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-title text-base mb-1">{engineLabel(engine, currentUser.role)}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {engineDescription(engine, currentUser.role)}
                 </p>
               </div>

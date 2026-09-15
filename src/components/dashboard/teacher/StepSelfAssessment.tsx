@@ -66,7 +66,7 @@ export const StepSelfAssessment: React.FC = () => {
       <AisPage>
         <AisPanel
           title="Your latest self-assessment"
-          description={`Submitted ${new Date(latest.submittedAt).toLocaleDateString()} · shared with your HoD`}
+          description={`Submitted ${new Date(latest.submittedAt).toLocaleDateString()}`}
           actions={
             <AisBtnSecondary onClick={() => setIsRetaking(true)}>
               <RotateCcw className="h-4 w-4" /> Retake
@@ -123,19 +123,7 @@ export const StepSelfAssessment: React.FC = () => {
 
   return (
     <AisPage>
-      <AisPanel
-        title="Weekly Self-Assessment"
-        description="Complete this self-assessment weekly to track your professional growth. Rate yourself honestly on each competency. Your HoD will use this alongside AI gap-analysis on your students' results to assign targeted training and support — not to judge you."
-      >
-        {/* Weekly reminder banner */}
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-            📅 Weekly Self-Assessment
-          </p>
-          <p className="text-xs text-blue-800 dark:text-blue-200">
-            Submit this assessment every week to help your HoD track your development progress and identify areas where you need support. Weekly submissions show your commitment to continuous improvement.
-          </p>
-        </div>
+      <AisPanel>
 
         <div className="space-y-6">
           {groupedByCategory.map(([category, items]) => (

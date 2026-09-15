@@ -32,19 +32,20 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
 
 const SCHOOL_HEAD_REGULATORY_LABEL = 'Regulatory & Resource Engine';
 const MOE_CURRICULUM_LABEL = 'Resource & Communication';
-const MOE_CURRICULUM_DESCRIPTION = 'School communication and resource uploads.';
-const HEAD_OF_ACADEMICS_CURRICULUM_DESCRIPTION = 'Academic results, transcripts, calendar, and professional development.';
+const MOE_CURRICULUM_DESCRIPTION = 'School communication and resource uploads to schools.';
+const HEAD_OF_ACADEMICS_CURRICULUM_DESCRIPTION = 'Academic results, transcripts, resources, and school calendar.';
+const HEAD_OF_ACADEMICS_ADMINISTRATIVE_DESCRIPTION = 'Overview dashboard for school-wide performance.';
 
 export const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
   administrative: 'School operations, staff management, and oversight.',
-  registrar: 'Student admissions, enrollment, and records.',
-  curriculum: 'Curriculum planning and resources.',
-  regulatory: 'MOE compliance and communication.',
-  training: 'Professional development programs.',
+  registrar: 'Student admissions, enrollment, and academic records.',
+  curriculum: 'Curriculum planning and instructional resources.',
+  regulatory: 'MOE compliance and direct communication.',
+  training: 'Professional development programs and resources.',
   academic: 'Lesson plan approval, teacher development, and assessments.',
-  teaching: 'Lesson plans, assessments, attendance, and training.',
+  teaching: 'Lesson plans, assessments, resources, and attendance.',
   management: 'Classroom and student administration.',
-  communications: 'Messaging, feedback, and check-ins.',
+  communications: 'Messaging, feedback, and check-ins across the school.',
 };
 
 /** Which engines each role may choose between. Empty = no engine selection for that role. */
@@ -82,6 +83,9 @@ export function engineDescription(engine: EngineId, role?: PortalRole): string {
   }
   if (engine === 'curriculum' && role === 'head-of-academics') {
     return HEAD_OF_ACADEMICS_CURRICULUM_DESCRIPTION;
+  }
+  if (engine === 'administrative' && role === 'head-of-academics') {
+    return HEAD_OF_ACADEMICS_ADMINISTRATIVE_DESCRIPTION;
   }
   return ENGINE_DESCRIPTIONS[engine];
 }

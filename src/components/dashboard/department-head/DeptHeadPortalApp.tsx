@@ -1203,7 +1203,8 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "training" && (
         <div className="space-y-6 animate-fade-in">
-          <DeptTeacherSelfAssessmentsPanel />
+          {/* Temporarily disabled: Self-assessment tracking */}
+          {/* <DeptTeacherSelfAssessmentsPanel /> */}
           <DeptGapAnalysisPanel />
           <DeptTeacherDevelopmentAssignmentPanel />
         </div>

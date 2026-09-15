@@ -105,7 +105,7 @@ export function isSubjectTeacher<T extends { schoolId: string; subjects: string[
 ): boolean {
   return (
     teacher.schoolId === scope.schoolId &&
-    teacher.subjects.some((sub) => subjectMatches(sub, scope.subject))
+    teacher.subjects?.some((sub) => subjectMatches(sub, scope.subject)) === true
   );
 }
 

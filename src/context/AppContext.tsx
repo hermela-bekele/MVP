@@ -2091,7 +2091,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const submitSelfAssessment = (data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>) => {
     void api.submitSelfAssessment(data as unknown as Record<string, unknown>).then((sa) => {
       setTeacherSelfAssessments((prev) => [sa as TeacherSelfAssessment, ...prev]);
-      addNotification('Self-Assessment Submitted', 'Your self-assessment has been recorded and shared with your department head.', 'success');
+      addNotification('Self-Assessment Submitted', 'Your self-assessment has been recorded.', 'success');
     }).catch(() => void refreshFromApi());
   };
 

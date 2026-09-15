@@ -50,6 +50,9 @@ export function VPAcademicResults() {
   const [reviewTarget, setReviewTarget] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
+  
+  // Demo mode: Use studentGradeEntries as fallback when no academic results exist
+  const [useDemoData, setUseDemoData] = useState(false);
 
   const gradeOptions = useMemo(
     () => Array.from(new Set(classes.map((c) => c.grade))).map((g) => ({ value: g, label: g })),
@@ -96,15 +99,32 @@ export function VPAcademicResults() {
   const load = React.useCallback(() => {
     setLoading(true);
     setError(null);
+    console.log('Loading academic results, studentGradeEntries.length:', studentGradeEntries.length);
     academicResultsApi
       .list({ schoolId, academicYear, gradeLevel, section, subject, teacherId, term, studentId, status: status || undefined })
       .then(({ results, missing }) => {
+        console.log('API returned', results.length, 'results');
         setResults(results);
         setMissing(missing);
+        // If we got API results, use them
+        setUseDemoData(false);
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load results.'))
+      .catch((err) => {
+        console.log('API error, checking for demo data. studentGradeEntries.length:', studentGradeEntries.length);
+        // If no results from backend and we have grade entries, use demo data
+        if (studentGradeEntries.length > 0) {
+          console.log('Activating demo data mode');
+          setUseDemoData(true);
+          setResults([]);
+          setMissing([]);
+        } else {
+          console.log('No demo data available');
+          setError(err instanceof ApiError ? err.message : 'Failed to load results.');
+          setUseDemoData(false);
+        }
+      })
       .finally(() => setLoading(false));
-  }, [schoolId, academicYear, gradeLevel, section, subject, teacherId, term, studentId, status]);
+  }, [schoolId, academicYear, gradeLevel, section, subject, teacherId, term, studentId, status, studentGradeEntries.length]);
 
   const loadChangeRequests = React.useCallback(() => {
     academicResultsApi
@@ -123,6 +143,54 @@ export function VPAcademicResults() {
   }, [loadChangeRequests]);
 
   const subjectsInResults = useMemo(() => Array.from(new Set(results.map((r) => r.subject))).sort(), [results]);
+  
+  // Demo mode: Convert studentGradeEntries to display format
+  const demoSubjects = useMemo(() => {
+    if (!useDemoData) return [];
+    const filtered = studentGradeEntries.filter(entry => {
+      if (gradeLevel && entry.gradeLevel !== gradeLevel) return false;
+      if (subject && entry.subject !== subject) return false;
+      if (studentId && entry.studentId !== studentId) return false;
+      return true;
+    });
+    const subjects = Array.from(new Set(filtered.map((e) => e.subject))).sort();
+    console.log('Demo subjects:', subjects, 'from', filtered.length, 'filtered entries');
+    return subjects;
+  }, [useDemoData, studentGradeEntries, gradeLevel, subject, studentId]);
+  
+  const demoStudentRows = useMemo(() => {
+    if (!useDemoData) return [];
+    
+    console.log('Building demo student rows from', studentGradeEntries.length, 'total entries');
+    const byStudent = new Map<string, { studentId: string; studentName: string; cells: Map<string, number> }>();
+    
+    for (const entry of studentGradeEntries) {
+      // Apply filters
+      if (gradeLevel && entry.gradeLevel !== gradeLevel) continue;
+      if (subject && entry.subject !== subject) continue;
+      if (studentId && entry.studentId !== studentId) continue;
+      
+      const student = students.find(s => s.id === entry.studentId);
+      if (!student) continue;
+      
+      const key = entry.studentId;
+      const row = byStudent.get(key) ?? { 
+        studentId: entry.studentId, 
+        studentName: student.name,
+        cells: new Map() 
+      };
+      
+      // Calculate percentage
+      const percent = entry.maxScore > 0 ? Math.round((entry.score / entry.maxScore) * 100) : 0;
+      row.cells.set(entry.subject, percent);
+      byStudent.set(key, row);
+    }
+    
+    const rows = Array.from(byStudent.values()).sort((a, b) => a.studentName.localeCompare(b.studentName));
+    console.log('Demo student rows:', rows.length, 'students');
+    return rows;
+  }, [useDemoData, studentGradeEntries, gradeLevel, subject, studentId, students]);
+  
   const studentRows = useMemo(() => {
     const byStudent = new Map<string, { studentId: string; studentName: string; cells: Map<string, SubjectTermResult> }>();
     for (const r of results) {
@@ -318,6 +386,15 @@ export function VPAcademicResults() {
       {error && <p className="text-sm text-red-600">{error}</p>}
       {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
+      {useDemoData && (
+        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
+          <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span>Showing demo data from grade entries. Teachers need to formally submit results by term for finalization features to become available.</span>
+        </div>
+      )}
+
       {canFinalizeScope && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
           <p className="text-sm text-muted-foreground">
@@ -357,59 +434,95 @@ export function VPAcademicResults() {
         </div>
       )}
 
-      <TablePanel title="Results" description={loading ? 'Loading…' : `${studentRows.length} students`}>
+      <TablePanel title="Results" description={loading ? 'Loading…' : useDemoData ? `${demoStudentRows.length} students (Demo Data from Grade Entries)` : `${studentRows.length} students`}>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs uppercase text-muted-foreground border-b border-border/60">
               <th className="py-2 px-3">Student</th>
-              {subjectsInResults.map((s) => (
+              {(useDemoData ? demoSubjects : subjectsInResults).map((s) => (
                 <th key={s} className="py-2 px-3 text-center">{s}</th>
               ))}
               <th className="py-2 px-3 text-center">Average</th>
             </tr>
           </thead>
           <tbody>
-            {studentRows.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={subjectsInResults.length + 2} className="py-6 text-center text-muted-foreground">
-                  {loading ? 'Loading…' : 'No results for this scope yet.'}
+                <td colSpan={(useDemoData ? demoSubjects : subjectsInResults).length + 2} className="py-6 text-center text-muted-foreground">
+                  Loading…
                 </td>
               </tr>
+            ) : useDemoData ? (
+              demoStudentRows.length === 0 ? (
+                <tr>
+                  <td colSpan={demoSubjects.length + 2} className="py-6 text-center text-muted-foreground">
+                    No results for this scope yet.
+                  </td>
+                </tr>
+              ) : (
+                demoStudentRows.map((row) => {
+                  const values = demoSubjects.map((s) => row.cells.get(s) ?? null).filter((v): v is number => v != null);
+                  const avg = values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100 : null;
+                  
+                  return (
+                    <tr key={row.studentId} className="border-b border-border/40">
+                      <td className="py-2 px-3 font-medium">{row.studentName}</td>
+                      {demoSubjects.map((s) => {
+                        const percent = row.cells.get(s);
+                        return (
+                          <td key={s} className="py-2 px-3 text-center">
+                            {percent != null ? `${percent}%` : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        );
+                      })}
+                      <td className="py-2 px-3 text-center font-semibold">{avg != null ? `${avg}%` : '—'}</td>
+                    </tr>
+                  );
+                })
+              )
             ) : (
-              pagedStudentRows.map((row) => {
-                const values = subjectsInResults.map((s) => row.cells.get(s)?.averagePercent ?? null).filter((v): v is number => v != null);
-                const avg = values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100 : null;
-                const missingSubjects = missingByStudent.get(row.studentId) ?? [];
-                return (
-                  <tr key={row.studentId} className="border-b border-border/40">
-                    <td className="py-2 px-3 font-medium">{row.studentName}</td>
-                    {subjectsInResults.map((s) => {
-                      const cell = row.cells.get(s);
-                      const isMissing = missingSubjects.includes(s);
-                      return (
-                        <td key={s} className="py-2 px-3 text-center">
-                          {cell ? (
-                            <span className="inline-flex items-center gap-1">
-                              {cell.averagePercent != null ? `${cell.averagePercent}%` : '—'}
-                              {cell.status === 'finalized' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
-                              {cell.status === 'submitted' && <Lock className="h-3 w-3 text-blue-600" />}
-                            </span>
-                          ) : isMissing ? (
-                            <span className="text-amber-600" title="Missing result">—</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 px-3 text-center font-semibold">{avg != null ? `${avg}%` : '—'}</td>
-                  </tr>
-                );
-              })
+              studentRows.length === 0 ? (
+                <tr>
+                  <td colSpan={subjectsInResults.length + 2} className="py-6 text-center text-muted-foreground">
+                    No results for this scope yet.
+                  </td>
+                </tr>
+              ) : (
+                pagedStudentRows.map((row) => {
+                  const values = subjectsInResults.map((s) => row.cells.get(s)?.averagePercent ?? null).filter((v): v is number => v != null);
+                  const avg = values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100 : null;
+                  const missingSubjects = missingByStudent.get(row.studentId) ?? [];
+                  return (
+                    <tr key={row.studentId} className="border-b border-border/40">
+                      <td className="py-2 px-3 font-medium">{row.studentName}</td>
+                      {subjectsInResults.map((s) => {
+                        const cell = row.cells.get(s);
+                        const isMissing = missingSubjects.includes(s);
+                        return (
+                          <td key={s} className="py-2 px-3 text-center">
+                            {cell ? (
+                              <span className="inline-flex items-center gap-1">
+                                {cell.averagePercent != null ? `${cell.averagePercent}%` : '—'}
+                                {cell.status === 'finalized' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
+                                {cell.status === 'submitted' && <Lock className="h-3 w-3 text-blue-600" />}
+                              </span>
+                            ) : isMissing ? (
+                              <span className="text-amber-600" title="Missing result">—</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="py-2 px-3 text-center font-semibold">{avg != null ? `${avg}%` : '—'}</td>
+                    </tr>
+                  );
+                })
+              )
             )}
           </tbody>
         </table>
-        {studentRows.length > 0 && (
+        {!useDemoData && studentRows.length > 0 && (
           <Pagination
             className="mt-3"
             currentPage={studentRowsCurrentPage}

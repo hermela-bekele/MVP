@@ -200,7 +200,7 @@ const TAB_META: Record<string, { title: string; subtitle?: string }> = {
   },
   "training-self-assessment": {
     title: "My Development Plan",
-    subtitle: "Rate yourself to identify growth areas — shared with your HoD.",
+    subtitle: "Complete this assessment every week to track your professional growth and identify development needs.",
   },
   "training-completed": {
     title: "Completed Learning & Evidence",
