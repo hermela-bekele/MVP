@@ -594,10 +594,11 @@ interface AppContextType {
   refreshStaffMessages: (params?: {
     teacherId?: string;
     departmentId?: string;
+    schoolId?: string;
   }) => Promise<void>;
   markStaffMessagesRead: (
     teacherId: string,
-    readerRole: "teacher" | "department-head",
+    readerRole: "teacher" | "department-head" | "head-of-academics",
   ) => void;
   sendDeptHeadMessage: (payload: {
     departmentId: string;
