@@ -589,7 +589,7 @@ interface AppContextType {
   sendStaffMessage: (payload: {
     teacherId: string;
     body: string;
-    senderRole: "teacher" | "department-head";
+    senderRole: "teacher" | "department-head" | "head-of-academics";
   }) => Promise<void>;
   refreshStaffMessages: (params?: {
     teacherId?: string;
