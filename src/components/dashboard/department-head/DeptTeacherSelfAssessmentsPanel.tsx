@@ -75,7 +75,7 @@ export function DeptTeacherSelfAssessmentsPanel() {
 
   // Filter assessments
   const filteredAssessments = useMemo(() => {
-    let filtered = teacherSelfAssessments.filter((sa) => {
+    const filtered = teacherSelfAssessments.filter((sa) => {
       const teacher = deptTeachers.find((t) => t.id === sa.teacherId);
       if (!teacher) return false;
 

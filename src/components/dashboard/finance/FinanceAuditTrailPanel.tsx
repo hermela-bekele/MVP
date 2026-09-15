@@ -37,7 +37,7 @@ export function FinanceAuditTrailPanel() {
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [session?.schoolId]);
 
   const columns: DataTableColumn<AuditLogEntry>[] = [

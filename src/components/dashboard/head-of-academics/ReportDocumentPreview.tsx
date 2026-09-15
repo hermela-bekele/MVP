@@ -18,7 +18,7 @@ export function ReportDocumentPreview({
   return (
     <div
       className="mx-auto max-w-[210mm] rounded-lg border border-border/60 bg-white p-6 text-[#111827] shadow-sm"
-      // eslint-disable-next-line react/no-danger
+       
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

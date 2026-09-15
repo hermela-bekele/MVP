@@ -1655,7 +1655,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const submitRegistrationApplication = (
     appData: Omit<RegistrationApplication, "id" | "status" | "submittedAt">,
   ) => {
-    // eslint-disable-next-line react-hooks/purity
+     
     const timestamp = Date.now();
     const app: RegistrationApplication = {
       ...appData,
@@ -2656,7 +2656,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       "id" | "schoolId" | "status" | "createdAt" | "publishedAt"
     >,
   ): string => {
-    // eslint-disable-next-line react-hooks/purity
+     
     const timestamp = Date.now();
     const calendar: AcademicCalendar = {
       ...calendarData,

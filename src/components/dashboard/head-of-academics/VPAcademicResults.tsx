@@ -106,14 +106,19 @@ export function VPAcademicResults() {
         console.log('API returned', results.length, 'results');
         setResults(results);
         setMissing(missing);
-        // If we got API results, use them
-        setUseDemoData(false);
+        // If API succeeded but returned no results, AND we have grade entries, use demo data
+        if (results.length === 0 && studentGradeEntries.length > 0) {
+          console.log('API returned empty results, activating demo data mode');
+          setUseDemoData(true);
+        } else {
+          setUseDemoData(false);
+        }
       })
       .catch((err) => {
         console.log('API error, checking for demo data. studentGradeEntries.length:', studentGradeEntries.length);
-        // If no results from backend and we have grade entries, use demo data
+        // If API failed and we have grade entries, use demo data
         if (studentGradeEntries.length > 0) {
-          console.log('Activating demo data mode');
+          console.log('Activating demo data mode due to API error');
           setUseDemoData(true);
           setResults([]);
           setMissing([]);
