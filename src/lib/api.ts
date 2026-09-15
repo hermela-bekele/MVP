@@ -207,7 +207,7 @@ export class ApiError extends Error {
   }
 }
 
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 30000; // Increased to 30 seconds for slow connections
 
 function authHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};

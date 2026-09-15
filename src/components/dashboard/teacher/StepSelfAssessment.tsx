@@ -66,7 +66,7 @@ export const StepSelfAssessment: React.FC = () => {
       <AisPage>
         <AisPanel
           title="Your latest self-assessment"
-          description={`Submitted ${new Date(latest.submittedAt).toLocaleDateString()} · shared with your HoD`}
+          description={`Submitted ${new Date(latest.submittedAt).toLocaleDateString()}`}
           actions={
             <AisBtnSecondary onClick={() => setIsRetaking(true)}>
               <RotateCcw className="h-4 w-4" /> Retake
@@ -123,10 +123,8 @@ export const StepSelfAssessment: React.FC = () => {
 
   return (
     <AisPage>
-      <AisPanel
-        title="Self-assessment"
-        description="Rate yourself honestly on each competency. Your HoD will use this alongside AI gap-analysis on your students' results to assign the right training — not to judge you."
-      >
+      <AisPanel>
+
         <div className="space-y-6">
           {groupedByCategory.map(([category, items]) => (
             <div key={category}>

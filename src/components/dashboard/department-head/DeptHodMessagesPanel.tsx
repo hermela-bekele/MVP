@@ -9,6 +9,7 @@ import {
   aisInput,
 } from '@/components/dashboard/teacher/TeacherPortalUi';
 import { isSubjectTeacher, resolveDeptHeadScope } from '@/lib/departmentHead';
+import { resolveHeadOfAcademicsScope } from '@/lib/headOfAcademicsPortal';
 import { avatarColor, communityInitials } from '@/components/dashboard/teacher/community/communityUi';
 import {
   HOD_THREAD_SELECT_EVENT,
@@ -41,13 +42,19 @@ export function DeptHodMessagesPanel() {
   } = useApp();
 
   const scope = useMemo(() => resolveDeptHeadScope(currentUser), [currentUser]);
-  const deptTeachers = useMemo(
-    () =>
-      (scope ? teachers.filter((t) => isSubjectTeacher(t, scope)) : []).filter(
-        (t) => t.status === 'Active',
-      ),
-    [teachers, scope],
-  );
+  const hoaScope = useMemo(() => resolveHeadOfAcademicsScope(currentUser), [currentUser]);
+  
+  // Head of Academics sees ALL active teachers school-wide, department heads see only their department
+  const deptTeachers = useMemo(() => {
+    if (hoaScope) {
+      // Head of Academics: show all active teachers across all departments
+      return teachers.filter((t) => t.status === 'Active' && t.schoolId === hoaScope.schoolId);
+    }
+    // Department Head: show only teachers in their subject department
+    return (scope ? teachers.filter((t) => isSubjectTeacher(t, scope)) : []).filter(
+      (t) => t.status === 'Active',
+    );
+  }, [teachers, scope, hoaScope]);
 
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const [teacherSearch, setTeacherSearch] = useState('');
@@ -77,6 +84,15 @@ export function DeptHodMessagesPanel() {
   }, [selectedTeacherId]);
 
   useEffect(() => {
+    // Head of Academics: fetch messages for the entire school
+    if (hoaScope) {
+      void refreshStaffMessages({ schoolId: hoaScope.schoolId });
+      const id = window.setInterval(() => {
+        void refreshStaffMessages({ schoolId: hoaScope.schoolId });
+      }, 3500);
+      return () => window.clearInterval(id);
+    }
+    // Department Head: fetch messages for their department only
     if (!scope?.departmentId) return;
     void refreshStaffMessages({ departmentId: scope.departmentId });
     const id = window.setInterval(() => {
@@ -84,7 +100,7 @@ export function DeptHodMessagesPanel() {
     }, 3500);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope?.departmentId]);
+  }, [scope?.departmentId, hoaScope?.schoolId]);
 
   const thread = useMemo(
     () =>
@@ -106,10 +122,10 @@ export function DeptHodMessagesPanel() {
 
   useEffect(() => {
     if (selectedTeacherId) {
-      markStaffMessagesRead(selectedTeacherId, 'department-head');
+      markStaffMessagesRead(selectedTeacherId, hoaScope ? 'head-of-academics' : 'department-head');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTeacherId, thread.length]);
+  }, [selectedTeacherId, thread.length, hoaScope]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -122,10 +138,12 @@ export function DeptHodMessagesPanel() {
       await sendStaffMessage({
         teacherId: selectedTeacherId,
         body: draft.trim(),
-        senderRole: 'department-head',
+        senderRole: hoaScope ? 'head-of-academics' : 'department-head',
       });
       setDraft('');
-      if (scope?.departmentId) {
+      if (hoaScope) {
+        await refreshStaffMessages({ schoolId: hoaScope.schoolId });
+      } else if (scope?.departmentId) {
         await refreshStaffMessages({ departmentId: scope.departmentId });
       }
     } finally {
@@ -158,7 +176,7 @@ export function DeptHodMessagesPanel() {
             <div className="min-h-0 overflow-y-auto">
               {deptTeachers.length === 0 ? (
                 <p className="px-3 py-4 text-xs text-ais-on-surface-variant">
-                  No active teachers in this department.
+                  {hoaScope ? 'No active teachers in this school.' : 'No active teachers in this department.'}
                 </p>
               ) : filteredTeachers.length === 0 ? (
                 <p className="px-3 py-4 text-xs text-ais-on-surface-variant">
@@ -212,6 +230,7 @@ export function DeptHodMessagesPanel() {
                 thread.map((msg) => {
                   const mine =
                     msg.senderRole === 'department-head' ||
+                    msg.senderRole === 'head-of-academics' ||
                     msg.senderId === currentUser?.id;
                   return (
                     <div

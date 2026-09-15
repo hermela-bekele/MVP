@@ -41,6 +41,7 @@ import { DeptAnnualPlanPanel } from "@/components/dashboard/department-head/Dept
 import { DeptLessonPlansPanel } from "@/components/dashboard/department-head/DeptLessonPlansPanel";
 import { DeptGapAnalysisPanel } from "@/components/dashboard/department-head/DeptGapAnalysisPanel";
 import { DeptTeacherDevelopmentAssignmentPanel } from "@/components/dashboard/department-head/DeptTeacherDevelopmentAssignmentPanel";
+import { DeptTeacherSelfAssessmentsPanel } from "@/components/dashboard/department-head/DeptTeacherSelfAssessmentsPanel";
 import { DeptFeedbackPanel } from "@/components/dashboard/department-head/DeptFeedbackPanel";
 import { DeptResourcesReviewPanel } from "@/components/dashboard/department-head/DeptResourcesReviewPanel";
 import { DeptWellnessCheckins } from "@/components/dashboard/department-head/DeptWellnessCheckins";
@@ -1202,6 +1203,8 @@ export default function DeptHeadPortalApp() {
 
       {activeTab === "training" && (
         <div className="space-y-6 animate-fade-in">
+          {/* Temporarily disabled: Self-assessment tracking */}
+          {/* <DeptTeacherSelfAssessmentsPanel /> */}
           <DeptGapAnalysisPanel />
           <DeptTeacherDevelopmentAssignmentPanel />
         </div>

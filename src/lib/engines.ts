@@ -32,17 +32,19 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
 
 const SCHOOL_HEAD_REGULATORY_LABEL = 'Regulatory & Resource Engine';
 const MOE_CURRICULUM_LABEL = 'Resource & Communication';
-const MOE_CURRICULUM_DESCRIPTION = 'School communication and resource uploading engine.';
+const MOE_CURRICULUM_DESCRIPTION = 'School communication and resource uploads to schools.';
+const HEAD_OF_ACADEMICS_CURRICULUM_DESCRIPTION = 'Academic results, transcripts, resources, and school calendar.';
+const HEAD_OF_ACADEMICS_ADMINISTRATIVE_DESCRIPTION = 'Overview dashboard for school-wide performance.';
 
 export const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
-  administrative: 'School operations, staff, resources, and oversight.',
-  registrar: 'Admissions, enrollment, and student records.',
+  administrative: 'School operations, staff management, and oversight.',
+  registrar: 'Student admissions, enrollment, and academic records.',
   curriculum: 'Curriculum planning and instructional resources.',
-  regulatory: 'MOE compliance, circulars, and direct communication with the Ministry of Education.',
-  training: 'Professional development and training programs.',
-  academic: 'Classes, students, grading, and day-to-day instruction.',
-  teaching: 'Lesson delivery, teaching notes, assessments, and resources.',
-  management: 'Classroom, student, and attendance administration.',
+  regulatory: 'MOE compliance and direct communication.',
+  training: 'Professional development programs and resources.',
+  academic: 'Lesson plan approval, teacher development, and assessments.',
+  teaching: 'Lesson plans, assessments, resources, and attendance.',
+  management: 'Classroom and student administration.',
   communications: 'Messaging, feedback, and check-ins across the school.',
 };
 
@@ -78,6 +80,12 @@ export function engineLabel(engine: EngineId, role?: PortalRole): string {
 export function engineDescription(engine: EngineId, role?: PortalRole): string {
   if (engine === 'curriculum' && role === 'moe') {
     return MOE_CURRICULUM_DESCRIPTION;
+  }
+  if (engine === 'curriculum' && role === 'head-of-academics') {
+    return HEAD_OF_ACADEMICS_CURRICULUM_DESCRIPTION;
+  }
+  if (engine === 'administrative' && role === 'head-of-academics') {
+    return HEAD_OF_ACADEMICS_ADMINISTRATIVE_DESCRIPTION;
   }
   return ENGINE_DESCRIPTIONS[engine];
 }

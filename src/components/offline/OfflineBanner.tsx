@@ -24,7 +24,22 @@ export const OfflineBanner: React.FC = () => {
     isDataLoading,
   } = useApp();
 
-  const offline = !isOnline;
+  // POLLING FALLBACK: Check navigator.onLine directly as backup since window events may not fire reliably
+  const [polledOnlineState, setPolledOnlineState] = React.useState(true);
+
+  React.useEffect(() => {
+    // Poll navigator.onLine every 2 seconds as fallback detection
+    const interval = setInterval(() => {
+      if (typeof navigator !== 'undefined') {
+        setPolledOnlineState(navigator.onLine);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use polled state as authoritative source (more reliable than events)
+  const offline = !polledOnlineState;
   const cached = dataSource === 'offline-cache';
   const mock = dataSource === 'mock';
 
@@ -65,7 +80,7 @@ export const OfflineBanner: React.FC = () => {
         )}
         <p className="min-w-0 leading-snug">{message}</p>
       </div>
-      {isOnline && (
+      {!offline && (
         <button
           type="button"
           disabled={isDataLoading}

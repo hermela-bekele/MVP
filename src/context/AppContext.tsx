@@ -589,15 +589,16 @@ interface AppContextType {
   sendStaffMessage: (payload: {
     teacherId: string;
     body: string;
-    senderRole: "teacher" | "department-head";
+    senderRole: "teacher" | "department-head" | "head-of-academics";
   }) => Promise<void>;
   refreshStaffMessages: (params?: {
     teacherId?: string;
     departmentId?: string;
+    schoolId?: string;
   }) => Promise<void>;
   markStaffMessagesRead: (
     teacherId: string,
-    readerRole: "teacher" | "department-head",
+    readerRole: "teacher" | "department-head" | "head-of-academics",
   ) => void;
   sendDeptHeadMessage: (payload: {
     departmentId: string;
@@ -1655,7 +1656,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const submitRegistrationApplication = (
     appData: Omit<RegistrationApplication, "id" | "status" | "submittedAt">,
   ) => {
-    // eslint-disable-next-line react-hooks/purity
+     
     const timestamp = Date.now();
     const app: RegistrationApplication = {
       ...appData,
@@ -2091,7 +2092,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const submitSelfAssessment = (data: Omit<TeacherSelfAssessment, 'id' | 'submittedAt'>) => {
     void api.submitSelfAssessment(data as unknown as Record<string, unknown>).then((sa) => {
       setTeacherSelfAssessments((prev) => [sa as TeacherSelfAssessment, ...prev]);
-      addNotification('Self-Assessment Submitted', 'Your self-assessment has been recorded and shared with your department head.', 'success');
+      addNotification('Self-Assessment Submitted', 'Your self-assessment has been recorded.', 'success');
     }).catch(() => void refreshFromApi());
   };
 
@@ -2656,7 +2657,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       "id" | "schoolId" | "status" | "createdAt" | "publishedAt"
     >,
   ): string => {
-    // eslint-disable-next-line react-hooks/purity
+     
     const timestamp = Date.now();
     const calendar: AcademicCalendar = {
       ...calendarData,
@@ -3357,6 +3358,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshStaffMessages = async (params?: {
     teacherId?: string;
     departmentId?: string;
+    schoolId?: string;
   }) => {
     try {
       const messages = await api.getStaffMessages(params);

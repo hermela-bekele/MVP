@@ -53,6 +53,7 @@ export function AisPage({ children, className = '' }: { children: React.ReactNod
 export function AisPanel({
   title,
   description,
+  tooltip,
   actions,
   children,
   className = '',
@@ -60,11 +61,14 @@ export function AisPanel({
 }: {
   title?: string;
   description?: string;
+  tooltip?: { description: string };
   actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   flush?: boolean;
 }) {
+  const tooltipContent = tooltip?.description || description;
+  
   return (
     <div className={`${aisCard} overflow-visible ${className}`}>
       {(title || description || actions) && (
@@ -73,11 +77,15 @@ export function AisPanel({
             {title && (
               <h3 className={`${aisHeadlineSm} !text-title flex items-center gap-1.5`}>
                 {title}
-                {description && (
-                  <Tooltip content={description}>
+                {tooltipContent && (
+                  <Tooltip 
+                    content={tooltipContent}
+                    tooltipClassName="whitespace-normal max-w-xs leading-relaxed"
+                    position="bottom-right"
+                  >
                     <Info
                       className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-colors hover:text-primary cursor-help"
-                      aria-label={description}
+                      aria-label={tooltipContent}
                     />
                   </Tooltip>
                 )}

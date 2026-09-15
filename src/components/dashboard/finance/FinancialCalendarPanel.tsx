@@ -58,7 +58,7 @@ export function FinancialCalendarPanel() {
         setPeriods(per);
       })
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [schoolId]);
 
   const entries = useMemo<CalendarEntry[]>(() => {

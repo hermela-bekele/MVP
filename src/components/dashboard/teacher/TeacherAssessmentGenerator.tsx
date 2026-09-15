@@ -176,7 +176,7 @@ export function TeacherAssessmentGenerator() {
         setTopic(firstSession.topic);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [sourceType, selectedPlan]);
 
   useEffect(() => {
@@ -204,7 +204,7 @@ export function TeacherAssessmentGenerator() {
     } else if (topic && type) {
       setTitle(`${type} on ${topic}`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [topic, type, sourceType, selectedPlan, combinedSession, isBaseline, grade, subject, baselineTiming]);
 
   const goBackToList = () => router.push('/dashboard/teacher/assessments');
